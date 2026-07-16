@@ -42,7 +42,7 @@ created: 2026-07-16
 | T-01-04 | Tampering | Row re-parenting via UPDATE | high | mitigate | UPDATE policy carries `with check ((select auth.uid()) = user_id)` and INSERT `with check` (`0002_resumes.sql:20-27`); live re-parent probe errors/0-rows (`verify-rls.ts:139-144`) | closed |
 | T-01-05 | Tampering/DoS | Malicious / oversized upload | medium | mitigate | Server-side bucket `file_size_limit` 5 MB + DOCX/PDF MIME allowlist (`0003_storage.sql:1-12`); client-side extension gate as UX (`web/src/lib/resumes.ts:23-29`) | closed |
 | T-01-06 | Spoofing | Reset-link redirectTo (open redirect) | medium | mitigate | `redirectTo` built from `window.location.origin` only — not user-controlled (`web/src/pages/Login.tsx:42-45`); current OTP flow does not rely on a clickable link; Supabase redirect allowlist (dashboard, Task 2) | closed |
-| T-01-07 | Elevation | Password change on stolen session | medium | mitigate | `updateUser` sends `current_password` reauth attribute (`web/src/pages/Settings.tsx:14-20`) — **but empirically OFF**: `security_update_password_require_reauthentication` is disabled on the hosted project, so `current_password` is ignored and reauth silently no-ops (see Audit Trail 2026-07-16 probe / CR-01). A live-session password change needs no current password. | **open** — non-blocking (medium < high); fix = enable dashboard flag, re-verify pending |
+| T-01-07 | Elevation | Password change on stolen session | medium | mitigate | Reauthentication enforced in application code (quick task 260716-nw6, commit `def0e91`): `changePassword` calls `reauthenticate(email, currentPassword)` — an isolated non-persisting `signInWithPassword` — and throws before `updateUser` on failure (`web/src/lib/supabase.ts` `reauthenticate`, `web/src/pages/Settings.tsx changePassword`). Independent of the server-side reauth flag. Regression covered by `web/src/pages/Settings.test.ts` (wrong current password never reaches `updateUser`). | closed |
 | T-01-08 | Repudiation/Info disclosure | Partial delete-all (orphan files) | high | mitigate | Storage-first: list all paths → batch `remove` with per-batch and total count-equality assertion, throws before RPC on mismatch, then `rpc('delete_my_data')` (`web/src/pages/Settings.tsx:44-65`); both-sides-empty proof (`scripts/verify-deletion.ts:135-148`) | closed |
 | T-01-09 | Elevation | Public signup path | high | mitigate | Zero `signUp` calls in `web/src` (grep=0); dashboard signup toggle OFF (Task 2); third-account probe expected to fail (`scripts/verify-auth.ts`, per 01-01 acceptance) | closed |
 | T-01-10 | Spoofing | No 2FA (D-07) | low | accept | See Accepted Risks Log (AR-01) | closed |
@@ -82,6 +82,7 @@ No unregistered flags requiring escalation.
 |------------|---------------|--------|------|--------|
 | 2026-07-16 | 14 | 14 | 0 | gsd-security-auditor (ASVS L1, block_on: high) |
 | 2026-07-16 | 14 | 13 | 1 (T-01-07, medium, non-blocking) | Post-review empirical probe — code review CR-01 confirmed. Non-mutating two-call `updateUser` probe (wrong vs real `current_password`, new==current) returned identical `same_password` errors → `current_password` ignored → reauth no-op. Original password unchanged. |
+| 2026-07-16 | 14 | 14 | 0 | T-01-07 / CR-01 remediated in code (quick task 260716-nw6, commit `def0e91`): `changePassword` now reauthenticates via an isolated `signInWithPassword` before `updateUser`, independent of the dashboard flag. 26/26 vitest pass incl. a wrong-current-password regression; lint + build clean. |
 
 ---
 
@@ -89,10 +90,10 @@ No unregistered flags requiring escalation.
 
 - [x] All threats have a disposition (mitigate / accept / transfer)
 - [x] Accepted risks documented in Accepted Risks Log
-- [x] `threats_open: 0` confirmed (T-01-07 reopened post-review is medium — below the high block threshold, so non-blocking)
+- [x] `threats_open: 0` confirmed (T-01-07 reopened post-review, then closed by the code-level reauth fix)
 - [x] `status: verified` set in frontmatter
 
-**Approval:** verified 2026-07-16 (amended 2026-07-16: T-01-07 reopened after empirical probe confirmed CR-01; chosen fix = enable Supabase `security_update_password_require_reauthentication`; re-verify pending)
+**Approval:** verified 2026-07-16 (amended 2026-07-16: T-01-07 reopened after an empirical probe confirmed CR-01, then remediated in code — reauthentication now runs in `changePassword` via an isolated `signInWithPassword`, independent of the Supabase dashboard flag; commit `def0e91`, quick task 260716-nw6. threats_open back to 0.)
 
 ---
 
@@ -111,5 +112,8 @@ No unregistered flags requiring escalation.
   `current_password` on `updateUser` is only enforced when the project-level flag
   `security_update_password_require_reauthentication` is ON; a non-mutating empirical probe
   confirmed it is OFF, so reauth no-ops (code review CR-01). Reopened as medium/non-blocking.
-  Fix chosen: enable the dashboard flag (no code change), then re-run the probe to confirm
-  enforcement and close.
+  Enabling the dashboard flag did not take effect on re-probe, so the fix pivoted to
+  application code (option B): `changePassword` now reauthenticates via an isolated
+  `signInWithPassword` before `updateUser`, guaranteeing enforcement regardless of project
+  config. Closed by commit `def0e91` (quick task 260716-nw6). Note `scripts/verify-reauth.ts`
+  still reports the *server flag* as off by design — the code path no longer relies on it.

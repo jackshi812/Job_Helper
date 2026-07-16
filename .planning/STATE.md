@@ -6,9 +6,9 @@ current_phase: 2
 current_phase_name: Watchlist Ingestion & Monitoring
 status: ready_to_plan
 stopped_at: Phase 1 verified + transitioned; Phase 2 not yet planned
-last_updated: "2026-07-16T21:00:54.780Z"
+last_updated: "2026-07-16T22:20:00.000Z"
 last_activity: 2026-07-16
-last_activity_desc: Phase 1 complete, transitioned to Phase 2
+last_activity_desc: "Quick task 260716-nw6: code-level password reauth fix (CR-01/T-01-07 closed)"
 progress:
   total_phases: 4
   completed_phases: 1
@@ -80,6 +80,12 @@ Recent decisions affecting current work:
 ### Pending Todos
 
 None yet.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260716-nw6 | Enforce current-password reauthentication in Settings changePassword (CR-01/T-01-07) | 2026-07-16 | def0e91 | [260716-nw6-enforce-current-password-reauthenticatio](./quick/260716-nw6-enforce-current-password-reauthenticatio/) |
 
 ### Blockers/Concerns
 

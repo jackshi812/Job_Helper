@@ -66,10 +66,14 @@ if (error) throw error
 `updateUser` test (wrong vs real `current_password`, new password == current) returned the
 identical `same_password` error both times — the wrong current password was never rejected,
 proving `current_password` is ignored on the hosted project. Original password unchanged.
-**Fix chosen: option (a)** — enable Supabase project flag
-`security_update_password_require_reauthentication` (dashboard → Authentication → Email
-provider → secure password change). No code change; existing `current_password` field starts
-being enforced. Re-run the probe to confirm enforcement, then close CR-01 / T-01-07.
+
+**RESOLVED (2026-07-16, commit `def0e91`, quick task 260716-nw6):** Option (a) — enabling the
+dashboard flag — did not take effect on re-probe, so the fix pivoted to **option (b)**,
+reauthentication in application code. `web/src/lib/supabase.ts` now exports `reauthenticate`,
+which runs `signInWithPassword` on an isolated non-persisting client; `changePassword` calls it
+and throws before `updateUser` on failure. Enforcement no longer depends on any dashboard flag.
+Regression added in `web/src/pages/Settings.test.ts` (a wrong current password never reaches
+`updateUser`); 26/26 vitest pass, lint + build clean.
 
 ## Warnings
 
