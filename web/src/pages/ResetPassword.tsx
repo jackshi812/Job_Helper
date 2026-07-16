@@ -1,27 +1,96 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
+import { useSession } from '../auth/AuthProvider'
+import { classifyPasswordUpdateError } from '../auth/recovery'
 import { supabase } from '../lib/supabase'
 
 export function ResetPassword() {
   const navigate = useNavigate()
+  const { completePasswordRecovery, recoveryStatus } = useSession()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [sessionInvalid, setSessionInvalid] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setBusy(true)
     setError('')
 
-    const { error: updateError } = await supabase.auth.updateUser({ password })
-    setBusy(false)
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password })
 
-    if (updateError) {
-      setError('Unable to update password. Request a new reset link and try again.')
-      return
+      if (updateError) {
+        const classification = classifyPasswordUpdateError(updateError)
+        console.warn('[password-recovery] password update rejected', {
+          classification,
+          code: updateError.code ?? 'unknown',
+          status: updateError.status ?? null,
+        })
+
+        if (classification === 'session_invalid') {
+          setSessionInvalid(true)
+          return
+        }
+        if (classification === 'weak_password') {
+          setError('Choose a stronger password and try again.')
+          return
+        }
+        if (classification === 'same_password') {
+          setError('Choose a password you have not used for this account.')
+          return
+        }
+        if (classification === 'rate_limited') {
+          setError('Too many attempts. Wait a moment and try again.')
+          return
+        }
+
+        setError('Unable to update password. Try again or request a new reset link.')
+        return
+      }
+
+      completePasswordRecovery()
+      navigate('/', { replace: true })
+    } catch {
+      console.warn('[password-recovery] password update failed', {
+        classification: 'network_or_unknown',
+      })
+      setError('Unable to update password. Check your connection and try again.')
+    } finally {
+      setBusy(false)
     }
+  }
 
-    navigate('/', { replace: true })
+  const effectiveRecoveryStatus = sessionInvalid ? 'invalid' : recoveryStatus
+
+  if (effectiveRecoveryStatus === 'checking') {
+    return (
+      <main className="grid min-h-screen place-items-center bg-slate-50 px-4 dark:bg-zinc-950">
+        <section className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">Checking reset link</h1>
+          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">Confirming that this password-reset link is valid…</p>
+        </section>
+      </main>
+    )
+  }
+
+  if (effectiveRecoveryStatus !== 'ready') {
+    return (
+      <main className="grid min-h-screen place-items-center bg-slate-50 px-4 dark:bg-zinc-950">
+        <section className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">Reset link unavailable</h1>
+          <p role="alert" className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+            This password-reset link is invalid or expired. Request a new link from the sign-in page.
+          </p>
+          <Link
+            to="/login"
+            className="mt-5 inline-block text-sm font-medium text-zinc-700 underline underline-offset-4 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
+          >
+            Return to sign in
+          </Link>
+        </section>
+      </main>
+    )
   }
 
   return (
