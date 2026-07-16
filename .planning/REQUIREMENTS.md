@@ -96,13 +96,44 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmap) | | |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| PREF-01 | Phase 3 | Pending |
+| PREF-02 | Phase 2 | Pending |
+| PREF-03 | Phase 2 | Pending |
+| PREF-04 | Phase 2 | Pending |
+| DISC-01 | Phase 2 | Pending |
+| DISC-02 | Phase 2 | Pending |
+| DISC-03 | Phase 2 | Pending |
+| DISC-04 | Phase 2 | Pending |
+| DISC-05 | Phase 2 | Pending |
+| DISC-06 | Phase 2 | Pending |
+| SCOR-01 | Phase 3 | Pending |
+| SCOR-02 | Phase 3 | Pending |
+| SCOR-03 | Phase 3 | Pending |
+| SCOR-04 | Phase 3 | Pending |
+| SCOR-05 | Phase 3 | Pending |
+| NOTF-01 | Phase 3 | Pending |
+| NOTF-02 | Phase 3 | Pending |
+| NOTF-03 | Phase 3 | Pending |
+| NOTF-04 | Phase 3 | Pending |
+| RESU-01 | Phase 3 | Pending |
+| RESU-02 | Phase 4 | Pending |
+| RESU-03 | Phase 4 | Pending |
+| RESU-04 | Phase 4 | Pending |
+| RESU-05 | Phase 4 | Pending |
+| TRAK-01 | Phase 4 | Pending |
+| TRAK-02 | Phase 4 | Pending |
+| TRAK-03 | Phase 4 | Pending |
+| TRAK-04 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 32 total
-- Mapped to phases: 0
-- Unmapped: 32 ⚠️ (roadmap pending)
+- Mapped to phases: 32
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-15*
-*Last updated: 2026-07-15 after initial definition*
+*Last updated: 2026-07-15 after roadmap creation (traceability populated)*
