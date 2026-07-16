@@ -88,5 +88,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-07-16 (resumed; Phase 1 plans reviewed + patched)
-Stopped at: Phase 1 plans revised per external (codex) review — 3 fixes applied (verify-deletion destructive preflight, pinned Supabase CLI binary path, .gitignore covers .DS_Store + research cache) + gh-push approval gate. Ready to execute.
+Stopped at: Phase 1 plans revised per external (codex) review — safety/reproducibility fixes applied, and Plan 03 now uses the existing jackshi812/Job_Helper origin with an approval-gated push. Ready to execute.
 Resume file: .planning/phases/01-foundation-access/.continue-here.md
