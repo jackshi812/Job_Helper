@@ -13,7 +13,7 @@ Four vertical phases, each ending with something two real users can exercise end
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation & Access** - Deployed app with invite-only auth for two users and RLS-enforced data isolation
+- [x] **Phase 1: Foundation & Access** - Deployed app with invite-only auth for two users and RLS-enforced data isolation (completed 2026-07-16)
 - [ ] **Phase 2: Watchlist Ingestion & Monitoring** - New postings from 100+ watched sites land deduplicated within 5–15 minutes, with visible pipeline health
 - [ ] **Phase 3: Scoring, Feed & Notifications** - Preferences + cheap filters + AI scoring produce a match feed, and strong matches trigger push + email alerts
 - [ ] **Phase 4: Resume Tailoring & Tracker** - Truthful DOCX-preserving tailoring to PDF with mandatory review, plus a manual application tracker
@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Logged in as either account, no query or API call can read or modify the other user's rows (preferences, resumes, watchlist, applications, jobs) — verified with both accounts
   4. User can delete their own resumes and data, and the deleted items are gone from both the database and storage
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -46,7 +46,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-03-PLAN.md — Settings deletion flows, Cloudflare Pages deploy, end-to-end phase verification
+- [x] 01-03-PLAN.md — Settings deletion flows, Cloudflare Pages deploy, end-to-end phase verification
 
 ### Phase 2: Watchlist Ingestion & Monitoring
 
@@ -105,7 +105,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Access | 2/3 | In Progress|  |
+| 1. Foundation & Access | 3/3 | Complete   | 2026-07-16 |
 | 2. Watchlist Ingestion & Monitoring | 0/TBD | Not started | - |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
