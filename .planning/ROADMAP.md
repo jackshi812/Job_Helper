@@ -29,7 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User remains logged in after a browser refresh
   3. Logged in as either account, no query or API call can read or modify the other user's rows (preferences, resumes, watchlist, applications, jobs) — verified with both accounts
   4. User can delete their own resumes and data, and the deleted items are gone from both the database and storage
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Walking skeleton: scaffold + schema + seeded invite-only login proven end-to-end
+- [ ] 01-02-PLAN.md — Resumes vertical slice (upload/list/download/delete) + two-account RLS proof
+- [ ] 01-03-PLAN.md — Settings deletion flows, Cloudflare Pages deploy, end-to-end phase verification
 
 ### Phase 2: Watchlist Ingestion & Monitoring
 **Goal**: New postings from 100+ watched career sites plus an aggregator land in the system exactly once, within the 5–15 minute window, with per-company health and pipeline liveness visible to the user
@@ -79,7 +84,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Access | 0/TBD | Not started | - |
+| 1. Foundation & Access | 0/3 | Not started | - |
 | 2. Watchlist Ingestion & Monitoring | 0/TBD | Not started | - |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
