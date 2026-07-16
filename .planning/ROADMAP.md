@@ -7,6 +7,7 @@ Four vertical phases, each ending with something two real users can exercise end
 ## Phases
 
 **Phase Numbering:**
+
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
@@ -20,60 +21,80 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Foundation & Access
+
 **Goal**: Two invited users can securely access the deployed app, with every row of their data fully isolated and under their own control
 **Mode:** mvp
 **Depends on**: Nothing (first phase)
 **Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04
 **Success Criteria** (what must be TRUE):
+
   1. Each of the two invited users can log in with email/password at the deployed URL, and no public signup path exists
   2. User remains logged in after a browser refresh
   3. Logged in as either account, no query or API call can read or modify the other user's rows (preferences, resumes, watchlist, applications, jobs) — verified with both accounts
   4. User can delete their own resumes and data, and the deleted items are gone from both the database and storage
+
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 01-01-PLAN.md — Walking skeleton: scaffold + schema + seeded invite-only login proven end-to-end
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 01-02-PLAN.md — Resumes vertical slice (upload/list/download/delete) + two-account RLS proof
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 01-03-PLAN.md — Settings deletion flows, Cloudflare Pages deploy, end-to-end phase verification
 
 ### Phase 2: Watchlist Ingestion & Monitoring
+
 **Goal**: New postings from 100+ watched career sites plus an aggregator land in the system exactly once, within the 5–15 minute window, with per-company health and pipeline liveness visible to the user
 **Mode:** mvp
 **Depends on**: Phase 1
 **Requirements**: PREF-02, PREF-03, PREF-04, DISC-01, DISC-02, DISC-03, DISC-04, DISC-05, DISC-06
 **Success Criteria** (what must be TRUE):
+
   1. User can add, edit, and remove companies on a watchlist page by pasting career-site URLs; the system auto-detects Greenhouse/Lever/Ashby and stores the polling endpoint
   2. A job newly posted by a watched company appears in the system within 15 minutes of publication, and appears exactly once even when the aggregator also carries it or the company reposts it
   3. Every captured job has a JD snapshot taken at first sight, and jobs that disappear from ATS polls are marked closed
   4. User can view per-company monitoring health (last successful poll, consecutive failures flagged), and a dead or silently failing cron is surfaced within one poll cycle via the pipeline heartbeat
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 3: Scoring, Feed & Notifications
+
 **Goal**: User is alerted within minutes of a relevant new posting — cheap filters gate AI cost, AI scores survivors against the user's own resume and preferences, and only deduplicated matches above the user's threshold notify
 **Mode:** mvp
 **Depends on**: Phase 2
 **Requirements**: PREF-01, RESU-01, SCOR-01, SCOR-02, SCOR-03, SCOR-04, SCOR-05, NOTF-01, NOTF-02, NOTF-03, NOTF-04
 **Success Criteria** (what must be TRUE):
+
   1. User can set target titles, locations, and include/exclude keywords, and obviously irrelevant postings are discarded by cheap filters before any AI call is made
   2. User can upload and manage multiple DOCX base resumes in private encrypted storage, and surviving postings receive AI scores with plain-language match reasons grounded in that resume and the user's preferences
   3. User can view a dashboard feed of new matches showing score, match reasons, posted-time, and a direct link to the employer's apply page, plus a job detail view with the full JD snapshot and an advisory keyword-gap panel
   4. A strong match triggers a browser web push (with the tab closed while the browser runs) and a backup email that respects the free-tier digest cap — and notifications fire only for deduplicated, scored jobs above the user's threshold
   5. User can tune their own score threshold and quiet hours, and alerts respect both
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 4: Resume Tailoring & Tracker
+
 **Goal**: User can turn any match into a truthfully tailored, formatting-faithful PDF resume after mandatory review, and track every application from saved through offer
 **Mode:** mvp
 **Depends on**: Phase 3
 **Requirements**: RESU-02, RESU-03, RESU-04, RESU-05, TRAK-01, TRAK-02, TRAK-03, TRAK-04
 **Success Criteria** (what must be TRUE):
+
   1. User can pick a base resume for a job and receive AI-suggested keyword edits that preserve the original DOCX formatting
   2. Edits only rephrase, reorder, or emphasize facts already in the resume — any term not present in the source resume is flagged programmatically before the user ever sees it
   3. User reviews proposed edits in a word-level diff view, must explicitly approve before any edit lands, and can then download the tailored resume as a PDF with formatting fidelity
   4. User can track applications through all seven stages (saved, resume prepared, applied, outreach sent, interview, rejected, offer), manually add jobs found outside the system, and attach notes to any tracked application
   5. Each tracked application links its JD snapshot and, once prepared, its tailored resume
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -106,6 +127,7 @@ All 32 v1 requirements mapped to exactly one phase:
 | Tracker | TRAK-01..04 | Phase 4 |
 
 Notes:
+
 - PREF-01 (job preferences) lands in Phase 3, not Phase 2, because preferences exist to drive the cheap filters built there.
 - RESU-01 (base resume upload) lands in Phase 3, not Phase 4, because AI scoring runs against the user's uploaded resume (research: Phase 3 rationale).
 
