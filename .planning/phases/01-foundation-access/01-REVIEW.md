@@ -62,6 +62,15 @@ const { error } = await supabase.auth.updateUser({ password: newPassword })
 if (error) throw error
 ```
 
+**Verification (2026-07-16):** CONFIRMED by empirical probe. A non-mutating two-call
+`updateUser` test (wrong vs real `current_password`, new password == current) returned the
+identical `same_password` error both times — the wrong current password was never rejected,
+proving `current_password` is ignored on the hosted project. Original password unchanged.
+**Fix chosen: option (a)** — enable Supabase project flag
+`security_update_password_require_reauthentication` (dashboard → Authentication → Email
+provider → secure password change). No code change; existing `current_password` field starts
+being enforced. Re-run the probe to confirm enforcement, then close CR-01 / T-01-07.
+
 ## Warnings
 
 ### WR-01: Object URL revoked immediately after `click()` can truncate downloads
