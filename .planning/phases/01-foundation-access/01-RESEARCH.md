@@ -514,16 +514,19 @@ useEffect(() => {
 | A6 | Vite scaffold pins TS 5.x, not TS 7 | Standard Stack | If scaffold pins TS 7 and tooling breaks, pin `typescript@^5` manually |
 | A7 | `current_password` reauth param on `updateUser` (supabase-js ≥2.102.0) works as documented | Security Domain | Optional hardening only; password change works without it |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Which reset-email delivery path? (needs a decision before the reset UI task)**
+1. **Which reset-email delivery path? (RESOLVED — adopted path (a) org-member add, with (c) as break-glass)**
    - What we know: default sender = team members only, 2/hr [VERIFIED]; custom SMTP available on free plan but Resend needs a verified domain; org-member add is free.
    - What's unclear: whether free-plan orgs accept a second member without friction (A2), and whether the users own a domain for Resend.
    - Recommendation: plan for **(a) org-member add** as primary (zero cost, zero new services), with the **admin reset script (c)** shipped in `scripts/` regardless as break-glass. Surface (b) Resend SMTP as the Phase 3 upgrade path (Resend gets configured then anyway for notifications).
-2. **Second user's email (D-03)**
+   - **Adopted:** (a) implemented as the org-member invite in plan 01-01 Task 2 step 7; (c) ships as `scripts/admin-reset-password.ts` in plan 01-03 Task 1; A2 is live-verified by the user-2 reset-email round trip in plan 01-03 Task 3's human check.
+2. **Second user's email (D-03) (RESOLVED — collected via env, not a plan blocker)**
    - Blocking only for the final seed-script run, not for building it. Script should read emails from env, so the plan isn't blocked on this.
-3. **Cloudflare Pages project creation is dashboard-manual**
+   - **Adopted:** user provides USER2's email at plan 01-01 Task 2 step 6 (`USER2_EMAIL` in `scripts/.env`); `scripts/seed-users.ts` reads both emails from env.
+3. **Cloudflare Pages project creation is dashboard-manual (RESOLVED — planned as human checkpoints)**
    - Git integration setup (connect repo, set build command `npm run build`, output `dist`, env vars) happens in the CF dashboard — plan this as a human-in-the-loop checkpoint, same for the Supabase project creation + signup toggle + URL configuration (no API/CLI on free tier covers all of it cleanly).
+   - **Adopted:** both became `checkpoint:human-action` tasks — Supabase provisioning/env population in plan 01-01 Task 2, Cloudflare Pages deploy + production auth URL config in plan 01-03 Task 2.
 
 ## Environment Availability
 
