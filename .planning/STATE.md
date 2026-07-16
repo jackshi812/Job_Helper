@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: Foundation & Access
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-07-16T16:56:33.449Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-07-16T17:12:06.105Z"
 last_activity: 2026-07-16
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-15)
 ## Current Position
 
 Phase: 01 (Foundation & Access) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-07-16 — Phase 01 execution started
 
-Progress: [███░░░░░░░] 33%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [███░░░░░░░] 33%
 - Trend: Baseline established
 
 *Updated after each plan completion*
+| Phase 01 P02 | 12m | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Recent decisions affecting current work:
 - [Phase 01]: Use Supabase client defaults for persistent, auto-refreshing browser sessions.
 - [Phase 01]: Keep privileged account provisioning in local scripts with gitignored credentials.
 - [Phase 01]: Use database and storage RLS as the authorization boundary; route guards are UX only.
+- [Phase 01]: Resume deletion is storage-first and requires the exact removed object path before metadata deletion.
+- [Phase 01]: Hosted RLS verification uses independent publishable-key sessions and never a privileged client.
+- [Phase 01]: Browser file round-trip judgment remains in the configured end-of-phase UAT batch.
 
 ### Pending Todos
 
@@ -90,6 +94,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16T16:56:22.904Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-07-16T17:11:38.404Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None

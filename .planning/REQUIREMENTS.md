@@ -11,8 +11,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **AUTH-01**: User can log in with email/password; signup is invite-only (exactly two accounts, no public registration)
 - [x] **AUTH-02**: User session persists across browser refresh
-- [ ] **AUTH-03**: Each user's data (preferences, resumes, watchlist, applications, jobs) is fully isolated via row-level security — no user can read another's rows
-- [ ] **AUTH-04**: User can delete their own resumes and data (user-controlled deletion)
+- [x] **AUTH-03**: Each user's data (preferences, resumes, watchlist, applications, jobs) is fully isolated via row-level security — no user can read another's rows
+- [x] **AUTH-04**: User can delete their own resumes and data (user-controlled deletion)
 
 ### Preferences & Watchlist
 
@@ -98,8 +98,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Complete |
+| AUTH-04 | Phase 1 | Complete |
 | PREF-01 | Phase 3 | Pending |
 | PREF-02 | Phase 2 | Pending |
 | PREF-03 | Phase 2 | Pending |
