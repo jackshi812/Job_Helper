@@ -33,12 +33,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Logged in as either account, no query or API call can read or modify the other user's rows (preferences, resumes, watchlist, applications, jobs) — verified with both accounts
   4. User can delete their own resumes and data, and the deleted items are gone from both the database and storage
 
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Walking skeleton: scaffold + schema + seeded invite-only login proven end-to-end
+- [x] 01-01-PLAN.md — Walking skeleton: scaffold + schema + seeded invite-only login proven end-to-end
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -105,7 +105,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Access | 0/3 | Not started | - |
+| 1. Foundation & Access | 1/3 | In Progress|  |
 | 2. Watchlist Ingestion & Monitoring | 0/TBD | Not started | - |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
