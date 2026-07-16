@@ -87,6 +87,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16 (resumed)
-Stopped at: Session resumed from HANDOFF.json — Phase 1 planned/verified, proceeding to execution
+Last session: 2026-07-16 (resumed; Phase 1 plans reviewed + patched)
+Stopped at: Phase 1 plans revised per external (codex) review — 3 fixes applied (verify-deletion destructive preflight, pinned Supabase CLI binary path, .gitignore covers .DS_Store + research cache) + gh-push approval gate. Ready to execute.
 Resume file: .planning/phases/01-foundation-access/.continue-here.md
