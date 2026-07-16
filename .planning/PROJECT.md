@@ -12,16 +12,15 @@ Discover relevant jobs fast (5–15 minutes from posting) and notify the user im
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Invite-only auth for exactly two users with fully separated data — Phase 1 (deployed at pages.dev; RLS proven by two-account cross-access probes; UAT 6/6)
+- ✓ Base resume management: upload multiple DOCX resumes per user — shipped early in Phase 1 as the walking-skeleton vertical slice (upload/list/download/delete, per-user storage isolation)
 
 ### Active
 
-- [ ] Invite-only auth for exactly two users with fully separated data (preferences, resumes, watchlists, applications, drafts)
 - [ ] Per-user job preferences (titles, locations, keywords) and watchlist of 100+ company career sites
 - [ ] Hybrid monitoring: public ATS endpoints (Greenhouse/Lever/Ashby JSON) for watchlist companies + one aggregator API for discovery outside watchlist
 - [ ] Deduplication and scoring pipeline: cheap filters (title/location/keywords) first, then AI scoring against user preferences and resume — AI called only on survivors
 - [ ] Near-instant notifications targeting the 5–15 minute goal: browser web push (desktop, works with tab closed) + email backup
-- [ ] Base resume management: upload multiple DOCX resumes per user
 - [ ] Resume tailoring: pick base resume, review AI keyword edits side by side, approve, download PDF — truthful edits only, user review mandatory
 - [ ] Manual application tracker with stages: saved, resume prepared, applied, outreach sent, interview, rejected, offer
 - [ ] Dashboard showing new matches with scores and match reasons
@@ -58,7 +57,10 @@ Discover relevant jobs fast (5–15 minutes from posting) and notify the user im
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Web app (not native app or extension) | No install, works anywhere, background monitoring runs server-side; extension deferred to autofill later | — Pending |
+| Web app (not native app or extension) | No install, works anywhere, background monitoring runs server-side; extension deferred to autofill later | ✓ Good — Phase 1: deployed on Cloudflare Pages, both users live |
+| RLS is the sole authorization boundary; route guards are UX only | Client checks are bypassable; Postgres/storage policies are not | ✓ Good — Phase 1: two-account cross-access probes all denied |
+| Storage-first deletion with exact removed-count assertion before row deletes | A failed file delete must leave a visible row to retry, never an orphan file | ✓ Good — Phase 1: verify-deletion.ts proves 0 rows AND 0 objects |
+| Password recovery via manual six-digit OTP + Gmail custom SMTP (supersedes org-member default-sender plan) | Email-security prefetch consumed clickable one-time reset links; Supabase default sender proved insufficient | ✓ Good — Phase 1 UAT: OTP round trip passed in production |
 | Hybrid monitoring (ATS endpoints + aggregator) | ATS JSON is reliable/free for watchlist; aggregator covers discovery beyond watchlist | — Pending |
 | DOCX as base resume format | Preserves user's own formatting; app edits text and converts to PDF | — Pending |
 | Cheap filters before AI scoring | Keeps AI cost near zero; AI only scores plausible candidates | — Pending |
@@ -84,4 +86,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-15 after initialization*
+*Last updated: 2026-07-16 after Phase 1*
