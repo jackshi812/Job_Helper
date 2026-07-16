@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
+import { requestPasswordRecoveryEmail } from '../auth/passwordRecovery'
 import { supabase } from '../lib/supabase'
 
 const genericError = 'Unable to complete request. Check your details and try again.'
@@ -37,11 +38,17 @@ export function Login() {
       return
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-    setBusy(false)
-    setMessage(error ? genericError : 'If the account exists, a reset link has been sent.')
+    try {
+      await requestPasswordRecoveryEmail(
+        email,
+        `${window.location.origin}/reset-password`,
+      )
+      navigate('/reset-password')
+    } catch {
+      setMessage(genericError)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (

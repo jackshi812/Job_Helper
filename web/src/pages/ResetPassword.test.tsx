@@ -49,6 +49,16 @@ describe('ResetPassword recovery gate', () => {
     expect(renderPage()).toContain('Update password')
   })
 
+  it('collects email, OTP code, and a new password for manual recovery', () => {
+    mocks.recovery.status = 'idle'
+
+    const markup = renderPage()
+    expect(markup).toContain('type="email"')
+    expect(markup).toContain('name="recovery-code"')
+    expect(markup).toContain('autoComplete="new-password"')
+    expect(markup).toContain('Verify code and update password')
+  })
+
   it('shows a non-actionable progress state while the callback is being checked', () => {
     mocks.recovery.status = 'checking'
 
