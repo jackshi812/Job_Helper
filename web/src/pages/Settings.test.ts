@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { supabase } from '../lib/supabase'
-import { matchesRequiredText } from '../components/TypeToConfirmDialog'
+import {
+  DELETE_CONFIRMATION_TEXT,
+  matchesRequiredText,
+} from '../components/TypeToConfirmDialog'
 import { changePassword, deleteAllMyData } from './Settings'
 
 vi.mock('../lib/supabase', () => ({
@@ -45,7 +48,7 @@ describe('Settings account actions', () => {
 
     await deleteAllMyData('user-1')
 
-    expect(list).toHaveBeenCalledWith('user-1', { limit: 1000 })
+    expect(list).toHaveBeenCalledWith('user-1', expect.objectContaining({ limit: 1000 }))
     expect(remove).toHaveBeenCalledWith(['user-1/one.docx', 'user-1/two.pdf'])
     expect(remove.mock.invocationCallOrder[0]).toBeLessThan(rpc.mock.invocationCallOrder[0])
     expect(rpc).toHaveBeenCalledWith('delete_my_data')
@@ -61,8 +64,8 @@ describe('Settings account actions', () => {
   })
 
   it('requires an exact type-to-confirm match', () => {
-    expect(matchesRequiredText('DELETE', 'DELETE')).toBe(true)
-    expect(matchesRequiredText('delete', 'DELETE')).toBe(false)
-    expect(matchesRequiredText(' DELETE ', 'DELETE')).toBe(false)
+    expect(matchesRequiredText('DELETE', DELETE_CONFIRMATION_TEXT)).toBe(true)
+    expect(matchesRequiredText('delete', DELETE_CONFIRMATION_TEXT)).toBe(false)
+    expect(matchesRequiredText(' DELETE ', DELETE_CONFIRMATION_TEXT)).toBe(false)
   })
 })
