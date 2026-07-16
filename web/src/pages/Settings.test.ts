@@ -4,6 +4,7 @@ import {
   DELETE_CONFIRMATION_TEXT,
   matchesRequiredText,
 } from '../components/TypeToConfirmDialog'
+import { reauthenticate } from '../lib/supabase'
 import { changePassword, deleteAllMyData } from './Settings'
 
 vi.mock('../lib/supabase', () => ({
@@ -12,26 +13,37 @@ vi.mock('../lib/supabase', () => ({
     storage: { from: vi.fn() },
     rpc: vi.fn(),
   },
+  reauthenticate: vi.fn(),
 }))
 
 const auth = supabase.auth as unknown as { updateUser: ReturnType<typeof vi.fn> }
 const storage = supabase.storage as unknown as { from: ReturnType<typeof vi.fn> }
 const rpc = supabase.rpc as unknown as ReturnType<typeof vi.fn>
+const reauthenticateMock = reauthenticate as unknown as ReturnType<typeof vi.fn>
 
 describe('Settings account actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('reauthenticates with the current password while changing it', async () => {
+  it('reauthenticates with the current password before changing it', async () => {
+    reauthenticateMock.mockResolvedValue({ error: null })
     auth.updateUser.mockResolvedValue({ data: {}, error: null })
 
-    await changePassword('old-password', 'new-password')
+    await changePassword('user@example.com', 'old-password', 'new-password')
 
-    expect(auth.updateUser).toHaveBeenCalledWith({
-      current_password: 'old-password',
-      password: 'new-password',
-    })
+    expect(reauthenticateMock).toHaveBeenCalledWith('user@example.com', 'old-password')
+    expect(auth.updateUser).toHaveBeenCalledWith({ password: 'new-password' })
+  })
+
+  it('does not change the password when reauthentication fails', async () => {
+    reauthenticateMock.mockResolvedValue({ error: new Error('Invalid login credentials') })
+
+    await expect(
+      changePassword('user@example.com', 'wrong-password', 'new-password'),
+    ).rejects.toThrow('Invalid login credentials')
+
+    expect(auth.updateUser).not.toHaveBeenCalled()
   })
 
   it('removes every listed object before deleting database rows', async () => {

@@ -6,17 +6,22 @@ import {
   DELETE_CONFIRMATION_TEXT,
   TypeToConfirmDialog,
 } from '../components/TypeToConfirmDialog'
-import { supabase } from '../lib/supabase'
+import { reauthenticate, supabase } from '../lib/supabase'
 
 const STORAGE_PAGE_SIZE = 1000
 const STORAGE_REMOVE_BATCH_SIZE = 100
 
-export async function changePassword(currentPassword: string, newPassword: string) {
-  const { error } = await supabase.auth.updateUser({
-    current_password: currentPassword,
-    password: newPassword,
-  })
+export async function changePassword(
+  email: string,
+  currentPassword: string,
+  newPassword: string,
+) {
+  // Reauthenticate in code: the server-side current_password enforcement flag is
+  // off on this project, so verify the current password ourselves before updating.
+  const { error: reauthError } = await reauthenticate(email, currentPassword)
+  if (reauthError) throw reauthError
 
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
   if (error) throw error
 }
 
@@ -83,7 +88,9 @@ export function Settings() {
     setPasswordError(null)
 
     try {
-      await changePassword(currentPassword, newPassword)
+      const email = session?.user.email
+      if (!email) throw new Error('You must be signed in')
+      await changePassword(email, currentPassword, newPassword)
       setCurrentPassword('')
       setNewPassword('')
       setPasswordMessage('Password updated. Use the new password the next time you sign in.')
