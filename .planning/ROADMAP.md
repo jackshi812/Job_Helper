@@ -61,8 +61,21 @@ Plans:
   3. Every captured job has a JD snapshot taken at first sight, and jobs that disappear from ATS polls are marked closed
   4. User can view per-company monitoring health (last successful poll, consecutive failures flagged), and a dead or silently failing cron is surfaced within one poll cycle via the pipeline heartbeat
 
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
+
+Plans:
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — Watchlist management slice: paste URL → ATS detect → live verify → shared table with health badges
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 02-02-PLAN.md — Ingestion pipeline slice: per-minute due-queue polling, two-layer dedup, JD snapshots, stale-close, health + heartbeat writes
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 02-03-PLAN.md — Aggregator + liveness slice: Adzuna sweep on seed queries, stale-pipeline banner, external dead-man's switch
 
 ### Phase 3: Scoring, Feed & Notifications
 
@@ -106,7 +119,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
-| 2. Watchlist Ingestion & Monitoring | 0/TBD | Not started | - |
+| 2. Watchlist Ingestion & Monitoring | 0/3 | Planned | - |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
