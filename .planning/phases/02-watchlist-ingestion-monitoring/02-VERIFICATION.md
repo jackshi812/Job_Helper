@@ -1,11 +1,12 @@
 ---
 phase: 02-watchlist-ingestion-monitoring
-verified: 2026-07-17T19:15:12Z
-status: human_needed
-score: 13/15 must-haves verified
-behavior_unverified: 2
+verified: 2026-07-17T20:11:25Z
+status: passed
+score: 15/15 must-haves verified
+behavior_unverified: 0
 overrides_applied: 1
 overrides:
+
   - must_have: "Aggregator jobs arrive within the MVP story's 5-15 minute window"
     reason: "User accepted a quota-safe Chicago cadence: every 30 minutes from 6 AM-noon and every two hours otherwise; the Phase 2 goal and implementation now use that cadence."
     accepted_by: "user"
@@ -14,6 +15,7 @@ re_verification:
   previous_status: gaps_found
   previous_score: 7/15
   gaps_closed:
+
     - "Hosted watchlist verification is disposable and preserves seed-company identities and job links."
     - "Returned closed exact-ID postings reopen while preserving first-sight snapshots."
     - "Concurrent poll ticks claim disjoint due-company batches with FOR UPDATE SKIP LOCKED."
@@ -22,41 +24,35 @@ re_verification:
     - "The superseded universal aggregator 5-15-minute promise is covered by the user-approved Chicago cadence override."
   gaps_remaining: []
   regressions: []
-behavior_unverified_items:
-  - truth: "A user can complete the deployed Watchlist add, replace-by-remove-and-re-add, and remove flow."
-    test: "In the deployed browser, add a supported board, replace it by removing and re-adding it, then remove it through the confirmation dialog."
-    expected: "The verified company appears, removal requires confirmation, re-add succeeds, and unrelated captured jobs remain intact."
-    why_human: "Library tests and hosted RLS probes do not exercise the rendered browser interaction."
-  - truth: "Health badges visibly communicate OK, Failing, and Stale with usable hover text in both themes."
-    test: "View Watchlist rows in each health state in light and dark themes and inspect the badge hover text."
-    expected: "The three states are distinct and readable, and the title reports the correct last-success context."
-    why_human: "Health derivation is unit-tested, but visual rendering, contrast, and native title hover are not covered by a component or browser test."
-human_verification:
+behavior_unverified_items: []
+human_verification_results:
+
   - test: "Complete the deployed Watchlist add, replace-by-remove-and-re-add, and remove flow."
-    expected: "The table and persisted state match each action; confirmation appears before removal; unrelated captured jobs remain."
-    why_human: "No browser test exercises the deployed form, table, and dialog together."
+    result: pass
+    source: "02-UAT.md test 1"
+
   - test: "Inspect OK, Failing, and Stale badges and their hover text in light and dark themes."
-    expected: "Every state is distinct, readable, and reports the correct last-success context."
-    why_human: "Visual quality and native hover behavior require browser inspection."
+    result: pass
+    source: "02-UAT.md test 2"
 ---
 
 # Phase 2: Watchlist Ingestion & Monitoring Verification Report
 
 **Phase Goal:** As a job seeker, I want to receive watched-site postings exactly once within 5-15 minutes and aggregator discovery every 30 minutes from 6 AM-noon Chicago and every two hours otherwise, so that I can trust my job feed without manually checking each career site.
-**Verified:** 2026-07-17T19:15:12Z
-**Status:** human_needed
+**Verified:** 2026-07-17T20:11:25Z
+**Status:** passed
 **Re-verification:** Yes — after all six blocking gaps were closed or explicitly overridden
 
 ## User Flow Coverage
 
 | Step | Expected | Evidence | Status |
 |------|----------|----------|--------|
-| Open Watchlist | A signed-in user sees real watched companies, source, health, and actions | `Watchlist.tsx:67-205` reads `companies` through `listCompanies()` and renders the table | ⚠ HUMAN — deployed appearance not exercised |
-| Add, replace, remove | A supported URL is verified before save; replace is remove-and-re-add; removal confirms first | `watchlist.ts:50-85`, `verify-board/index.ts:59-86`, and `Watchlist.tsx:77-201` are wired; hosted cross-user probes passed | ⚠ HUMAN — browser flow pending |
+| Open Watchlist | A signed-in user sees real watched companies, source, health, and actions | `Watchlist.tsx:67-205` plus passing `02-UAT.md` tests | ✓ VERIFIED |
+| Add, replace, remove | A supported URL is verified before save; replace is remove-and-re-add; removal confirms first | `watchlist.ts:50-85`, `verify-board/index.ts:59-86`, hosted probes, and UAT test 1 | ✓ VERIFIED |
 | Receive watched-site postings | Per-minute ticks claim disjoint due rows, poll ATS adapters, preserve snapshots, deduplicate, and reopen returned jobs | `0008_claim_exclusive.sql:11-24`, `poll-tick/index.ts:166-248`; lifecycle tests and hosted probes 1-15 passed | ✓ VERIFIED |
 | Receive aggregator postings | Chicago-local gating admits 30-minute morning slots and two-hour off-hour slots, with atomic quota reservation | `discovery-health.ts:44-67`, `0009_discovery_health_cadence.sql:35-57`, `0010`/`0011`; DST/quota tests and hosted probe 16 passed | ✓ VERIFIED |
-| Trust monitoring | Company health, scheduler heartbeat, discovery health, banner state, and external 503 surface are wired | `poll-tick/index.ts:225-324`, `heartbeat/index.ts:30-59`, `pipeline.ts:48-110`; deterministic health tests passed | ⚠ HUMAN — badge presentation pending |
-| Outcome | Feed freshness and integrity no longer require checking each career site manually | All automated integrity, cadence, and liveness checks pass; two browser presentation/flow checks remain | ⚠ HUMAN NEEDED |
+| Trust monitoring | Company health, scheduler heartbeat, discovery health, banner state, and external 503 surface are wired | Deterministic health tests plus passing UAT test 2 | ✓ VERIFIED |
+| Outcome | Feed freshness and integrity no longer require checking each career site manually | Automated integrity, cadence, and liveness checks plus both human UAT tests pass | ✓ VERIFIED |
 
 ## Goal Achievement
 
@@ -64,10 +60,10 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | User can add, replace-by-remove/re-add, and remove supported watched companies | ⚠ PRESENT_BEHAVIOR_UNVERIFIED | SPA and backend paths are substantive and wired; the deployed browser flow has not been exercised. |
+| 1 | User can add, replace-by-remove/re-add, and remove supported watched companies | ✓ VERIFIED | SPA/backend paths are wired and deployed browser UAT test 1 passed. |
 | 2 | Unsupported or unverifiable URLs teach and save nothing | ✓ VERIFIED | Shared allowlist detector and server rejection are wired; Vitest covers rejection before network and rejection without insert. |
 | 3 | Authenticated users share watchlist access while anonymous access is denied | ✓ VERIFIED | `0005_watchlist.sql` defines shared authenticated policies; the disposable hosted verifier passed twice. |
-| 4 | Rows visibly show OK, Failing, and Stale health with hover context | ⚠ PRESENT_BEHAVIOR_UNVERIFIED | `deriveHealth` boundaries pass and JSX contains all labels/palettes/title text; visual and hover behavior need browser inspection. |
+| 4 | Rows visibly show OK, Failing, and Stale health with hover context | ✓ VERIFIED | `deriveHealth` boundaries pass and deployed light/dark/hover UAT test 2 passed. |
 | 5 | Watched-board postings arrive within 15 minutes and exactly once across polls, reposts, and aggregator overlap | ✓ VERIFIED | Minute cron plus 9-minute due threshold and 10-row batches support 100+ boards; exclusive claims, unique identity, fingerprint conversion, and hosted dedup probes are wired. |
 | 6 | ATS jobs retain complete immutable first-sight snapshots | ✓ VERIFIED | All adapters produce full snapshots; update/reopen paths touch lifecycle fields only; hosted probe 3 and reopen probe passed. |
 | 7 | Successful non-empty disappearance closes a grace-expired job while failed or empty polls close nothing | ✓ VERIFIED | `planCompanySync` tests cover close, grace, empty, and closed-row cases; `poll-tick` applies `closeIds` only after successful polling. |
@@ -80,7 +76,7 @@ human_verification:
 | 14 | Aggregator jobs meet the superseded universal 5-15-minute cadence | PASSED (override) | User accepted the quota-safe Chicago cadence on 2026-07-17; ROADMAP and implementation now encode that exact replacement. |
 | 15 | Complete discovery failure is visible as a pipeline failure | ✓ VERIFIED | `summarizeDiscovery` returns failed/503 when all attempts fail; the function persists `discovery_status`; heartbeat and banner consume it. |
 
-**Score:** 13/15 truths verified (including 1 accepted override; 2 present but behavior-unverified)
+**Score:** 15/15 truths verified (including 1 accepted cadence override)
 
 ## Required Artifacts
 
@@ -147,9 +143,9 @@ No conventional `scripts/**/tests/probe-*.sh` files are declared. The phase uses
 
 | Requirement | Source Plans | Status | Evidence |
 |-------------|--------------|--------|----------|
-| PREF-02 | 02-01, 02-05 | ⚠ HUMAN | CRUD and shared RLS are implemented; full browser flow remains. |
+| PREF-02 | 02-01, 02-05 | ✓ SATISFIED | CRUD/shared RLS are implemented and deployed browser UAT test 1 passed. |
 | PREF-03 | 02-01 | ✓ SATISFIED | Detector and endpoint constructor support Greenhouse, Lever, and Ashby. |
-| PREF-04 | 02-01, 02-02, 02-06 | ⚠ HUMAN | Health data and state derivation are verified; badge presentation remains. |
+| PREF-04 | 02-01, 02-02, 02-06 | ✓ SATISFIED | Health derivation and deployed light/dark/hover presentation passed UAT test 2. |
 | DISC-01 | 02-02, 02-05, 02-07 | ✓ SATISFIED | Minute scheduling, 9-minute due threshold, batching, exclusive claims, and hosted proof. |
 | DISC-02 | 02-03, 02-06, 02-07 | ✓ SATISFIED | Adzuna discovery runs on the accepted quota-safe cadence. |
 | DISC-03 | 02-02, 02-04, 02-05 | ✓ SATISFIED | Stable IDs, fingerprint dedup, reopen semantics, and hosted repeated-poll proof. |
@@ -165,13 +161,13 @@ No orphaned Phase 2 requirement IDs were found.
 |-------|--------|------------|
 | Debt markers (`TBD`, `FIXME`, `XXX`) | None in 35 reviewed implementation files | ✓ CLEAN |
 | Placeholder scan | URL input placeholder and seed-query configuration comment only | ℹ Intentional, not stubs |
-| Partial requirement | PREF-02 edit is the locked remove-and-re-add equivalent | ⚠ Browser UAT retained |
+| Partial requirement | PREF-02 edit is the locked remove-and-re-add equivalent | ✓ Browser UAT passed |
 | Potentially misleading structural tests | SQL tests inspect locking/order text rather than execute PostgreSQL | ✓ Hosted probes/deploy evidence supplies the integration layer |
-| Uncovered presentation path | Watchlist mutation errors and native hover are not browser-tested | ⚠ Covered by the two human checks |
+| Presentation path | Watchlist flow and native hover require human judgment | ✓ Both human checks passed |
 
 The final standard-depth code review covered 35 files and reported 0 critical, 0 warning, and 0 informational findings.
 
-## Human Verification Required
+## Human Verification Completed
 
 ### 1. Deployed Watchlist flow
 
@@ -179,7 +175,7 @@ The final standard-depth code review covered 35 files and reported 0 critical, 0
 
 **Expected:** The table and persisted state match every action, removal always confirms first, and unrelated captured jobs remain intact.
 
-**Why human:** Unit tests and hosted RLS probes do not exercise the rendered browser interaction.
+**Result:** PASS — recorded in `02-UAT.md` test 1 on 2026-07-17.
 
 ### 2. Health badge presentation
 
@@ -187,7 +183,7 @@ The final standard-depth code review covered 35 files and reported 0 critical, 0
 
 **Expected:** States are distinct and readable and the hover text reports correct last-success context.
 
-**Why human:** Visual contrast and native title hover behavior are not covered by deterministic tests.
+**Result:** PASS — recorded in `02-UAT.md` test 2 on 2026-07-17.
 
 ## Recovery Email Waiver
 
@@ -195,9 +191,9 @@ The cron-job.org failure email was observed. Receipt of a later recovery email w
 
 ## Gaps Summary
 
-All six prior blocking gaps are closed or covered by the accepted cadence override. No implementation gap or regression remains. The phase is `human_needed` solely for the two browser/UI checks above; it must not be marked `passed` until those checks are resolved or explicitly waived.
+All six prior blocking gaps are closed or covered by the accepted cadence override. Both remaining human browser/UI checks passed. No implementation gap or regression remains; the phase is `passed`.
 
 ---
 
-_Verified: 2026-07-17T19:15:12Z_
+_Verified: 2026-07-17T20:11:25Z_
 _Verifier: the agent (gsd-verifier)_

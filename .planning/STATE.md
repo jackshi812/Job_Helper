@@ -2,36 +2,36 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 02
-current_phase_name: watchlist-ingestion-monitoring
-status: executing
-stopped_at: Completed 02-07-PLAN.md
-last_updated: "2026-07-17T18:27:52.930Z"
+current_phase: 02.1
+current_phase_name: Source Coverage Expansion
+status: planning
+stopped_at: Phase 02 complete; Phase 02.1 ready for research planning
+last_updated: "2026-07-17T20:13:11.664Z"
 last_activity: 2026-07-17
-last_activity_desc: Phase 02 Plan 07 completed; hosted gap closure passed and is ready for phase re-verification
+last_activity_desc: Phase 02 complete, transitioned to Phase 02.1
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 2
   total_plans: 10
   completed_plans: 10
-  percent: 50
+  percent: 40
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-15)
+See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** Discover relevant jobs fast (5–15 minutes from posting) and notify the user immediately — if job discovery and notification don't work reliably, nothing else matters.
-**Current focus:** Phase 02 — watchlist-ingestion-monitoring
+**Current focus:** Phase 02.1 — source-coverage-expansion
 
 ## Current Position
 
-Phase: 02 (watchlist-ingestion-monitoring) — EXECUTING
-Plan: 7 of 7
-Status: Awaiting phase re-verification
-Last activity: 2026-07-17 — Phase 02 Plan 07 completed; hosted gap closure passed and is ready for phase re-verification
+Phase: 02.1 — Source Coverage Expansion
+Plan: Not started
+Status: Ready for planning
+Last activity: 2026-07-17 — Phase 02 complete, transitioned to Phase 02.1
 
 Progress: [██████████] 100% (10/10 plans)
 
@@ -39,21 +39,21 @@ Progress: [██████████] 100% (10/10 plans)
 
 **Velocity:**
 
-- Total plans completed: 6
-- Average duration: 92m
-- Total execution time: 552m
+- Total plans completed: 10
+- Average duration: 59m
+- Total execution time: 593m
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | Phase 01 | 3 | 342m | 114m |
-| Phase 02 | 3 | 210m | 70m |
+| Phase 02 | 7 | 251m | 36m |
 
 **Recent Trend:**
 
-- Last 3 plans: 16m, 77m, 117m
-- Trend: Hosted approvals, external account setup, and monitoring verification increased duration across Phase 02
+- Last 3 plans: 9m, 6m, 21m
+- Trend: Gap-closure plans stayed compact; hosted deployment and proof made the final plan the longest of the three
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
@@ -122,6 +122,10 @@ None yet.
 - [Phase 2 verification]: cron-job.org failure email delivery and HTTP 200 recovery were observed, but recovery-email receipt was user-waived and remains unverified; do not record it as passed.
 - [Phase 4]: Highest-uncertainty area (DOCX XML run-splitting, truthful-edit prompting, CloudConvert fidelity + PII posture) — research flagged for deeper research during planning
 
+### Roadmap Evolution
+
+- Phase 02.1 inserted after Phase 2: Expand representative ATS and branded finance career-site coverage with safe degraded-source behavior (URGENT)
+
 ## Deferred Items
 
 Items acknowledged and carried forward from previous milestone close:
@@ -132,6 +136,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-17T18:27:52.921Z
-Stopped at: Completed 02-07-PLAN.md
+Last session: 2026-07-17T20:13:11.664Z
+Stopped at: Phase 02 complete; Phase 02.1 ready for research planning
 Resume file: None

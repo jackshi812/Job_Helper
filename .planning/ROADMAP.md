@@ -2,7 +2,7 @@
 
 ## Overview
 
-Four vertical phases, each ending with something two real users can exercise end-to-end. Phase 1 stands up the deployed app with invite-only auth and airtight per-user data isolation (RLS retrofits are painful — it goes first). Phase 2 builds the core-value engine: 100+ watched career sites polled on a 5–15 minute cadence, deduplicated, snapshotted, and health-monitored — started early so it soaks against real-world sites while later phases proceed. Phase 3 closes the promise loop: preferences drive cheap filters, AI scores survivors against the user's uploaded resume, and strong matches reach the user via push + email within minutes of posting. Phase 4 turns matches into applications: truthful DOCX-preserving resume tailoring with mandatory review, plus a manual tracker from saved through offer.
+Four vertical phases plus an inserted source-coverage phase, each ending with something two real users can exercise end-to-end. Phase 1 stands up the deployed app with invite-only auth and airtight per-user data isolation. Phase 2 builds the core ingestion engine. Phase 02.1 broadens that engine from three public ATS APIs to representative public portals and major branded finance career sites before scoring depends on it. Phase 3 closes the promise loop with filtering, AI scoring, and notifications. Phase 4 turns matches into applications with truthful resume tailoring and a manual tracker.
 
 ## Phases
 
@@ -15,6 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Access** - Deployed app with invite-only auth for two users and RLS-enforced data isolation (completed 2026-07-16)
 - [x] **Phase 2: Watchlist Ingestion & Monitoring** - New postings from 100+ watched sites land deduplicated within 5–15 minutes, with visible pipeline health (completed 2026-07-17)
+- [ ] **Phase 02.1: Source Coverage Expansion (INSERTED)** - Prove representative ATS/portal connectors and direct ingestion from major branded finance career sites with safe degraded-source behavior
 - [ ] **Phase 3: Scoring, Feed & Notifications** - Preferences + cheap filters + AI scoring produce a match feed, and strong matches trigger push + email alerts
 - [ ] **Phase 4: Resume Tailoring & Tracker** - Truthful DOCX-preserving tailoring to PDF with mandatory review, plus a manual application tracker
 
@@ -87,11 +88,32 @@ Plans:
 
 - [x] 02-07-PLAN.md — Deploy + hosted proof: [BLOCKING] db push 0008/0009, redeploy functions, run probes 1-16 and the rerunnable watchlist verifier
 
+### Phase 02.1: Source Coverage Expansion (INSERTED)
+
+**Goal:** Expand direct-source coverage beyond Greenhouse, Lever, and Ashby by proving one representative company per additional platform and direct ingestion for a broad finance-company validation set, without allowing source failures to create false job closures
+**Mode:** mvp
+**Requirements**: PREF-05, DISC-07, DISC-08, DISC-09
+**Depends on:** Phase 2
+**Success Criteria** (what must be TRUE):
+
+  1. The Watchlist table includes a clickable Link column that opens each company's stored job-search/careers URL in a new tab
+  2. Existing Greenhouse/Lever/Ashby support remains intact, and one publicly testable company is connected and verified for each feasible additional platform: SmartRecruiters, Recruitee, Workday, Oracle Recruiting, iCIMS, SuccessFactors, and Eightfold
+  3. Direct-source coverage is validated for Morgan Stanley, Goldman Sachs, JPMorgan Chase, Bank of America, Citi, BlackRock, Wells Fargo, UBS, Barclays, Capital One, Fidelity, and Charles Schwab; shared ATS adapters are reused where detected and company-specific adapters are used only when required
+  4. A blocked, changed, failed, or implausibly empty source retains its last known jobs, reports Degraded with the last successful sync and useful error detail, and never closes jobs from that failed observation
+  5. Every new connector passes manual verification and several successful syncs before scheduled polling is enabled; unsupported or unstable candidates remain clearly documented rather than being presented as reliable
+
+**Plans:** TBD
+**UI hint:** yes
+
+Plans:
+
+- [ ] TBD (run `$gsd-plan-phase 02.1` after research validates the representative URLs and access patterns)
+
 ### Phase 3: Scoring, Feed & Notifications
 
 **Goal**: User is alerted within minutes of a relevant new posting — cheap filters gate AI cost, AI scores survivors against the user's own resume and preferences, and only deduplicated matches above the user's threshold notify
 **Mode:** mvp
-**Depends on**: Phase 2
+**Depends on**: Phase 02.1
 **Requirements**: PREF-01, RESU-01, SCOR-01, SCOR-02, SCOR-03, SCOR-04, SCOR-05, NOTF-01, NOTF-02, NOTF-03, NOTF-04
 **Success Criteria** (what must be TRUE):
 
@@ -124,25 +146,28 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
-| 2. Watchlist Ingestion & Monitoring | 7/7 | Complete   | 2026-07-17 |
+| 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
+| 02.1 Source Coverage Expansion | 0/TBD | Not started | - |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
 
-All 32 v1 requirements mapped to exactly one phase:
+All 36 v1 requirements mapped to exactly one phase:
 
 | Category | Requirements | Phase |
 |----------|--------------|-------|
 | Foundation | AUTH-01..04 | Phase 1 |
 | Preferences & Watchlist | PREF-02, PREF-03, PREF-04 | Phase 2 |
+| Preferences & Watchlist | PREF-05 | Phase 02.1 |
 | Preferences & Watchlist | PREF-01 | Phase 3 |
 | Discovery & Monitoring | DISC-01..06 | Phase 2 |
+| Discovery & Monitoring | DISC-07..09 | Phase 02.1 |
 | Scoring & Feed | SCOR-01..05 | Phase 3 |
 | Notifications | NOTF-01..04 | Phase 3 |
 | Resume Tailoring | RESU-01 | Phase 3 |

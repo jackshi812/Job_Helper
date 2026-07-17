@@ -20,6 +20,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PREF-02**: User can add, edit, and remove companies on a watchlist of 100+ career-site URLs
 - [x] **PREF-03**: System auto-detects ATS platform (Greenhouse/Lever/Ashby) from a pasted career-site URL and stores the polling endpoint
 - [x] **PREF-04**: User can see per-company monitoring health (last successful poll, failing sources flagged)
+- [ ] **PREF-05**: Watchlist shows a clickable Link column that opens each company's stored job-search/careers URL in a new tab
 
 ### Discovery & Monitoring
 
@@ -29,6 +30,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DISC-04**: System captures a job-description snapshot at first sight (postings vanish; snapshot feeds tailoring)
 - [x] **DISC-05**: System marks jobs as closed when they disappear from ATS polls (stale-job detection)
 - [x] **DISC-06**: Pipeline runs record a heartbeat; a dead or silently failing cron is detectable within one poll cycle
+- [ ] **DISC-07**: System validates one representative company per feasible additional source platform (SmartRecruiters, Recruitee, Workday, Oracle Recruiting, iCIMS, SuccessFactors, and Eightfold) while preserving Greenhouse/Lever/Ashby support
+- [ ] **DISC-08**: System directly monitors the agreed finance-company validation set, reusing shared ATS adapters where possible and using allowlisted company-specific adapters only where necessary
+- [ ] **DISC-09**: Failed, blocked, changed, or implausibly empty sources retain last-known jobs, report Degraded with last-success/error detail, and never close jobs from the failed observation; new connectors are staged before scheduled activation
 
 ### Scoring & Feed
 
@@ -104,12 +108,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PREF-02 | Phase 2 | Complete |
 | PREF-03 | Phase 2 | Complete |
 | PREF-04 | Phase 2 | Complete |
+| PREF-05 | Phase 02.1 | Pending |
 | DISC-01 | Phase 2 | Complete |
 | DISC-02 | Phase 2 | Complete |
 | DISC-03 | Phase 2 | Complete |
 | DISC-04 | Phase 2 | Complete |
 | DISC-05 | Phase 2 | Complete |
 | DISC-06 | Phase 2 | Complete |
+| DISC-07 | Phase 02.1 | Pending |
+| DISC-08 | Phase 02.1 | Pending |
+| DISC-09 | Phase 02.1 | Pending |
 | SCOR-01 | Phase 3 | Pending |
 | SCOR-02 | Phase 3 | Pending |
 | SCOR-03 | Phase 3 | Pending |
@@ -131,10 +139,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 **Coverage:**
 
-- v1 requirements: 32 total
-- Mapped to phases: 32
+- v1 requirements: 36 total
+- Mapped to phases: 36
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-15*
-*Last updated: 2026-07-15 after roadmap creation (traceability populated)*
+*Last updated: 2026-07-17 after inserting Phase 02.1 source coverage expansion*

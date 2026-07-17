@@ -14,11 +14,13 @@ Discover relevant jobs fast (5–15 minutes from posting) and notify the user im
 
 - ✓ Invite-only auth for exactly two users with fully separated data — Phase 1 (deployed at pages.dev; RLS proven by two-account cross-access probes; UAT 6/6)
 - ✓ Base resume management: upload multiple DOCX resumes per user — shipped early in Phase 1 as the walking-skeleton vertical slice (upload/list/download/delete, per-user storage isolation)
+- ✓ Shared watchlist management for Greenhouse, Lever, and Ashby career URLs, including add/remove/re-add flows and visible source-health badges — Phase 2 (production UAT 2/2)
+- ✓ Scheduled direct-ATS ingestion plus quota-capped Adzuna discovery, exact-once deduplication, immutable first-sight snapshots, safe close/reopen behavior, and public heartbeat health — Phase 2 (15/15 verification truths passed)
 
 ### Active
 
-- [ ] Per-user job preferences (titles, locations, keywords) and watchlist of 100+ company career sites
-- [ ] Hybrid monitoring: public ATS endpoints (Greenhouse/Lever/Ashby JSON) for watchlist companies + one aggregator API for discovery outside watchlist
+- [ ] Per-user job preferences (titles, locations, keywords)
+- [ ] Source coverage expansion: representative public ATS/portal adapters and major finance-company career sites, while preserving safe degraded-source behavior
 - [ ] Deduplication and scoring pipeline: cheap filters (title/location/keywords) first, then AI scoring against user preferences and resume — AI called only on survivors
 - [ ] Near-instant notifications targeting the 5–15 minute goal: browser web push (desktop, works with tab closed) + email backup
 - [ ] Resume tailoring: pick base resume, review AI keyword edits side by side, approve, download PDF — truthful edits only, user review mandatory
@@ -39,7 +41,7 @@ Discover relevant jobs fast (5–15 minutes from posting) and notify the user im
 
 - Greenfield project; empty repo at /Users/jackshi/Desktop/Linkedin
 - LinkedIn has no open job-search API; official alerts are daily/weekly — usable only as a supplemental source
-- Career-site monitoring is heterogeneous: Greenhouse/Lever/Ashby expose public JSON endpoints, other sites need HTML scraping fallback
+- Career-site monitoring is heterogeneous: some platforms expose public JSON endpoints, while Workday/Oracle/iCIMS/SuccessFactors/Eightfold and branded sites require structured portal or allowlisted company-specific adapters with stricter failure handling
 - Two users only — no scaling pressure, free tiers must suffice
 - Users manually submit applications on employer sites; the copilot prepares materials, never submits
 - Product shape: login → dashboard (match feed) → preferences/watchlist → resumes (DOCX upload) → job detail with "tailor resume" → tracker table
@@ -61,7 +63,9 @@ Discover relevant jobs fast (5–15 minutes from posting) and notify the user im
 | RLS is the sole authorization boundary; route guards are UX only | Client checks are bypassable; Postgres/storage policies are not | ✓ Good — Phase 1: two-account cross-access probes all denied |
 | Storage-first deletion with exact removed-count assertion before row deletes | A failed file delete must leave a visible row to retry, never an orphan file | ✓ Good — Phase 1: verify-deletion.ts proves 0 rows AND 0 objects |
 | Password recovery via manual six-digit OTP + Gmail custom SMTP (supersedes org-member default-sender plan) | Email-security prefetch consumed clickable one-time reset links; Supabase default sender proved insufficient | ✓ Good — Phase 1 UAT: OTP round trip passed in production |
-| Hybrid monitoring (ATS endpoints + aggregator) | ATS JSON is reliable/free for watchlist; aggregator covers discovery beyond watchlist | — Pending |
+| Hybrid monitoring (ATS endpoints + aggregator) | ATS JSON is reliable/free for watchlist; aggregator covers discovery beyond watchlist | ✓ Good — Phase 2: Greenhouse/Lever/Ashby ingestion and quota-capped Adzuna discovery passed verification; broader coverage continues in Phase 02.1 |
+| Major-employers-first source expansion | Representative adapters prove coverage without pretending that arbitrary-site scraping is universally reliable; custom finance sources are allowlisted and monitored | — Pending (Phase 02.1) |
+| Phase 2 security register accepted without implementation audit | The owner chose bulk acceptance during the verification gate; this records acceptance, not evidence that mitigations were tested | ⚠ Accepted risk — a later security audit may reopen threats |
 | DOCX as base resume format | Preserves user's own formatting; app edits text and converts to PDF | — Pending |
 | Cheap filters before AI scoring | Keeps AI cost near zero; AI only scores plausible candidates | — Pending |
 | Web push + email notifications | Push hits 5–15 min goal when laptop active; email catches offline gaps | — Pending |
@@ -86,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-16 after Phase 1*
+*Last updated: 2026-07-17 after Phase 2*

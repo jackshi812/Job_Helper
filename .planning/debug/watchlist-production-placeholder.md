@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "UAT Test 1 failed. Expected deployed Watchlist add/replace/remove flow; production /watchlist shows only the old Company monitoring is coming soon placeholder."
 created: 2026-07-17T19:23:39Z
-updated: 2026-07-17T19:32:00Z
+updated: 2026-07-17T20:11:25Z
 ---
 
 ## Current Focus
@@ -10,7 +10,7 @@ updated: 2026-07-17T19:32:00Z
 hypothesis: CONFIRMED — Cloudflare Pages is serving origin/main, which is 68 commits behind local main and predates the Watchlist implementation.
 test: Compare HEAD, origin/main, the Watchlist feature commit's ancestry, and the live bundle text.
 expecting: Confirmed when origin/main contains the exact placeholder, excludes 4c27fc1, and the live bundle contains that placeholder while the current local bundle contains the new flow.
-next_action: Return root-cause-only diagnosis; do not push, deploy, or modify source.
+next_action: Resolved — origin/main was pushed, Cloudflare deployed the completed Watchlist bundle, and UAT test 1 passed.
 
 ## Symptoms
 
@@ -59,6 +59,6 @@ started: Discovered during Phase 2 UAT Test 1 on 2026-07-17.
 ## Resolution
 
 root_cause: Local main contains the Watchlist implementation but is 68 commits ahead of origin/main. Cloudflare Pages is serving a build corresponding to the pushed origin/main lineage, whose Watchlist.tsx still contains the placeholder; commit 4c27fc1 and subsequent Phase 2 work were never pushed to the production branch.
-fix: Not applied in diagnose-only mode. Push the reviewed local main commits to the intended Cloudflare production branch, then confirm Pages builds from repository root web (build command npm run build, output web/dist) or use an explicit Pages deploy of web/dist. Verify the deployment commit and asset hash before resuming UAT.
-verification: Root cause established by exact source-text match across origin/main and live bundle, exclusion of 4c27fc1 from origin/main, local main being 68 commits ahead, and current local dist containing the replacement UI.
+fix: The reviewed local main commits were pushed to the intended Cloudflare production branch and Pages deployed the completed Watchlist bundle.
+verification: Root cause was established by exact source-text comparison; after deployment, Phase 2 UAT test 1 passed the add, cancel-remove, confirmed-remove, re-add, and cleanup flow.
 files_changed: []
