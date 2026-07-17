@@ -1,109 +1,62 @@
 ---
 phase: 02-watchlist-ingestion-monitoring
-verified: 2026-07-17T16:23:22Z
-status: gaps_found
-score: 7/15 must-haves verified
-behavior_unverified: 4
-overrides_applied: 0
-gaps:
-  - truth: "Hosted verification can be rerun without corrupting watched-company identity or exactly-once job state"
-    status: failed
-    reason: "The watchlist verifier reuses and deletes the existing Stripe company row, orphaning its jobs before recreating the company with a new UUID."
-    artifacts:
-      - path: "scripts/verify-watchlist.ts"
-        issue: "Lines 124-168 select a pre-existing Stripe row as the destructive cross-user deletion target."
-    missing:
-      - "Create and delete only a dedicated disposable probe row, tracked as inserted by the current invocation."
-      - "Add a regression check that production seed rows and their job foreign keys are unchanged."
-  - truth: "A currently live ATS posting is open and current even after it was previously stale-closed"
-    status: failed
-    reason: "poll-tick loads only open jobs; a returned closed exact-ID match reaches an ignoreDuplicates upsert and remains closed."
-    artifacts:
-      - path: "supabase/functions/poll-tick/index.ts"
-        issue: "Lines 171-184 exclude closed rows, while lines 153-160 silently ignore the unique-key conflict."
-    missing:
-      - "Resolve exact source/external-ID matches across open and closed rows."
-      - "Reopen returned closed matches while preserving the first-sight snapshot."
-      - "Add a close-then-return regression test."
-  - truth: "Concurrent poll ticks claim disjoint due-company batches and preserve the 5-15 minute cadence"
-    status: failed
-    reason: "claim_due_companies has no locking CTE or FOR UPDATE SKIP LOCKED, so overlapping invocations can return the same companies."
-    artifacts:
-      - path: "supabase/migrations/0006_jobs_pipeline.sql"
-        issue: "Lines 55-71 select and update due rows without exclusive claim semantics."
-    missing:
-      - "Replace the uncorrelated IN subquery with a locking CTE using FOR UPDATE SKIP LOCKED."
-      - "Add a concurrent-claim integration probe asserting disjoint IDs."
-  - truth: "The heartbeat reports a healthy scheduler when an authorized tick has no companies to poll"
-    status: failed
-    reason: "poll-tick advances last_success_at only when succeeded > 0, so an empty or fully not-due watchlist becomes falsely stale after 30 minutes."
-    artifacts:
-      - path: "supabase/functions/poll-tick/index.ts"
-        issue: "Lines 318-324 omit the valid companies.length === 0 success case."
-    missing:
-      - "Advance last_success_at for a successful no-work tick."
-      - "Retain stale behavior when companies were claimed and all failed."
-      - "Test both transitions."
-  - truth: "A completely failing Adzuna discovery run is surfaced as unhealthy rather than acknowledged as success"
-    status: failed
-    reason: "Every seed query may fail while discovery-sweep still returns HTTP 200 and writes no discovery failure state consumed by monitoring."
-    artifacts:
-      - path: "supabase/functions/discovery-sweep/index.ts"
-        issue: "Lines 125-146 count per-query failures, but lines 216-223 always return success after the loop."
-    missing:
-      - "Track attempted and successful queries and fail non-2xx when all attempted queries fail."
-      - "Persist and surface partial/degraded discovery health."
-      - "Add all-failed and partial-failure tests."
-  - truth: "Aggregator jobs arrive within the MVP story's 5-15 minute window"
-    status: failed
-    reason: "The corrected MVP capability explicitly includes the aggregator in the 5-15 minute promise, while discovery-sweep-hourly can wait nearly 60 minutes before running."
-    artifacts:
-      - path: "supabase/migrations/0007_discovery.sql"
-        issue: "Lines 36-38 schedule discovery at 0 * * * * (hourly)."
-      - path: ".planning/ROADMAP.md"
-        issue: "The Phase 2 user story now promises watched career sites and an aggregator within 5-15 minutes."
-    missing:
-      - "Either adopt a budget-safe 5-15 minute aggregator strategy or obtain an explicit goal override/clarification that aggregator latency is excluded."
+verified: 2026-07-17T19:15:12Z
+status: human_needed
+score: 13/15 must-haves verified
+behavior_unverified: 2
+overrides_applied: 1
+overrides:
+  - must_have: "Aggregator jobs arrive within the MVP story's 5-15 minute window"
+    reason: "User accepted a quota-safe Chicago cadence: every 30 minutes from 6 AM-noon and every two hours otherwise; the Phase 2 goal and implementation now use that cadence."
+    accepted_by: "user"
+    accepted_at: "2026-07-17"
+re_verification:
+  previous_status: gaps_found
+  previous_score: 7/15
+  gaps_closed:
+    - "Hosted watchlist verification is disposable and preserves seed-company identities and job links."
+    - "Returned closed exact-ID postings reopen while preserving first-sight snapshots."
+    - "Concurrent poll ticks claim disjoint due-company batches with FOR UPDATE SKIP LOCKED."
+    - "Authorized no-work ticks advance the successful scheduler heartbeat."
+    - "Complete and partial Adzuna failures persist and surface distinct health states."
+    - "The superseded universal aggregator 5-15-minute promise is covered by the user-approved Chicago cadence override."
+  gaps_remaining: []
+  regressions: []
 behavior_unverified_items:
-  - truth: "A user can complete the watchlist add, replace-by-remove-and-re-add, and remove flow in the deployed browser UI"
-    test: "Open Watchlist, add a supported board, replace it via remove and re-add, then remove it through confirmation."
-    expected: "The table, teaching errors, confirmation, and final persisted state all match the action without losing unrelated job data."
-    why_human: "Backend probes and symbol checks do not exercise the rendered browser flow or the documented edit equivalence."
-  - truth: "Health badges visibly communicate OK, Failing, and Stale with usable hover text"
-    test: "View rows representing each health state and inspect the last-success hover text in light and dark themes."
-    expected: "All states are distinct, readable, and show the correct last-success information."
-    why_human: "Unit tests cover deriveHealth, but no component test or completed visual UAT covers rendering and hover behavior."
-  - truth: "A job absent for the configured successful-poll grace period transitions from open to closed, while a failed poll closes nothing"
-    test: "Exercise a controlled disappearance across the 35-minute window and a failed-poll case."
-    expected: "Only the successful disappearance path closes the job; failure leaves it open."
-    why_human: "The branches are present, but no unit or integration test exercises this state transition."
-  - truth: "The global pipeline banner appears on stale data and disappears after recovery"
-    test: "Observe a stale heartbeat in the browser, then restore successful polling and wait for the one-minute refetch."
-    expected: "The banner appears while stale and clears after fresh data arrives."
-    why_human: "No component test exercises the query-driven stale-to-fresh render transition."
+  - truth: "A user can complete the deployed Watchlist add, replace-by-remove-and-re-add, and remove flow."
+    test: "In the deployed browser, add a supported board, replace it by removing and re-adding it, then remove it through the confirmation dialog."
+    expected: "The verified company appears, removal requires confirmation, re-add succeeds, and unrelated captured jobs remain intact."
+    why_human: "Library tests and hosted RLS probes do not exercise the rendered browser interaction."
+  - truth: "Health badges visibly communicate OK, Failing, and Stale with usable hover text in both themes."
+    test: "View Watchlist rows in each health state in light and dark themes and inspect the badge hover text."
+    expected: "The three states are distinct and readable, and the title reports the correct last-success context."
+    why_human: "Health derivation is unit-tested, but visual rendering, contrast, and native title hover are not covered by a component or browser test."
+human_verification:
+  - test: "Complete the deployed Watchlist add, replace-by-remove-and-re-add, and remove flow."
+    expected: "The table and persisted state match each action; confirmation appears before removal; unrelated captured jobs remain."
+    why_human: "No browser test exercises the deployed form, table, and dialog together."
+  - test: "Inspect OK, Failing, and Stale badges and their hover text in light and dark themes."
+    expected: "Every state is distinct, readable, and reports the correct last-success context."
+    why_human: "Visual quality and native hover behavior require browser inspection."
 ---
 
 # Phase 2: Watchlist Ingestion & Monitoring Verification Report
 
-**Phase Goal:** As a job seeker, I want to receive new job postings from watched career sites and an aggregator exactly once within 5-15 minutes, so that I can trust my job feed is current without manually checking each career site.
-**Verified:** 2026-07-17T16:23:22Z
-**Status:** gaps_found
-**Re-verification:** No — initial goal-backward verification after the MVP story was corrected
+**Phase Goal:** As a job seeker, I want to receive watched-site postings exactly once within 5-15 minutes and aggregator discovery every 30 minutes from 6 AM-noon Chicago and every two hours otherwise, so that I can trust my job feed without manually checking each career site.
+**Verified:** 2026-07-17T19:15:12Z
+**Status:** human_needed
+**Re-verification:** Yes — after all six blocking gaps were closed or explicitly overridden
 
 ## User Flow Coverage
 
-User story: “As a job seeker, I want to receive new job postings from watched career sites and an aggregator exactly once within 5-15 minutes, so that I can trust my job feed is current without manually checking each career site.”
-
 | Step | Expected | Evidence | Status |
 |------|----------|----------|--------|
-| Open the watchlist | A signed-in user sees watched companies, source, health, and actions | `web/src/pages/Watchlist.tsx:67-205` reads real `companies` data through `listCompanies()` | ⚠️ PRESENT — browser flow not UAT-verified |
-| Add or replace a company | Pasting a supported URL verifies the board and persists its ATS identity; unsupported URLs teach without saving | `watchlist.ts:50-80`, `verify-board/index.ts:59-86`; named unsupported-before-network test passed | ⚠️ PRESENT — replace-by-remove/re-add needs browser UAT |
-| Receive watched-site jobs | A new posting is polled and represented once within 15 minutes | Per-minute cron and batch size exist, but the claim is non-exclusive and closed exact-ID rows cannot reopen | ✗ FAILED |
-| Receive aggregator jobs | Adzuna contributes non-duplicate jobs in the same 5-15 minute promise | `0007_discovery.sql:36-38` schedules hourly | ✗ FAILED |
-| Trust monitoring | Per-company state and whole-pipeline health reveal failures within one poll cycle | Health paths exist, but no-work ticks false-alarm and total discovery failure remains HTTP 200/unrecorded | ✗ FAILED |
-| Outcome | The feed can be trusted as current without manually checking each site | Data-integrity, cadence, and liveness gaps above prevent this conclusion | ✗ FAILED |
-
-The MVP user-flow contract is incomplete, so the user-visible outcome is not achieved even though all planned files exist and the regression suite is green.
+| Open Watchlist | A signed-in user sees real watched companies, source, health, and actions | `Watchlist.tsx:67-205` reads `companies` through `listCompanies()` and renders the table | ⚠ HUMAN — deployed appearance not exercised |
+| Add, replace, remove | A supported URL is verified before save; replace is remove-and-re-add; removal confirms first | `watchlist.ts:50-85`, `verify-board/index.ts:59-86`, and `Watchlist.tsx:77-201` are wired; hosted cross-user probes passed | ⚠ HUMAN — browser flow pending |
+| Receive watched-site postings | Per-minute ticks claim disjoint due rows, poll ATS adapters, preserve snapshots, deduplicate, and reopen returned jobs | `0008_claim_exclusive.sql:11-24`, `poll-tick/index.ts:166-248`; lifecycle tests and hosted probes 1-15 passed | ✓ VERIFIED |
+| Receive aggregator postings | Chicago-local gating admits 30-minute morning slots and two-hour off-hour slots, with atomic quota reservation | `discovery-health.ts:44-67`, `0009_discovery_health_cadence.sql:35-57`, `0010`/`0011`; DST/quota tests and hosted probe 16 passed | ✓ VERIFIED |
+| Trust monitoring | Company health, scheduler heartbeat, discovery health, banner state, and external 503 surface are wired | `poll-tick/index.ts:225-324`, `heartbeat/index.ts:30-59`, `pipeline.ts:48-110`; deterministic health tests passed | ⚠ HUMAN — badge presentation pending |
+| Outcome | Feed freshness and integrity no longer require checking each career site manually | All automated integrity, cadence, and liveness checks pass; two browser presentation/flow checks remain | ⚠ HUMAN NEEDED |
 
 ## Goal Achievement
 
@@ -111,137 +64,140 @@ The MVP user-flow contract is incomplete, so the user-visible outcome is not ach
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | User can add, replace-by-remove/re-add, and remove supported watched companies | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | SPA and backend paths are wired; no completed browser UAT proves the full flow. |
-| 2 | Unsupported or unverifiable URLs teach and save nothing | ✓ VERIFIED | Shared detector/server rejection exists; focused Vitest test passed and invokes no network. |
-| 3 | Authenticated users share watchlist visibility and mutation access while anonymous access is denied | ✓ VERIFIED | Migration grants/policies implement the shared contract; hosted probe code covers both users and anonymous denial, though its cleanup bug must be fixed before rerun. |
-| 4 | Rows visibly show correct OK/Failing/Stale health with hover context | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | `deriveHealth` boundary test passed; visual and hover behavior lack component/UAT evidence. |
-| 5 | Watched-board postings arrive within 15 minutes and exactly once across polls, reposts, and aggregator overlap | ✗ FAILED | Non-exclusive claims, destructive verification, and inability to reopen a returned exact-ID posting break the reliability contract. |
-| 6 | ATS jobs retain complete immutable first-sight snapshots | ✓ VERIFIED | Normalized adapters, schema, and insert-only snapshot path are substantive; the 68-test regression and prior hosted checks passed. |
-| 7 | Successful disappearance closes a job while failed polls never close it | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Close SQL is confined to the success path, but no test exercises the state transition. |
-| 8 | Per-company success/failure fields update on every claimed poll | ✓ VERIFIED | `poll-tick/index.ts:225-233,296-315` wires both success and isolated failure writes. |
-| 9 | Heartbeat semantics distinguish healthy, failed, and no-work scheduler states | ✗ FAILED | A no-work tick advances only `last_tick_at`, causing a false stale state. |
-| 10 | Adzuna search inserts partial snapshots and prevents exact normalized-fingerprint overlap with open ATS jobs | ✓ VERIFIED | Discovery data flow and dedup maps are wired; adapter and fingerprint focused tests pass. |
-| 11 | Adzuna request usage stops at the 240/day cutoff | ✓ VERIFIED | Budget is persisted before fetch and checked at both entry and loop boundaries. |
-| 12 | The global stale banner appears and clears on recovery | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Query/refetch/render wiring exists, but no test exercises stale-to-fresh behavior; query errors are hidden. |
-| 13 | The external monitor detects heartbeat failure outside Supabase | ✓ VERIFIED | Failure HTTP history and a failure email were observed. Recovery execution reached 200; recovery-email receipt is explicitly waived and remains unknown. |
-| 14 | Aggregator jobs meet the MVP story's 5-15 minute cadence | ✗ FAILED | The committed schedule is hourly, so worst-case discovery delay approaches 60 minutes. |
-| 15 | Complete discovery failure is visible as a pipeline failure | ✗ FAILED | All seed requests can fail while the function still responds 200 and monitoring remains green. |
+| 1 | User can add, replace-by-remove/re-add, and remove supported watched companies | ⚠ PRESENT_BEHAVIOR_UNVERIFIED | SPA and backend paths are substantive and wired; the deployed browser flow has not been exercised. |
+| 2 | Unsupported or unverifiable URLs teach and save nothing | ✓ VERIFIED | Shared allowlist detector and server rejection are wired; Vitest covers rejection before network and rejection without insert. |
+| 3 | Authenticated users share watchlist access while anonymous access is denied | ✓ VERIFIED | `0005_watchlist.sql` defines shared authenticated policies; the disposable hosted verifier passed twice. |
+| 4 | Rows visibly show OK, Failing, and Stale health with hover context | ⚠ PRESENT_BEHAVIOR_UNVERIFIED | `deriveHealth` boundaries pass and JSX contains all labels/palettes/title text; visual and hover behavior need browser inspection. |
+| 5 | Watched-board postings arrive within 15 minutes and exactly once across polls, reposts, and aggregator overlap | ✓ VERIFIED | Minute cron plus 9-minute due threshold and 10-row batches support 100+ boards; exclusive claims, unique identity, fingerprint conversion, and hosted dedup probes are wired. |
+| 6 | ATS jobs retain complete immutable first-sight snapshots | ✓ VERIFIED | All adapters produce full snapshots; update/reopen paths touch lifecycle fields only; hosted probe 3 and reopen probe passed. |
+| 7 | Successful non-empty disappearance closes a grace-expired job while failed or empty polls close nothing | ✓ VERIFIED | `planCompanySync` tests cover close, grace, empty, and closed-row cases; `poll-tick` applies `closeIds` only after successful polling. |
+| 8 | Per-company success/failure fields update on every claimed poll | ✓ VERIFIED | `poll-tick/index.ts:225-233,295-315` wires isolated success and failure updates; hosted health probe passed. |
+| 9 | Heartbeat semantics distinguish healthy, all-failed, and no-work scheduler states | ✓ VERIFIED | `shouldAdvanceSuccessHeartbeat` has all three transition tests; hosted no-work probe 14 passed. |
+| 10 | Adzuna inserts partial snapshots and cannot remain open beside a matching ATS fingerprint | ✓ VERIFIED | Discovery maps partial snapshots, checks open fingerprints, and ATS ingestion converts matching Adzuna rows; hosted probes 10-11 passed. |
+| 11 | Adzuna usage stays below default daily, weekly, and monthly quotas | ✓ VERIFIED | Effective cutoff is 75/day, atomic reservation locks the singleton ledger, and tests prove 75×7 < 1000 and 75×30 < 2500. |
+| 12 | Global monitoring banner appears for stale/failed/degraded/unavailable health and clears when healthy | ✓ VERIFIED | Nine banner unit tests cover stale, failed, missing, degraded, unavailable, priority, and healthy states; `Shell.tsx` renders the pure result on a 60-second query. |
+| 13 | An external monitor detects stale polling and total discovery failure outside Supabase | ✓ VERIFIED | Secret-gated heartbeat returns 503 for stale polling, failed discovery, or missed discovery cadence; failure email was observed. Recovery-email receipt remains user-waived and unknown. |
+| 14 | Aggregator jobs meet the superseded universal 5-15-minute cadence | PASSED (override) | User accepted the quota-safe Chicago cadence on 2026-07-17; ROADMAP and implementation now encode that exact replacement. |
+| 15 | Complete discovery failure is visible as a pipeline failure | ✓ VERIFIED | `summarizeDiscovery` returns failed/503 when all attempts fail; the function persists `discovery_status`; heartbeat and banner consume it. |
 
-**Score:** 7/15 truths verified (4 present but behavior-unverified; 4 failed)
+**Score:** 13/15 truths verified (including 1 accepted override; 2 present but behavior-unverified)
 
 ## Required Artifacts
 
-All 14 PLAN-declared artifacts exist and passed deterministic substance checks. Key examples:
+The deterministic artifact checker found all 27 PLAN-declared artifacts present and substantive.
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `supabase/migrations/0005_watchlist.sql` | Shared companies schema and RLS | ✓ VERIFIED | 42 lines; schema, unique ATS identity, health columns, authenticated policies. |
-| `supabase/functions/_shared/detect.ts` | Allowlisted ATS detection and endpoint construction | ✓ VERIFIED | 81 lines; exported detector/constructor and no network I/O. |
-| `supabase/functions/verify-board/index.ts` | Authoritative live board verification | ✓ VERIFIED | Imports detector, fetches only constructed endpoints, validates response status/shape. |
-| `web/src/lib/watchlist.ts` | Real watchlist CRUD and health derivation | ✓ VERIFIED | Reads/writes `companies` and invokes `verify-board` before insert. |
-| `web/src/pages/Watchlist.tsx` | Watchlist user interface | ✓ SUBSTANTIVE + WIRED | 205 lines; real TanStack Query data, add/remove mutations, table, and badges. |
-| `supabase/migrations/0006_jobs_pipeline.sql` | Jobs, heartbeat, claim RPC, minute cron | ⚠️ SUBSTANTIVE BUT DEFECTIVE | Exists and is wired; claim RPC lacks exclusive locking. |
-| `supabase/functions/poll-tick/index.ts` | ATS polling, dedup, snapshots, closure, health | ⚠️ SUBSTANTIVE BUT DEFECTIVE | 337 lines; closed-posting and no-work-heartbeat paths are incorrect. |
-| `supabase/functions/_shared/dedup.ts` | Normalized cross-source fingerprint | ✓ VERIFIED | Focused normalization test passed. |
-| `supabase/functions/heartbeat/index.ts` | Secret-gated fresh/stale endpoint | ✓ VERIFIED | Reads real heartbeat data and fails closed on read/config error. |
-| `supabase/functions/discovery-sweep/index.ts` | Budgeted Adzuna ingestion | ⚠️ SUBSTANTIVE BUT DEFECTIVE | Data flows, but total query failure is acknowledged as HTTP 200. |
-| `supabase/migrations/0007_discovery.sql` | Seed queries, budget fields, sweep cron | ⚠️ SUBSTANTIVE BUT GOAL-MISMATCHED | Hourly cadence conflicts with the corrected MVP story. |
-| `web/src/components/Shell.tsx` | Global stale banner | ⚠️ WIRED WITH WARNING | Real heartbeat data drives rendering; query failures render no warning. |
-| `web/src/lib/pipeline.ts` | Browser heartbeat reader | ✓ VERIFIED | Queries the singleton row and propagates errors. |
+| `0005_watchlist.sql` | Shared watchlist schema/RLS | ✓ VERIFIED | Unique ATS identity, health fields, authenticated CRUD, no anonymous grant. |
+| `_shared/detect.ts` + `verify-board` | Safe ATS detection and live verification | ✓ VERIFIED | Pasted URL is parsed; only constructed allowlisted endpoints are fetched. |
+| `watchlist.ts` + `Watchlist.tsx` | Real CRUD and health UI | ✓ SUBSTANTIVE + WIRED | Query/mutations use live Supabase data; browser UAT remains. |
+| `0006` + `0008_claim_exclusive.sql` | Jobs, heartbeat, minute cron, exclusive claims | ✓ VERIFIED | `FOR UPDATE SKIP LOCKED` replaces the original non-exclusive claim. |
+| `_shared/lifecycle.ts` + `poll-tick` | Dedup, snapshots, reopen, close, health | ✓ VERIFIED | Pure transitions are tested and applied to real database updates. |
+| `0009` + `_shared/discovery-health.ts` | Chicago cadence and health model | ✓ VERIFIED | DST-safe slot logic and freshness model have deterministic coverage. |
+| `0010` + `0011` | Atomic slot admission and quota reservation | ✓ VERIFIED | Singleton row lock serializes admission and quota; UTC date is read after lock. |
+| `discovery-sweep` | Budgeted Adzuna ingestion | ✓ VERIFIED | Distinct seeds, pre-fetch reservation, dedup, lifecycle, and persisted health are wired. |
+| `heartbeat` + `pipeline.ts` + `Shell.tsx` | External/in-app liveness | ✓ VERIFIED | Both surfaces consume polling and discovery freshness. |
+| Verification drivers | Rerunnable hosted proof | ✓ VERIFIED | Pipeline probes 1-16 passed; watchlist verifier passed twice without seed/job-link corruption. |
 
 ## Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `Watchlist.tsx` | `watchlist.ts` | CRUD imports and `['watchlist']` query | ✓ WIRED | Deterministic query passed. |
-| `watchlist.ts` | `verify-board` | `supabase.functions.invoke('verify-board')` | ✓ WIRED | Manual source trace confirms verify-before-insert; deterministic checker reported only an invalid-regex limitation. |
-| `verify-board` | `_shared/detect.ts` | direct `.ts` import | ✓ WIRED | `verify-board/index.ts:1-6,67-73`. |
-| `poll-tick` | ATS adapters | direct Greenhouse/Lever/Ashby imports | ✓ WIRED | `poll-tick/index.ts:2-5,43-51`; deterministic checker missed extension-qualified imports. |
-| `poll-tick` | `claim_due_companies` / jobs | RPC plus Supabase writes | ⚠️ WIRED, DEFECTIVE | Link exists, but claim exclusivity and reopen behavior are wrong. |
-| `0006_jobs_pipeline.sql` | `poll-tick` | minute pg_cron `net.http_post` | ✓ WIRED | URL and shared-secret header are present. |
-| `Shell.tsx` | `pipeline.ts` | one-minute heartbeat query | ✓ WIRED | Deterministic query passed. |
-| `discovery-sweep` | `_shared/dedup.ts` | `fingerprint()` before insert | ✓ WIRED | Manual source trace confirms import/use; deterministic checker reported only an invalid-regex limitation. |
-| `heartbeat` | `pipeline_heartbeat` | service-role singleton read | ✓ WIRED | Uses the same `last_success_at` written by poll-tick. |
+| `Watchlist.tsx` | `watchlist.ts` | Query and mutations | ✓ WIRED | Live data drives table and actions. |
+| `watchlist.ts` | `verify-board` | `functions.invoke` before insert | ✓ WIRED | Manual source trace resolves checker regex limitation. |
+| `verify-board` | `_shared/detect.ts` | Direct import and allowlisted endpoint builder | ✓ WIRED | Manual source trace resolves extension-qualified import limitation. |
+| `poll-tick` | ATS adapters | Direct imports and dispatch | ✓ WIRED | All three adapters return `NormalizedJob[]`. |
+| `poll-tick` | exclusive claim RPC/jobs | RPC and database updates | ✓ WIRED | Hosted concurrent-claim probe proved disjoint batches. |
+| minute cron | `poll-tick` | Vault-authenticated `net.http_post` | ✓ WIRED | Hosted heartbeat advanced without manual invocation. |
+| schedule gate | `discovery-sweep` | 30-minute cron plus Chicago slot admission | ✓ WIRED | Atomic admission prevents duplicate slot execution. |
+| `discovery-sweep` | quota RPC + dedup + health | Pre-fetch reservation and persisted summary | ✓ WIRED | Atomic SQL and source ordering are covered by tests. |
+| `heartbeat` | `pipeline_heartbeat` | Service-role freshness read | ✓ WIRED | Polling and discovery failures produce 503. |
+| `Shell.tsx` | `pipeline.ts` | 60-second query and pure banner derivation | ✓ WIRED | Real heartbeat values drive banner rendering. |
 
 ## Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 |----------|---------------|--------|--------------------|--------|
 | `Watchlist.tsx` | `companiesQuery.data` | `listCompanies()` → `public.companies` | Yes | ✓ FLOWING |
-| `Shell.tsx` | `heartbeatQuery.data.last_success_at` | `fetchHeartbeat()` → `public.pipeline_heartbeat` | Yes | ⚠️ FLOWING; errors are hidden |
-| `poll-tick` | normalized ATS jobs | live ATS adapters → `public.jobs` | Yes | ⚠️ FLOWING; lifecycle/claim defects |
-| `discovery-sweep` | Adzuna results | enabled `seed_queries` → Adzuna → `public.jobs` | Yes | ⚠️ FLOWING; all-failed run remains green |
+| `poll-tick` | normalized ATS jobs | Live ATS adapters → `public.jobs` | Yes | ✓ FLOWING |
+| `discovery-sweep` | Adzuna results | enabled `seed_queries` → Adzuna → `public.jobs` | Yes | ✓ FLOWING |
+| `Shell.tsx` | heartbeat row/banner | `public.pipeline_heartbeat` → `fetchHeartbeat()` | Yes | ✓ FLOWING |
 
 ## Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Unsupported URL rejected before network | `npx vitest run src/lib/watchlist.test.ts -t "rejects an unsupported URL before making a network call"` | 1 passed | ✓ PASS |
-| Three failures derive Failing | `npx vitest run src/lib/watchlist.test.ts -t "is failing at three consecutive failures"` | 1 passed | ✓ PASS |
-| Fingerprint tolerates title case/punctuation | `npx vitest run tests/dedup.test.ts -t "treats title punctuation and case as equivalent"` | 1 passed | ✓ PASS |
-| Full regression | Orchestrator's current execute-phase run | 11 files, 68 tests passed | ✓ PASS |
-| Returned closed job reopens | No named test exists | Source trace proves it remains closed | ✗ FAIL |
-| Concurrent claims are disjoint | No integration test exists | SQL has no lock/skip-locked mechanism | ✗ FAIL |
-| Successful disappearance vs failed poll | No named test exists | Transition present but unexercised | ⚠️ UNVERIFIED |
+| Full deterministic regression | `cd web && npx vitest run` | 14 files, 110 tests passed | ✓ PASS |
+| Production compilation/bundle | `cd web && npm run build` | TypeScript and Vite build passed | ✓ PASS |
+| Lifecycle transitions | Full regression includes `lifecycle.test.ts` | 12 reopen/refresh/close/heartbeat tests passed | ✓ PASS |
+| Cadence, DST, quota, discovery health | Full regression includes `discovery-health.test.ts` | 19 focused tests passed | ✓ PASS |
+| Banner state behavior | Full regression includes `pipeline.test.ts` | 9 focused tests passed | ✓ PASS |
 
 ## Probe Execution
 
-| Probe | Command | Result | Status |
-|-------|---------|--------|--------|
-| `scripts/verify-watchlist.ts` | Not executed | Running it can delete a production seed company and orphan jobs (CR-01) | ✗ UNSAFE / GAP |
-| `scripts/verify-pipeline.ts` | Not re-executed by verifier | The phase execution recorded 12/12 hosted probes, but the script mutates hosted state and contains two race/seed warnings; those claims are supporting context, not independent proof of the missing transitions | ⚠️ NOT COUNTED FOR GAP PATHS |
+No conventional `scripts/**/tests/probe-*.sh` files are declared. The phase uses stateful TypeScript verification drivers, so this verifier did not re-run them and mutate hosted state a third time. Current execute-session evidence records:
+
+| Driver | Result | Status |
+|--------|--------|--------|
+| `scripts/verify-pipeline.ts` | Exit 0; probes 1-16 PASS after migrations 0010/0011 and final deployments | ✓ PASS |
+| `scripts/verify-watchlist.ts` | Exit 0 twice; disposable row cleanup and seed/job-link integrity PASS | ✓ PASS |
+| Hosted deployment | Migrations 0008-0011 remote; `poll-tick`, `discovery-sweep`, and `heartbeat` active | ✓ PASS |
 
 ## Requirements Coverage
 
-| Requirement | Source Plan | Status | Evidence / Blocking Issue |
-|-------------|-------------|--------|---------------------------|
-| PREF-02 | 02-01 | ⚠️ NEEDS HUMAN | Add/remove implementation exists; replace-by-remove/re-add browser flow needs UAT. |
-| PREF-03 | 02-01 | ✓ SATISFIED | ATS detection and centrally constructed polling endpoints are wired. |
-| PREF-04 | 02-01, 02-02 | ⚠️ PARTIAL | Health state and UI exist, but heartbeat-query errors hide monitoring status. |
-| DISC-01 | 02-02 | ✗ BLOCKED | Non-exclusive concurrent claims can duplicate work and jeopardize the 100+ company cadence. |
-| DISC-02 | 02-03 | ✓ SATISFIED AS WRITTEN | Adzuna provides breadth; however its hourly schedule fails the newer MVP 5-15 minute capability. |
-| DISC-03 | 02-02 | ✗ BLOCKED | Verification can orphan/reseed companies, and lifecycle handling leaves returned jobs closed; exactly-once/current-feed trust is not proven. |
-| DISC-04 | 02-02 | ✓ SATISFIED | ATS snapshots are full and immutable; Adzuna is deliberately flagged partial. |
-| DISC-05 | 02-02 | ⚠️ NEEDS BEHAVIORAL PROOF | Close-on-success code exists, but the transition has no test and returned rows cannot reopen. |
-| DISC-06 | 02-02, 02-03 | ✗ BLOCKED | No-work ticks false-alarm; total discovery failure is invisible to monitoring. |
+| Requirement | Source Plans | Status | Evidence |
+|-------------|--------------|--------|----------|
+| PREF-02 | 02-01, 02-05 | ⚠ HUMAN | CRUD and shared RLS are implemented; full browser flow remains. |
+| PREF-03 | 02-01 | ✓ SATISFIED | Detector and endpoint constructor support Greenhouse, Lever, and Ashby. |
+| PREF-04 | 02-01, 02-02, 02-06 | ⚠ HUMAN | Health data and state derivation are verified; badge presentation remains. |
+| DISC-01 | 02-02, 02-05, 02-07 | ✓ SATISFIED | Minute scheduling, 9-minute due threshold, batching, exclusive claims, and hosted proof. |
+| DISC-02 | 02-03, 02-06, 02-07 | ✓ SATISFIED | Adzuna discovery runs on the accepted quota-safe cadence. |
+| DISC-03 | 02-02, 02-04, 02-05 | ✓ SATISFIED | Stable IDs, fingerprint dedup, reopen semantics, and hosted repeated-poll proof. |
+| DISC-04 | 02-02, 02-04 | ✓ SATISFIED | Full ATS snapshots are captured once and preserved. |
+| DISC-05 | 02-02, 02-04 | ✓ SATISFIED | Successful non-empty disappearance transition is tested; failed/empty polls never close. |
+| DISC-06 | 02-02, 02-03, 02-04, 02-06 | ✓ SATISFIED | Poll/discovery heartbeat, external 503 surface, and in-app warnings are wired. |
 
 No orphaned Phase 2 requirement IDs were found.
 
-## Anti-Patterns and Warnings
+## Anti-Patterns and Disconfirmation Pass
 
-| File | Line | Pattern | Severity | Impact |
-|------|------|---------|----------|--------|
-| `web/src/components/Shell.tsx` | 35-38 | Query errors suppress the health banner | ⚠️ Warning | Monitoring status disappears when it cannot be loaded. |
-| `scripts/verify-pipeline.ts` | 75-100 | Seed lookup filters only by ATS type | ⚠️ Warning | Multiple companies on one ATS can break or misdirect the verifier. |
-| `scripts/verify-pipeline.ts` | 157-173 | Duplicate probe compares global job count | ⚠️ Warning | Scheduled unrelated inserts can produce false failures. |
-| `supabase/migrations/0007_discovery.sql` | 21 | Placeholder seed rows | ℹ️ Intentional | Explicit D-08 configuration, specifically replaced by Phase 3 preferences; not a Phase 2 blocker. |
+| Check | Result | Assessment |
+|-------|--------|------------|
+| Debt markers (`TBD`, `FIXME`, `XXX`) | None in 35 reviewed implementation files | ✓ CLEAN |
+| Placeholder scan | URL input placeholder and seed-query configuration comment only | ℹ Intentional, not stubs |
+| Partial requirement | PREF-02 edit is the locked remove-and-re-add equivalent | ⚠ Browser UAT retained |
+| Potentially misleading structural tests | SQL tests inspect locking/order text rather than execute PostgreSQL | ✓ Hosted probes/deploy evidence supplies the integration layer |
+| Uncovered presentation path | Watchlist mutation errors and native hover are not browser-tested | ⚠ Covered by the two human checks |
 
-No unreferenced `TBD`, `FIXME`, or `XXX` debt markers were found in the Phase 2 implementation files.
+The final standard-depth code review covered 35 files and reported 0 critical, 0 warning, and 0 informational findings.
 
-## Human Verification and Waiver Record
+## Human Verification Required
 
-The four `behavior_unverified_items` in frontmatter remain appropriate UAT after gap closure. They do not lower the overall status from `gaps_found`, because source-level blockers take precedence.
+### 1. Deployed Watchlist flow
 
-The cron-job.org failure email was received, and restored requests reached HTTP 200. Recovery-email receipt was not received. The user explicitly waived only another recovery-email cycle. Therefore:
+**Test:** Open Watchlist, add a supported board, replace it by removing and re-adding it, then remove it through the confirmation dialog.
 
-- Failure notification: **verified**
-- Recovery execution (HTTP 200): **verified**
-- Recovery-email receipt: **unknown / waived by user**, not passed
+**Expected:** The table and persisted state match every action, removal always confirms first, and unrelated captured jobs remain intact.
+
+**Why human:** Unit tests and hosted RLS probes do not exercise the rendered browser interaction.
+
+### 2. Health badge presentation
+
+**Test:** Inspect OK, Failing, and Stale rows in light and dark themes and hover each badge.
+
+**Expected:** States are distinct and readable and the hover text reports correct last-success context.
+
+**Why human:** Visual contrast and native title hover behavior are not covered by deterministic tests.
+
+## Recovery Email Waiver
+
+The cron-job.org failure email was observed. Receipt of a later recovery email was explicitly waived by the user and remains **unknown**, not passed. This does not block the roadmap criterion: the external monitor already demonstrated that stale/failing heartbeat responses produce an alert, while recovery is also visible through the endpoint and in-app health state.
 
 ## Gaps Summary
 
-Phase 2 has a substantial, wired implementation and a green 68-test suite, but it does not yet achieve the corrected MVP outcome. Six actionable gaps remain:
-
-1. Make hosted watchlist verification disposable and non-destructive.
-2. Reopen returned exact-ID ATS postings.
-3. Make due-company claims exclusive under concurrency.
-4. Treat a successful no-work tick as heartbeat success.
-5. Surface complete and partial Adzuna failure through HTTP and monitoring state.
-6. Reconcile the hourly aggregator implementation with the MVP story's 5-15 minute promise.
-
-The first five are source-code correctness gaps. The sixth is a goal-versus-design contract conflict and needs either implementation work or an explicit accepted override; it must not be silently passed.
+All six prior blocking gaps are closed or covered by the accepted cadence override. No implementation gap or regression remains. The phase is `human_needed` solely for the two browser/UI checks above; it must not be marked `passed` until those checks are resolved or explicitly waived.
 
 ---
 
-_Verified: 2026-07-17T16:23:22Z_
-_Verifier: the agent (gsd-verifier, generic-agent workaround)_
+_Verified: 2026-07-17T19:15:12Z_
+_Verifier: the agent (gsd-verifier)_
