@@ -28,16 +28,24 @@ Deno.serve(async (request) => {
   })
   const { data, error } = await admin
     .from('pipeline_heartbeat')
-    .select('last_success_at')
+    .select('last_success_at, discovery_status')
     .eq('id', true)
     .maybeSingle()
 
   const successTime = data?.last_success_at
     ? new Date(data.last_success_at).getTime()
     : Number.NaN
-  const fresh = !error
+  const pollFresh = !error
     && Number.isFinite(successTime)
     && Date.now() - successTime < STALE_AFTER_MS
 
-  return new Response(fresh ? 'ok' : 'stale', { status: fresh ? 200 : 503 })
+  if (!pollFresh) {
+    return new Response('stale', { status: 503 })
+  }
+
+  if (data.discovery_status === 'failed') {
+    return new Response('discovery-failed', { status: 503 })
+  }
+
+  return new Response('ok', { status: 200 })
 })
