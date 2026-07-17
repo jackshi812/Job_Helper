@@ -23,12 +23,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Discovery & Monitoring
 
-- [ ] **DISC-01**: System polls watchlist ATS endpoints on a schedule that keeps discovery-to-notification within 5–15 minutes
+- [x] **DISC-01**: System polls watchlist ATS endpoints on a schedule that keeps discovery-to-notification within 5–15 minutes
 - [ ] **DISC-02**: System discovers jobs outside the watchlist via one aggregator API (breadth source, latency not guaranteed)
-- [ ] **DISC-03**: System deduplicates postings across sources (stable ATS IDs + fuzzy company/title/location match) so a job is never surfaced twice
-- [ ] **DISC-04**: System captures a job-description snapshot at first sight (postings vanish; snapshot feeds tailoring)
-- [ ] **DISC-05**: System marks jobs as closed when they disappear from ATS polls (stale-job detection)
-- [ ] **DISC-06**: Pipeline runs record a heartbeat; a dead or silently failing cron is detectable within one poll cycle
+- [x] **DISC-03**: System deduplicates postings across sources (stable ATS IDs + fuzzy company/title/location match) so a job is never surfaced twice
+- [x] **DISC-04**: System captures a job-description snapshot at first sight (postings vanish; snapshot feeds tailoring)
+- [x] **DISC-05**: System marks jobs as closed when they disappear from ATS polls (stale-job detection)
+- [x] **DISC-06**: Pipeline runs record a heartbeat; a dead or silently failing cron is detectable within one poll cycle
 
 ### Scoring & Feed
 
@@ -104,12 +104,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PREF-02 | Phase 2 | Complete |
 | PREF-03 | Phase 2 | Complete |
 | PREF-04 | Phase 2 | Complete |
-| DISC-01 | Phase 2 | Pending |
+| DISC-01 | Phase 2 | Complete |
 | DISC-02 | Phase 2 | Pending |
-| DISC-03 | Phase 2 | Pending |
-| DISC-04 | Phase 2 | Pending |
-| DISC-05 | Phase 2 | Pending |
-| DISC-06 | Phase 2 | Pending |
+| DISC-03 | Phase 2 | Complete |
+| DISC-04 | Phase 2 | Complete |
+| DISC-05 | Phase 2 | Complete |
+| DISC-06 | Phase 2 | Complete |
 | SCOR-01 | Phase 3 | Pending |
 | SCOR-02 | Phase 3 | Pending |
 | SCOR-03 | Phase 3 | Pending |

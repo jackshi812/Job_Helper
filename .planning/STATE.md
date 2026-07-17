@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: watchlist-ingestion-monitoring
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-07-17T02:24:58.851Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-07-17T03:49:09.007Z"
 last_activity: 2026-07-17
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 25
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-15)
 ## Current Position
 
 Phase: 02 (watchlist-ingestion-monitoring) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-07-17 — Phase 02 execution started
 
@@ -56,6 +56,7 @@ Progress: [██▓░░░░░░░] 25% (1/4 phases)
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
+| Phase 02 P02 | 1h 17m | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,10 @@ Recent decisions affecting current work:
 - [Phase 02]: Parse pasted URLs in the browser for immediate rejection, then repeat detection in verify-board so the server remains the authoritative SSRF boundary.
 - [Phase 02]: Keep companies globally shared between the two authenticated users while granting no anonymous table access.
 - [Phase 02]: Represent watchlist edits as remove and re-add because every stored polling identity field is derived from live URL verification.
+- [Phase 02]: Keep ATS mapping pure and fixture-testable while thin wrappers own live fetches, response validation, and Greenhouse HTML decoding. — Preserves Vitest coverage while keeping Deno network concerns at the edge.
+- [Phase 02]: Use the database unique source/external-ID constraint as the concurrency backstop and normalized company/title/location fingerprints for repost and aggregator merges. — Combines exact concurrent safety with cross-source and repost deduplication.
+- [Phase 02]: Disable Edge JWT verification for cron calls and enforce a dedicated x-cron-secret shared only by Vault, Edge environment, and gitignored verification config. — The project's publishable and secret keys are not JWTs, so function-level shared-secret authorization is the applicable trust boundary.
+- [Phase 02]: Allow stale closure only after a successful non-empty company poll; failures and implausibly empty boards never close jobs. — Prevents transient ATS failures or malformed empty responses from falsely closing active jobs.
 
 ### Pending Todos
 
@@ -106,6 +111,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-17T03:24:39.419Z
-Stopped at: Session resumed, proceeding to Phase 02 Plan 02 Task 2
-Resume file: .planning/phases/02-watchlist-ingestion-monitoring/.continue-here.md
+Last session: 2026-07-17T03:48:47.921Z
+Stopped at: Completed 02-02-PLAN.md
+Resume file: None
