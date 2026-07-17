@@ -50,7 +50,7 @@ Plans:
 
 ### Phase 2: Watchlist Ingestion & Monitoring
 
-**Goal**: As a job seeker, I want watched-site postings exactly once within 5-15 minutes and aggregator discovery every 30 minutes from 6 AM-noon Chicago and every two hours otherwise, so that I can trust my job feed without manually checking each career site.
+**Goal**: As a job seeker, I want to receive watched-site postings exactly once within 5-15 minutes and aggregator discovery every 30 minutes from 6 AM-noon Chicago and every two hours otherwise, so that I can trust my job feed without manually checking each career site.
 **Mode:** mvp
 **Depends on**: Phase 1
 **Requirements**: PREF-02, PREF-03, PREF-04, DISC-01, DISC-02, DISC-03, DISC-04, DISC-05, DISC-06
