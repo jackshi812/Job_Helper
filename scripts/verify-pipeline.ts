@@ -12,9 +12,24 @@ const required = [
 ] as const
 
 const seedBoards = [
-  { label: 'Stripe', url: 'https://boards.greenhouse.io/stripe', source: 'greenhouse' },
-  { label: 'Palantir', url: 'https://jobs.lever.co/palantir', source: 'lever' },
-  { label: 'Ramp', url: 'https://jobs.ashbyhq.com/ramp', source: 'ashby' },
+  {
+    label: 'Stripe',
+    url: 'https://boards.greenhouse.io/stripe',
+    source: 'greenhouse',
+    boardToken: 'stripe',
+  },
+  {
+    label: 'Palantir',
+    url: 'https://jobs.lever.co/palantir',
+    source: 'lever',
+    boardToken: 'palantir',
+  },
+  {
+    label: 'Ramp',
+    url: 'https://jobs.ashbyhq.com/ramp',
+    source: 'ashby',
+    boardToken: 'ramp',
+  },
 ] as const
 
 function requiredEnvironment() {
@@ -81,6 +96,7 @@ async function ensureSeeds(
       .from('companies')
       .select('id')
       .eq('ats_type', board.source)
+      .eq('board_token', board.boardToken)
       .maybeSingle()
     if (lookupError) throw lookupError
     if (existing) continue
@@ -109,19 +125,30 @@ export async function runPipelineVerification() {
   if (authError || !auth.user) throw authError ?? new Error('Verification user authentication failed')
 
   let unexpectedProbeId: string | undefined
+  let reopenProbeRestore: { id: string; lastSeenAt: string } | undefined
   try {
     await ensureSeeds(admin, userClient)
-    const { data: companies, error: companiesError } = await admin
+    const { data: companyRows, error: companiesError } = await admin
       .from('companies')
-      .select('id, name, ats_type, last_polled_at, last_success_at, consecutive_failures')
-      .in('ats_type', seedBoards.map((board) => board.source))
+      .select('id, name, ats_type, board_token, last_polled_at, last_success_at, consecutive_failures')
+      .in('board_token', seedBoards.map((board) => board.boardToken))
     if (companiesError) throw companiesError
+    const companies = (companyRows ?? []).filter((company) =>
+      seedBoards.some(
+        (board) => board.source === company.ats_type && board.boardToken === company.board_token,
+      ),
+    )
     assert(
-      seedBoards.every((board) => companies?.some((company) => company.ats_type === board.source)),
+      seedBoards.every((board) =>
+        companies.some(
+          (company) =>
+            company.ats_type === board.source && company.board_token === board.boardToken,
+        ),
+      ),
       'probe 1: Stripe, Palantir, and Ramp seed companies exist',
     )
 
-    const seedIds = companies!.map((company) => company.id)
+    const seedIds = companies.map((company) => company.id)
     await admin.from('companies').update({ last_polled_at: null }).in('id', seedIds)
     let polledCompanies: typeof companies = []
     for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -313,7 +340,144 @@ export async function runPipelineVerification() {
       cronAdvancedAt > cronBaseline && cronAdvancedAt >= Date.now() - 3 * 60_000,
       'probe 12: pg_cron advances pipeline heartbeat without a manual tick during the probe window',
     )
+
+    const { error: resetClaimsError } = await admin
+      .from('companies')
+      .update({ last_polled_at: null })
+      .in('id', seedIds)
+    if (resetClaimsError) throw resetClaimsError
+    const concurrentClaims = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        admin.rpc('claim_due_companies', { batch_size: 2 }),
+      ),
+    )
+    const claimedIdBatches = concurrentClaims.map(({ data, error }) => {
+      if (error) throw error
+      return (data ?? []).map((company: { id: string }) => company.id)
+    })
+    const allClaimedIds = claimedIdBatches.flat()
+    const uniqueClaimedIds = new Set(allClaimedIds)
+    assert(
+      uniqueClaimedIds.size === allClaimedIds.length,
+      'probe 13: concurrent claim_due_companies calls return disjoint company batches',
+    )
+
+    const now = new Date().toISOString()
+    const { error: makeAllCurrentError } = await admin
+      .from('companies')
+      .update({ last_polled_at: now })
+      .not('id', 'is', null)
+    if (makeAllCurrentError) throw makeAllCurrentError
+    const { data: noWorkBaseline, error: noWorkBaselineError } = await admin
+      .from('pipeline_heartbeat')
+      .select('last_success_at')
+      .eq('id', true)
+      .single()
+    if (noWorkBaselineError) throw noWorkBaselineError
+    const noWorkResponse = await postTick(environment.url, environment.cronSecret)
+    const noWorkBody = await noWorkResponse.json() as { claimed?: number }
+    const { data: noWorkAfter, error: noWorkAfterError } = await admin
+      .from('pipeline_heartbeat')
+      .select('last_success_at')
+      .eq('id', true)
+      .single()
+    if (noWorkAfterError) throw noWorkAfterError
+    const noWorkBaselineMs = noWorkBaseline.last_success_at
+      ? new Date(noWorkBaseline.last_success_at).getTime()
+      : null
+    const noWorkAfterMs = noWorkAfter.last_success_at
+      ? new Date(noWorkAfter.last_success_at).getTime()
+      : null
+    assert(
+      noWorkResponse.ok &&
+        noWorkBody.claimed === 0 &&
+        noWorkAfterMs !== null &&
+        (noWorkBaselineMs === null || noWorkAfterMs > noWorkBaselineMs),
+      'probe 14: a successful no-work tick advances last_success_at',
+    )
+
+    const { data: reopenCandidate, error: reopenCandidateError } = await admin
+      .from('jobs')
+      .select('id, company_id, description_html, first_seen_at, last_seen_at')
+      .in('company_id', seedIds)
+      .eq('status', 'open')
+      .limit(1)
+      .maybeSingle()
+    if (reopenCandidateError) throw reopenCandidateError
+    if (!reopenCandidate?.company_id) {
+      console.warn('WARN: probe 15 skipped because no seed company currently has an open job')
+    } else {
+      reopenProbeRestore = { id: reopenCandidate.id, lastSeenAt: reopenCandidate.last_seen_at }
+      const { error: closeCandidateError } = await admin
+        .from('jobs')
+        .update({
+          status: 'closed',
+          closed_at: new Date().toISOString(),
+          last_seen_at: new Date(Date.now() - 40 * 60_000).toISOString(),
+        })
+        .eq('id', reopenCandidate.id)
+      if (closeCandidateError) throw closeCandidateError
+      const { error: forceReopenPollError } = await admin
+        .from('companies')
+        .update({ last_polled_at: null })
+        .eq('id', reopenCandidate.company_id)
+      if (forceReopenPollError) throw forceReopenPollError
+      const reopenResponse = await postTick(environment.url, environment.cronSecret)
+      if (!reopenResponse.ok) throw new Error(`reopen poll-tick returned HTTP ${reopenResponse.status}`)
+      const { data: reopenedJob, error: reopenedJobError } = await admin
+        .from('jobs')
+        .select('status, closed_at, description_html, first_seen_at')
+        .eq('id', reopenCandidate.id)
+        .single()
+      if (reopenedJobError) throw reopenedJobError
+      assert(
+        reopenedJob.status === 'open' &&
+          reopenedJob.closed_at === null &&
+          reopenedJob.description_html === reopenCandidate.description_html &&
+          reopenedJob.first_seen_at === reopenCandidate.first_seen_at,
+        'probe 15: a returned closed exact-ID job reopens with its first-sight snapshot preserved',
+      )
+      reopenProbeRestore = undefined
+    }
+
+    const discoveryHealthResponse = await postDiscoverySweep(
+      environment.url,
+      environment.cronSecret,
+    )
+    const discoveryHealthBody = await discoveryHealthResponse.json() as {
+      skipped?: string
+      discoveryStatus?: 'ok' | 'degraded' | 'failed'
+    }
+    const discoverySkipped = discoveryHealthBody.skipped === 'budget' ||
+      discoveryHealthBody.skipped === 'missing adzuna credentials'
+    const validDiscoveryStatus = discoveryHealthBody.discoveryStatus === 'ok' ||
+      discoveryHealthBody.discoveryStatus === 'degraded' ||
+      discoveryHealthBody.discoveryStatus === 'failed'
+    let discoveryHeartbeatPersisted = true
+    if (!discoverySkipped) {
+      const { data: discoveryHeartbeat, error: discoveryHeartbeatError } = await admin
+        .from('pipeline_heartbeat')
+        .select('last_discovery_at, discovery_status')
+        .eq('id', true)
+        .single()
+      if (discoveryHeartbeatError) throw discoveryHeartbeatError
+      discoveryHeartbeatPersisted = Boolean(
+        discoveryHeartbeat.last_discovery_at &&
+          discoveryHeartbeat.discovery_status === discoveryHealthBody.discoveryStatus,
+      )
+    }
+    assert(
+      (discoverySkipped || validDiscoveryStatus) && discoveryHeartbeatPersisted,
+      'probe 16: discovery sweep surfaces health state in its response and heartbeat row',
+    )
   } finally {
+    if (reopenProbeRestore) {
+      const { error: restoreError } = await admin
+        .from('jobs')
+        .update({ status: 'open', closed_at: null, last_seen_at: reopenProbeRestore.lastSeenAt })
+        .eq('id', reopenProbeRestore.id)
+      if (restoreError) throw restoreError
+    }
     if (unexpectedProbeId) await admin.from('jobs').delete().eq('id', unexpectedProbeId)
     await userClient.auth.signOut()
   }
