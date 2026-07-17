@@ -17,9 +17,9 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Preferences & Watchlist
 
 - [ ] **PREF-01**: User can set job preferences: target titles, locations, keywords (include/exclude)
-- [ ] **PREF-02**: User can add, edit, and remove companies on a watchlist of 100+ career-site URLs
-- [ ] **PREF-03**: System auto-detects ATS platform (Greenhouse/Lever/Ashby) from a pasted career-site URL and stores the polling endpoint
-- [ ] **PREF-04**: User can see per-company monitoring health (last successful poll, failing sources flagged)
+- [x] **PREF-02**: User can add, edit, and remove companies on a watchlist of 100+ career-site URLs
+- [x] **PREF-03**: System auto-detects ATS platform (Greenhouse/Lever/Ashby) from a pasted career-site URL and stores the polling endpoint
+- [x] **PREF-04**: User can see per-company monitoring health (last successful poll, failing sources flagged)
 
 ### Discovery & Monitoring
 
@@ -101,9 +101,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-03 | Phase 1 | Complete |
 | AUTH-04 | Phase 1 | Complete |
 | PREF-01 | Phase 3 | Pending |
-| PREF-02 | Phase 2 | Pending |
-| PREF-03 | Phase 2 | Pending |
-| PREF-04 | Phase 2 | Pending |
+| PREF-02 | Phase 2 | Complete |
+| PREF-03 | Phase 2 | Complete |
+| PREF-04 | Phase 2 | Complete |
 | DISC-01 | Phase 2 | Pending |
 | DISC-02 | Phase 2 | Pending |
 | DISC-03 | Phase 2 | Pending |

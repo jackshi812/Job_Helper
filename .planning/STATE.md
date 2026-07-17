@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 2
-current_phase_name: Watchlist Ingestion & Monitoring
+current_phase: 02
+current_phase_name: watchlist-ingestion-monitoring
 status: executing
-stopped_at: Phase 2 UI-SPEC approved
-last_updated: "2026-07-17T01:37:39.441Z"
-last_activity: 2026-07-16
-last_activity_desc: Phase 1 complete (UAT 6/6, verification 4/4), transitioned to Phase 2
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-07-17T02:24:58.851Z"
+last_activity: 2026-07-17
+last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 6
+  completed_plans: 4
   percent: 25
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-15)
 
 **Core value:** Discover relevant jobs fast (5–15 minutes from posting) and notify the user immediately — if job discovery and notification don't work reliably, nothing else matters.
-**Current focus:** Phase 2 — Watchlist Ingestion & Monitoring
+**Current focus:** Phase 02 — watchlist-ingestion-monitoring
 
 ## Current Position
 
-Phase: 2 — Watchlist Ingestion & Monitoring
-Plan: Not started
+Phase: 02 (watchlist-ingestion-monitoring) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-07-16 — Phase 1 complete (UAT 6/6, verification 4/4), transitioned to Phase 2
+Last activity: 2026-07-17 — Phase 02 execution started
 
 Progress: [██▓░░░░░░░] 25% (1/4 phases)
 
@@ -55,6 +55,7 @@ Progress: [██▓░░░░░░░] 25% (1/4 phases)
 - Trend: Deployment and production recovery UAT made Plan 03 the longest phase plan
 
 *Updated after each plan completion*
+| Phase 02 P01 | 16 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Recent decisions affecting current work:
 - [Phase 01]: Keep bulk deletion storage-first and require exact object-removal counts before the database RPC.
 - [Phase 01]: Use manual recovery OTP instead of ConfirmationURL because email-security prefetch can consume clickable one-time links.
 - [Phase 01]: Clear the temporary recovery session locally after password update.
+- [Phase 02]: Parse pasted URLs in the browser for immediate rejection, then repeat detection in verify-board so the server remains the authoritative SSRF boundary.
+- [Phase 02]: Keep companies globally shared between the two authenticated users while granting no anonymous table access.
+- [Phase 02]: Represent watchlist edits as remove and re-add because every stored polling identity field is derived from live URL verification.
 
 ### Pending Todos
 
@@ -102,6 +106,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-17T00:57:15.620Z
-Stopped at: Phase 2 UI-SPEC approved
-Resume file: .planning/phases/02-watchlist-ingestion-monitoring/02-UI-SPEC.md
+Last session: 2026-07-17T02:24:44.427Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
