@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: watchlist-ingestion-monitoring
 status: executing
-stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-07-17T17:23:52.893Z"
+stopped_at: Completed 02-06-PLAN.md
+last_updated: "2026-07-17T17:35:44.326Z"
 last_activity: 2026-07-17
-last_activity_desc: Phase 02 Plan 05 completed; exclusive claims and non-destructive hosted probes are ready for deployment
+last_activity_desc: Phase 02 Plan 06 completed; discovery health and budget-safe cadence are ready for hosted verification
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-15)
 ## Current Position
 
 Phase: 02 (watchlist-ingestion-monitoring) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
-Last activity: 2026-07-17 — Phase 02 Plan 05 completed; exclusive claims and non-destructive hosted probes are ready for deployment
+Last activity: 2026-07-17 — Phase 02 Plan 06 completed; discovery health and budget-safe cadence are ready for hosted verification
 
-Progress: [████████░░] 80% (8/10 plans)
+Progress: [█████████░] 90% (9/10 plans)
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [████████░░] 80% (8/10 plans)
 | Phase 02 P03 | 1h 57m | 3 tasks | 9 files |
 | Phase 02 P04 | 5min | 2 tasks | 3 files |
 | Phase 02 P05 | 9m | 3 tasks | 3 files |
+| Phase 02 P06 | 6min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,10 @@ Recent decisions affecting current work:
 - [Phase 02]: Preserve the claim RPC contract while using a locking CTE and service-role-only execution.
 - [Phase 02]: Resolve hosted seed probes by exact ATS type and board token.
 - [Phase 02]: Restore temporary hosted probe mutations whenever verification aborts.
+- [Phase 02]: Treat no enabled discovery seeds as a healthy no-work sweep, while any attempted run with zero successes is failed.
+- [Phase 02]: Deduplicate seed queries by trimmed lowercase role/location pairs while preserving the first configured values sent upstream.
+- [Phase 02]: Use 15-minute discovery during 11:00-02:59 UTC and hourly discovery overnight to hold the current three-query workload to 216 requests per day.
+- [Phase 02]: Keep partial discovery failures degraded and HTTP 200, but propagate total failure as HTTP 503 through both discovery-sweep and heartbeat.
 
 ### Pending Todos
 
@@ -124,6 +129,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-17T17:23:52.803Z
-Stopped at: Completed 02-05-PLAN.md
+Last session: 2026-07-17T17:35:22.411Z
+Stopped at: Completed 02-06-PLAN.md
 Resume file: None
