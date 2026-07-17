@@ -31,7 +31,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DISC-05**: System marks jobs as closed when they disappear from ATS polls (stale-job detection)
 - [x] **DISC-06**: Pipeline runs record a heartbeat; a dead or silently failing cron is detectable within one poll cycle
 - [ ] **DISC-07**: System validates one representative company per feasible additional source platform (SmartRecruiters, Recruitee, Workday, Oracle Recruiting, iCIMS, SuccessFactors, and Eightfold) while preserving Greenhouse/Lever/Ashby support
-- [ ] **DISC-08**: System directly monitors the agreed finance-company validation set, reusing shared ATS adapters where possible and using allowlisted company-specific adapters only where necessary
+- [ ] **DISC-08**: System validates the agreed finance-company set by directly monitoring each company with a stable, safely pollable public contract; every remaining company has a canonical careers link, provider evidence, and an explicit `unsupported_with_reason` disposition and is never labeled monitored
 - [ ] **DISC-09**: Failed, blocked, changed, or implausibly empty sources retain last-known jobs, report Degraded with last-success/error detail, and never close jobs from the failed observation; new connectors are staged before scheduled activation
 
 ### Scoring & Feed

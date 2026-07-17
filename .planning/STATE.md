@@ -4,15 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 02.1
 current_phase_name: Source Coverage Expansion
-status: planning
-stopped_at: Phase 02.1 UI-SPEC approved
-last_updated: "2026-07-17T20:40:06.473Z"
+status: executing
+stopped_at: Phase 02.1 planned — ready to execute
+last_updated: "2026-07-17T21:54:07.450Z"
 last_activity: 2026-07-17
-last_activity_desc: Phase 02 complete, transitioned to Phase 02.1
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 10
+  total_plans: 18
   completed_plans: 10
   percent: 40
 ---
@@ -30,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 
 Phase: 02.1 — Source Coverage Expansion
 Plan: Not started
-Status: Ready for planning
-Last activity: 2026-07-17 — Phase 02 complete, transitioned to Phase 02.1
+Status: Ready to execute
+Last activity: 2026-07-17
 
-Progress: [██████████] 100% (10/10 plans)
+Progress: [████░░░░░░] 40% (10/18 plans)
 
 ## Performance Metrics
 
@@ -136,6 +135,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-17T20:40:06.459Z
-Stopped at: Phase 02.1 UI-SPEC approved
-Resume file: .planning/phases/02.1-source-coverage-expansion/02.1-UI-SPEC.md
+Last session: 2026-07-17T21:54:07.450Z
+Stopped at: Phase 02.1 planned — ready to execute
+Resume file: .planning/phases/02.1-source-coverage-expansion/02.1-01-PLAN.md

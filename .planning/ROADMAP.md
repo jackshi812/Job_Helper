@@ -90,7 +90,7 @@ Plans:
 
 ### Phase 02.1: Source Coverage Expansion (INSERTED)
 
-**Goal:** Expand direct-source coverage beyond Greenhouse, Lever, and Ashby by proving one representative company per additional platform and direct ingestion for a broad finance-company validation set, without allowing source failures to create false job closures
+**Goal:** As a job seeker, I want to monitor representative major-employer career platforms with honest active, experimental, degraded, and unsupported states, so that I can broaden my job coverage without trusting brittle or failing sources.
 **Mode:** mvp
 **Requirements**: PREF-05, DISC-07, DISC-08, DISC-09
 **Depends on:** Phase 2
@@ -98,16 +98,43 @@ Plans:
 
   1. The Watchlist table includes a clickable Link column that opens each company's stored job-search/careers URL in a new tab
   2. Existing Greenhouse/Lever/Ashby support remains intact, and one publicly testable company is connected and verified for each feasible additional platform: SmartRecruiters, Recruitee, Workday, Oracle Recruiting, iCIMS, SuccessFactors, and Eightfold
-  3. Direct-source coverage is validated for Morgan Stanley, Goldman Sachs, JPMorgan Chase, Bank of America, Citi, BlackRock, Wells Fargo, UBS, Barclays, Capital One, Fidelity, and Charles Schwab; shared ATS adapters are reused where detected and company-specific adapters are used only when required
+  3. Direct-source coverage is validated for Morgan Stanley, Goldman Sachs, JPMorgan Chase, Bank of America, Citi, BlackRock, Wells Fargo, UBS, Barclays, Capital One, Fidelity, and Charles Schwab: companies with a stable, safely pollable public contract are monitored through shared or allowlisted adapters, while every remaining company has a canonical careers link, provider evidence, and an explicit unsupported reason and is never labeled monitored
   4. A blocked, changed, failed, or implausibly empty source retains its last known jobs, reports Degraded with the last successful sync and useful error detail, and never closes jobs from that failed observation
   5. Every new connector passes manual verification and several successful syncs before scheduled polling is enabled; unsupported or unstable candidates remain clearly documented rather than being presented as reliable
 
-**Plans:** TBD
+**Plans:** 8 plans
 **UI hint:** yes
 
 Plans:
 
-- [ ] TBD (run `$gsd-plan-phase 02.1` after research validates the representative URLs and access patterns)
+**Wave 1**
+
+- [ ] 02.1-01-PLAN.md — Existing-provider PollObservation and closure-safe degradation slice
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 02.1-02-PLAN.md — Closed registry, server-owned connector state, and authoritative verified-add slice
+
+**Wave 3** *(blocked on Wave 2; parallel UI/catalog and public-connector slices)*
+
+- [ ] 02.1-03-PLAN.md — Safe Link/state UI and evidence-backed twelve-company finance catalog
+- [ ] 02.1-04-PLAN.md — SmartRecruiters/Recruitee adapters, exact detection, registry dispatch, and strict source-schema parity
+
+**Wave 4** *(blocked on public connector wiring)*
+
+- [ ] 02.1-05-PLAN.md — Server-time activation windows, replay rejection, and provider-specific promotion
+
+**Wave 5** *(blocked on activation policy)*
+
+- [ ] 02.1-06-PLAN.md — Allowlisted Capital One Workday connector retained as Experimental
+
+**Wave 6** *(blocked on catalog, activation, and Workday implementation)*
+
+- [ ] 02.1-07-PLAN.md — [BLOCKING] ordered schema push, function deploy, and resumable hosted proof across real server windows
+
+**Wave 7** *(blocked on hosted backend proof)*
+
+- [ ] 02.1-08-PLAN.md — [APPROVAL] origin/main push, SHA-matched Cloudflare deployment proof, and deployed UI acceptance
 
 ### Phase 3: Scoring, Feed & Notifications
 
@@ -152,7 +179,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
 | 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
-| 02.1 Source Coverage Expansion | 0/TBD | Not started | - |
+| 02.1 Source Coverage Expansion | 0/8 | Not started | - |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
