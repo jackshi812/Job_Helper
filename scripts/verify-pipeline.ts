@@ -485,8 +485,10 @@ export async function runPipelineVerification() {
 
 const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
 if (isMainModule) {
-  runPipelineVerification().catch((error) => {
+  try {
+    await runPipelineVerification()
+  } catch (error) {
     console.error(error instanceof Error ? error.message : 'Pipeline verification failed')
     process.exitCode = 1
-  })
+  }
 }
