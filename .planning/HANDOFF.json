@@ -1,0 +1,81 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-17T02:33:59.894Z",
+  "phase": "02",
+  "phase_name": "watchlist-ingestion-monitoring",
+  "phase_dir": ".planning/phases/02-watchlist-ingestion-monitoring",
+  "plan": 2,
+  "task": 2,
+  "total_tasks": 3,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "ATS adapters + dedup fingerprint",
+      "status": "done",
+      "commit": "06189ef, eca1c4a"
+    },
+    {
+      "id": 2,
+      "name": "Migration 0006 + hosted database push",
+      "status": "in_progress",
+      "progress": "Migration 0006 and poll-tick config are prepared locally; no hosted Plan 02-02 mutation has been approved or applied."
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 2,
+      "name": "Approve and apply migration 0006, set CRON_SECRET, and verify linked migration",
+      "status": "blocked"
+    },
+    {
+      "id": 3,
+      "name": "Implement and deploy poll-tick, then run hosted pipeline verification",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Explicit approval is still required before applying migration 0006, enabling pg_cron/pg_net, creating the per-minute schedule, setting CRON_SECRET, or deploying poll-tick to job-copilot (fjcsvajkkztvlrpdplwx).",
+      "type": "human_action",
+      "workaround": "Resume and obtain approval for the exact mutation set; do not infer it from the earlier Plan 02-01 approval."
+    },
+    {
+      "description": "After the approved CLI mutations, the user must create Vault secrets named project_url and cron_secret in the Supabase Dashboard.",
+      "type": "human_action",
+      "workaround": "Use the Dashboard SQL editor instructions in 02-02-PLAN.md after CRON_SECRET has been generated."
+    }
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {
+      "action": "Approve the exact Plan 02-02 hosted Supabase mutations.",
+      "context": "Apply 0006, enable pg_cron/pg_net, create poll-tick-every-minute, set CRON_SECRET, save it in gitignored scripts/.env, and deploy poll-tick.",
+      "blocking": true
+    },
+    {
+      "action": "Create Vault rows project_url and cron_secret in the Supabase Dashboard after CRON_SECRET exists.",
+      "context": "The scheduled pg_net request reads both values from Vault; no CLI/API path is available on the current tier.",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Keep adapter mapping pure and isolate network fetch wrappers.",
+      "rationale": "Vitest can validate ATS payload normalization without network mocks or Deno-only imports.",
+      "phase": "02"
+    },
+    {
+      "decision": "Require fresh explicit approval for Plan 02-02 hosted mutations.",
+      "rationale": "The earlier approval covered only migration 0005 and verify-board; it did not authorize new tables, extensions, cron, secrets, or function deployment.",
+      "phase": "02"
+    }
+  ],
+  "uncommitted_files": [
+    "supabase/migrations/0006_jobs_pipeline.sql",
+    "supabase/config.toml",
+    ".DS_Store (unrelated user change; preserve and never stage)"
+  ],
+  "next_action": "Run $gsd-resume-work, review this handoff, obtain explicit approval for the listed hosted mutations, and spawn a fresh Plan 02-02 continuation executor from Task 2 without redoing Task 1.",
+  "context_notes": "Plan 02-01 is complete and live. Plan 02-02 Task 1 is committed and verified with 65 tests plus a production build. Task 2 local SQL/config are ready, but migration 0006 has not been pushed, CRON_SECRET has not been generated or set, Vault rows do not exist, and poll-tick has not been deployed. No background process or external async job is running."
+}
