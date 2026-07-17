@@ -1,23 +1,25 @@
 ---
-status: diagnosed
+status: testing
 phase: 02-watchlist-ingestion-monitoring
 source: [02-VERIFICATION.md]
 started: 2026-07-17T19:17:00Z
-updated: 2026-07-17T19:28:00Z
+updated: 2026-07-17T19:31:00Z
 ---
 
 ## Current Test
 
-[testing paused — user-flow failure requires diagnosis]
+number: 1
+name: Deployed Watchlist add, replace, and remove flow
+expected: |
+  Hard-refresh /watchlist and confirm the add form and company table appear. Add a supported ATS board that is not already listed. Verify its row appears. Click Remove and cancel once to confirm the row stays; then Remove again and confirm to make it disappear. Re-add the same URL and confirm it succeeds, then remove that test row as cleanup. Existing unrelated company rows must remain throughout.
+awaiting: user response
 
 ## Tests
 
 ### 1. Deployed Watchlist add, replace, and remove flow
-expected: The table and persisted state match each action; removal requires confirmation; re-adding the same supported board succeeds; unrelated captured jobs remain intact.
-result: issue
-reported: "nothing here"
-severity: major
-evidence: "User screenshot of the deployed /watchlist route shows only the old 'Company monitoring is coming soon.' placeholder."
+expected: Hard-refresh /watchlist and confirm the add form and company table appear. Add a supported ATS board that is not already listed. Verify its row appears. Click Remove and cancel once to confirm the row stays; then Remove again and confirm to make it disappear. Re-add the same URL and confirm it succeeds, then remove that test row as cleanup. Existing unrelated company rows must remain throughout.
+result: [pending]
+notes: "Initial run showed the old placeholder. Root cause was an unpushed production branch; origin/main was updated and Cloudflare now serves index-CLenEcPO.js with the completed Watchlist UI."
 
 ### 2. Health badge presentation in light and dark themes
 expected: OK, Failing, and Stale are distinct and readable in both themes, and each badge's hover text reports the correct last-success context.
@@ -27,15 +29,15 @@ result: [pending]
 
 total: 2
 passed: 0
-issues: 1
-pending: 1
+issues: 0
+pending: 2
 skipped: 0
 blocked: 0
 
 ## Gaps
 
 - truth: "The deployed Watchlist page provides the add, replace-by-remove-and-re-add, and confirmed remove flow."
-  status: failed
+  status: resolved_pending_verification
   reason: "User reported: nothing here. The deployed /watchlist route shows the old 'Company monitoring is coming soon.' placeholder."
   severity: major
   test: 1
