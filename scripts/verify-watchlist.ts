@@ -31,6 +31,12 @@ const seedBoards = [
   { label: 'Ramp', url: 'https://jobs.ashbyhq.com/ramp' },
 ] as const
 
+const seedIdentities = [
+  { ats_type: 'greenhouse', board_token: 'stripe' },
+  { ats_type: 'lever', board_token: 'palantir' },
+  { ats_type: 'ashby', board_token: 'ramp' },
+] as const
+
 const sanitizedFetch: typeof fetch = async (input, init) => {
   try {
     return await globalThis.fetch(input, init)
@@ -77,7 +83,7 @@ export async function runWatchlistVerification() {
   const clientB = createProbeClient(environment.url, environment.key)
   const anonClient = createProbeClient(environment.url, environment.key)
   const failures: string[] = []
-  let sharedProbeId: string | undefined
+  let disposableProbeId: string | undefined
 
   function probe(condition: boolean, label: string) {
     if (condition) {
@@ -98,6 +104,27 @@ export async function runWatchlistVerification() {
     if (authErrorA || !authA.user) throw new Error('User A authentication failed')
     if (authErrorB || !authB.user) throw new Error('User B authentication failed')
     console.log('PASS: both independent publishable-key clients authenticated')
+
+    const { data: seedBaselineRows, error: seedBaselineError } = await clientA
+      .from('companies')
+      .select('id, ats_type, board_token')
+      .in('board_token', seedIdentities.map((seed) => seed.board_token))
+    if (seedBaselineError) throw seedBaselineError
+    const seedBaseline = (seedBaselineRows ?? []).filter((company) =>
+      seedIdentities.some(
+        (seed) => seed.ats_type === company.ats_type && seed.board_token === company.board_token,
+      ),
+    )
+    const seedCompanyIds = seedBaseline.map((company) => company.id)
+    let jobsBefore = 0
+    if (seedCompanyIds.length > 0) {
+      const { count, error: jobsBeforeError } = await clientA
+        .from('jobs')
+        .select('*', { count: 'exact', head: true })
+        .in('company_id', seedCompanyIds)
+      if (jobsBeforeError) throw jobsBeforeError
+      jobsBefore = count ?? 0
+    }
 
     const unsupported = await verifyBoard(clientA, 'https://example.com/careers')
     probe(
@@ -121,61 +148,79 @@ export async function runWatchlistVerification() {
     )
     if (!stripe.ok) throw new Error('Stripe verification failed; cannot run shared-row probe')
 
-    const { data: existingStripe, error: existingStripeError } = await clientA
+    const { data: insertedProbe, error: insertProbeError } = await clientA
       .from('companies')
+      .insert({
+        name: 'RLS Probe (disposable)',
+        ats_type: 'greenhouse',
+        board_token: `probe-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        region: null,
+        last_polled_at: new Date().toISOString(),
+      })
       .select('id')
-      .eq('ats_type', stripe.ats)
-      .eq('board_token', stripe.board_token)
-      .maybeSingle()
-    if (existingStripeError) throw existingStripeError
-
-    if (existingStripe) {
-      sharedProbeId = existingStripe.id
-    } else {
-      const { data: inserted, error: insertError } = await clientA
-        .from('companies')
-        .insert({
-          name: stripe.company_name,
-          ats_type: stripe.ats,
-          board_token: stripe.board_token,
-          region: stripe.region,
-        })
-        .select('id')
-        .single()
-      if (insertError || !inserted) throw insertError ?? new Error('Unable to insert shared probe row')
-      sharedProbeId = inserted.id
+      .single()
+    if (insertProbeError || !insertedProbe) {
+      throw insertProbeError ?? new Error('Unable to insert disposable shared probe row')
     }
+    disposableProbeId = insertedProbe.id
 
     const { data: visibleToB, error: visibleError } = await clientB
       .from('companies')
       .select('id')
-      .eq('id', sharedProbeId)
+      .eq('id', disposableProbeId)
       .single()
     probe(
-      !visibleError && visibleToB?.id === sharedProbeId,
+      !visibleError && visibleToB?.id === disposableProbeId,
       'probe 4a: User B can read the company saved by User A',
     )
 
     const { data: deletedByB, error: deleteError } = await clientB
       .from('companies')
       .delete()
-      .eq('id', sharedProbeId)
+      .eq('id', disposableProbeId)
       .select('id')
     probe(
       !deleteError && deletedByB?.length === 1,
       'probe 4b: User B can remove the company saved by User A',
     )
-    if (!deleteError && deletedByB?.length === 1) sharedProbeId = undefined
+    if (!deleteError && deletedByB?.length === 1) disposableProbeId = undefined
 
     const { data: anonRows, error: anonError } = await anonClient.from('companies').select('id')
     probe(
       Boolean(anonError) || anonRows?.length === 0,
       'probe 5: anonymous client cannot read companies',
     )
+
+    const { data: seedAfterRows, error: seedAfterError } = await clientA
+      .from('companies')
+      .select('id, ats_type, board_token')
+      .in('board_token', seedIdentities.map((seed) => seed.board_token))
+    if (seedAfterError) throw seedAfterError
+    const seedIdsUnchanged = seedBaseline.every((before) =>
+      seedAfterRows?.some(
+        (after) =>
+          after.id === before.id &&
+          after.ats_type === before.ats_type &&
+          after.board_token === before.board_token,
+      ),
+    )
+    let jobsAfter = 0
+    if (seedCompanyIds.length > 0) {
+      const { count, error: jobsAfterError } = await clientA
+        .from('jobs')
+        .select('*', { count: 'exact', head: true })
+        .in('company_id', seedCompanyIds)
+      if (jobsAfterError) throw jobsAfterError
+      jobsAfter = count ?? 0
+    }
+    probe(
+      seedIdsUnchanged && jobsAfter >= jobsBefore,
+      'probe 6: seed companies and their job links are unchanged by verification',
+    )
   } finally {
-    if (sharedProbeId) {
-      const { error } = await clientA.from('companies').delete().eq('id', sharedProbeId)
-      if (error) failures.push('cleanup: shared probe row could not be removed')
+    if (disposableProbeId) {
+      const { error } = await clientA.from('companies').delete().eq('id', disposableProbeId)
+      if (error) failures.push('cleanup: disposable probe row could not be removed')
     }
   }
 
@@ -212,7 +257,7 @@ export async function runWatchlistVerification() {
   }
 
   await Promise.all([clientA.auth.signOut(), clientB.auth.signOut()])
-  console.log('PASS: all 5 watchlist probes completed and live boards are seeded')
+  console.log('PASS: all 6 watchlist probes completed and live boards are seeded')
 }
 
 const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
