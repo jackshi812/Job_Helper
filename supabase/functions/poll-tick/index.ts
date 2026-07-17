@@ -4,6 +4,11 @@ import { pollGreenhouse } from '../_shared/adapters/greenhouse.ts'
 import { pollLever } from '../_shared/adapters/lever.ts'
 import { type NormalizedJob } from '../_shared/adapters/types.ts'
 import { fingerprint } from '../_shared/dedup.ts'
+import {
+  planCompanySync,
+  shouldAdvanceSuccessHeartbeat,
+  type ExistingJobRow,
+} from '../_shared/lifecycle.ts'
 
 type AtsType = 'greenhouse' | 'lever' | 'ashby'
 
@@ -16,15 +21,9 @@ interface Company {
   consecutive_failures: number
 }
 
-interface OpenJob {
-  id: string
-  source: string
-  external_id: string
-  fingerprint: string
-}
-
 interface CompanyResult {
   inserted: number
+  reopened: number
   closed: number
 }
 
@@ -168,14 +167,15 @@ async function processCompany(
   admin: SupabaseClient,
   company: Company,
 ): Promise<CompanyResult> {
-  const { data: openJobs, error: openJobsError } = await admin
+  const { data: jobs, error: jobsError } = await admin
     .from('jobs')
-    .select('id, source, external_id, fingerprint')
+    .select('id, source, external_id, fingerprint, status, last_seen_at')
     .eq('company_id', company.id)
-    .eq('status', 'open')
-  if (openJobsError) throw openJobsError
+    .in('status', ['open', 'closed'])
+  if (jobsError) throw jobsError
 
-  const existing = (openJobs ?? []) as OpenJob[]
+  const existing = (jobs ?? []) as ExistingJobRow[]
+  const openRows = existing.filter((job) => job.status === 'open')
   const knownIds = new Set(
     existing
       .filter((job) => job.source === company.ats_type)
@@ -183,37 +183,37 @@ async function processCompany(
   )
   const normalizedJobs = await pollCompany(company, knownIds)
 
-  if (existing.length > 0 && normalizedJobs.length === 0) {
+  if (openRows.length > 0 && normalizedJobs.length === 0) {
     throw new Error(`${company.ats_type} ${company.board_token}: implausible empty board response`)
   }
 
   const seenAt = new Date().toISOString()
-  const exactIds = new Map(
-    existing.map((job) => [`${job.source}|${job.external_id}`, job.id]),
-  )
+  const plan = planCompanySync(existing, normalizedJobs, seenAt)
   const companyFingerprintIds = new Map(
-    existing.map((job) => [job.fingerprint, job.id]),
+    openRows.map((job) => [job.fingerprint, job.id]),
   )
-  const seenIds: string[] = []
-  const newJobs: Array<{ normalized: NormalizedJob; fingerprint: string }> = []
+  const newJobs = plan.newJobs.map((normalized) => ({
+    normalized,
+    fingerprint: fingerprint(
+      normalized.companyName ?? company.name,
+      normalized.title,
+      normalized.location,
+    ),
+  }))
 
-  for (const normalized of normalizedJobs) {
-    const exactId = exactIds.get(`${normalized.source}|${normalized.externalId}`)
-    if (exactId) {
-      seenIds.push(exactId)
-      continue
-    }
-    newJobs.push({
-      normalized,
-      fingerprint: fingerprint(
-        normalized.companyName ?? company.name,
-        normalized.title,
-        normalized.location,
-      ),
-    })
+  await updateSeenJobs(admin, plan.seenOpenIds, seenAt)
+
+  let reopened = 0
+  for (const batch of batches(plan.reopenIds)) {
+    const { data: reopenedRows, error: reopenError } = await admin
+      .from('jobs')
+      .update({ status: 'open', closed_at: null, last_seen_at: seenAt })
+      .in('id', batch)
+      .select('id')
+    if (reopenError) throw reopenError
+    reopened += reopenedRows?.length ?? 0
   }
 
-  await updateSeenJobs(admin, seenIds, seenAt)
   const inserted = await ingestNewJobs(
     admin,
     company,
@@ -233,21 +233,19 @@ async function processCompany(
   if (healthError) throw healthError
 
   let closed = 0
-  // Closing is deliberately reachable only after a successful, non-empty poll.
-  if (existing.length > 0 && normalizedJobs.length > 0) {
-    const cutoff = new Date(Date.now() - 35 * 60_000).toISOString()
+  // planCompanySync makes closure reachable only after a successful, non-empty poll.
+  for (const batch of batches(plan.closeIds)) {
     const { data: closedRows, error: closeError } = await admin
       .from('jobs')
       .update({ status: 'closed', closed_at: seenAt })
-      .eq('company_id', company.id)
       .eq('status', 'open')
-      .lt('last_seen_at', cutoff)
+      .in('id', batch)
       .select('id')
     if (closeError) throw closeError
-    closed = closedRows?.length ?? 0
+    closed += closedRows?.length ?? 0
   }
 
-  return { inserted, closed }
+  return { inserted, reopened, closed }
 }
 
 Deno.serve(async (request) => {
@@ -291,6 +289,7 @@ Deno.serve(async (request) => {
     let succeeded = 0
     let failed = 0
     let inserted = 0
+    let reopened = 0
     let closed = 0
 
     for (const [index, result] of settled.entries()) {
@@ -298,6 +297,7 @@ Deno.serve(async (request) => {
       if (result.status === 'fulfilled') {
         succeeded += 1
         inserted += result.value.inserted
+        reopened += result.value.reopened
         closed += result.value.closed
         continue
       }
@@ -315,7 +315,7 @@ Deno.serve(async (request) => {
       if (failureError) console.error(`poll-tick health update ${company.id} failed`, failureError)
     }
 
-    if (succeeded > 0) {
+    if (shouldAdvanceSuccessHeartbeat(companies.length, succeeded)) {
       const { error: successHeartbeatError } = await admin
         .from('pipeline_heartbeat')
         .update({ last_success_at: new Date().toISOString() })
@@ -328,6 +328,7 @@ Deno.serve(async (request) => {
       succeeded,
       failed,
       inserted,
+      reopened,
       closed,
     })
   } catch (error) {
