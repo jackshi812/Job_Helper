@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: watchlist-ingestion-monitoring
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-07-17T17:22:03.503Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-07-17T17:23:52.893Z"
 last_activity: 2026-07-17
-last_activity_desc: Phase 02 Plan 04 completed; lifecycle reopening and no-work heartbeat are unit-verified
+last_activity_desc: Phase 02 Plan 05 completed; exclusive claims and non-destructive hosted probes are ready for deployment
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 10
-  completed_plans: 7
-  percent: 25
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-15)
 ## Current Position
 
 Phase: 02 (watchlist-ingestion-monitoring) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
-Last activity: 2026-07-17 — Phase 02 Plan 04 completed; lifecycle reopening and no-work heartbeat are unit-verified
+Last activity: 2026-07-17 — Phase 02 Plan 05 completed; exclusive claims and non-destructive hosted probes are ready for deployment
 
-Progress: [███████░░░] 70% (7/10 plans)
+Progress: [████████░░] 80% (8/10 plans)
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [███████░░░] 70% (7/10 plans)
 | Phase 02 P02 | 1h 17m | 3 tasks | 11 files |
 | Phase 02 P03 | 1h 57m | 3 tasks | 9 files |
 | Phase 02 P04 | 5min | 2 tasks | 3 files |
+| Phase 02 P05 | 9m | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Resolve source/external-ID matches across open and closed rows while keeping repost fingerprints open-only. — Returned exact-ID postings reopen without changing repost merge semantics.
 - [Phase 02]: Restrict reopened jobs to lifecycle-field updates so first-sight snapshots remain immutable. — Captured job content remains a truthful first-sight record.
 - [Phase 02]: Treat zero claimed companies as heartbeat success while all-claimed-failed ticks remain stale. — Scheduler health reflects successful execution instead of work volume.
+- [Phase 02]: Preserve the claim RPC contract while using a locking CTE and service-role-only execution.
+- [Phase 02]: Resolve hosted seed probes by exact ATS type and board token.
+- [Phase 02]: Restore temporary hosted probe mutations whenever verification aborts.
 
 ### Pending Todos
 
@@ -120,6 +124,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-17T17:21:46.568Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-07-17T17:23:52.803Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
