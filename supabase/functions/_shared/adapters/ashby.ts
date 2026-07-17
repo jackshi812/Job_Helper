@@ -1,4 +1,4 @@
-import { type NormalizedJob } from './types'
+import { type NormalizedJob } from './types.ts'
 
 interface AshbyJob {
   id: string

@@ -1,4 +1,4 @@
-import { type NormalizedJob } from './types'
+import { type NormalizedJob } from './types.ts'
 
 interface LeverList {
   text?: string | null

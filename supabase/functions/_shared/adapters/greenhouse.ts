@@ -1,4 +1,4 @@
-import { type NormalizedJob } from './types'
+import { type NormalizedJob } from './types.ts'
 
 interface GreenhouseJob {
   id: number
@@ -57,8 +57,12 @@ export async function pollGreenhouse(
   }
 
   const { jobs } = (await listResponse.json()) as GreenhouseListResponse
-  const heSpecifier = 'npm:he@1.2.0'
-  const { decode } = (await import(heSpecifier)) as { decode: DecodeHtml }
+  const he = (await import(/* @vite-ignore */ 'npm:he@1.2.0')) as {
+    decode?: DecodeHtml
+    default?: { decode?: DecodeHtml }
+  }
+  const decode = he.decode ?? he.default?.decode
+  if (!decode) throw new Error('greenhouse HTML decoder unavailable')
 
   return Promise.all(
     jobs.map(async (job) => {
