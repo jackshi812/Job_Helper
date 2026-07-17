@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: watchlist-ingestion-monitoring
 status: executing
-stopped_at: Completed 02-03-PLAN.md; Phase 02 ready for verification
-last_updated: "2026-07-17T16:55:22.156Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-07-17T17:22:03.503Z"
 last_activity: 2026-07-17
-last_activity_desc: Phase 02 Plan 03 completed; recovery-email receipt waived and recorded as unverified
+last_activity_desc: Phase 02 Plan 04 completed; lifecycle reopening and no-work heartbeat are unit-verified
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 50
+  completed_phases: 1
+  total_plans: 10
+  completed_plans: 7
+  percent: 25
 ---
 
 # Project State
@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-07-15)
 
 ## Current Position
 
-Phase: 02 (watchlist-ingestion-monitoring) — VERIFYING
-Plan: 3 of 3
+Phase: 02 (watchlist-ingestion-monitoring) — EXECUTING
+Plan: 4 of 7
 Status: Ready to execute
-Last activity: 2026-07-17 — Phase 02 Plan 03 completed; recovery-email receipt waived and recorded as unverified
+Last activity: 2026-07-17 — Phase 02 Plan 04 completed; lifecycle reopening and no-work heartbeat are unit-verified
 
-Progress: [█████░░░░░] 50% (2/4 phases)
+Progress: [███████░░░] 70% (7/10 plans)
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Progress: [█████░░░░░] 50% (2/4 phases)
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
 | Phase 02 P02 | 1h 17m | 3 tasks | 11 files |
 | Phase 02 P03 | 1h 57m | 3 tasks | 9 files |
+| Phase 02 P04 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Protect the public heartbeat with a dedicated query secret and expose only ok/stale status. — Keeps the endpoint read-only and independent from user sessions while revealing no pipeline data beyond liveness.
 - [Phase 02]: Keep Adzuna descriptions partial, cap requests at 240 per UTC day, and let matching open ATS fingerprints win. — Preserves snapshot truth, protects the free quota, and prevents aggregator overlap from creating duplicate jobs.
 - [Phase 02]: Record cron-job.org recovery-email receipt as user-waived rather than passed. — Failure email delivery and HTTP recovery were observed, but no recovery email arrived and the user declined another test cycle.
+- [Phase 02]: Resolve source/external-ID matches across open and closed rows while keeping repost fingerprints open-only. — Returned exact-ID postings reopen without changing repost merge semantics.
+- [Phase 02]: Restrict reopened jobs to lifecycle-field updates so first-sight snapshots remain immutable. — Captured job content remains a truthful first-sight record.
+- [Phase 02]: Treat zero claimed companies as heartbeat success while all-claimed-failed ticks remain stale. — Scheduler health reflects successful execution instead of work volume.
 
 ### Pending Todos
 
@@ -116,6 +120,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-17T15:47:54.062Z
-Stopped at: Completed 02-03-PLAN.md; Phase 02 ready for verification
+Last session: 2026-07-17T17:21:46.568Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None

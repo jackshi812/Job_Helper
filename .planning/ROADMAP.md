@@ -61,7 +61,7 @@ Plans:
   3. Every captured job has a JD snapshot taken at first sight, and jobs that disappear from ATS polls are marked closed
   4. User can view per-company monitoring health (last successful poll, consecutive failures flagged), and a dead or silently failing cron is surfaced within one poll cycle via the pipeline heartbeat
 
-**Plans**: 7 plans (3 complete + 4 gap closure from 02-VERIFICATION.md)
+**Plans**: 4/7 plans executed
 **UI hint**: yes
 
 Plans:
@@ -79,7 +79,7 @@ Plans:
 
 **Gap Closure Wave 1** *(from 02-VERIFICATION.md gaps_found)*
 
-- [ ] 02-04-PLAN.md — Job lifecycle correctness: reopen returned closed postings, truthful no-work heartbeat, close-grace regression tests
+- [x] 02-04-PLAN.md — Job lifecycle correctness: reopen returned closed postings, truthful no-work heartbeat, close-grace regression tests
 - [ ] 02-05-PLAN.md — Exclusive claims + non-destructive verification: FOR UPDATE SKIP LOCKED claim migration, disposable watchlist probe, hosted probes 13-16
 - [ ] 02-06-PLAN.md — Discovery health + cadence: all-failed sweeps surface 503 + persisted status, 15-minute active-window schedule within Adzuna budget
 
@@ -129,7 +129,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
-| 2. Watchlist Ingestion & Monitoring | 3/3 | Complete   | 2026-07-17 |
+| 2. Watchlist Ingestion & Monitoring | 4/7 | In Progress|  |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
