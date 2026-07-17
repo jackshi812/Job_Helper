@@ -488,15 +488,15 @@ Deno.serve(async (req) => {
 | A7 | Greenhouse/Lever/Ashby have no hard published rate limits; polling ~1 board / 10 min per company is polite | Polling cadence | If throttled: back off per-company via `consecutive_failures` — already in the health design |
 | A8 | Supabase free-tier egress is not consumed by inbound poll responses (egress counts data leaving Supabase); CLAUDE.md's egress warning overstates this path | Free-tier limits | If wrong, the lean-list pattern already minimizes transfer; monitor egress in dashboard during soak |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Adzuna account + keys don't exist yet**
+1. **Adzuna account + keys don't exist yet** — (RESOLVED) by 02-03-PLAN Task 3 (`checkpoint:human-action`): signup + `supabase secrets set` + first keyed call confirming A1/A2 via verify-pipeline probe 10; 02-03 Task 2 makes discovery-sweep a graceful no-op until credentials exist.
    - What we know: registration at developer.adzuna.com is free; app_id/app_key are query params.
    - What's unclear: nothing technical — it's a human signup step.
    - Recommendation: plan a `checkpoint:human-verify`-style task early: create account, `supabase secrets set ADZUNA_APP_ID/ADZUNA_APP_KEY`, make one live call, and confirm A1/A2 (params + quota) before finalizing sweep cadence.
-2. **cron-job.org account is also a human step**
+2. **cron-job.org account is also a human step** — (RESOLVED) by 02-03-PLAN Task 3: monitor created against the deployed heartbeat URL with failure + recovery notifications and one intentional stale test (acceptance criterion 4 of that task).
    - Recommendation: last task of the phase — create the monitor against the deployed heartbeat URL (with secret param), set fail+recover notifications, then verify by intentionally stopping the pipeline once (UAT for success criterion 4).
-3. **Which real boards to watch during soak**
+3. **Which real boards to watch during soak** — (RESOLVED) by 02-01-PLAN Task 3: scripts/verify-watchlist.ts seeds Stripe (greenhouse), Palantir (lever), Ramp (ashby) idempotently through the verify-then-insert flow.
    - Recommendation: seed the watchlist with the three verified boards (Stripe/Greenhouse, Palantir/Lever, Ramp/Ashby) on day one so success criteria 2–3 can be observed against live data.
 
 ## Environment Availability
