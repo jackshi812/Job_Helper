@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 02
 current_phase_name: watchlist-ingestion-monitoring
-status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-07-17T03:49:09.007Z"
+status: verifying
+stopped_at: Completed 02-03-PLAN.md; Phase 02 ready for verification
+last_updated: "2026-07-17T15:47:54.069Z"
 last_activity: 2026-07-17
-last_activity_desc: Phase 02 execution started
+last_activity_desc: Phase 02 Plan 03 completed with recovery-email verification waived
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
-  percent: 25
+  completed_plans: 6
+  percent: 50
 ---
 
 # Project State
@@ -28,35 +28,37 @@ See: .planning/PROJECT.md (updated 2026-07-15)
 
 ## Current Position
 
-Phase: 02 (watchlist-ingestion-monitoring) — EXECUTING
+Phase: 02 (watchlist-ingestion-monitoring) — VERIFYING
 Plan: 3 of 3
-Status: Ready to execute
-Last activity: 2026-07-17 — Phase 02 execution started
+Status: Phase complete — ready for verification
+Last activity: 2026-07-17 — Phase 02 Plan 03 completed; recovery-email receipt waived and recorded as unverified
 
-Progress: [██▓░░░░░░░] 25% (1/4 phases)
+Progress: [█████░░░░░] 50% (2/4 phases)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3
-- Average duration: 114m
-- Total execution time: 342m
+- Total plans completed: 6
+- Average duration: 92m
+- Total execution time: 552m
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | Phase 01 | 3 | 342m | 114m |
+| Phase 02 | 3 | 210m | 70m |
 
 **Recent Trend:**
 
-- Last 3 plans: 124m, 12m, 206m
-- Trend: Deployment and production recovery UAT made Plan 03 the longest phase plan
+- Last 3 plans: 16m, 77m, 117m
+- Trend: Hosted approvals, external account setup, and monitoring verification increased duration across Phase 02
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
 | Phase 02 P02 | 1h 17m | 3 tasks | 11 files |
+| Phase 02 P03 | 1h 57m | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -85,6 +87,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Use the database unique source/external-ID constraint as the concurrency backstop and normalized company/title/location fingerprints for repost and aggregator merges. — Combines exact concurrent safety with cross-source and repost deduplication.
 - [Phase 02]: Disable Edge JWT verification for cron calls and enforce a dedicated x-cron-secret shared only by Vault, Edge environment, and gitignored verification config. — The project's publishable and secret keys are not JWTs, so function-level shared-secret authorization is the applicable trust boundary.
 - [Phase 02]: Allow stale closure only after a successful non-empty company poll; failures and implausibly empty boards never close jobs. — Prevents transient ATS failures or malformed empty responses from falsely closing active jobs.
+- [Phase 02]: Protect the public heartbeat with a dedicated query secret and expose only ok/stale status. — Keeps the endpoint read-only and independent from user sessions while revealing no pipeline data beyond liveness.
+- [Phase 02]: Keep Adzuna descriptions partial, cap requests at 240 per UTC day, and let matching open ATS fingerprints win. — Preserves snapshot truth, protects the free quota, and prevents aggregator overlap from creating duplicate jobs.
+- [Phase 02]: Record cron-job.org recovery-email receipt as user-waived rather than passed. — Failure email delivery and HTTP recovery were observed, but no recovery email arrived and the user declined another test cycle.
 
 ### Pending Todos
 
@@ -98,7 +103,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 2]: ATS endpoint shapes (Greenhouse/Lever/Ashby) are MEDIUM confidence — validate one live call per ATS before building adapters; confirm Adzuna coverage for target market (Jooble is the fallback)
+- [Phase 2 verification]: cron-job.org failure email delivery and HTTP 200 recovery were observed, but recovery-email receipt was user-waived and remains unverified; do not record it as passed.
 - [Phase 4]: Highest-uncertainty area (DOCX XML run-splitting, truthful-edit prompting, CloudConvert fidelity + PII posture) — research flagged for deeper research during planning
 
 ## Deferred Items
@@ -111,6 +116,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-17T13:48:13.747Z
-Stopped at: Session resumed, proceeding to Phase 02 Plan 03 Task 1
-Resume file: .planning/phases/02-watchlist-ingestion-monitoring/.continue-here.md
+Last session: 2026-07-17T15:47:54.062Z
+Stopped at: Completed 02-03-PLAN.md; Phase 02 ready for verification
+Resume file: None

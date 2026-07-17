@@ -24,7 +24,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Discovery & Monitoring
 
 - [x] **DISC-01**: System polls watchlist ATS endpoints on a schedule that keeps discovery-to-notification within 5–15 minutes
-- [ ] **DISC-02**: System discovers jobs outside the watchlist via one aggregator API (breadth source, latency not guaranteed)
+- [x] **DISC-02**: System discovers jobs outside the watchlist via one aggregator API (breadth source, latency not guaranteed)
 - [x] **DISC-03**: System deduplicates postings across sources (stable ATS IDs + fuzzy company/title/location match) so a job is never surfaced twice
 - [x] **DISC-04**: System captures a job-description snapshot at first sight (postings vanish; snapshot feeds tailoring)
 - [x] **DISC-05**: System marks jobs as closed when they disappear from ATS polls (stale-job detection)
@@ -105,7 +105,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PREF-03 | Phase 2 | Complete |
 | PREF-04 | Phase 2 | Complete |
 | DISC-01 | Phase 2 | Complete |
-| DISC-02 | Phase 2 | Pending |
+| DISC-02 | Phase 2 | Complete |
 | DISC-03 | Phase 2 | Complete |
 | DISC-04 | Phase 2 | Complete |
 | DISC-05 | Phase 2 | Complete |
