@@ -1,6 +1,19 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { NavLink, Outlet, useNavigate } from 'react-router'
+import { fetchHeartbeat } from '../lib/pipeline'
 import { supabase } from '../lib/supabase'
+
+const STALE_AFTER_MS = 30 * 60_000
+const heartbeatTimeFormatter = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
+
+function staleHeartbeatMessage(lastSuccessAt: string | null) {
+  if (!lastSuccessAt) {
+    return "Job monitoring hasn't run yet — new postings may be missed."
+  }
+
+  return `Job monitoring hasn't run since ${heartbeatTimeFormatter.format(new Date(lastSuccessAt))} — new postings may be missed.`
+}
 
 const navigation = [
   { label: 'Dashboard', to: '/' },
@@ -14,6 +27,15 @@ export function Shell() {
   const navigate = useNavigate()
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState('')
+  const heartbeatQuery = useQuery({
+    queryKey: ['pipeline_heartbeat'],
+    queryFn: fetchHeartbeat,
+    refetchInterval: 60_000,
+  })
+  const lastSuccessAt = heartbeatQuery.data?.last_success_at ?? null
+  const lastSuccessTime = lastSuccessAt ? new Date(lastSuccessAt).getTime() : Number.NaN
+  const heartbeatIsStale = heartbeatQuery.data !== undefined
+    && (!Number.isFinite(lastSuccessTime) || Date.now() - lastSuccessTime > STALE_AFTER_MS)
 
   async function handleSignOut() {
     setSigningOut(true)
@@ -67,6 +89,13 @@ export function Shell() {
           </p>
         ) : null}
       </header>
+      {heartbeatIsStale ? (
+        <div className="border-b border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+          <p role="status" className="mx-auto max-w-6xl px-4 py-2 text-sm sm:px-6">
+            {staleHeartbeatMessage(lastSuccessAt)}
+          </p>
+        </div>
+      ) : null}
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <Outlet />
       </main>
