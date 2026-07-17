@@ -4,6 +4,10 @@ import {
   mapAdzunaResult,
 } from '../_shared/adapters/adzuna.ts'
 import { fingerprint } from '../_shared/dedup.ts'
+import {
+  distinctSeedQueries,
+  summarizeDiscovery,
+} from '../_shared/discovery-health.ts'
 
 interface SeedQuery {
   what: string
@@ -61,6 +65,7 @@ Deno.serve(async (request) => {
   const appId = Deno.env.get('ADZUNA_APP_ID')
   const appKey = Deno.env.get('ADZUNA_APP_KEY')
   if (!appId || !appKey) {
+    // Missing configuration is not a completed sweep, so preserve the last known health.
     return Response.json({ skipped: 'missing adzuna credentials' })
   }
 
@@ -93,7 +98,8 @@ Deno.serve(async (request) => {
       await writeBudget(admin, requestCount, today)
     }
 
-    if (requestCount >= 240) {
+    if (requestCount >= DAILY_REQUEST_CUTOFF) {
+      // Budget exhaustion is expected protection, not evidence of discovery failure.
       return Response.json({ skipped: 'budget', requestsToday: requestCount })
     }
 
@@ -121,11 +127,14 @@ Deno.serve(async (request) => {
     let refreshed = 0
     let duplicates = 0
     let failedQueries = 0
+    let attempted = 0
+    let succeeded = 0
 
-    for (const seed of (seedQueries ?? []) as SeedQuery[]) {
+    for (const seed of distinctSeedQueries((seedQueries ?? []) as SeedQuery[])) {
       if (requestCount >= DAILY_REQUEST_CUTOFF) break
 
       requestCount += 1
+      attempted += 1
       // Persist before the request so timeouts and partial failures still spend budget.
       await writeBudget(admin, requestCount, today)
 
@@ -139,6 +148,7 @@ Deno.serve(async (request) => {
         }
         const payload = (await response.json()) as AdzunaResponse
         results = payload.results ?? []
+        succeeded += 1
       } catch (error) {
         failedQueries += 1
         console.error('discovery-sweep query failed', error)
@@ -213,14 +223,36 @@ Deno.serve(async (request) => {
       .select('id')
     if (closeError) throw closeError
 
-    return Response.json({
-      requestsToday: requestCount,
-      inserted,
-      refreshed,
-      duplicates,
-      failedQueries,
-      closed: closedRows?.length ?? 0,
-    })
+    const summary = summarizeDiscovery(attempted, succeeded)
+    const discoveryAt = new Date().toISOString()
+    const discoveryHeartbeat: Record<string, string> = {
+      discovery_status: summary.status,
+      last_discovery_at: discoveryAt,
+    }
+    if (succeeded > 0 || attempted === 0) {
+      discoveryHeartbeat.last_discovery_success_at = discoveryAt
+    }
+
+    const { error: discoveryHeartbeatError } = await admin
+      .from('pipeline_heartbeat')
+      .update(discoveryHeartbeat)
+      .eq('id', true)
+    if (discoveryHeartbeatError) throw discoveryHeartbeatError
+
+    return Response.json(
+      {
+        requestsToday: requestCount,
+        discoveryStatus: summary.status,
+        attemptedQueries: attempted,
+        succeededQueries: succeeded,
+        failedQueries,
+        inserted,
+        refreshed,
+        duplicates,
+        closed: closedRows?.length ?? 0,
+      },
+      { status: summary.httpStatus },
+    )
   } catch (error) {
     console.error('discovery-sweep failed', error)
     return Response.json({ error: 'Discovery sweep failed' }, { status: 500 })
