@@ -1,12 +1,18 @@
 import { supabase } from './supabase'
+import {
+  assessDiscoveryFreshness,
+  type DiscoveryFreshnessReason,
+} from '../../../supabase/functions/_shared/discovery-health'
 
-const HEARTBEAT_COLUMNS = 'last_tick_at, last_success_at, discovery_status'
+const HEARTBEAT_COLUMNS = 'last_tick_at, last_success_at, last_discovery_at, last_discovery_success_at, discovery_status'
 const STALE_AFTER_MS = 30 * 60_000
 const heartbeatTimeFormatter = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
 
 export interface HeartbeatRow {
   last_tick_at: string | null
   last_success_at: string | null
+  last_discovery_at: string | null
+  last_discovery_success_at: string | null
   discovery_status: 'ok' | 'degraded' | 'failed' | null
 }
 
@@ -21,6 +27,22 @@ export function staleHeartbeatMessage(lastSuccessAt: string | null) {
   }
 
   return `Job monitoring hasn't run since ${heartbeatTimeFormatter.format(new Date(lastSuccessAt))} — new postings may be missed.`
+}
+
+export function staleDiscoveryMessage(reason: DiscoveryFreshnessReason) {
+  if (reason === 'missing-completion') {
+    return "Aggregator discovery hasn't completed yet — new aggregator postings may be missed."
+  }
+
+  if (reason === 'missing-success') {
+    return "Aggregator discovery hasn't completed successfully yet — new aggregator postings may be missed."
+  }
+
+  if (reason === 'stale-success') {
+    return "Aggregator discovery hasn't succeeded on schedule — new aggregator postings may be missed."
+  }
+
+  return 'Aggregator discovery missed its latest scheduled run — new aggregator postings may be missed.'
 }
 
 export function deriveHeartbeatBanner(
@@ -54,6 +76,23 @@ export function deriveHeartbeatBanner(
     return {
       show: true,
       message: 'Aggregator discovery is failing — new aggregator postings may be missed.',
+    }
+  }
+
+  if (row) {
+    const discoveryFreshness = assessDiscoveryFreshness(row, new Date(nowMs))
+    if (!discoveryFreshness.fresh) {
+      return {
+        show: true,
+        message: staleDiscoveryMessage(discoveryFreshness.reason),
+      }
+    }
+  }
+
+  if (row?.discovery_status === 'degraded') {
+    return {
+      show: true,
+      message: 'Aggregator discovery is degraded — some new aggregator postings may be delayed.',
     }
   }
 

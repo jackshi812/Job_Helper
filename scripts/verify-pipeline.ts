@@ -181,11 +181,17 @@ export async function runPipelineVerification() {
       'probe 3: all ATS sources have open jobs with complete first-sight snapshots',
     )
 
-    const { count: countBefore, error: beforeError } = await admin
-      .from('jobs')
-      .select('*', { count: 'exact', head: true })
-    if (beforeError) throw beforeError
     const forcedCompany = polledCompanies[0]
+    const { data: jobsBefore, error: beforeError } = await admin
+      .from('jobs')
+      .select('source, external_id')
+      .eq('company_id', forcedCompany.id)
+      .order('source', { ascending: true })
+      .order('external_id', { ascending: true })
+    if (beforeError) throw beforeError
+    const identitiesBefore = (jobsBefore ?? []).map(
+      (job) => `${job.source}|${job.external_id}`,
+    )
     const { error: forceError } = await admin
       .from('companies')
       .update({ last_polled_at: null })
@@ -193,11 +199,22 @@ export async function runPipelineVerification() {
     if (forceError) throw forceError
     const repeat = await postTick(environment.url, environment.cronSecret)
     if (!repeat.ok) throw new Error(`repeat poll-tick returned HTTP ${repeat.status}`)
-    const { count: countAfter, error: afterError } = await admin
+    const { data: jobsAfter, error: afterError } = await admin
       .from('jobs')
-      .select('*', { count: 'exact', head: true })
+      .select('source, external_id')
+      .eq('company_id', forcedCompany.id)
+      .order('source', { ascending: true })
+      .order('external_id', { ascending: true })
     if (afterError) throw afterError
-    assert(countBefore === countAfter, 'probe 4: repeated polling does not duplicate jobs')
+    const identitiesAfter = (jobsAfter ?? []).map(
+      (job) => `${job.source}|${job.external_id}`,
+    )
+    assert(
+      identitiesBefore.length > 0 &&
+        identitiesAfter.length === new Set(identitiesAfter).size &&
+        JSON.stringify(identitiesBefore) === JSON.stringify(identitiesAfter),
+      'probe 4: repeated polling preserves exactly one row per forced-company job identity',
+    )
 
     const { data: heartbeat, error: heartbeatError } = await admin
       .from('pipeline_heartbeat')

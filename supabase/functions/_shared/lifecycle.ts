@@ -16,6 +16,15 @@ export interface CompanySyncPlan {
   closeIds: string[]
 }
 
+export type ExactJobReturnAction = 'insert' | 'refresh' | 'reopen'
+
+export function exactJobReturnAction(
+  existing: Pick<ExistingJobRow, 'status'> | undefined,
+): ExactJobReturnAction {
+  if (!existing) return 'insert'
+  return existing.status === 'closed' ? 'reopen' : 'refresh'
+}
+
 const DEFAULT_CLOSE_GRACE_MS = 35 * 60_000
 
 export function planCompanySync(

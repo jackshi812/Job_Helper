@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  exactJobReturnAction,
   planCompanySync,
   shouldAdvanceSuccessHeartbeat,
 } from '../../supabase/functions/_shared/lifecycle.ts'
@@ -22,6 +23,17 @@ function returnedJob(overrides: Partial<NormalizedJob> = {}): NormalizedJob {
     ...overrides,
   }
 }
+
+describe('exactJobReturnAction', () => {
+  it('reopens a returned closed exact-ID snapshot without replacing it', () => {
+    expect(exactJobReturnAction(existingJob({ status: 'closed' }))).toBe('reopen')
+  })
+
+  it('refreshes an open exact-ID snapshot and inserts only a missing ID', () => {
+    expect(exactJobReturnAction(existingJob())).toBe('refresh')
+    expect(exactJobReturnAction(undefined)).toBe('insert')
+  })
+})
 
 function existingJob(
   overrides: Partial<{

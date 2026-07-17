@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.110.7'
+import { assessDiscoveryFreshness } from '../_shared/discovery-health.ts'
 
 const STALE_AFTER_MS = 30 * 60_000
 
@@ -28,7 +29,7 @@ Deno.serve(async (request) => {
   })
   const { data, error } = await admin
     .from('pipeline_heartbeat')
-    .select('last_success_at, discovery_status')
+    .select('last_success_at, last_discovery_at, last_discovery_success_at, discovery_status')
     .eq('id', true)
     .maybeSingle()
 
@@ -45,6 +46,14 @@ Deno.serve(async (request) => {
 
   if (data.discovery_status === 'failed') {
     return new Response('discovery-failed', { status: 503 })
+  }
+
+  const discoveryFreshness = assessDiscoveryFreshness({
+    last_discovery_at: data.last_discovery_at,
+    last_discovery_success_at: data.last_discovery_success_at,
+  }, new Date())
+  if (!discoveryFreshness.fresh) {
+    return new Response(`discovery-${discoveryFreshness.reason}`, { status: 503 })
   }
 
   return new Response('ok', { status: 200 })

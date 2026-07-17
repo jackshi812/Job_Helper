@@ -11,22 +11,32 @@ import {
   distinctSeedQueries,
   summarizeDiscovery,
 } from '../_shared/discovery-health.ts'
+import { exactJobReturnAction } from '../_shared/lifecycle.ts'
 
 interface SeedQuery {
   what: string
   where_loc: string
 }
 
-interface HeartbeatBudget {
-  adzuna_requests_today: number
-  adzuna_budget_date: string | null
-  last_discovery_at: string | null
+interface SlotAdmission {
+  admitted: boolean
+  admitted_slot: string
 }
 
 interface OpenJob {
   source: string
   external_id: string
   fingerprint: string
+}
+
+interface AdzunaJob extends OpenJob {
+  status: 'open' | 'closed'
+}
+
+interface QuotaReservation {
+  reserved: boolean
+  requests_today: number
+  budget_date: string
 }
 
 interface AdzunaResponse {
@@ -39,19 +49,30 @@ function requiredEnvironment(name: string) {
   return value
 }
 
-async function writeBudget(
+async function writeDiscoveryFailure(
   admin: SupabaseClient,
-  requestCount: number,
-  budgetDate: string,
+  discoveryAt: string,
 ) {
   const { error } = await admin
     .from('pipeline_heartbeat')
     .update({
-      adzuna_requests_today: requestCount,
-      adzuna_budget_date: budgetDate,
+      discovery_status: 'failed',
+      last_discovery_at: discoveryAt,
     })
     .eq('id', true)
   if (error) throw error
+}
+
+async function reserveAdzunaRequest(admin: SupabaseClient) {
+  const { data, error } = await admin.rpc('reserve_adzuna_request', {
+    p_effective_cutoff: ADZUNA_EFFECTIVE_DAILY_CUTOFF,
+    p_hard_cutoff: ADZUNA_DAILY_CUTOFF,
+  })
+  if (error) throw error
+
+  const reservation = (data as QuotaReservation[] | null)?.[0]
+  if (!reservation) throw new Error('Adzuna quota reservation returned no row')
+  return reservation
 }
 
 Deno.serve(async (request) => {
@@ -79,24 +100,21 @@ Deno.serve(async (request) => {
 
     const requestBody = await request.json().catch(() => ({})) as { scheduled?: boolean }
     const now = new Date()
-    const today = now.toISOString().slice(0, 10)
-    const { data: heartbeat, error: heartbeatError } = await admin
-      .from('pipeline_heartbeat')
-      .select('adzuna_requests_today, adzuna_budget_date, last_discovery_at')
-      .eq('id', true)
-      .single()
-    if (heartbeatError) throw heartbeatError
-
-    const budget = heartbeat as HeartbeatBudget
 
     if (requestBody.scheduled) {
       const slot = chicagoDiscoverySlot(now)
-      const previousSlot = budget.last_discovery_at
-        ? chicagoDiscoverySlot(new Date(budget.last_discovery_at))
-        : null
-      if (!slot || previousSlot === slot) {
+      if (!slot) {
         // Schedule gating is an intentional no-op: it spends no Adzuna quota and
         // preserves the last real discovery health state.
+        return Response.json({ skipped: 'schedule' })
+      }
+
+      const { data, error } = await admin.rpc('admit_discovery_slot', {
+        p_slot: slot,
+      })
+      if (error) throw error
+      const admission = (data as SlotAdmission[] | null)?.[0]
+      if (!admission?.admitted) {
         return Response.json({ skipped: 'schedule' })
       }
     }
@@ -104,25 +122,14 @@ Deno.serve(async (request) => {
     const appId = Deno.env.get('ADZUNA_APP_ID')
     const appKey = Deno.env.get('ADZUNA_APP_KEY')
     if (!appId || !appKey) {
-      // Missing configuration is not a completed sweep, so preserve the last known health.
-      return Response.json({ skipped: 'missing adzuna credentials' })
+      const discoveryAt = new Date().toISOString()
+      await writeDiscoveryFailure(admin, discoveryAt)
+      return Response.json(
+        { error: 'Missing Adzuna credentials', discoveryStatus: 'failed' },
+        { status: 503 },
+      )
     }
-    let requestCount = budget.adzuna_budget_date === today
-      ? budget.adzuna_requests_today
-      : 0
-    if (budget.adzuna_budget_date !== today) {
-      await writeBudget(admin, requestCount, today)
-    }
-
-    if (requestCount >= ADZUNA_EFFECTIVE_DAILY_CUTOFF) {
-      // Budget exhaustion is expected protection, not evidence of discovery failure.
-      return Response.json({
-        skipped: 'budget',
-        requestsToday: requestCount,
-        dailyHardCutoff: ADZUNA_DAILY_CUTOFF,
-        effectiveDailyCutoff: ADZUNA_EFFECTIVE_DAILY_CUTOFF,
-      })
-    }
+    let requestCount = 0
 
     const { data: seedQueries, error: seedError } = await admin
       .from('seed_queries')
@@ -136,31 +143,41 @@ Deno.serve(async (request) => {
       .eq('status', 'open')
     if (jobsError) throw jobsError
 
+    const { data: adzunaJobs, error: adzunaJobsError } = await admin
+      .from('jobs')
+      .select('source, external_id, fingerprint, status')
+      .eq('source', 'adzuna')
+      .in('status', ['open', 'closed'])
+    if (adzunaJobsError) throw adzunaJobsError
+
     const openByFingerprint = new Map(
       ((openJobs ?? []) as OpenJob[]).map((job) => [job.fingerprint, job]),
     )
     const openByExternalId = new Map(
-      ((openJobs ?? []) as OpenJob[])
-        .filter((job) => job.source === 'adzuna')
+      ((adzunaJobs ?? []) as AdzunaJob[])
         .map((job) => [job.external_id, job]),
     )
     let inserted = 0
     let refreshed = 0
+    let reopened = 0
     let duplicates = 0
     let failedQueries = 0
     let attempted = 0
     let succeeded = 0
+    let budgetExhausted = false
 
     for (const seed of distinctSeedQueries((seedQueries ?? []) as SeedQuery[])) {
       // Re-check immediately before every external call. The 75-request
       // effective allocation keeps seven- and thirty-day usage below the
       // official defaults while retaining the original 240/day hard ceiling.
-      if (requestCount >= ADZUNA_EFFECTIVE_DAILY_CUTOFF) break
+      const reservation = await reserveAdzunaRequest(admin)
+      requestCount = reservation.requests_today
+      if (!reservation.reserved) {
+        budgetExhausted = true
+        break
+      }
 
-      requestCount += 1
       attempted += 1
-      // Persist before the request so timeouts and partial failures still spend budget.
-      await writeBudget(admin, requestCount, today)
 
       let results: AdzunaResponse['results']
       try {
@@ -189,15 +206,19 @@ Deno.serve(async (request) => {
         const exact = openByExternalId.get(normalized.externalId)
         const existing = openByFingerprint.get(jobFingerprint)
         const seenAt = new Date().toISOString()
+        const exactAction = exactJobReturnAction(exact)
 
-        if (exact) {
+        if (exactAction !== 'insert' && exact) {
           const { error: refreshError } = await admin
             .from('jobs')
-            .update({ last_seen_at: seenAt })
+            .update({ status: 'open', closed_at: null, last_seen_at: seenAt })
             .eq('source', 'adzuna')
             .eq('external_id', normalized.externalId)
           if (refreshError) throw refreshError
-          refreshed += 1
+          if (exactAction === 'reopen') reopened += 1
+          else refreshed += 1
+          exact.status = 'open'
+          openByFingerprint.set(jobFingerprint, exact)
           continue
         }
 
@@ -221,7 +242,7 @@ Deno.serve(async (request) => {
             fingerprint: jobFingerprint,
             last_seen_at: seenAt,
           },
-          { onConflict: 'source,external_id' },
+          { onConflict: 'source,external_id', ignoreDuplicates: true },
         )
         if (upsertError) throw upsertError
 
@@ -230,10 +251,22 @@ Deno.serve(async (request) => {
           source: normalized.source,
           external_id: normalized.externalId,
           fingerprint: jobFingerprint,
+          status: 'open' as const,
         }
         openByFingerprint.set(jobFingerprint, openJob)
         openByExternalId.set(normalized.externalId, openJob)
       }
+    }
+
+    if (budgetExhausted && attempted === 0) {
+      // Budget exhaustion is an intentional no-op. Keep the last completed
+      // sweep's health state and expose both policy ceilings to operators.
+      return Response.json({
+        skipped: 'budget',
+        requestsToday: requestCount,
+        dailyHardCutoff: ADZUNA_DAILY_CUTOFF,
+        effectiveDailyCutoff: ADZUNA_EFFECTIVE_DAILY_CUTOFF,
+      })
     }
 
     const closedAt = new Date().toISOString()
@@ -272,6 +305,7 @@ Deno.serve(async (request) => {
         failedQueries,
         inserted,
         refreshed,
+        reopened,
         duplicates,
         closed: closedRows?.length ?? 0,
       },
