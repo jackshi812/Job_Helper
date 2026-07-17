@@ -50,7 +50,7 @@ Plans:
 
 ### Phase 2: Watchlist Ingestion & Monitoring
 
-**Goal**: New postings from 100+ watched career sites plus an aggregator land in the system exactly once, within the 5–15 minute window, with per-company health and pipeline liveness visible to the user
+**Goal**: As a job seeker, I want to receive new job postings from watched career sites and an aggregator exactly once within 5-15 minutes, so that I can trust my job feed is current without manually checking each career site.
 **Mode:** mvp
 **Depends on**: Phase 1
 **Requirements**: PREF-02, PREF-03, PREF-04, DISC-01, DISC-02, DISC-03, DISC-04, DISC-05, DISC-06
