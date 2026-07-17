@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: watchlist-ingestion-monitoring
 status: executing
-stopped_at: Completed 02-06-PLAN.md
-last_updated: "2026-07-17T17:35:44.326Z"
+stopped_at: Completed 02-07-PLAN.md
+last_updated: "2026-07-17T18:27:52.930Z"
 last_activity: 2026-07-17
-last_activity_desc: Phase 02 Plan 06 completed; discovery health and budget-safe cadence are ready for hosted verification
+last_activity_desc: Phase 02 Plan 07 completed; hosted gap closure passed and is ready for phase re-verification
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 10
-  completed_plans: 9
-  percent: 90
+  completed_plans: 10
+  percent: 50
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-15)
 ## Current Position
 
 Phase: 02 (watchlist-ingestion-monitoring) — EXECUTING
-Plan: 6 of 7
-Status: Ready to execute
-Last activity: 2026-07-17 — Phase 02 Plan 06 completed; discovery health and budget-safe cadence are ready for hosted verification
+Plan: 7 of 7
+Status: Awaiting phase re-verification
+Last activity: 2026-07-17 — Phase 02 Plan 07 completed; hosted gap closure passed and is ready for phase re-verification
 
-Progress: [█████████░] 90% (9/10 plans)
+Progress: [██████████] 100% (10/10 plans)
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [█████████░] 90% (9/10 plans)
 | Phase 02 P04 | 5min | 2 tasks | 3 files |
 | Phase 02 P05 | 9m | 3 tasks | 3 files |
 | Phase 02 P06 | 6min | 3 tasks | 8 files |
+| Phase 02 P07 | 21min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Deduplicate seed queries by trimmed lowercase role/location pairs while preserving the first configured values sent upstream.
 - [Phase 02]: Use 15-minute discovery during 11:00-02:59 UTC and hourly discovery overnight to hold the current three-query workload to 216 requests per day.
 - [Phase 02]: Keep partial discovery failures degraded and HTTP 200, but propagate total failure as HTTP 503 through both discovery-sweep and heartbeat.
+- [Phase 02]: Use the user-approved 30-minute 06:00-noon Chicago and two-hour otherwise aggregator cadence, about 63 requests/day for three queries.
+- [Phase 02]: Gate a frequent cron trigger with DST-safe Chicago-local slots and cap operational Adzuna usage at 75 requests/day for weekly/monthly headroom.
 
 ### Pending Todos
 
@@ -129,6 +132,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-17T17:35:22.411Z
-Stopped at: Completed 02-06-PLAN.md
+Last session: 2026-07-17T18:27:52.921Z
+Stopped at: Completed 02-07-PLAN.md
 Resume file: None
