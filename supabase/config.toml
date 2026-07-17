@@ -388,6 +388,9 @@ verify_jwt = false
 [functions.heartbeat]
 verify_jwt = false
 
+[functions.discovery-sweep]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
