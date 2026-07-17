@@ -13,6 +13,10 @@ const atomicMigration = readFileSync(
   new URL('../../supabase/migrations/0010_atomic_discovery_reservations.sql', import.meta.url),
   'utf8',
 )
+const lockThenClockMigration = readFileSync(
+  new URL('../../supabase/migrations/0011_lock_before_quota_clock.sql', import.meta.url),
+  'utf8',
+)
 const sweepSource = readFileSync(
   new URL('../../supabase/functions/discovery-sweep/index.ts', import.meta.url),
   'utf8',
@@ -117,6 +121,20 @@ describe('summarizeDiscovery', () => {
     })
   })
 
+  it('reports degraded health when quota skips configured queries after success', () => {
+    expect(summarizeDiscovery(2, 2, 1)).toEqual({
+      status: 'degraded',
+      httpStatus: 200,
+    })
+  })
+
+  it('keeps all-attempted-failed as failed even when quota skips queries', () => {
+    expect(summarizeDiscovery(2, 0, 1)).toEqual({
+      status: 'failed',
+      httpStatus: 503,
+    })
+  })
+
   it('treats a sweep with no enabled queries as healthy no-work', () => {
     expect(summarizeDiscovery(0, 0)).toEqual({
       status: 'ok',
@@ -148,6 +166,16 @@ describe('atomic discovery admission', () => {
     expect(atomicMigration).toContain('to service_role')
   })
 
+  it('reads the UTC quota date only after acquiring the heartbeat lock', () => {
+    const lockAt = lockThenClockMigration.indexOf('for update;')
+    const clockAt = lockThenClockMigration.indexOf(
+      "utc_today := (clock_timestamp() at time zone 'UTC')::date;",
+    )
+    expect(lockThenClockMigration).toContain('function public.reserve_adzuna_request')
+    expect(lockAt).toBeGreaterThan(-1)
+    expect(clockAt).toBeGreaterThan(lockAt)
+  })
+
   it('reserves quota immediately before each Adzuna request', () => {
     const reserveAt = sweepSource.indexOf('await reserveAdzunaRequest(admin)')
     const fetchAt = sweepSource.indexOf('const response = await fetch(', reserveAt)
@@ -172,5 +200,18 @@ describe('atomic discovery admission', () => {
     expect(exactBranch).not.toContain('title:')
     expect(exactBranch).not.toContain('absolute_url:')
     expect(exactBranch).not.toContain('description_text:')
+
+    const ageOutBranch = sweepSource.slice(
+      sweepSource.indexOf(".update({ status: 'closed'"),
+      sweepSource.indexOf(".select('id')", sweepSource.indexOf(".update({ status: 'closed'")),
+    )
+    expect(ageOutBranch).toContain(".lt('last_seen_at', cutoff)")
+    expect(ageOutBranch).not.toContain('first_seen_at')
+  })
+
+  it('materializes seeds and reports quota-skipped query count', () => {
+    expect(sweepSource).toContain('const seeds = distinctSeedQueries(')
+    expect(sweepSource).toContain('const skippedQueries = Math.max(0, seeds.length - attempted)')
+    expect(sweepSource).toContain('summarizeDiscovery(attempted, succeeded, skippedQueries)')
   })
 })

@@ -136,6 +136,7 @@ Deno.serve(async (request) => {
       .select('what, where_loc')
       .eq('enabled', true)
     if (seedError) throw seedError
+    const seeds = distinctSeedQueries((seedQueries ?? []) as SeedQuery[])
 
     const { data: openJobs, error: jobsError } = await admin
       .from('jobs')
@@ -166,7 +167,7 @@ Deno.serve(async (request) => {
     let succeeded = 0
     let budgetExhausted = false
 
-    for (const seed of distinctSeedQueries((seedQueries ?? []) as SeedQuery[])) {
+    for (const seed of seeds) {
       // Re-check immediately before every external call. The 75-request
       // effective allocation keeps seven- and thirty-day usage below the
       // official defaults while retaining the original 240/day hard ceiling.
@@ -266,6 +267,7 @@ Deno.serve(async (request) => {
         requestsToday: requestCount,
         dailyHardCutoff: ADZUNA_DAILY_CUTOFF,
         effectiveDailyCutoff: ADZUNA_EFFECTIVE_DAILY_CUTOFF,
+        skippedQueries: seeds.length,
       })
     }
 
@@ -276,11 +278,12 @@ Deno.serve(async (request) => {
       .update({ status: 'closed', closed_at: closedAt })
       .eq('source', 'adzuna')
       .eq('status', 'open')
-      .lt('first_seen_at', cutoff)
+      .lt('last_seen_at', cutoff)
       .select('id')
     if (closeError) throw closeError
 
-    const summary = summarizeDiscovery(attempted, succeeded)
+    const skippedQueries = Math.max(0, seeds.length - attempted)
+    const summary = summarizeDiscovery(attempted, succeeded, skippedQueries)
     const discoveryAt = new Date().toISOString()
     const discoveryHeartbeat: Record<string, string> = {
       discovery_status: summary.status,
@@ -303,6 +306,7 @@ Deno.serve(async (request) => {
         attemptedQueries: attempted,
         succeededQueries: succeeded,
         failedQueries,
+        skippedQueries,
         inserted,
         refreshed,
         reopened,

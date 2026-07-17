@@ -144,12 +144,13 @@ export function assessDiscoveryFreshness(
 export function summarizeDiscovery(
   attempted: number,
   succeeded: number,
+  skipped = 0,
 ): DiscoveryHealth {
   if (attempted > 0 && succeeded === 0) {
     return { status: 'failed', httpStatus: 503 }
   }
 
-  if (succeeded < attempted) {
+  if (succeeded < attempted || skipped > 0) {
     return { status: 'degraded', httpStatus: 200 }
   }
 
