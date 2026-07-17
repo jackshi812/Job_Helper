@@ -50,7 +50,7 @@ Plans:
 
 ### Phase 2: Watchlist Ingestion & Monitoring
 
-**Goal**: As a job seeker, I want to receive new job postings from watched career sites and an aggregator exactly once within 5-15 minutes, so that I can trust my job feed is current without manually checking each career site.
+**Goal**: As a job seeker, I want watched-site postings exactly once within 5-15 minutes and aggregator discovery every 30 minutes from 6 AM-noon Chicago and every two hours otherwise, so that I can trust my job feed without manually checking each career site.
 **Mode:** mvp
 **Depends on**: Phase 1
 **Requirements**: PREF-02, PREF-03, PREF-04, DISC-01, DISC-02, DISC-03, DISC-04, DISC-05, DISC-06
@@ -81,7 +81,7 @@ Plans:
 
 - [x] 02-04-PLAN.md — Job lifecycle correctness: reopen returned closed postings, truthful no-work heartbeat, close-grace regression tests
 - [x] 02-05-PLAN.md — Exclusive claims + non-destructive verification: FOR UPDATE SKIP LOCKED claim migration, disposable watchlist probe, hosted probes 13-16
-- [x] 02-06-PLAN.md — Discovery health + cadence: all-failed sweeps surface 503 + persisted status, 15-minute active-window schedule within Adzuna budget
+- [x] 02-06-PLAN.md — Discovery health + cadence: all-failed sweeps surface 503 + persisted status; accepted Chicago-local quota-safe schedule
 
 **Gap Closure Wave 2** *(blocked on Gap Closure Wave 1)*
 

@@ -10,7 +10,7 @@ requires:
     provides: Adzuna discovery sweep, request budget ledger, seed queries, and public heartbeat endpoint
 provides:
   - Persisted ok, degraded, and failed discovery health with total-failure HTTP 503
-  - Deduped seed queries and a quota-safe 15-minute active-window discovery cadence
+  - Deduped seed queries and a quota-safe Chicago-local discovery cadence
   - Shared, tested banner decisions for stale, failed-discovery, and unavailable monitoring states
 affects: [02-07-hosted-gap-verification, phase-3-preferences, pipeline-monitoring]
 
@@ -35,7 +35,7 @@ key-files:
 key-decisions:
   - "Treat no enabled discovery seeds as a healthy no-work sweep, while any attempted run with zero successes is failed."
   - "Deduplicate seed queries by trimmed lowercase role/location pairs while preserving the first configured values sent upstream."
-  - "Use 15-minute discovery during 11:00-02:59 UTC and hourly discovery overnight to hold the current three-query workload to 216 requests per day."
+  - "Checkpoint override: use 30-minute discovery from 06:00-noon America/Chicago and two-hour discovery otherwise, totaling about 63 requests per day for three queries."
   - "Keep partial discovery failures degraded and HTTP 200, but propagate total failure as HTTP 503 through both discovery-sweep and heartbeat."
 
 patterns-established:
@@ -57,7 +57,7 @@ coverage:
         status: pass
     human_judgment: false
   - id: D2
-    description: Discovery deduplicates normalized seed pairs and runs every 15 minutes during the active window plus hourly overnight at 216 requests per day.
+    description: Discovery deduplicates normalized seed pairs and follows the accepted 30-minute morning/two-hour otherwise Chicago-local cadence at about 63 requests per day.
     requirement: DISC-02
     verification:
       - kind: unit
@@ -87,7 +87,7 @@ status: complete
 
 # Phase 2 Plan 6: Discovery Health and Cadence Summary
 
-**Persisted discovery health now fails loudly on total Adzuna outage, drives both monitoring surfaces, and runs at a quota-safe 15-minute waking-hours cadence.**
+**Persisted discovery health fails loudly on total Adzuna outage, drives both monitoring surfaces, and uses a DST-safe quota-conscious Chicago cadence.**
 
 ## Performance
 
@@ -101,7 +101,7 @@ status: complete
 
 - Added pure discovery classification and query deduplication with RED/GREEN coverage for failed, degraded, healthy, and no-work sweeps.
 - Reworked discovery-sweep to persist attempted/succeeded health, return 503 on total attempted failure, and leave intentional budget/configuration skips outside failure accounting.
-- Replaced hourly-only discovery with 15-minute active-window and hourly overnight cron jobs whose documented three-query workload totals 216 requests per day.
+- The deployment checkpoint replaced the original cadence with the user's accepted 30-minute 06:00-noon Chicago and two-hour otherwise schedule, totaling about 63 requests per day.
 - Propagated total discovery failure through the external heartbeat and the in-app banner, including an explicit unavailable state when the health query fails.
 
 ## Task Commits
@@ -128,7 +128,12 @@ Each task was committed atomically:
 
 - A sweep with no enabled seeds is a healthy no-work execution; a sweep is failed only when it attempted at least one query and none succeeded.
 - Seed equality is a trimmed, lowercase `(what, where_loc)` pair, while the first row's original values are retained for the upstream request.
-- The active discovery window runs every 15 minutes from 11:00 through 02:59 UTC; hourly overnight execution keeps the current workload below both the 240 hard cutoff and approximate 250-request free tier.
+- A 30-minute cron trigger delegates Chicago-local slot decisions to discovery-sweep, avoiding UTC/DST drift; the accepted schedule runs every 30 minutes from 06:00-noon and every two hours otherwise.
+- The effective 75-request daily allocation reserves safety headroom beneath Adzuna's weekly and monthly defaults while retaining the original 240/day hard limit.
+
+## Checkpoint Deviation
+
+Plan 02-07 deployment approval superseded Plan 02-06's original 216-request/day cadence before migration 0009 was pushed. The revised unpushed migration and implementation use the accepted 63-request/day cadence and add weekly/monthly quota defense in depth.
 - Degraded discovery remains HTTP 200 for the external dead-man monitor, while total discovery failure returns 503 and warns in-app.
 
 ## Deviations from Plan
