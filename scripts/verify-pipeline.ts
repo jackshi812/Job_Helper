@@ -6,6 +6,7 @@ const required = [
   'SUPABASE_PUBLISHABLE_KEY',
   'SUPABASE_SECRET_KEY',
   'CRON_SECRET',
+  'HEARTBEAT_SECRET',
   'USER1_EMAIL',
   'SEED_PASSWORD_1',
 ] as const
@@ -25,6 +26,7 @@ function requiredEnvironment() {
     publishableKey: process.env.SUPABASE_PUBLISHABLE_KEY!,
     secretKey: process.env.SUPABASE_SECRET_KEY!,
     cronSecret: process.env.CRON_SECRET!,
+    heartbeatSecret: process.env.HEARTBEAT_SECRET!,
     user: {
       email: process.env.USER1_EMAIL!,
       password: process.env.SEED_PASSWORD_1!,
@@ -53,6 +55,21 @@ async function postTick(url: string, cronSecret?: string) {
     body: '{}',
   })
   return response
+}
+
+async function postDiscoverySweep(url: string, cronSecret: string) {
+  return fetch(`${url}/functions/v1/discovery-sweep`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-cron-secret': cronSecret,
+    },
+    body: '{}',
+  })
+}
+
+function sleep(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
 
 async function ensureSeeds(
@@ -203,6 +220,98 @@ export async function runPipelineVerification() {
     assert(
       Boolean(forbiddenError) || forbiddenRows?.length === 0,
       'probe 8: authenticated publishable-key client cannot insert jobs',
+    )
+
+    const { data: heartbeatBeforeProbe, error: heartbeatBeforeProbeError } = await admin
+      .from('pipeline_heartbeat')
+      .select('last_tick_at, last_success_at, adzuna_requests_today, adzuna_budget_date')
+      .eq('id', true)
+      .single()
+    if (heartbeatBeforeProbeError) throw heartbeatBeforeProbeError
+
+    const heartbeatFresh = Boolean(
+      heartbeatBeforeProbe.last_success_at &&
+        Date.now() - new Date(heartbeatBeforeProbe.last_success_at).getTime() < 30 * 60_000,
+    )
+    const [heartbeatWithoutSecret, heartbeatWithSecret] = await Promise.all([
+      fetch(`${environment.url}/functions/v1/heartbeat`),
+      fetch(
+        `${environment.url}/functions/v1/heartbeat?k=${encodeURIComponent(environment.heartbeatSecret)}`,
+      ),
+    ])
+    assert(
+      heartbeatWithoutSecret.status === 401 &&
+        heartbeatWithSecret.status === (heartbeatFresh ? 200 : 503),
+      'probe 9: heartbeat is secret-gated and matches pipeline freshness',
+    )
+
+    const discoveryResponse = await postDiscoverySweep(environment.url, environment.cronSecret)
+    const discoveryBody = await discoveryResponse.json() as {
+      skipped?: string
+      requestsToday?: number
+      inserted?: number
+      refreshed?: number
+      duplicates?: number
+      failedQueries?: number
+    }
+    const today = new Date().toISOString().slice(0, 10)
+    const requestsBefore = heartbeatBeforeProbe.adzuna_budget_date === today
+      ? heartbeatBeforeProbe.adzuna_requests_today
+      : 0
+    const discoveredRows =
+      (discoveryBody.inserted ?? 0) +
+      (discoveryBody.refreshed ?? 0) +
+      (discoveryBody.duplicates ?? 0)
+    assert(
+      discoveryResponse.status === 200 &&
+        !discoveryBody.skipped &&
+        discoveryBody.failedQueries === 0 &&
+        (discoveryBody.requestsToday ?? 0) > requestsBefore,
+      'probe 10: credentialed discovery sweep spends budget and completes every seed query',
+    )
+    console.log(
+      discoveredRows > 0
+        ? `PASS: probe 10 detail: ${discoveredRows} fresh result(s) were inserted, refreshed, or deduplicated`
+        : 'PASS: probe 10 detail: seed queries legitimately returned zero fresh results',
+    )
+
+    const { data: openJobs, error: openJobsError } = await admin
+      .from('jobs')
+      .select('source, fingerprint, snapshot_partial')
+      .eq('status', 'open')
+    if (openJobsError) throw openJobsError
+    const openAdzunaJobs = (openJobs ?? []).filter((job) => job.source === 'adzuna')
+    assert(
+      discoveredRows === 0 ||
+        (openAdzunaJobs.length > 0 && openAdzunaJobs.every((job) => job.snapshot_partial === true)),
+      'probe 10: returned Adzuna results persist only as partial snapshots',
+    )
+    const nonAdzunaFingerprints = new Set(
+      (openJobs ?? [])
+        .filter((job) => job.source !== 'adzuna')
+        .map((job) => job.fingerprint),
+    )
+    assert(
+      openAdzunaJobs.every((job) => !nonAdzunaFingerprints.has(job.fingerprint)),
+      'probe 11: no open Adzuna job duplicates an open non-Adzuna fingerprint',
+    )
+
+    const cronBaseline = new Date(heartbeatBeforeProbe.last_tick_at).getTime()
+    let cronAdvancedAt = cronBaseline
+    const cronDeadline = Date.now() + 100_000
+    while (Date.now() < cronDeadline && cronAdvancedAt <= cronBaseline) {
+      await sleep(5_000)
+      const { data: cronHeartbeat, error: cronHeartbeatError } = await admin
+        .from('pipeline_heartbeat')
+        .select('last_tick_at')
+        .eq('id', true)
+        .single()
+      if (cronHeartbeatError) throw cronHeartbeatError
+      cronAdvancedAt = new Date(cronHeartbeat.last_tick_at).getTime()
+    }
+    assert(
+      cronAdvancedAt > cronBaseline && cronAdvancedAt >= Date.now() - 3 * 60_000,
+      'probe 12: pg_cron advances pipeline heartbeat without a manual tick during the probe window',
     )
   } finally {
     if (unexpectedProbeId) await admin.from('jobs').delete().eq('id', unexpectedProbeId)
