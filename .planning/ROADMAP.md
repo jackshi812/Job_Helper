@@ -102,7 +102,7 @@ Plans:
   4. A blocked, changed, failed, or implausibly empty source retains its last known jobs, reports Degraded with the last successful sync and useful error detail, and never closes jobs from that failed observation
   5. Every new connector passes manual verification and several successful syncs before scheduled polling is enabled; unsupported or unstable candidates remain clearly documented rather than being presented as reliable
 
-**Plans:** 3/8 plans executed
+**Plans:** 4/8 plans executed
 **UI hint:** yes
 
 Plans:
@@ -118,7 +118,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2; parallel UI/catalog and public-connector slices)*
 
 - [x] 02.1-03-PLAN.md — Safe Link/state UI and evidence-backed twelve-company finance catalog
-- [ ] 02.1-04-PLAN.md — SmartRecruiters/Recruitee adapters, exact detection, registry dispatch, and strict source-schema parity
+- [x] 02.1-04-PLAN.md — SmartRecruiters/Recruitee adapters, exact detection, registry dispatch, and strict source-schema parity
 
 **Wave 4** *(blocked on public connector wiring)*
 
@@ -179,7 +179,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
 | 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
-| 02.1 Source Coverage Expansion | 3/8 | In Progress|  |
+| 02.1 Source Coverage Expansion | 4/8 | In Progress|  |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 

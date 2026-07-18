@@ -5,38 +5,42 @@ milestone_name: milestone
 current_phase: 02.1
 current_phase_name: source-coverage-expansion
 status: executing
-stopped_at: Completed 02.1-03-PLAN.md
-last_updated: "2026-07-18T00:49:45.447Z"
+stopped_at: Completed 02.1-04-PLAN.md
+last_updated: "2026-07-18T01:03:58.628Z"
 last_activity: 2026-07-18
-last_activity_desc: Completed Phase 02.1 Plan 03
+last_activity_desc: Completed Phase 02.1 Plan 04
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 18
-  completed_plans: 13
-  percent: 72
+  completed_plans: 14
+  percent: 78
 ---
+
 # Project State
 ## Project Reference
+
 See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** Discover relevant jobs fast (5–15 minutes from posting) and notify the user immediately — if job discovery and notification don't work reliably, nothing else matters.
 **Current focus:** Phase 02.1 — source-coverage-expansion
-## Current Position
-Phase: 02.1 (source-coverage-expansion) — EXECUTING
-Plan: 4 of 8
-Status: Ready for Plan 04
-Last activity: 2026-07-18 — Completed Phase 02.1 Plan 03
 
-Progress: [███████░░░] 72% (13/18 plans)
+## Current Position
+
+Phase: 02.1 (source-coverage-expansion) — EXECUTING
+Plan: 5 of 8
+Status: Ready for Plan 05
+Last activity: 2026-07-18 — Completed Phase 02.1 Plan 04
+
+Progress: [████████░░] 78% (14/18 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 13
-- Average duration: 48m
-- Total execution time: 619m
+- Total plans completed: 14
+- Average duration: 45m
+- Total execution time: 627m
 
 **By Phase:**
 
@@ -44,11 +48,12 @@ Progress: [███████░░░] 72% (13/18 plans)
 |-------|-------|-------|----------|
 | Phase 01 | 3 | 342m | 114m |
 | Phase 02 | 7 | 251m | 36m |
+| Phase 02.1 | 4 | 34m | 9m |
 
 **Recent Trend:**
 
-- Last 3 plans: 8m, 8m, 10m
-- Trend: Three compact source-coverage plans established lifecycle, registry, and truthful catalog/UI foundations
+- Last 3 plans: 8m, 10m, 8m
+- Trend: Compact source-coverage plans now include lifecycle safety, registry authority, catalog UI, and two bounded public connectors
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
@@ -61,6 +66,7 @@ Progress: [███████░░░] 72% (13/18 plans)
 | Phase 02.1 P01 | 8 min | 3 tasks | 5 files |
 | Phase 02.1 P02 | 8 min | 3 tasks | 8 files |
 | Phase 02.1 P03 | 10 min | 2 tasks | 5 files |
+| Phase 02.1 P04 | 8 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -69,10 +75,6 @@ Progress: [███████░░░] 72% (13/18 plans)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap]: 4 coarse phases (research suggested 6; notifications folded into scoring phase, tracker folded into tailoring phase — dependency chain preserved)
-- [Roadmap]: RESU-01 (resume upload) placed in Phase 3 because AI scoring runs against the uploaded resume
-- [Roadmap]: PREF-01 (job preferences) placed in Phase 3 because preferences drive the cheap filters built there
-- [Roadmap]: Pitfall mitigations are in-phase requirements — source_health + heartbeat ship with the first fetcher (Phase 2), dedupe before aggregator (Phase 2), email co-channel + tiering with first push (Phase 3), term-diff guardrail with first AI edit (Phase 4)
 - [Phase 01]: Use Supabase client defaults for persistent, auto-refreshing browser sessions.
 - [Phase 01]: Keep privileged account provisioning in local scripts with gitignored credentials.
 - [Phase 01]: Use database and storage RLS as the authorization boundary; route guards are UX only.
@@ -113,6 +115,9 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Keep unsupported finance entries in a select-only evidence catalog so they can never enter scheduler claims or connector dispatch.
 - [Phase 02.1]: Pin Capital One reconciliation to the literal workday:wd12:capitalone:Capital_One source key and never derive it from display data.
 - [Phase 02.1]: Let catalog rows own navigation and evidence while matched company rows exclusively own activation, progress, health, dates, and removal.
+- [Phase 02.1]: Accept only exact HTTPS SmartRecruiters and single-label Recruitee board identities; unsafe URL variants fail before network access.
+- [Phase 02.1]: Make page, count, schema, content-type, cap, and required-detail failures closure-ineligible while retaining safe partial rows.
+- [Phase 02.1]: Add only SmartRecruiters and Recruitee to migration 0014 executable-provider checks; Workday and unsupported targets remain gated.
 
 ### Pending Todos
 
@@ -135,14 +140,10 @@ None yet.
 
 ## Deferred Items
 
-Items acknowledged and carried forward from previous milestone close:
-
-| Category | Item | Status | Deferred At |
-|----------|------|--------|-------------|
-| *(none)* | | | |
+None.
 
 ## Session Continuity
 
-Last session: 2026-07-18T00:49:45.441Z
-Stopped at: Completed 02.1-03-PLAN.md
+Last session: 2026-07-18T01:03:58.622Z
+Stopped at: Completed 02.1-04-PLAN.md
 Resume file: None
