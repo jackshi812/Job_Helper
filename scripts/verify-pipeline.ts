@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { createClient } from '../web/node_modules/@supabase/supabase-js/dist/index.mjs'
 
@@ -27,6 +27,455 @@ const PIPELINE_JOB_COLUMNS = [
   'last_seen_at',
   'closed_at',
 ].join(', ')
+
+export const PIPELINE_EVIDENCE_BEGIN = '---BEGIN PIPELINE EVIDENCE ENVELOPE---'
+export const PIPELINE_EVIDENCE_END = '---END PIPELINE EVIDENCE ENVELOPE---'
+
+export type PipelineMutationDisposition =
+  | 'expected_durable'
+  | 'temporary_must_restore'
+  | 'fixture_must_delete'
+
+export type PipelineMutationClassId =
+  | 'optional_seed_creation'
+  | 'seed_poll_timestamps'
+  | 'provider_job_lifecycle'
+  | 'provider_company_health'
+  | 'pipeline_heartbeat'
+  | 'discovery_sweep_primary'
+  | 'adzuna_quota_and_jobs'
+  | 'concurrent_claim_timestamps'
+  | 'all_active_no_work_timestamps'
+  | 'denied_rls_insert_cleanup'
+  | 'planetscale_reopen_fixture'
+  | 'discovery_sweep_health'
+  | 'discovery_heartbeat'
+
+export interface PipelineMutationClassDefinition {
+  id: PipelineMutationClassId
+  disposition: PipelineMutationDisposition
+  acceptancePredicate: string
+}
+
+export const PIPELINE_MUTATION_CLASSES: readonly PipelineMutationClassDefinition[] = [
+  {
+    id: 'optional_seed_creation',
+    disposition: 'expected_durable',
+    acceptancePredicate: 'Only exact Stripe, Palantir, and Ramp identities may be added.',
+  },
+  {
+    id: 'seed_poll_timestamps',
+    disposition: 'expected_durable',
+    acceptancePredicate: 'Seed/forced polls may advance polling timestamps after named calls.',
+  },
+  {
+    id: 'provider_job_lifecycle',
+    disposition: 'expected_durable',
+    acceptancePredicate: 'Provider jobs may insert or change lifecycle fields; immutable fields never drift.',
+  },
+  {
+    id: 'provider_company_health',
+    disposition: 'expected_durable',
+    acceptancePredicate: 'Named provider polls may update bounded company health fields.',
+  },
+  {
+    id: 'pipeline_heartbeat',
+    disposition: 'expected_durable',
+    acceptancePredicate: 'Named poll ticks may advance pipeline tick/success timestamps.',
+  },
+  {
+    id: 'discovery_sweep_primary',
+    disposition: 'expected_durable',
+    acceptancePredicate: 'The first named discovery response must reconcile to its persisted effects.',
+  },
+  {
+    id: 'adzuna_quota_and_jobs',
+    disposition: 'expected_durable',
+    acceptancePredicate: 'Adzuna counters and legitimate job lifecycle effects are durable and attributed.',
+  },
+  {
+    id: 'concurrent_claim_timestamps',
+    disposition: 'temporary_must_restore',
+    acceptancePredicate: 'Every claimed timestamp is CAS-restored or a conflict fails without overwrite.',
+  },
+  {
+    id: 'all_active_no_work_timestamps',
+    disposition: 'temporary_must_restore',
+    acceptancePredicate: 'All-active overrides are CAS-restored or a conflict fails without overwrite.',
+  },
+  {
+    id: 'denied_rls_insert_cleanup',
+    disposition: 'fixture_must_delete',
+    acceptancePredicate: 'The denied row never persists; an unexpectedly returned row is deleted by ID.',
+  },
+  {
+    id: 'planetscale_reopen_fixture',
+    disposition: 'fixture_must_delete',
+    acceptancePredicate: 'Owned company, marker, source key, and returned job IDs have zero residue.',
+  },
+  {
+    id: 'discovery_sweep_health',
+    disposition: 'expected_durable',
+    acceptancePredicate: 'The second named discovery response reconciles to its persisted health effects.',
+  },
+  {
+    id: 'discovery_heartbeat',
+    disposition: 'expected_durable',
+    acceptancePredicate: 'Discovery timestamps/status advance only with the named discovery responses.',
+  },
+] as const
+
+export interface PipelineFixtureResidue {
+  reopenMarkers: number
+  reopenSourceKeys: number
+  reopenReturnedJobs: number
+  deniedRlsRows: number
+}
+
+export interface PipelineEvidenceSnapshot {
+  capturedAt: string
+  label?: string
+  seedIdentities: Record<string, Record<string, unknown>>
+  activeCompanies: Record<string, Record<string, unknown>>
+  jobs: Record<string, Record<string, unknown>>
+  pipelineHeartbeat: Record<string, unknown>
+  fixtureResidue: PipelineFixtureResidue
+}
+
+export interface PipelineFieldDiff {
+  path: string
+  before?: unknown
+  after?: unknown
+}
+
+export interface PipelineRestorationResult {
+  id: string
+  restored: boolean
+  conflict: boolean
+  expected?: unknown
+  observed?: unknown
+}
+
+export interface PipelineMutationRecord {
+  mutationClass: PipelineMutationClassId
+  disposition: PipelineMutationDisposition
+  acceptancePredicate: string
+  status: 'executed' | 'not_applicable'
+  beforeAt: string
+  observedAt?: string
+  afterAt: string
+  identifiers: string[]
+  observedDiffs: PipelineFieldDiff[]
+  finalDiffs: PipelineFieldDiff[]
+  responseSummary?: Record<string, unknown>
+  restorationResults: PipelineRestorationResult[]
+  residueCounts?: Partial<PipelineFixtureResidue>
+}
+
+export interface PipelineEvidenceEnvelope {
+  invocationId: string
+  command: string
+  entry: PipelineEvidenceSnapshot
+  postDrain: PipelineEvidenceSnapshot | null
+  final: PipelineEvidenceSnapshot | null
+  records: PipelineMutationRecord[]
+  allowedDurableDiffs: string[]
+  restorationConflicts: string[]
+  residueCounts: PipelineFixtureResidue
+  immutableDrift: string[]
+  unexplainedDiffs: string[]
+  redactionFailures: string[]
+  completedAllProbes: boolean
+  success: boolean
+}
+
+const PIPELINE_IMMUTABLE_JOB_FIELDS = new Set([
+  'source',
+  'external_id',
+  'title',
+  'location',
+  'absolute_url',
+  'posted_at',
+  'description_html_hash',
+  'description_text_hash',
+  'snapshot_partial',
+  'fingerprint',
+  'first_seen_at',
+])
+
+const PIPELINE_SECRET_KEYS = /^(?:authorization|cookie|password|service(?:_|)key|secret(?:_|)key|publishable(?:_|)key|cron(?:_|)secret|heartbeat(?:_|)secret|access(?:_|)token|refresh(?:_|)token)$/i
+
+function sha256(value: string) {
+  return createHash('sha256').update(value).digest('hex')
+}
+
+export function redactPipelineEvidence(value: unknown, key = ''): unknown {
+  if (PIPELINE_SECRET_KEYS.test(key)) return '[REDACTED]'
+  if (typeof value === 'string') {
+    const configuredSecrets = [
+      process.env.SUPABASE_PUBLISHABLE_KEY,
+      process.env.SUPABASE_SECRET_KEY,
+      process.env.CRON_SECRET,
+      process.env.HEARTBEAT_SECRET,
+      process.env.SEED_PASSWORD_1,
+    ].filter((secret): secret is string => Boolean(secret && secret.length >= 4))
+    if (configuredSecrets.some((secret) => value.includes(secret))) return '[REDACTED]'
+    if (value.length > 512) return { redacted: 'sha256', sha256: sha256(value), length: value.length }
+    return value
+  }
+  if (Array.isArray(value)) return value.map((item) => redactPipelineEvidence(item))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([childKey, childValue]) => [
+        childKey,
+        redactPipelineEvidence(childValue, childKey),
+      ]),
+    )
+  }
+  return value
+}
+
+function diffPipelineValues(before: unknown, after: unknown, path = ''): PipelineFieldDiff[] {
+  if (JSON.stringify(before) === JSON.stringify(after)) return []
+  const beforeObject = before && typeof before === 'object' && !Array.isArray(before)
+  const afterObject = after && typeof after === 'object' && !Array.isArray(after)
+  if (beforeObject || afterObject) {
+    const beforeRecord = beforeObject ? before as Record<string, unknown> : {}
+    const afterRecord = afterObject ? after as Record<string, unknown> : {}
+    const keys = [...new Set([...Object.keys(beforeRecord), ...Object.keys(afterRecord)])].sort()
+    return keys.flatMap((childKey) =>
+      diffPipelineValues(
+        beforeRecord[childKey],
+        afterRecord[childKey],
+        path ? `${path}.${childKey}` : childKey,
+      )
+    )
+  }
+  return [{ path, before, after }]
+}
+
+function mutationDefinition(mutationClass: PipelineMutationClassId) {
+  const definition = PIPELINE_MUTATION_CLASSES.find(({ id }) => id === mutationClass)
+  if (!definition) throw new Error(`Unregistered pipeline mutation class: ${mutationClass}`)
+  return definition
+}
+
+export function createPipelineEvidenceEnvelope(
+  invocationId: string,
+  command: string,
+  entry: PipelineEvidenceSnapshot,
+): PipelineEvidenceEnvelope {
+  return {
+    invocationId,
+    command,
+    entry,
+    postDrain: null,
+    final: null,
+    records: [],
+    allowedDurableDiffs: [],
+    restorationConflicts: [],
+    residueCounts: { ...entry.fixtureResidue },
+    immutableDrift: [],
+    unexplainedDiffs: [],
+    redactionFailures: [],
+    completedAllProbes: false,
+    success: false,
+  }
+}
+
+export function journalPipelineMutation(
+  envelope: PipelineEvidenceEnvelope,
+  mutationClass: PipelineMutationClassId,
+  before: PipelineEvidenceSnapshot,
+  after: PipelineEvidenceSnapshot,
+  details: {
+    identifiers?: string[]
+    observed?: PipelineEvidenceSnapshot
+    responseSummary?: Record<string, unknown>
+    restorationResults?: PipelineRestorationResult[]
+    residueCounts?: Partial<PipelineFixtureResidue>
+    status?: 'executed' | 'not_applicable'
+  } = {},
+) {
+  const definition = mutationDefinition(mutationClass)
+  envelope.records.push({
+    mutationClass,
+    disposition: definition.disposition,
+    acceptancePredicate: definition.acceptancePredicate,
+    status: details.status ?? 'executed',
+    beforeAt: before.capturedAt,
+    observedAt: details.observed?.capturedAt,
+    afterAt: after.capturedAt,
+    identifiers: details.identifiers ?? [],
+    observedDiffs: diffPipelineValues(before, details.observed ?? after),
+    finalDiffs: diffPipelineValues(before, after),
+    responseSummary: details.responseSummary,
+    restorationResults: details.restorationResults ?? [],
+    residueCounts: details.residueCounts,
+  })
+}
+
+function isImmutableJobDrift(diff: PipelineFieldDiff, entry: PipelineEvidenceSnapshot) {
+  const match = /^jobs\.([^.]+)\.([^.]+)$/.exec(diff.path)
+  return Boolean(match && entry.jobs[match[1]] && PIPELINE_IMMUTABLE_JOB_FIELDS.has(match[2]))
+}
+
+function diffLeaf(diff: PipelineFieldDiff) {
+  return diff.path.split('.').at(-1) ?? ''
+}
+
+function diffEntityId(diff: PipelineFieldDiff, root: string) {
+  const match = new RegExp(`^${root}\\.([^.]+)\\.`).exec(diff.path)
+  return match?.[1]
+}
+
+function isAllowedObservedDiff(
+  mutationClass: PipelineMutationClassId,
+  diff: PipelineFieldDiff,
+  entry: PipelineEvidenceSnapshot,
+  final: PipelineEvidenceSnapshot,
+) {
+  if (diff.path === 'capturedAt' || diff.path === 'label') return true
+  const leaf = diffLeaf(diff)
+  const companyId = diffEntityId(diff, 'activeCompanies') ?? diffEntityId(diff, 'seedIdentities')
+  const jobId = diffEntityId(diff, 'jobs')
+  const finalJob = jobId ? final.jobs[jobId] : undefined
+  const newJob = Boolean(jobId && !entry.jobs[jobId])
+  switch (mutationClass) {
+    case 'optional_seed_creation': {
+      if (!companyId) return false
+      const company = final.seedIdentities[companyId] ?? final.activeCompanies[companyId]
+      return Boolean(company && seedBoards.some((seed) =>
+        seed.source === company.ats_type && seed.boardToken === company.board_token
+      ))
+    }
+    case 'seed_poll_timestamps':
+      return Boolean(companyId && leaf === 'last_polled_at')
+    case 'provider_job_lifecycle':
+      return Boolean(
+        jobId && finalJob?.source !== 'adzuna' &&
+          (newJob || ['company_id', 'status', 'last_seen_at', 'closed_at'].includes(leaf)),
+      )
+    case 'provider_company_health':
+      return Boolean(companyId && [
+        'last_polled_at',
+        'last_success_at',
+        'consecutive_failures',
+        'last_error',
+        'last_error_code',
+        'last_observation_count',
+      ].includes(leaf))
+    case 'pipeline_heartbeat':
+      return ['pipelineHeartbeat.last_tick_at', 'pipelineHeartbeat.last_success_at'].includes(diff.path)
+    case 'discovery_sweep_primary':
+    case 'discovery_sweep_health':
+      return false
+    case 'adzuna_quota_and_jobs':
+      return Boolean(
+        ['pipelineHeartbeat.adzuna_requests_today', 'pipelineHeartbeat.adzuna_budget_date'].includes(
+          diff.path,
+        ) ||
+          (jobId && finalJob?.source === 'adzuna' &&
+            (newJob || ['company_id', 'status', 'last_seen_at', 'closed_at'].includes(leaf))),
+      )
+    case 'discovery_heartbeat':
+      return [
+        'pipelineHeartbeat.last_discovery_at',
+        'pipelineHeartbeat.last_discovery_success_at',
+        'pipelineHeartbeat.discovery_status',
+        'pipelineHeartbeat.last_discovery_slot',
+      ].includes(diff.path)
+    case 'concurrent_claim_timestamps':
+    case 'all_active_no_work_timestamps':
+      return Boolean(companyId && leaf === 'last_polled_at')
+    case 'denied_rls_insert_cleanup':
+    case 'planetscale_reopen_fixture':
+      return true
+  }
+}
+
+export function finalizePipelineEvidenceEnvelope(
+  envelope: PipelineEvidenceEnvelope,
+  final: PipelineEvidenceSnapshot,
+) {
+  envelope.final = final
+  const missingMutationClasses = PIPELINE_MUTATION_CLASSES
+    .filter((definition) =>
+      !envelope.records.some(({ mutationClass }) => mutationClass === definition.id)
+    )
+    .map(({ id }) => id)
+  for (const definition of PIPELINE_MUTATION_CLASSES) {
+    if (!envelope.records.some(({ mutationClass }) => mutationClass === definition.id)) {
+      journalPipelineMutation(envelope, definition.id, final, final, { status: 'not_applicable' })
+    }
+  }
+
+  const finalDiffs = diffPipelineValues(envelope.entry, final)
+    .filter(({ path }) => path !== 'capturedAt' && path !== 'label')
+  const allowedObservedPaths = new Set(
+    envelope.records.flatMap((record) =>
+      record.observedDiffs
+        .filter((diff) => isAllowedObservedDiff(record.mutationClass, diff, envelope.entry, final))
+        .map(({ path }) => path)
+    ),
+  )
+  const durablePaths = new Set(
+    envelope.records
+      .filter(({ disposition, status }) => disposition === 'expected_durable' && status === 'executed')
+      .flatMap((record) => record.observedDiffs
+        .filter((diff) => isAllowedObservedDiff(record.mutationClass, diff, envelope.entry, final))
+        .map(({ path }) => path)),
+  )
+  envelope.allowedDurableDiffs = [...new Set(finalDiffs
+    .filter(({ path }) => durablePaths.has(path))
+    .map(({ path }) => path))].sort()
+  envelope.restorationConflicts = [...new Set(envelope.records
+    .flatMap(({ restorationResults }) => restorationResults)
+    .filter(({ restored, conflict }) => !restored || conflict)
+    .map(({ id }) => id))].sort()
+  envelope.residueCounts = envelope.records.reduce<PipelineFixtureResidue>(
+    (residue, record) => ({
+      reopenMarkers: Math.max(residue.reopenMarkers, record.residueCounts?.reopenMarkers ?? 0),
+      reopenSourceKeys: Math.max(residue.reopenSourceKeys, record.residueCounts?.reopenSourceKeys ?? 0),
+      reopenReturnedJobs: Math.max(
+        residue.reopenReturnedJobs,
+        record.residueCounts?.reopenReturnedJobs ?? 0,
+      ),
+      deniedRlsRows: Math.max(residue.deniedRlsRows, record.residueCounts?.deniedRlsRows ?? 0),
+    }),
+    { ...final.fixtureResidue },
+  )
+  envelope.immutableDrift = finalDiffs
+    .filter((diff) => isImmutableJobDrift(diff, envelope.entry))
+    .map(({ path }) => path)
+  const unexplainedObservedDiffs = envelope.records
+    .flatMap(({ observedDiffs }) => observedDiffs)
+    .filter(({ path }) => path !== 'capturedAt' && path !== 'label' && !allowedObservedPaths.has(path))
+    .map(({ path }) => path)
+  envelope.unexplainedDiffs = [...new Set([
+    ...finalDiffs.filter(({ path }) => !durablePaths.has(path)).map(({ path }) => path),
+    ...unexplainedObservedDiffs,
+    ...(envelope.completedAllProbes
+      ? missingMutationClasses.map((mutationClass) => `registry.${mutationClass}.missing`)
+      : []),
+  ])].sort()
+  const redactedJson = JSON.stringify(redactPipelineEvidence(envelope))
+  const forbiddenValues = [
+    process.env.SUPABASE_PUBLISHABLE_KEY,
+    process.env.SUPABASE_SECRET_KEY,
+    process.env.CRON_SECRET,
+    process.env.HEARTBEAT_SECRET,
+    process.env.SEED_PASSWORD_1,
+  ].filter((value): value is string => Boolean(value && value.length >= 4))
+  envelope.redactionFailures = forbiddenValues.filter((value) => redactedJson.includes(value))
+  envelope.success =
+    envelope.restorationConflicts.length === 0 &&
+    Object.values(envelope.residueCounts).every((count) => count === 0) &&
+    envelope.immutableDrift.length === 0 &&
+    envelope.unexplainedDiffs.length === 0 &&
+    envelope.redactionFailures.length === 0
+  return envelope
+}
 
 interface GreenhouseFixtureJob {
   id: number
@@ -97,9 +546,135 @@ function client(url: string, key: string) {
   })
 }
 
+function recordsById(rows: Record<string, unknown>[]) {
+  return Object.fromEntries(rows.map((row) => [String(row.id), row]))
+}
+
+export async function capturePipelineEvidenceSnapshot(
+  admin: ReturnType<typeof client>,
+  label: string,
+  fixture?: ReopenFixtureState,
+  deniedRlsExternalId?: string,
+): Promise<PipelineEvidenceSnapshot> {
+  const [companiesResult, jobsResult, heartbeatResult] = await Promise.all([
+    admin.from('companies').select([
+      'id',
+      'name',
+      'ats_type',
+      'board_token',
+      'region',
+      'site_token',
+      'source_key',
+      'careers_url',
+      'activation_state',
+      'activation_successes',
+      'last_verified_at',
+      'last_polled_at',
+      'last_success_at',
+      'consecutive_failures',
+      'last_error',
+      'last_error_code',
+      'last_observation_count',
+    ].join(', ')).order('id', { ascending: true }),
+    admin.from('jobs').select(PIPELINE_JOB_COLUMNS).order('id', { ascending: true }),
+    admin.from('pipeline_heartbeat').select('*').eq('id', true).single(),
+  ])
+  if (companiesResult.error) throw companiesResult.error
+  if (jobsResult.error) throw jobsResult.error
+  if (heartbeatResult.error) throw heartbeatResult.error
+
+  const companyRows = (companiesResult.data ?? []) as Record<string, unknown>[]
+  const jobRows = ((jobsResult.data ?? []) as Record<string, unknown>[]).map((row) => ({
+    ...row,
+    description_html_hash: typeof row.description_html === 'string'
+      ? sha256(row.description_html)
+      : null,
+    description_text_hash: typeof row.description_text === 'string'
+      ? sha256(row.description_text)
+      : null,
+    description_html: undefined,
+    description_text: undefined,
+  }))
+  const seedRows = companyRows.filter((company) =>
+    seedBoards.some((board) =>
+      board.source === company.ats_type && board.boardToken === company.board_token
+    )
+  )
+  const activeRows = companyRows.filter((company) => company.activation_state === 'active')
+
+  const returnedJobsQuery = fixture?.externalIds.length
+    ? admin.from('jobs').select('*', { count: 'exact', head: true })
+      .eq('source', 'greenhouse').in('external_id', fixture.externalIds)
+    : admin.from('jobs').select('*', { count: 'exact', head: true })
+      .like('fingerprint', `${PIPELINE_REOPEN_PROBE_PREFIX}%`)
+  const deniedRowsQuery = deniedRlsExternalId
+    ? admin.from('jobs').select('*', { count: 'exact', head: true })
+      .eq('external_id', deniedRlsExternalId)
+    : admin.from('jobs').select('*', { count: 'exact', head: true })
+      .like('external_id', 'rls-probe-%')
+  const [markerResult, sourceResult, returnedJobsResult, deniedRowsResult] = await Promise.all([
+    admin.from('companies').select('*', { count: 'exact', head: true })
+      .like('name', `${PIPELINE_REOPEN_PROBE_PREFIX}%`),
+    admin.from('companies').select('*', { count: 'exact', head: true })
+      .eq('source_key', PIPELINE_REOPEN_SOURCE_KEY),
+    returnedJobsQuery,
+    deniedRowsQuery,
+  ])
+  if (markerResult.error) throw markerResult.error
+  if (sourceResult.error) throw sourceResult.error
+  if (returnedJobsResult.error) throw returnedJobsResult.error
+  if (deniedRowsResult.error) throw deniedRowsResult.error
+
+  return {
+    capturedAt: new Date().toISOString(),
+    seedIdentities: recordsById(seedRows),
+    activeCompanies: recordsById(activeRows),
+    jobs: recordsById(jobRows),
+    pipelineHeartbeat: heartbeatResult.data as Record<string, unknown>,
+    fixtureResidue: {
+      reopenMarkers: markerResult.count ?? 0,
+      reopenSourceKeys: sourceResult.count ?? 0,
+      reopenReturnedJobs: returnedJobsResult.count ?? 0,
+      deniedRlsRows: deniedRowsResult.count ?? 0,
+    },
+    label,
+  } as PipelineEvidenceSnapshot
+}
+
 function assert(condition: unknown, label: string): asserts condition {
   if (!condition) throw new Error(`FAIL: ${label}`)
   console.log(`PASS: ${label}`)
+}
+
+async function restoreCompanyPollTimestampCas(
+  admin: ReturnType<typeof client>,
+  id: string,
+  expectedCurrent: string,
+  previous: string | null,
+): Promise<PipelineRestorationResult> {
+  const { data, error } = await admin
+    .from('companies')
+    .update({ last_polled_at: previous })
+    .eq('id', id)
+    .eq('last_polled_at', expectedCurrent)
+    .select('id, last_polled_at')
+  if (error) throw error
+  if ((data?.length ?? 0) === 1) {
+    return { id, restored: true, conflict: false, expected: previous, observed: previous }
+  }
+  const { data: current, error: currentError } = await admin
+    .from('companies')
+    .select('last_polled_at')
+    .eq('id', id)
+    .single()
+  if (currentError) throw currentError
+  return {
+    id,
+    restored: false,
+    conflict: true,
+    expected: expectedCurrent,
+    observed: current.last_polled_at,
+  }
 }
 
 async function postTick(url: string, cronSecret?: string) {
@@ -178,11 +753,13 @@ async function drainDueCompanies(
   url: string,
   cronSecret: string,
 ) {
+  const responses: Array<Record<string, unknown>> = []
   for (let attempt = 0; attempt < PIPELINE_REOPEN_DRAIN_ATTEMPTS; attempt += 1) {
     const response = await postTick(url, cronSecret)
     if (!response.ok) throw new Error(`pre-fixture poll-tick returned HTTP ${response.status}`)
-    const body = await response.json() as { claimed?: number }
-    if (body.claimed === 0) return
+    const body = await response.json() as Record<string, unknown> & { claimed?: number }
+    responses.push({ attempt: attempt + 1, httpStatus: response.status, ...body })
+    if (body.claimed === 0) return responses
   }
   throw new Error('Active company drain exceeded its bounded attempt budget')
 }
@@ -257,10 +834,28 @@ async function runReopenFixtureProbe(
   admin: ReturnType<typeof client>,
   url: string,
   cronSecret: string,
+  evidence: PipelineEvidenceEnvelope,
 ) {
   const fixtureBoard = await fetchReopenFixtureJobs()
   await assertReopenFixtureAvailable(admin, fixtureBoard.externalIds)
-  await drainDueCompanies(url, cronSecret)
+  const beforeDrain = await capturePipelineEvidenceSnapshot(admin, 'before_post_drain')
+  const drainResponses = await drainDueCompanies(url, cronSecret)
+  const postDrain = await capturePipelineEvidenceSnapshot(admin, 'post_drain')
+  evidence.postDrain = postDrain
+  for (const mutationClass of [
+    'seed_poll_timestamps',
+    'provider_job_lifecycle',
+    'provider_company_health',
+    'pipeline_heartbeat',
+  ] as const) {
+    journalPipelineMutation(evidence, mutationClass, beforeDrain, postDrain, {
+      responseSummary: {
+        operation: 'bounded_due_work_drain',
+        maxAttempts: PIPELINE_REOPEN_DRAIN_ATTEMPTS,
+        responses: drainResponses,
+      },
+    })
+  }
   const realJobBaseline = await snapshotRealJobs(admin)
   const marker = `${PIPELINE_REOPEN_PROBE_PREFIX}${Date.now()}-${randomUUID()}`
   const fixture: ReopenFixtureState = {
@@ -269,6 +864,8 @@ async function runReopenFixtureProbe(
     jobId: null,
     externalIds: fixtureBoard.externalIds,
   }
+  let observedFixture = postDrain
+  let reopenResponseSummary: Record<string, unknown> = { status: 'not_called' }
 
   try {
     const { data: company, error: companyError } = await admin.from('companies').insert({
@@ -314,6 +911,8 @@ async function runReopenFixtureProbe(
     if (!reopenResponse.ok) {
       throw new Error(`reopen fixture poll-tick returned HTTP ${reopenResponse.status}`)
     }
+    const reopenBody = await reopenResponse.json() as Record<string, unknown>
+    reopenResponseSummary = { httpStatus: reopenResponse.status, ...reopenBody }
 
     let reopenedJob: Record<string, unknown> | null = null
     for (let attempt = 0; attempt < PIPELINE_REOPEN_OBSERVATION_ATTEMPTS; attempt += 1) {
@@ -337,10 +936,31 @@ async function runReopenFixtureProbe(
       JSON.stringify(immutableFixtureSnapshot(reopenedJob!)) === JSON.stringify(immutableBefore),
       'probe 15: reopen preserves every immutable first-sight field',
     )
+    observedFixture = await capturePipelineEvidenceSnapshot(
+      admin,
+      'planetscale_fixture_observed',
+      fixture,
+    )
   } finally {
     await cleanupReopenFixture(admin, fixture)
     await assertReopenFixtureRemoved(admin, fixture)
     await assertRealJobsUnchanged(admin, realJobBaseline)
+    const afterFixture = await capturePipelineEvidenceSnapshot(
+      admin,
+      'planetscale_fixture_cleaned',
+      fixture,
+    )
+    journalPipelineMutation(evidence, 'planetscale_reopen_fixture', postDrain, afterFixture, {
+      identifiers: [fixture.marker, PIPELINE_REOPEN_SOURCE_KEY, ...fixture.externalIds],
+      observed: observedFixture,
+      residueCounts: afterFixture.fixtureResidue,
+      responseSummary: {
+        companyId: fixture.companyId,
+        jobId: fixture.jobId,
+        returnedJobCount: fixture.externalIds.length,
+        pollTick: reopenResponseSummary,
+      },
+    })
   }
 }
 
@@ -391,9 +1011,35 @@ export async function runPipelineVerification() {
   const { data: auth, error: authError } = await userClient.auth.signInWithPassword(environment.user)
   if (authError || !auth.user) throw authError ?? new Error('Verification user authentication failed')
 
+  const invocationId = randomUUID()
+  const entry = await capturePipelineEvidenceSnapshot(admin, 'entry')
+  const evidence = createPipelineEvidenceEnvelope(
+    invocationId,
+    'node --env-file=scripts/.env --experimental-strip-types scripts/verify-pipeline.ts',
+    entry,
+  )
+  let lastSnapshot = entry
+  const captureDurableMutation = async (
+    label: string,
+    mutationClasses: readonly PipelineMutationClassId[],
+    details: { identifiers?: string[]; responseSummary?: Record<string, unknown> } = {},
+  ) => {
+    const after = await capturePipelineEvidenceSnapshot(admin, label)
+    for (const mutationClass of mutationClasses) {
+      journalPipelineMutation(evidence, mutationClass, lastSnapshot, after, details)
+    }
+    lastSnapshot = after
+    return after
+  }
+
   let unexpectedProbeId: string | undefined
+  let executionFailure: unknown
   try {
     await ensureSeeds(admin, userClient)
+    await captureDurableMutation('after_optional_seed_creation', ['optional_seed_creation'], {
+      identifiers: seedBoards.map(({ source, boardToken }) => `${source}:${boardToken}`),
+      responseSummary: { acceptedSeeds: seedBoards.length },
+    })
     const { data: companyRows, error: companiesError } = await admin
       .from('companies')
       .select('id, name, ats_type, board_token, last_polled_at, last_success_at, consecutive_failures')
@@ -425,9 +1071,12 @@ export async function runPipelineVerification() {
     }
     await admin.from('companies').update({ last_polled_at: null }).in('id', seedIds)
     let polledCompanies: typeof companies = []
+    const seedPollResponses: Array<Record<string, unknown>> = []
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const response = await postTick(environment.url, environment.cronSecret)
       if (!response.ok) throw new Error(`poll-tick returned HTTP ${response.status}`)
+      const responseBody = await response.json() as Record<string, unknown>
+      seedPollResponses.push({ attempt: attempt + 1, httpStatus: response.status, ...responseBody })
       const { data: refreshed, error: refreshError } = await admin
         .from('companies')
         .select('id, name, ats_type, board_token, last_polled_at, last_success_at, consecutive_failures')
@@ -454,6 +1103,15 @@ export async function runPipelineVerification() {
           job.snapshot_partial === false && job.status === 'open'),
       'probe 3: all ATS sources have open jobs with complete first-sight snapshots',
     )
+    await captureDurableMutation('after_seed_polling', [
+      'seed_poll_timestamps',
+      'provider_job_lifecycle',
+      'provider_company_health',
+      'pipeline_heartbeat',
+    ], {
+      identifiers: seedIds,
+      responseSummary: { probes: [2, 3], responses: seedPollResponses },
+    })
 
     const forcedCompany = polledCompanies[0]
     const { data: jobsBefore, error: beforeError } = await admin
@@ -473,6 +1131,7 @@ export async function runPipelineVerification() {
     if (forceError) throw forceError
     const repeat = await postTick(environment.url, environment.cronSecret)
     if (!repeat.ok) throw new Error(`repeat poll-tick returned HTTP ${repeat.status}`)
+    const repeatBody = await repeat.json() as Record<string, unknown>
     const { data: jobsAfter, error: afterError } = await admin
       .from('jobs')
       .select('source, external_id')
@@ -489,6 +1148,15 @@ export async function runPipelineVerification() {
         JSON.stringify(identitiesBefore) === JSON.stringify(identitiesAfter),
       'probe 4: repeated polling preserves exactly one row per forced-company job identity',
     )
+    await captureDurableMutation('after_forced_company_poll', [
+      'seed_poll_timestamps',
+      'provider_job_lifecycle',
+      'provider_company_health',
+      'pipeline_heartbeat',
+    ], {
+      identifiers: [forcedCompany.id],
+      responseSummary: { httpStatus: repeat.status, probe: 4, ...repeatBody },
+    })
 
     const { data: heartbeat, error: heartbeatError } = await admin
       .from('pipeline_heartbeat')
@@ -524,6 +1192,7 @@ export async function runPipelineVerification() {
     )
 
     const externalId = `rls-probe-${Date.now()}`
+    const beforeRlsProbe = lastSnapshot
     const { data: forbiddenRows, error: forbiddenError } = await userClient
       .from('jobs')
       .insert({
@@ -535,6 +1204,25 @@ export async function runPipelineVerification() {
       })
       .select('id')
     unexpectedProbeId = forbiddenRows?.[0]?.id
+    if (unexpectedProbeId) {
+      const { error: cleanupError } = await admin.from('jobs').delete().eq('id', unexpectedProbeId)
+      if (cleanupError) throw cleanupError
+    }
+    const afterRlsProbe = await capturePipelineEvidenceSnapshot(
+      admin,
+      'after_denied_rls_cleanup',
+      undefined,
+      externalId,
+    )
+    journalPipelineMutation(evidence, 'denied_rls_insert_cleanup', beforeRlsProbe, afterRlsProbe, {
+      identifiers: [externalId, ...(unexpectedProbeId ? [unexpectedProbeId] : [])],
+      responseSummary: {
+        rejected: Boolean(forbiddenError) || forbiddenRows?.length === 0,
+        unexpectedlyReturnedRows: forbiddenRows?.length ?? 0,
+      },
+      residueCounts: afterRlsProbe.fixtureResidue,
+    })
+    lastSnapshot = afterRlsProbe
     assert(
       Boolean(forbiddenError) || forbiddenRows?.length === 0,
       'probe 8: authenticated publishable-key client cannot insert jobs',
@@ -613,6 +1301,20 @@ export async function runPipelineVerification() {
       openAdzunaJobs.every((job) => !nonAdzunaFingerprints.has(job.fingerprint)),
       'probe 11: no open Adzuna job duplicates an open non-Adzuna fingerprint',
     )
+    await captureDurableMutation('after_primary_discovery_sweep', [
+      'discovery_sweep_primary',
+      'adzuna_quota_and_jobs',
+      'discovery_heartbeat',
+    ], {
+      responseSummary: {
+        status: discoveryResponse.status,
+        requestsToday: discoveryBody.requestsToday,
+        inserted: discoveryBody.inserted ?? 0,
+        refreshed: discoveryBody.refreshed ?? 0,
+        duplicates: discoveryBody.duplicates ?? 0,
+        failedQueries: discoveryBody.failedQueries ?? 0,
+      },
+    })
 
     const cronBaseline = new Date(heartbeatBeforeProbe.last_tick_at).getTime()
     let cronAdvancedAt = cronBaseline
@@ -631,12 +1333,22 @@ export async function runPipelineVerification() {
       cronAdvancedAt > cronBaseline && cronAdvancedAt >= Date.now() - 3 * 60_000,
       'probe 12: pg_cron advances pipeline heartbeat without a manual tick during the probe window',
     )
+    await captureDurableMutation('after_cron_heartbeat_observation', ['pipeline_heartbeat'], {
+      responseSummary: { probe: 12, baseline: cronBaseline, advancedAt: cronAdvancedAt },
+    })
 
+    const beforeClaimReset = lastSnapshot
     const { error: resetClaimsError } = await admin
       .from('companies')
       .update({ last_polled_at: null })
       .in('id', seedIds)
     if (resetClaimsError) throw resetClaimsError
+    const afterClaimReset = await capturePipelineEvidenceSnapshot(admin, 'after_claim_seed_reset')
+    journalPipelineMutation(evidence, 'seed_poll_timestamps', beforeClaimReset, afterClaimReset, {
+      identifiers: seedIds,
+      responseSummary: { operation: 'prepare_concurrent_claim_probe' },
+    })
+    lastSnapshot = afterClaimReset
     const { data: claimBaselineRows, error: claimBaselineError } = await admin
       .from('companies')
       .select('id, last_polled_at')
@@ -659,20 +1371,41 @@ export async function runPipelineVerification() {
       uniqueClaimedIds.size === allClaimedIds.length,
       'probe 13: concurrent claim_due_companies calls return disjoint company batches',
     )
+    const claimsObserved = await capturePipelineEvidenceSnapshot(admin, 'concurrent_claims_observed')
+    const claimRestorationResults: PipelineRestorationResult[] = []
     for (const result of concurrentClaims) {
       for (const row of result.data ?? []) {
         const previous = claimBaseline.get(row.id)
         if (previous === undefined) continue
-        const { error: restoreClaimError } = await admin
-          .from('companies')
-          .update({ last_polled_at: previous })
-          .eq('id', row.id)
-          .eq('last_polled_at', row.last_polled_at)
-        if (restoreClaimError) throw restoreClaimError
+        claimRestorationResults.push(await restoreCompanyPollTimestampCas(
+          admin,
+          row.id,
+          row.last_polled_at,
+          previous,
+        ))
       }
     }
+    const claimsRestored = await capturePipelineEvidenceSnapshot(admin, 'concurrent_claims_restored')
+    journalPipelineMutation(
+      evidence,
+      'concurrent_claim_timestamps',
+      afterClaimReset,
+      claimsRestored,
+      {
+        identifiers: [...uniqueClaimedIds],
+        observed: claimsObserved,
+        restorationResults: claimRestorationResults,
+        responseSummary: { rpcCalls: concurrentClaims.length, claimedIds: allClaimedIds.length },
+      },
+    )
+    lastSnapshot = claimsRestored
+    assert(
+      claimRestorationResults.every(({ restored, conflict }) => restored && !conflict),
+      'probe 13: every temporary claim timestamp is CAS-restored without conflict',
+    )
 
     const now = new Date().toISOString()
+    const beforeNoWorkProbe = lastSnapshot
     const { data: activeRows, error: activeRowsError } = await admin
       .from('companies')
       .select('id, last_polled_at')
@@ -685,6 +1418,8 @@ export async function runPipelineVerification() {
       .eq('id', true)
       .single()
     if (noWorkBaselineError) throw noWorkBaselineError
+    let noWorkObserved = beforeNoWorkProbe
+    const noWorkRestorationResults: PipelineRestorationResult[] = []
     try {
       const { error: makeAllCurrentError } = await admin
         .from('companies')
@@ -712,18 +1447,46 @@ export async function runPipelineVerification() {
           (noWorkBaselineMs === null || noWorkAfterMs > noWorkBaselineMs),
         'probe 14: a successful no-work tick advances last_success_at',
       )
+      noWorkObserved = await capturePipelineEvidenceSnapshot(admin, 'all_active_no_work_observed')
     } finally {
       for (const row of activeRows ?? []) {
-        const { error: restoreCurrentError } = await admin
-          .from('companies')
-          .update({ last_polled_at: row.last_polled_at })
-          .eq('id', row.id)
-          .eq('last_polled_at', now)
-        if (restoreCurrentError) throw restoreCurrentError
+        noWorkRestorationResults.push(await restoreCompanyPollTimestampCas(
+          admin,
+          row.id,
+          now,
+          row.last_polled_at,
+        ))
       }
     }
 
-    await runReopenFixtureProbe(admin, environment.url, environment.cronSecret)
+    const afterNoWorkProbe = await capturePipelineEvidenceSnapshot(admin, 'all_active_no_work_restored')
+    journalPipelineMutation(
+      evidence,
+      'all_active_no_work_timestamps',
+      beforeNoWorkProbe,
+      afterNoWorkProbe,
+      {
+        identifiers: activeIds,
+        observed: noWorkObserved,
+        restorationResults: noWorkRestorationResults,
+        responseSummary: { probe: 14, activeCompanyCount: activeIds.length },
+      },
+    )
+    journalPipelineMutation(
+      evidence,
+      'pipeline_heartbeat',
+      beforeNoWorkProbe,
+      afterNoWorkProbe,
+      { responseSummary: { probe: 14, claimed: 0 } },
+    )
+    lastSnapshot = afterNoWorkProbe
+    assert(
+      noWorkRestorationResults.every(({ restored, conflict }) => restored && !conflict),
+      'probe 14: every all-active timestamp override is CAS-restored without conflict',
+    )
+
+    await runReopenFixtureProbe(admin, environment.url, environment.cronSecret, evidence)
+    lastSnapshot = await capturePipelineEvidenceSnapshot(admin, 'after_planetscale_probe')
 
     const discoveryHealthResponse = await postDiscoverySweep(
       environment.url,
@@ -755,6 +1518,17 @@ export async function runPipelineVerification() {
       (discoverySkipped || validDiscoveryStatus) && discoveryHeartbeatPersisted,
       'probe 16: discovery sweep surfaces health state in its response and heartbeat row',
     )
+    await captureDurableMutation('after_discovery_health_sweep', [
+      'discovery_sweep_health',
+      'adzuna_quota_and_jobs',
+      'discovery_heartbeat',
+    ], {
+      responseSummary: {
+        status: discoveryHealthResponse.status,
+        skipped: discoveryHealthBody.skipped ?? null,
+        discoveryStatus: discoveryHealthBody.discoveryStatus ?? null,
+      },
+    })
 
     const { data: seedIdentityAfter, error: seedIdentityAfterError } = await admin
       .from('companies')
@@ -774,10 +1548,36 @@ export async function runPipelineVerification() {
         (seedJobCountAfter ?? 0) >= (seedJobCountBefore ?? 0),
       'probe 17: seed identities and linked job count survive every pipeline probe',
     )
+    evidence.completedAllProbes = true
+  } catch (error) {
+    executionFailure = error
   } finally {
-    if (unexpectedProbeId) await admin.from('jobs').delete().eq('id', unexpectedProbeId)
+    try {
+      if (unexpectedProbeId) {
+        const { error: cleanupError } = await admin.from('jobs').delete().eq('id', unexpectedProbeId)
+        if (cleanupError) throw cleanupError
+      }
+      const final = await capturePipelineEvidenceSnapshot(admin, 'final')
+      const finalized = finalizePipelineEvidenceEnvelope(evidence, final)
+      const redactedEnvelope = redactPipelineEvidence(finalized)
+      console.log(PIPELINE_EVIDENCE_BEGIN)
+      console.log(JSON.stringify(redactedEnvelope, null, 2))
+      console.log(PIPELINE_EVIDENCE_END)
+      if (!finalized.success && !executionFailure) {
+        executionFailure = new Error(
+          `Pipeline evidence reconciliation failed: ${[
+            ...finalized.unexplainedDiffs,
+            ...finalized.restorationConflicts,
+            ...finalized.immutableDrift,
+          ].join(', ') || 'residue or redaction gate'}`,
+        )
+      }
+    } catch (error) {
+      executionFailure ??= error
+    }
     await userClient.auth.signOut()
   }
+  if (executionFailure) throw executionFailure
 }
 
 const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href

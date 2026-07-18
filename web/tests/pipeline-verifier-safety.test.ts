@@ -133,13 +133,14 @@ describe('pipeline verifier evidence envelope', () => {
   it('captures entry before the first write and post-drain at the attainable internal seam', () => {
     const entryCapture = source.indexOf("capturePipelineEvidenceSnapshot(admin, 'entry'")
     const ensureSeeds = source.indexOf('await ensureSeeds(admin, userClient)')
+    const reopenCall = source.indexOf('await runReopenFixtureProbe(', ensureSeeds)
     const drain = source.indexOf('await drainDueCompanies(url, cronSecret)')
     const postDrainCapture = source.indexOf("capturePipelineEvidenceSnapshot(admin, 'post_drain'", drain)
     const fixtureInsert = source.indexOf("admin.from('companies').insert({", postDrainCapture)
 
     expect(entryCapture).toBeGreaterThan(0)
     expect(ensureSeeds).toBeGreaterThan(entryCapture)
-    expect(drain).toBeGreaterThan(ensureSeeds)
+    expect(reopenCall).toBeGreaterThan(ensureSeeds)
     expect(postDrainCapture).toBeGreaterThan(drain)
     expect(fixtureInsert).toBeGreaterThan(postDrainCapture)
     expect(source).toContain(PIPELINE_EVIDENCE_BEGIN)
@@ -227,7 +228,7 @@ describe('pipeline verifier evidence envelope', () => {
       source_key: 'greenhouse:global:stripe',
       authorization: 'Bearer secret',
       cronSecret: 'cron-secret',
-      user: { password: 'password', email: 'user@example.com' },
+      user: { password: 'hunter2-secret', email: 'user@example.com' },
       description: 'x'.repeat(1_000),
     }) as Record<string, unknown>
 
@@ -238,6 +239,6 @@ describe('pipeline verifier evidence envelope', () => {
     expect(redacted.description).toMatchObject({ redacted: 'sha256', length: 1_000 })
     expect(JSON.stringify(redacted)).not.toContain('Bearer secret')
     expect(JSON.stringify(redacted)).not.toContain('cron-secret')
-    expect(JSON.stringify(redacted)).not.toContain('password\"')
+    expect(JSON.stringify(redacted)).not.toContain('hunter2-secret')
   })
 })
