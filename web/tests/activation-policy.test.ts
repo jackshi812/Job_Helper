@@ -144,21 +144,21 @@ describe('local structural proof for record_connector_observation SQL', () => {
     expect(migrationSql).not.toMatch(/https?:\/\//i)
 
     const validation = sqlIndex(/p_completeness\s*<>\s*'complete'/i)
-    const lock = sqlIndex(/select[\s\S]*from public\.companies[\s\S]*for update/i)
+    const lock = sqlIndex(/from public\.companies as c\s+where c\.id = p_company_id\s+for update/i)
     expect(validation).toBeLessThan(lock)
   })
 
   it('rejects persisted progress at three before every provider ledger insert', () => {
-    const progressGuard = sqlIndex(/activation_successes\s*>=\s*3/i)
+    const progressGuard = sqlIndex(/v_persisted_progress\s*>=\s*3/i)
     const insert = sqlIndex(/insert into public\.connector_observations/i)
     expect(progressGuard).toBeLessThan(insert)
     expect(migrationSql).toMatch(/progress_complete/i)
-    expect(migrationSql).toMatch(/ats_type\s+in\s*\(\s*'smartrecruiters'\s*,\s*'recruitee'\s*,\s*'workday'\s*\)/i)
+    expect(migrationSql).toMatch(/(?:provider\s+in|v_provider\s+not in)\s*\(\s*'smartrecruiters'\s*,\s*'recruitee'\s*,\s*'workday'\s*\)/i)
   })
 
   it('returns persisted progress plus server window boundaries and promotes only stable public providers', () => {
     expect(migrationSql).toMatch(/returns table\s*\([\s\S]*progress\s+integer[\s\S]*window_start\s+timestamptz[\s\S]*next_eligible_at\s+timestamptz/i)
-    expect(migrationSql).toMatch(/activation_successes\s*=\s*[a-z_]+\.progress/i)
+    expect(migrationSql).toMatch(/activation_successes\s*=\s*v_progress/i)
     expect(migrationSql).toMatch(/last_verified_at\s*=/i)
     expect(migrationSql).toMatch(/last_observation_count\s*=/i)
     expect(migrationSql).toMatch(/ats_type\s+in\s*\(\s*'smartrecruiters'\s*,\s*'recruitee'\s*\)/i)
