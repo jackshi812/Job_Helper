@@ -192,6 +192,159 @@ describe('pipeline verifier evidence envelope', () => {
     expect(result.unexplainedDiffs).toEqual([])
   })
 
+  it('attributes only complete provider-owned new jobs observed inside a named poll window', () => {
+    const company = {
+      id: 'company',
+      ats_type: 'greenhouse',
+      activation_state: 'active',
+    }
+    const entry = snapshot('2026-07-18T12:00:00.000Z', {
+      activeCompanies: { company },
+    })
+    const inserted = snapshot('2026-07-18T12:01:00.000Z', {
+      activeCompanies: { company },
+      jobs: {
+        job: {
+          id: 'job',
+          company_id: 'company',
+          source: 'greenhouse',
+          external_id: 'provider-1',
+          title: 'Engineer',
+          location: 'Chicago',
+          absolute_url: 'https://example.com/jobs/provider-1',
+          posted_at: '2026-07-18T11:00:00.000Z',
+          description_html_hash: 'html-hash',
+          description_text_hash: 'text-hash',
+          snapshot_partial: false,
+          fingerprint: 'fingerprint',
+          status: 'open',
+          first_seen_at: '2026-07-18T12:00:30.000Z',
+          last_seen_at: '2026-07-18T12:00:30.000Z',
+          closed_at: null,
+        },
+      },
+    })
+    const envelope = createPipelineEvidenceEnvelope('invocation', 'verify-pipeline', entry)
+    journalPipelineMutation(envelope, 'provider_job_lifecycle', entry, inserted, {
+      identifiers: ['company'],
+      responseSummary: { claimed: 1, succeeded: 1, inserted: 1 },
+    })
+
+    const result = finalizePipelineEvidenceEnvelope(envelope, inserted)
+    expect(result.success).toBe(true)
+    expect(result.allowedDurableDiffs).toContain('jobs.job.external_id')
+    expect(result.unexplainedDiffs).toEqual([])
+  })
+
+  it.each([
+    ['unowned company', { company_id: 'other' }, { claimed: 1, succeeded: 1, inserted: 1 }],
+    ['unrecognized source', { source: 'workday' }, { claimed: 1, succeeded: 1, inserted: 1 }],
+    ['out-of-window first sight', { first_seen_at: '2026-07-18T11:59:59.000Z' }, { claimed: 1, succeeded: 1, inserted: 1 }],
+    ['partial row', { title: null }, { claimed: 1, succeeded: 1, inserted: 1 }],
+    ['missing provider activity', {}, {}],
+  ])('rejects a %s instead of wildcard-allowing new job fields', (_label, overrides, responseSummary) => {
+    const company = {
+      id: 'company',
+      ats_type: 'greenhouse',
+      activation_state: 'active',
+    }
+    const entry = snapshot('2026-07-18T12:00:00.000Z', {
+      activeCompanies: { company },
+    })
+    const inserted = snapshot('2026-07-18T12:01:00.000Z', {
+      activeCompanies: { company },
+      jobs: {
+        job: {
+          id: 'job',
+          company_id: 'company',
+          source: 'greenhouse',
+          external_id: 'provider-1',
+          title: 'Engineer',
+          location: 'Chicago',
+          absolute_url: 'https://example.com/jobs/provider-1',
+          posted_at: '2026-07-18T11:00:00.000Z',
+          description_html_hash: 'html-hash',
+          description_text_hash: 'text-hash',
+          snapshot_partial: false,
+          fingerprint: 'fingerprint',
+          status: 'open',
+          first_seen_at: '2026-07-18T12:00:30.000Z',
+          last_seen_at: '2026-07-18T12:00:30.000Z',
+          closed_at: null,
+          ...overrides,
+        },
+      },
+    })
+    const envelope = createPipelineEvidenceEnvelope('invocation', 'verify-pipeline', entry)
+    journalPipelineMutation(envelope, 'provider_job_lifecycle', entry, inserted, {
+      identifiers: ['company'],
+      responseSummary,
+    })
+
+    const result = finalizePipelineEvidenceEnvelope(envelope, inserted)
+    expect(result.success).toBe(false)
+    expect(result.unexplainedDiffs).toContain('jobs.job.external_id')
+  })
+
+  it('blocks transient external-id rewrites of entry rows even when a later poll restores them', () => {
+    const entryJob = {
+      id: 'job',
+      company_id: 'company',
+      source: 'greenhouse',
+      external_id: 'immutable-provider-id',
+      title: 'Engineer',
+      location: 'Chicago',
+      absolute_url: 'https://example.com/jobs/immutable-provider-id',
+      posted_at: '2026-07-17T11:00:00.000Z',
+      description_html_hash: 'html-hash',
+      description_text_hash: 'text-hash',
+      snapshot_partial: false,
+      fingerprint: 'fingerprint',
+      status: 'open',
+      first_seen_at: '2026-07-17T12:00:30.000Z',
+      last_seen_at: '2026-07-18T11:00:00.000Z',
+      closed_at: null,
+    }
+    const company = { id: 'company', ats_type: 'greenhouse', activation_state: 'active' }
+    const entry = snapshot('2026-07-18T12:00:00.000Z', {
+      activeCompanies: { company },
+      jobs: { job: entryJob },
+    })
+    const rewritten = snapshot('2026-07-18T12:01:00.000Z', {
+      activeCompanies: { company },
+      jobs: {
+        job: {
+          ...entryJob,
+          external_id: 'different-provider-id',
+          last_seen_at: '2026-07-18T12:00:30.000Z',
+        },
+      },
+    })
+    const restored = snapshot('2026-07-18T12:02:00.000Z', {
+      activeCompanies: { company },
+      jobs: {
+        job: {
+          ...entryJob,
+          last_seen_at: '2026-07-18T12:01:30.000Z',
+        },
+      },
+    })
+    const envelope = createPipelineEvidenceEnvelope('invocation', 'verify-pipeline', entry)
+    journalPipelineMutation(envelope, 'provider_job_lifecycle', entry, rewritten, {
+      identifiers: ['company'],
+      responseSummary: { claimed: 1, succeeded: 1, inserted: 0 },
+    })
+    journalPipelineMutation(envelope, 'provider_job_lifecycle', rewritten, restored, {
+      identifiers: ['company'],
+      responseSummary: { claimed: 1, succeeded: 1, inserted: 0 },
+    })
+
+    const result = finalizePipelineEvidenceEnvelope(envelope, restored)
+    expect(result.success).toBe(false)
+    expect(result.immutableDrift).toContain('jobs.job.external_id')
+    expect(result.unexplainedDiffs).toContain('jobs.job.external_id')
+  })
+
   it('fails closed on CAS conflict, fixture residue, immutable drift, or unexplained diff', () => {
     const entry = snapshot('2026-07-18T12:00:00.000Z', {
       jobs: {

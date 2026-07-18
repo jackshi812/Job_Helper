@@ -329,8 +329,74 @@ function diffEntityId(diff: PipelineFieldDiff, root: string) {
   return match?.[1]
 }
 
+const PIPELINE_COMPLETE_JOB_FIELDS = [
+  'id',
+  'company_id',
+  'source',
+  'external_id',
+  'title',
+  'location',
+  'absolute_url',
+  'posted_at',
+  'description_html_hash',
+  'description_text_hash',
+  'snapshot_partial',
+  'fingerprint',
+  'status',
+  'first_seen_at',
+  'last_seen_at',
+  'closed_at',
+] as const
+
+function hasObservedProviderActivity(record: PipelineMutationRecord) {
+  const summary = record.responseSummary ?? {}
+  const operation = typeof summary.operation === 'string' ? summary.operation : ''
+  return (Array.isArray(summary.responses) && summary.responses.length > 0) ||
+    (typeof summary.claimed === 'number' && summary.claimed > 0) ||
+    (typeof summary.succeeded === 'number' && summary.succeeded > 0) ||
+    ['bounded_due_work_drain', 'scheduled_cron_poll_observation'].includes(operation)
+}
+
+function isAttributedNewProviderJob(
+  record: PipelineMutationRecord,
+  jobId: string,
+  entry: PipelineEvidenceSnapshot,
+  final: PipelineEvidenceSnapshot,
+) {
+  if (entry.jobs[jobId]) return false
+  const job = final.jobs[jobId]
+  if (!job || !PIPELINE_COMPLETE_JOB_FIELDS.every((field) => field in job)) return false
+  if (
+    typeof job.company_id !== 'string' ||
+    typeof job.source !== 'string' ||
+    typeof job.external_id !== 'string' || job.external_id.length === 0 ||
+    typeof job.title !== 'string' || job.title.length === 0 ||
+    typeof job.absolute_url !== 'string' || job.absolute_url.length === 0 ||
+    typeof job.fingerprint !== 'string' || job.fingerprint.length === 0 ||
+    typeof job.first_seen_at !== 'string'
+  ) return false
+
+  const company = final.activeCompanies[job.company_id]
+  if (
+    !company ||
+    company.id !== job.company_id ||
+    company.activation_state !== 'active' ||
+    company.ats_type !== job.source
+  ) return false
+
+  const firstSeenAt = Date.parse(job.first_seen_at)
+  const beforeAt = Date.parse(record.beforeAt)
+  const afterAt = Date.parse(record.afterAt)
+  return Number.isFinite(firstSeenAt) &&
+    Number.isFinite(beforeAt) &&
+    Number.isFinite(afterAt) &&
+    firstSeenAt >= beforeAt &&
+    firstSeenAt <= afterAt &&
+    hasObservedProviderActivity(record)
+}
+
 function isAllowedObservedDiff(
-  mutationClass: PipelineMutationClassId,
+  record: PipelineMutationRecord,
   diff: PipelineFieldDiff,
   entry: PipelineEvidenceSnapshot,
   final: PipelineEvidenceSnapshot,
@@ -340,8 +406,10 @@ function isAllowedObservedDiff(
   const companyId = diffEntityId(diff, 'activeCompanies') ?? diffEntityId(diff, 'seedIdentities')
   const jobId = diffEntityId(diff, 'jobs')
   const finalJob = jobId ? final.jobs[jobId] : undefined
-  const newJob = Boolean(jobId && !entry.jobs[jobId])
-  switch (mutationClass) {
+  const attributedNewJob = Boolean(
+    jobId && isAttributedNewProviderJob(record, jobId, entry, final),
+  )
+  switch (record.mutationClass) {
     case 'optional_seed_creation': {
       if (!companyId) return false
       const company = final.seedIdentities[companyId] ?? final.activeCompanies[companyId]
@@ -354,7 +422,7 @@ function isAllowedObservedDiff(
     case 'provider_job_lifecycle':
       return Boolean(
         jobId && finalJob?.source !== 'adzuna' &&
-          (newJob || ['company_id', 'status', 'last_seen_at', 'closed_at'].includes(leaf)),
+          (attributedNewJob || ['company_id', 'status', 'last_seen_at', 'closed_at'].includes(leaf)),
       )
     case 'provider_company_health':
       return Boolean(companyId && [
@@ -376,7 +444,7 @@ function isAllowedObservedDiff(
           diff.path,
         ) ||
           (jobId && finalJob?.source === 'adzuna' &&
-            (newJob || ['company_id', 'status', 'last_seen_at', 'closed_at'].includes(leaf))),
+            (!entry.jobs[jobId] || ['company_id', 'status', 'last_seen_at', 'closed_at'].includes(leaf))),
       )
     case 'discovery_heartbeat':
       return [
@@ -415,7 +483,7 @@ export function finalizePipelineEvidenceEnvelope(
   const allowedObservedPaths = new Set(
     envelope.records.flatMap((record) =>
       record.observedDiffs
-        .filter((diff) => isAllowedObservedDiff(record.mutationClass, diff, envelope.entry, final))
+        .filter((diff) => isAllowedObservedDiff(record, diff, envelope.entry, final))
         .map(({ path }) => path)
     ),
   )
@@ -423,7 +491,7 @@ export function finalizePipelineEvidenceEnvelope(
     envelope.records
       .filter(({ disposition, status }) => disposition === 'expected_durable' && status === 'executed')
       .flatMap((record) => record.observedDiffs
-        .filter((diff) => isAllowedObservedDiff(record.mutationClass, diff, envelope.entry, final))
+        .filter((diff) => isAllowedObservedDiff(record, diff, envelope.entry, final))
         .map(({ path }) => path)),
   )
   envelope.allowedDurableDiffs = [...new Set(finalDiffs
@@ -445,9 +513,12 @@ export function finalizePipelineEvidenceEnvelope(
     }),
     { ...final.fixtureResidue },
   )
-  envelope.immutableDrift = finalDiffs
+  envelope.immutableDrift = [...new Set([
+    ...finalDiffs,
+    ...envelope.records.flatMap(({ observedDiffs }) => observedDiffs),
+  ]
     .filter((diff) => isImmutableJobDrift(diff, envelope.entry))
-    .map(({ path }) => path)
+    .map(({ path }) => path))].sort()
   const unexplainedObservedDiffs = envelope.records
     .flatMap(({ observedDiffs }) => observedDiffs)
     .filter(({ path }) => path !== 'capturedAt' && path !== 'label' && !allowedObservedPaths.has(path))
