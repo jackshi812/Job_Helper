@@ -28,8 +28,8 @@ describe('pipeline reopen verifier ownership contract', () => {
     expect(source).toContain('assertRealJobsUnchanged')
     expect(source).toContain('await postTick(environment.url, environment.cronSecret)')
     expect(source).toMatch(/for \(let attempt = 0; attempt < PIPELINE_REOPEN_OBSERVATION_ATTEMPTS;/)
-    expect(source).toContain(".delete().eq('company_id', fixture.companyId)")
-    expect(source).toContain(".delete().eq('id', fixture.companyId)")
+    expect(source).toMatch(/\.delete\(\)\s*\.eq\('company_id', fixture\.companyId\)/)
+    expect(source).toMatch(/\.delete\(\)\s*\.eq\('id', fixture\.companyId\)/)
     expect(source).toContain('assertReopenFixtureRemoved')
   })
 

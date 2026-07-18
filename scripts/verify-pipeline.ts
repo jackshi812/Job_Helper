@@ -1,5 +1,47 @@
+import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { createClient } from '../web/node_modules/@supabase/supabase-js/dist/index.mjs'
+
+const PIPELINE_REOPEN_PROBE_PREFIX = 'phase-02.1-reopen-probe-'
+const PIPELINE_REOPEN_BOARD_TOKEN = 'planetscale'
+const PIPELINE_REOPEN_SOURCE_KEY = 'greenhouse:global:planetscale'
+const PIPELINE_REOPEN_MAX_JOBS = 25
+const PIPELINE_REOPEN_DRAIN_ATTEMPTS = 20
+const PIPELINE_REOPEN_OBSERVATION_ATTEMPTS = 12
+const PIPELINE_REOPEN_OBSERVATION_DELAY_MS = 1_000
+const PIPELINE_JOB_COLUMNS = [
+  'id',
+  'company_id',
+  'source',
+  'external_id',
+  'title',
+  'location',
+  'absolute_url',
+  'posted_at',
+  'description_html',
+  'description_text',
+  'snapshot_partial',
+  'fingerprint',
+  'status',
+  'first_seen_at',
+  'last_seen_at',
+  'closed_at',
+].join(', ')
+
+interface GreenhouseFixtureJob {
+  id: number
+  title: string
+  absolute_url: string
+  first_published?: string | null
+  location?: { name?: string | null } | null
+}
+
+interface ReopenFixtureState {
+  marker: string
+  companyId: string | null
+  jobId: string | null
+  externalIds: string[]
+}
 
 const required = [
   'SUPABASE_URL',
@@ -87,6 +129,221 @@ function sleep(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
 
+function normalizedProviderDate(value: string | null | undefined) {
+  return value ? new Date(value).toISOString() : null
+}
+
+async function fetchReopenFixtureJobs() {
+  const response = await fetch(
+    `https://boards-api.greenhouse.io/v1/boards/${PIPELINE_REOPEN_BOARD_TOKEN}/jobs`,
+  )
+  if (!response.ok) throw new Error(`PlanetScale fixture board returned HTTP ${response.status}`)
+  const payload = await response.json() as { jobs?: GreenhouseFixtureJob[] }
+  if (!Array.isArray(payload.jobs)) throw new Error('PlanetScale fixture board schema drifted')
+  if (payload.jobs.length === 0 || payload.jobs.length > PIPELINE_REOPEN_MAX_JOBS) {
+    throw new Error(
+      `PlanetScale fixture board must contain 1-${PIPELINE_REOPEN_MAX_JOBS} jobs; received ${payload.jobs.length}`,
+    )
+  }
+  const externalIds = payload.jobs.map((job) => String(job.id))
+  if (new Set(externalIds).size !== externalIds.length) {
+    throw new Error('PlanetScale fixture board returned duplicate job IDs')
+  }
+  return { jobs: payload.jobs, externalIds }
+}
+
+async function assertReopenFixtureAvailable(
+  admin: ReturnType<typeof client>,
+  externalIds: string[],
+) {
+  const [sourceKey, identity, jobs] = await Promise.all([
+    admin.from('companies').select('id').eq('source_key', PIPELINE_REOPEN_SOURCE_KEY),
+    admin.from('companies').select('id')
+      .eq('ats_type', 'greenhouse')
+      .eq('board_token', PIPELINE_REOPEN_BOARD_TOKEN),
+    admin.from('jobs').select('id').eq('source', 'greenhouse').in('external_id', externalIds),
+  ])
+  if (sourceKey.error) throw sourceKey.error
+  if (identity.error) throw identity.error
+  if (jobs.error) throw jobs.error
+  if ((sourceKey.data?.length ?? 0) > 0 || (identity.data?.length ?? 0) > 0) {
+    throw new Error('PlanetScale fixture company identity already exists; refusing writes')
+  }
+  if ((jobs.data?.length ?? 0) > 0) {
+    throw new Error('PlanetScale fixture job ID collides with a pre-existing row; refusing writes')
+  }
+}
+
+async function drainDueCompanies(
+  url: string,
+  cronSecret: string,
+) {
+  for (let attempt = 0; attempt < PIPELINE_REOPEN_DRAIN_ATTEMPTS; attempt += 1) {
+    const response = await postTick(url, cronSecret)
+    if (!response.ok) throw new Error(`pre-fixture poll-tick returned HTTP ${response.status}`)
+    const body = await response.json() as { claimed?: number }
+    if (body.claimed === 0) return
+  }
+  throw new Error('Active company drain exceeded its bounded attempt budget')
+}
+
+async function snapshotRealJobs(admin: ReturnType<typeof client>) {
+  const { data, error } = await admin
+    .from('jobs')
+    .select(PIPELINE_JOB_COLUMNS)
+    .order('id', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
+async function assertRealJobsUnchanged(
+  admin: ReturnType<typeof client>,
+  baseline: Awaited<ReturnType<typeof snapshotRealJobs>>,
+) {
+  const current = await snapshotRealJobs(admin)
+  assert(
+    JSON.stringify(current) === JSON.stringify(baseline),
+    'probe 15: every pre-existing job matches the post-drain baseline',
+  )
+}
+
+async function cleanupReopenFixture(
+  admin: ReturnType<typeof client>,
+  fixture: ReopenFixtureState,
+) {
+  if (fixture.companyId) {
+    const { error: jobError } = await admin.from('jobs').delete()
+      .eq('company_id', fixture.companyId)
+      .eq('source', 'greenhouse')
+      .in('external_id', fixture.externalIds)
+    if (jobError) throw jobError
+    const { error: companyError } = await admin.from('companies').delete()
+      .eq('id', fixture.companyId)
+      .eq('source_key', PIPELINE_REOPEN_SOURCE_KEY)
+      .eq('name', fixture.marker)
+    if (companyError) throw companyError
+  }
+}
+
+async function assertReopenFixtureRemoved(
+  admin: ReturnType<typeof client>,
+  fixture: ReopenFixtureState,
+) {
+  const [markerCompanies, sourceCompanies, returnedJobs] = await Promise.all([
+    admin.from('companies').select('*', { count: 'exact', head: true }).eq('name', fixture.marker),
+    admin.from('companies').select('*', { count: 'exact', head: true })
+      .eq('source_key', PIPELINE_REOPEN_SOURCE_KEY),
+    admin.from('jobs').select('*', { count: 'exact', head: true })
+      .eq('source', 'greenhouse')
+      .in('external_id', fixture.externalIds),
+  ])
+  if (markerCompanies.error) throw markerCompanies.error
+  if (sourceCompanies.error) throw sourceCompanies.error
+  if (returnedJobs.error) throw returnedJobs.error
+  assert(
+    (markerCompanies.count ?? 0) === 0 &&
+      (sourceCompanies.count ?? 0) === 0 &&
+      (returnedJobs.count ?? 0) === 0,
+    'probe 15: no marked company or returned-ID fixture row remains',
+  )
+}
+
+function immutableFixtureSnapshot(row: Record<string, unknown>) {
+  const { status: _status, closed_at: _closedAt, last_seen_at: _lastSeenAt, ...immutable } = row
+  return immutable
+}
+
+async function runReopenFixtureProbe(
+  admin: ReturnType<typeof client>,
+  url: string,
+  cronSecret: string,
+) {
+  const fixtureBoard = await fetchReopenFixtureJobs()
+  await assertReopenFixtureAvailable(admin, fixtureBoard.externalIds)
+  await drainDueCompanies(url, cronSecret)
+  const realJobBaseline = await snapshotRealJobs(admin)
+  const marker = `${PIPELINE_REOPEN_PROBE_PREFIX}${Date.now()}-${randomUUID()}`
+  const fixture: ReopenFixtureState = {
+    marker,
+    companyId: null,
+    jobId: null,
+    externalIds: fixtureBoard.externalIds,
+  }
+
+  try {
+    const { data: company, error: companyError } = await admin.from('companies').insert({
+      name: marker,
+      ats_type: 'greenhouse',
+      board_token: PIPELINE_REOPEN_BOARD_TOKEN,
+      region: null,
+      careers_url: 'https://job-boards.greenhouse.io/planetscale',
+      source_key: PIPELINE_REOPEN_SOURCE_KEY,
+      activation_state: 'active',
+      last_polled_at: null,
+      last_success_at: null,
+    }).select('id').single()
+    if (companyError) throw companyError
+    fixture.companyId = company.id
+
+    const providerJob = fixtureBoard.jobs[0]
+    const firstSeenAt = new Date(Date.now() - 60 * 60_000).toISOString()
+    const closedAt = new Date(Date.now() - 40 * 60_000).toISOString()
+    const { data: job, error: jobError } = await admin.from('jobs').insert({
+      company_id: fixture.companyId,
+      source: 'greenhouse',
+      external_id: String(providerJob.id),
+      title: providerJob.title.trim(),
+      location: providerJob.location?.name?.trim() || null,
+      absolute_url: providerJob.absolute_url,
+      posted_at: normalizedProviderDate(providerJob.first_published),
+      description_html: null,
+      description_text: null,
+      snapshot_partial: false,
+      fingerprint: `${PIPELINE_REOPEN_PROBE_PREFIX}${randomUUID()}`,
+      status: 'closed',
+      first_seen_at: firstSeenAt,
+      last_seen_at: firstSeenAt,
+      closed_at: closedAt,
+    }).select(PIPELINE_JOB_COLUMNS).single()
+    if (jobError) throw jobError
+    fixture.jobId = job.id
+    const immutableBefore = immutableFixtureSnapshot(job as Record<string, unknown>)
+    const lastSeenBefore = new Date(job.last_seen_at).getTime()
+
+    const reopenResponse = await postTick(url, cronSecret)
+    if (!reopenResponse.ok) {
+      throw new Error(`reopen fixture poll-tick returned HTTP ${reopenResponse.status}`)
+    }
+
+    let reopenedJob: Record<string, unknown> | null = null
+    for (let attempt = 0; attempt < PIPELINE_REOPEN_OBSERVATION_ATTEMPTS; attempt += 1) {
+      const { data: observed, error: observedError } = await admin.from('jobs')
+        .select(PIPELINE_JOB_COLUMNS)
+        .eq('id', fixture.jobId)
+        .single()
+      if (observedError) throw observedError
+      if (
+        observed.status === 'open' &&
+        observed.closed_at === null &&
+        new Date(observed.last_seen_at).getTime() > lastSeenBefore
+      ) {
+        reopenedJob = observed as Record<string, unknown>
+        break
+      }
+      await sleep(PIPELINE_REOPEN_OBSERVATION_DELAY_MS)
+    }
+    assert(Boolean(reopenedJob), 'probe 15: deployed poll-tick reopens the owned exact-ID fixture')
+    assert(
+      JSON.stringify(immutableFixtureSnapshot(reopenedJob!)) === JSON.stringify(immutableBefore),
+      'probe 15: reopen preserves every immutable first-sight field',
+    )
+  } finally {
+    await cleanupReopenFixture(admin, fixture)
+    await assertReopenFixtureRemoved(admin, fixture)
+    await assertRealJobsUnchanged(admin, realJobBaseline)
+  }
+}
+
 async function ensureSeeds(
   admin: ReturnType<typeof client>,
   userClient: ReturnType<typeof client>,
@@ -135,7 +392,6 @@ export async function runPipelineVerification() {
   if (authError || !auth.user) throw authError ?? new Error('Verification user authentication failed')
 
   let unexpectedProbeId: string | undefined
-  let reopenProbeRestore: { id: string; lastSeenAt: string } | undefined
   try {
     await ensureSeeds(admin, userClient)
     const { data: companyRows, error: companiesError } = await admin
@@ -467,49 +723,7 @@ export async function runPipelineVerification() {
       }
     }
 
-    const { data: reopenCandidate, error: reopenCandidateError } = await admin
-      .from('jobs')
-      .select('id, company_id, description_html, first_seen_at, last_seen_at')
-      .in('company_id', seedIds)
-      .eq('status', 'open')
-      .limit(1)
-      .maybeSingle()
-    if (reopenCandidateError) throw reopenCandidateError
-    if (!reopenCandidate?.company_id) {
-      console.warn('WARN: probe 15 skipped because no seed company currently has an open job')
-    } else {
-      reopenProbeRestore = { id: reopenCandidate.id, lastSeenAt: reopenCandidate.last_seen_at }
-      const { error: closeCandidateError } = await admin
-        .from('jobs')
-        .update({
-          status: 'closed',
-          closed_at: new Date().toISOString(),
-          last_seen_at: new Date(Date.now() - 40 * 60_000).toISOString(),
-        })
-        .eq('id', reopenCandidate.id)
-      if (closeCandidateError) throw closeCandidateError
-      const { error: forceReopenPollError } = await admin
-        .from('companies')
-        .update({ last_polled_at: null })
-        .eq('id', reopenCandidate.company_id)
-      if (forceReopenPollError) throw forceReopenPollError
-      const reopenResponse = await postTick(environment.url, environment.cronSecret)
-      if (!reopenResponse.ok) throw new Error(`reopen poll-tick returned HTTP ${reopenResponse.status}`)
-      const { data: reopenedJob, error: reopenedJobError } = await admin
-        .from('jobs')
-        .select('status, closed_at, description_html, first_seen_at')
-        .eq('id', reopenCandidate.id)
-        .single()
-      if (reopenedJobError) throw reopenedJobError
-      assert(
-        reopenedJob.status === 'open' &&
-          reopenedJob.closed_at === null &&
-          reopenedJob.description_html === reopenCandidate.description_html &&
-          reopenedJob.first_seen_at === reopenCandidate.first_seen_at,
-        'probe 15: a returned closed exact-ID job reopens with its first-sight snapshot preserved',
-      )
-      reopenProbeRestore = undefined
-    }
+    await runReopenFixtureProbe(admin, environment.url, environment.cronSecret)
 
     const discoveryHealthResponse = await postDiscoverySweep(
       environment.url,
@@ -561,13 +775,6 @@ export async function runPipelineVerification() {
       'probe 17: seed identities and linked job count survive every pipeline probe',
     )
   } finally {
-    if (reopenProbeRestore) {
-      const { error: restoreError } = await admin
-        .from('jobs')
-        .update({ status: 'open', closed_at: null, last_seen_at: reopenProbeRestore.lastSeenAt })
-        .eq('id', reopenProbeRestore.id)
-      if (restoreError) throw restoreError
-    }
     if (unexpectedProbeId) await admin.from('jobs').delete().eq('id', unexpectedProbeId)
     await userClient.auth.signOut()
   }
