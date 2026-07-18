@@ -5,6 +5,7 @@ export interface NormalizedJob {
     | 'ashby'
     | 'smartrecruiters'
     | 'recruitee'
+    | 'workday'
     | 'adzuna'
   externalId: string
   title: string

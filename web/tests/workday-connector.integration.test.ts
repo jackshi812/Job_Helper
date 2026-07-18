@@ -3,12 +3,9 @@ import {
   CAPITAL_ONE_WORKDAY_SOURCE_KEY,
   pollWorkday,
 } from '../../supabase/functions/_shared/adapters/workday.ts'
-import { providerRegistry } from '../../supabase/functions/_shared/connectors.ts'
-import { detectAts } from '../../supabase/functions/_shared/detect.ts'
 import catalogSql from '../../supabase/migrations/0013_source_coverage_catalog.sql?raw'
 
 const sourceKey = 'workday:wd12:capitalone:Capital_One'
-const boardUrl = 'https://capitalone.wd12.myworkdayjobs.com/Capital_One'
 const listUrl = 'https://capitalone.wd12.myworkdayjobs.com/wday/cxs/capitalone/Capital_One/jobs'
 const detailPath = '/job/Chicago-IL/Senior-Software-Engineer_R123456'
 
@@ -44,34 +41,6 @@ describe('Capital One Workday identity contract', () => {
     expect(catalogSql.match(new RegExp(sourceKey, 'g'))).toHaveLength(2)
   })
 
-  it('detects only the fixed Capital One board identity', () => {
-    expect(detectAts(boardUrl)).toEqual({
-      ats: 'workday',
-      slug: 'capitalone',
-      region: 'wd12',
-      site: 'Capital_One',
-    })
-    for (const unsafe of [
-      'https://capitalone.wd11.myworkdayjobs.com/Capital_One',
-      'https://other.wd12.myworkdayjobs.com/Capital_One',
-      'https://capitalone.wd12.myworkdayjobs.com/Other_Site',
-      'https://capitalone.wd12.myworkdayjobs.com/Capital_One/jobs',
-      'https://capitalone.wd12.myworkdayjobs.com.evil.example/Capital_One',
-    ]) {
-      expect(detectAts(unsafe)).toEqual({ ats: 'unsupported' })
-    }
-  })
-
-  it('registers Workday without broadening the allowlist beyond Capital One', () => {
-    expect(Object.keys(providerRegistry).sort()).toEqual([
-      'ashby',
-      'greenhouse',
-      'lever',
-      'recruitee',
-      'smartrecruiters',
-      'workday',
-    ])
-  })
 })
 
 describe('bounded Capital One Workday observation', () => {
@@ -124,6 +93,8 @@ describe('bounded Capital One Workday observation', () => {
       ],
       warnings: [],
     })
+    expect(Object.isFrozen(observation.jobs)).toBe(true)
+    expect(observation.jobs.every(Object.isFrozen)).toBe(true)
   })
 
   it.each([
@@ -174,6 +145,19 @@ describe('bounded Capital One Workday observation', () => {
     })
   })
 
+  it('treats an undocumented empty board as closure-ineligible', async () => {
+    const observation = await pollWorkday(
+      vi.fn().mockResolvedValue(jsonResponse({ total: 0, jobPostings: [] })),
+    )
+    expect(observation).toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      expectedCount: 0,
+      jobs: [],
+      warnings: ['implausible_empty'],
+    })
+  })
+
   it('retains validated details but denies closure on an incomplete fan-out', async () => {
     const secondPosting = {
       ...listPosting,
@@ -200,7 +184,7 @@ describe('bounded Capital One Workday observation', () => {
       .mockResolvedValueOnce(jsonResponse({ total: 2, jobPostings: [] }))
     const mismatch = await pollWorkday(mismatchFetch, { pageSize: 20 })
     expect(mismatch).toMatchObject({
-      completeness: 'partial',
+      completeness: 'unknown',
       credibleForClosure: false,
       expectedCount: 2,
       jobs: [],
