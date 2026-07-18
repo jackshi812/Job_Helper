@@ -21,6 +21,10 @@ export interface CompanySyncPlan {
 
 export type ExactJobReturnAction = 'insert' | 'refresh' | 'reopen'
 
+export interface FingerprintRepostLifecycleUpdate {
+  last_seen_at: string
+}
+
 export interface ObservationHealthUpdate {
   last_success_at: string | null
   consecutive_failures: number
@@ -32,6 +36,12 @@ export function exactJobReturnAction(
 ): ExactJobReturnAction {
   if (!existing) return 'insert'
   return existing.status === 'closed' ? 'reopen' : 'refresh'
+}
+
+export function fingerprintRepostLifecycleUpdate(
+  seenAt: string,
+): FingerprintRepostLifecycleUpdate {
+  return { last_seen_at: seenAt }
 }
 
 const DEFAULT_CLOSE_GRACE_MS = 35 * 60_000

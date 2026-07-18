@@ -10,6 +10,7 @@ import {
   type NormalizedJob,
   type PollObservation,
 } from '../../supabase/functions/_shared/adapters/types.ts'
+import { fingerprint } from '../../supabase/functions/_shared/dedup.ts'
 
 const nowIso = '2026-07-17T17:00:00.000Z'
 
@@ -82,7 +83,11 @@ describe('fingerprintRepostLifecycleUpdate', () => {
       ['provider-original', '2026-07-17T17:10:00.000Z'],
     ] as const) {
       const returned = returnedJob({ externalId })
-      expect(returned.externalId).not.toBe(stored.external_id)
+      expect(fingerprint(
+        returned.companyName ?? 'Example',
+        returned.title,
+        returned.location,
+      )).toBe(stored.fingerprint)
 
       stored = {
         ...stored,

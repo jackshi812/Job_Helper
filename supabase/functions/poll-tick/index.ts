@@ -3,6 +3,7 @@ import { type NormalizedJob } from '../_shared/adapters/types.ts'
 import { pollConnector } from '../_shared/connectors.ts'
 import { fingerprint } from '../_shared/dedup.ts'
 import {
+  fingerprintRepostLifecycleUpdate,
   planCompanySync,
   observationHealthUpdate,
   shouldAdvanceSuccessHeartbeat,
@@ -159,11 +160,7 @@ async function ingestNewJobs(
     if (repostId) {
       const { error } = await admin
         .from('jobs')
-        .update({
-          source: job.normalized.source,
-          external_id: job.normalized.externalId,
-          last_seen_at: seenAt,
-        })
+        .update(fingerprintRepostLifecycleUpdate(seenAt))
         .eq('id', repostId)
       if (error) throw error
       continue
