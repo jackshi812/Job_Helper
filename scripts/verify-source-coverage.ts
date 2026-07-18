@@ -9,6 +9,18 @@ const HANDLER_STAGES = new Set(['rejected', 'authenticated', 'verified'])
 const PROBE_PREFIX = 'phase-02.1-source-probe-'
 const PROBE_TTL_MS = 2 * 60 * 60 * 1_000
 const CAPITAL_ONE_SOURCE_KEY = 'workday:wd12:capitalone:Capital_One'
+const AUTH_COMPANY_BASELINE_COLUMNS = [
+  'id',
+  'source_key',
+  'ats_type',
+  'board_token',
+  'region',
+  'site_token',
+  'activation_state',
+  'activation_successes',
+  'last_verified_at',
+  'created_at',
+].join(', ')
 
 const requiredResumeEnvironment = [
   'SUPABASE_URL',
@@ -275,7 +287,11 @@ async function loadObservations(admin: SupabaseClient, companyId: string) {
 
 async function mutationBaseline(admin: SupabaseClient) {
   const [{ data: companies, error: companiesError }, observations, jobs] = await Promise.all([
-    admin.from('companies').select('id, source_key, activation_state, activation_successes, last_verified_at, last_polled_at, consecutive_failures, last_error_code').order('id'),
+    // Exclude poll-tick-owned health fields from this auth boundary snapshot.
+    // The production scheduler may legitimately update last_polled_at/failure
+    // state while these rejected requests run; identity, activation, and
+    // verifier-owned evidence must still remain byte-for-byte stable.
+    admin.from('companies').select(AUTH_COMPANY_BASELINE_COLUMNS).order('id'),
     admin.from('connector_observations').select('*', { count: 'exact', head: true }),
     admin.from('jobs').select('*', { count: 'exact', head: true }),
   ])
@@ -325,7 +341,7 @@ async function verifyAuthorizationMatrix(
     }
     probes.check(
       await mutationBaseline(admin) === baseline,
-      `authorization ${invalid.name}: RPC/ledger/company/job baselines unchanged`,
+      `authorization ${invalid.name}: stable company/ledger/job baselines unchanged`,
     )
   }
 
@@ -761,6 +777,14 @@ async function dryRun() {
   probes.check(
     PROBE_PREFIX.startsWith('phase-02.1-') && PROBE_TTL_MS === 7_200_000,
     'dry-run: disposable fixture cleanup is exact-prefix and two-hour bounded',
+  )
+  probes.check(
+    AUTH_COMPANY_BASELINE_COLUMNS.includes('activation_state') &&
+      AUTH_COMPANY_BASELINE_COLUMNS.includes('last_verified_at') &&
+      !AUTH_COMPANY_BASELINE_COLUMNS.includes('last_polled_at') &&
+      !AUTH_COMPANY_BASELINE_COLUMNS.includes('consecutive_failures') &&
+      !AUTH_COMPANY_BASELINE_COLUMNS.includes('last_error_code'),
+    'dry-run: auth baseline covers stable verifier state without scheduler-owned health fields',
   )
 
   const [watchlistSource, pipelineSource, activationSql, workdaySql, catalogSql, mapperSource, connectorsSource] = await Promise.all([
