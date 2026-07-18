@@ -32,13 +32,24 @@ interface InsertResult {
   error: null | { code?: string; message?: string }
 }
 
-interface ServiceClient {
-  from: (table: string) => {
-    insert: (value: Record<string, unknown>) => {
-      select: (columns: string) => { single: () => Promise<InsertResult> }
-    }
+interface CompanyTable {
+  insert: (value: Record<string, unknown>) => {
+    select: (columns: string) => { single: () => Promise<InsertResult> }
   }
-  rpc?: (name: string, args?: Record<string, unknown>) => Promise<unknown>
+  select?: (columns: string) => {
+    eq: (column: string, value: unknown) => { maybeSingle: () => Promise<InsertResult> }
+  }
+  update?: (value: Record<string, unknown>) => {
+    eq: (column: string, value: unknown) => Promise<{ error: InsertResult['error'] }>
+  }
+}
+
+interface ServiceClient {
+  from: (table: string) => CompanyTable
+  rpc?: (name: string, args?: Record<string, unknown>) => Promise<{
+    data: unknown
+    error: InsertResult['error']
+  }>
 }
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
@@ -48,7 +59,20 @@ export interface VerifyBoardDependencies {
   createServiceClient: () => ServiceClient
   providerFetch: FetchLike
   now?: () => Date
+  randomUUID?: () => string
+  digestEvidence?: (value: string) => Promise<string>
 }
+
+interface ActivationResult {
+  accepted: boolean
+  reason: string
+  progress: number | null
+  window_start: string | null
+  next_eligible_at: string | null
+  result_activation_state: string | null
+}
+
+const stagedActivationProviders = new Set(['smartrecruiters', 'recruitee', 'workday'])
 
 function diagnosticHeaders(stage: string, fetchCount: number) {
   return {
@@ -73,6 +97,95 @@ function bearerToken(request: Request) {
 
 function duplicateMessage(companyName: string) {
   return `${companyName} is already on the watchlist.`
+}
+
+function sourceKeyForDetection(detected: Exclude<ReturnType<typeof detectAts>, { ats: 'unsupported' }>) {
+  return `${detected.ats}:${detected.region ?? 'global'}:${detected.slug}`
+}
+
+function boundedVerificationCode(error: unknown) {
+  const message = error instanceof Error ? error.message : ''
+  return /^[a-z0-9_]{1,64}$/.test(message) ? message : 'verification_failed'
+}
+
+async function sha256Hex(value: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function lookupCompany(service: ServiceClient, sourceKey: string) {
+  const table = service.from('companies')
+  if (!table.select) throw new Error('company_lookup_unavailable')
+  const { data, error } = await table
+    .select(COMPANY_COLUMNS)
+    .eq('source_key', sourceKey)
+    .maybeSingle()
+  if (error || !data) throw new Error('company_lookup_failed')
+  return data
+}
+
+async function recordVerificationFailure(
+  service: ServiceClient,
+  sourceKey: string,
+  error: unknown,
+) {
+  const table = service.from('companies')
+  if (!table.update) return
+  const result = await table
+    .update({
+      last_error: 'Manual verification failed.',
+      last_error_code: boundedVerificationCode(error),
+    })
+    .eq('source_key', sourceKey)
+  if (result.error) throw new Error('verification_health_update_failed')
+}
+
+function parseActivationResult(value: unknown): ActivationResult {
+  const row = Array.isArray(value) ? value[0] : value
+  if (!row || typeof row !== 'object') throw new Error('activation_result_invalid')
+  const candidate = row as Partial<ActivationResult>
+  if (
+    typeof candidate.accepted !== 'boolean'
+    || typeof candidate.reason !== 'string'
+    || (candidate.progress !== null && (
+      !Number.isInteger(candidate.progress)
+      || (candidate.progress as number) < 0
+      || (candidate.progress as number) > 3
+    ))
+    || (candidate.window_start !== null && typeof candidate.window_start !== 'string')
+    || (candidate.next_eligible_at !== null && typeof candidate.next_eligible_at !== 'string')
+    || (candidate.result_activation_state !== null && typeof candidate.result_activation_state !== 'string')
+  ) {
+    throw new Error('activation_result_invalid')
+  }
+  return candidate as ActivationResult
+}
+
+async function recordEligibleObservation(
+  service: ServiceClient,
+  dependencies: VerifyBoardDependencies,
+  companyId: string,
+  verified: Awaited<ReturnType<typeof verifyConnector>>,
+) {
+  if (!service.rpc) throw new Error('activation_rpc_unavailable')
+  const digestInput = JSON.stringify([
+    verified.ats,
+    verified.sourceKey,
+    verified.jobCount,
+  ])
+  const evidenceDigest = await (dependencies.digestEvidence ?? sha256Hex)(digestInput)
+  const { data, error } = await service.rpc('record_connector_observation', {
+    p_company_id: companyId,
+    p_observation_id: (dependencies.randomUUID ?? (() => crypto.randomUUID()))(),
+    p_completeness: 'complete',
+    p_credible_for_closure: true,
+    p_job_count: verified.jobCount,
+    p_expected_count: verified.jobCount,
+    p_warning_count: 0,
+    p_evidence_digest: evidenceDigest,
+  })
+  if (error) throw new Error('activation_rpc_failed')
+  return parseActivationResult(data)
 }
 
 export function createVerifyBoardHandler(dependencies: VerifyBoardDependencies) {
@@ -115,9 +228,18 @@ export function createVerifyBoardHandler(dependencies: VerifyBoardDependencies) 
         return json({ ok: false, reason: 'unsupported', message: UNSUPPORTED_URL_MESSAGE }, 200, 'authenticated', 0)
       }
 
-      const verified = await verifyConnector(detected, countedFetch)
+      let verified: Awaited<ReturnType<typeof verifyConnector>>
+      try {
+        verified = await verifyConnector(detected, countedFetch)
+      } catch (error) {
+        const service = dependencies.createServiceClient()
+        await recordVerificationFailure(service, sourceKeyForDetection(detected), error)
+        throw error
+      }
+
       const service = dependencies.createServiceClient()
       const verifiedAt = (dependencies.now ?? (() => new Date()))().toISOString()
+      const usesStagedActivation = stagedActivationProviders.has(verified.ats)
       const { data, error } = await service
         .from('companies')
         .insert({
@@ -128,7 +250,7 @@ export function createVerifyBoardHandler(dependencies: VerifyBoardDependencies) 
           careers_url: verified.careersUrl,
           source_key: verified.sourceKey,
           site_token: null,
-          activation_state: 'active',
+          activation_state: usesStagedActivation ? 'experimental' : 'active',
           activation_successes: 0,
           last_verified_at: verifiedAt,
           last_observation_count: verified.jobCount,
@@ -138,14 +260,37 @@ export function createVerifyBoardHandler(dependencies: VerifyBoardDependencies) 
         .select(COMPANY_COLUMNS)
         .single()
 
-      if (error?.code === '23505') {
+      if (error?.code === '23505' && !usesStagedActivation) {
         return json({
           ok: false,
           reason: 'already_watched',
           message: duplicateMessage(verified.companyName),
         }, 409, 'verified', providerFetchCount)
       }
-      if (error) throw new Error('company_insert_failed')
+      if (error && error.code !== '23505') throw new Error('company_insert_failed')
+
+      if (usesStagedActivation) {
+        const company = error?.code === '23505'
+          ? await lookupCompany(service, verified.sourceKey)
+          : data
+        if (!company || typeof company !== 'object' || typeof (company as { id?: unknown }).id !== 'string') {
+          throw new Error('company_result_invalid')
+        }
+        const activation = await recordEligibleObservation(
+          service,
+          dependencies,
+          (company as { id: string }).id,
+          verified,
+        )
+        const persistedCompany = await lookupCompany(service, verified.sourceKey)
+
+        return json({
+          ok: true,
+          company: persistedCompany,
+          already_watched: error?.code === '23505',
+          activation,
+        }, 200, 'verified', providerFetchCount)
+      }
 
       return json({ ok: true, company: data, already_watched: false }, 200, 'verified', providerFetchCount)
     } catch (error) {

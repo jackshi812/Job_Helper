@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { createVerifyBoardHandler } from '../../supabase/functions/verify-board/index.ts'
+import verifyBoardSource from '../../supabase/functions/verify-board/index.ts?raw'
 import migrationSql from '../../supabase/migrations/0015_activation_windows.sql?raw'
 
 type Provider = 'smartrecruiters' | 'recruitee' | 'workday'
@@ -241,4 +243,233 @@ describe('local pure-contract mirror for activation windows', () => {
       expect(four.windowStarts).toEqual(three.windowStarts)
     },
   )
+})
+
+const smartPosting = {
+  id: 'sr-activation-1',
+  name: 'Platform Engineer',
+  releasedDate: '2026-07-17T12:00:00Z',
+  ref: 'https://jobs.smartrecruiters.com/SmartRecruiters/sr-activation-1',
+  location: { city: 'Chicago', region: 'Illinois', country: 'US' },
+  company: { name: 'SmartRecruiters' },
+  jobAd: { sections: { jobDescription: { text: '<p>Build hiring software.</p>' } } },
+}
+
+const publicCompany = {
+  id: '11111111-1111-4111-8111-111111111111',
+  name: 'SmartRecruiters',
+  ats_type: 'smartrecruiters',
+  board_token: 'SmartRecruiters',
+  region: null,
+  careers_url: 'https://jobs.smartrecruiters.com/SmartRecruiters',
+  source_key: 'smartrecruiters:global:SmartRecruiters',
+  site_token: null,
+  activation_state: 'experimental',
+  activation_successes: 1,
+  last_verified_at: '2026-07-18T01:10:00.000Z',
+  last_polled_at: null,
+  last_success_at: null,
+  consecutive_failures: 0,
+  last_error: null,
+  last_error_code: null,
+  last_observation_count: 1,
+  created_at: '2026-07-18T01:00:00.000Z',
+}
+
+function verifyRequest(
+  token = 'real-user-token',
+  extraBody: Record<string, unknown> = {},
+) {
+  return new Request('https://example.test/functions/v1/verify-board', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      url: 'https://jobs.smartrecruiters.com/SmartRecruiters',
+      ...extraBody,
+    }),
+  })
+}
+
+function activationHarness(options: {
+  duplicate?: boolean
+  rpcRow?: Partial<ActivationResult>
+  providerFetch?: ReturnType<typeof vi.fn>
+} = {}) {
+  const getUser = vi.fn().mockResolvedValue({
+    data: { user: { id: 'user-1', role: 'authenticated' } },
+    error: null,
+  })
+  const createAuthClient = vi.fn(() => ({ auth: { getUser } }))
+  const persistedCompany = {
+    ...publicCompany,
+    activation_successes: options.rpcRow?.progress ?? 1,
+    activation_state: options.rpcRow?.result_activation_state ?? 'experimental',
+  }
+  const single = vi.fn().mockResolvedValue(options.duplicate
+    ? { data: null, error: { code: '23505' } }
+    : { data: { ...publicCompany, activation_successes: 0 }, error: null })
+  const insertSelect = vi.fn(() => ({ single }))
+  const insert = vi.fn(() => ({ select: insertSelect }))
+  const maybeSingle = vi.fn().mockResolvedValue({ data: persistedCompany, error: null })
+  const eqSelect = vi.fn(() => ({ maybeSingle }))
+  const select = vi.fn(() => ({ eq: eqSelect }))
+  const updateEq = vi.fn().mockResolvedValue({ error: null })
+  const update = vi.fn(() => ({ eq: updateEq }))
+  const from = vi.fn(() => ({ insert, select, update }))
+  const rpcRow: ActivationResult = {
+    accepted: true,
+    reason: 'accepted',
+    progress: 1,
+    window_start: '2026-07-18T01:10:00.000Z',
+    next_eligible_at: '2026-07-18T01:20:00.000Z',
+    result_activation_state: 'experimental',
+    ...options.rpcRow,
+  }
+  const rpc = vi.fn().mockResolvedValue({ data: [rpcRow], error: null })
+  const createServiceClient = vi.fn(() => ({ from, rpc }))
+  const providerFetch = options.providerFetch ?? vi.fn().mockResolvedValue(Response.json({
+    totalFound: 1,
+    content: [smartPosting],
+  }, { headers: { 'content-type': 'application/json' } }))
+  const handler = createVerifyBoardHandler({
+    createAuthClient,
+    createServiceClient,
+    providerFetch,
+    randomUUID: () => '22222222-2222-4222-8222-222222222222',
+    digestEvidence: async () => 'a'.repeat(64),
+  })
+
+  return {
+    handler,
+    getUser,
+    createServiceClient,
+    providerFetch,
+    insert,
+    select,
+    update,
+    updateEq,
+    rpc,
+  }
+}
+
+describe('verify-board real-user activation boundary', () => {
+  it('derives eligible evidence on the server and ignores spoofed activation inputs', async () => {
+    const h = activationHarness()
+    const response = await h.handler(verifyRequest('real-user-token', {
+      observed_at: '2099-01-01T00:00:00Z',
+      observation_id: '33333333-3333-4333-8333-333333333333',
+      credible_for_closure: false,
+      activation_target: 'active',
+    }))
+
+    expect(response.status).toBe(200)
+    expect(h.getUser).toHaveBeenCalledWith('real-user-token')
+    expect(h.rpc).toHaveBeenCalledTimes(1)
+    expect(h.rpc).toHaveBeenCalledWith('record_connector_observation', {
+      p_company_id: publicCompany.id,
+      p_observation_id: '22222222-2222-4222-8222-222222222222',
+      p_completeness: 'complete',
+      p_credible_for_closure: true,
+      p_job_count: 1,
+      p_expected_count: 1,
+      p_warning_count: 0,
+      p_evidence_digest: 'a'.repeat(64),
+    })
+    const args = h.rpc.mock.calls[0]?.[1]
+    expect(args).not.toHaveProperty('observed_at')
+    expect(args).not.toHaveProperty('window_start')
+    expect(args).not.toHaveProperty('activation_target')
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      already_watched: false,
+      company: { activation_successes: 1, activation_state: 'experimental' },
+      activation: {
+        accepted: true,
+        progress: 1,
+        window_start: '2026-07-18T01:10:00.000Z',
+        next_eligible_at: '2026-07-18T01:20:00.000Z',
+      },
+    })
+  })
+
+  it('surfaces same-window no-progress and the future server eligibility boundary', async () => {
+    const h = activationHarness({
+      duplicate: true,
+      rpcRow: {
+        accepted: false,
+        reason: 'same_window',
+        progress: 1,
+        next_eligible_at: '2026-07-18T01:20:00.000Z',
+      },
+    })
+    const response = await h.handler(verifyRequest())
+
+    expect(h.rpc).toHaveBeenCalledTimes(1)
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      already_watched: true,
+      company: { activation_successes: 1 },
+      activation: {
+        accepted: false,
+        reason: 'same_window',
+        progress: 1,
+        next_eligible_at: '2026-07-18T01:20:00.000Z',
+      },
+    })
+  })
+
+  it.each([
+    ['anon token', { data: { user: null }, error: { message: 'not a user' } }, 401],
+    ['service token', { data: { user: { id: 'service', role: 'service_role' } }, error: null }, 403],
+  ] as const)('lets no %s reach provider, service client, or activation RPC', async (_name, resolution, status) => {
+    const h = activationHarness()
+    h.getUser.mockResolvedValue(resolution as never)
+
+    const response = await h.handler(verifyRequest('untrusted-token'))
+
+    expect(response.status).toBe(status)
+    expect(h.providerFetch).not.toHaveBeenCalled()
+    expect(h.createServiceClient).not.toHaveBeenCalled()
+    expect(h.rpc).not.toHaveBeenCalled()
+  })
+
+  it('records bounded health for partial evidence but never invokes activation', async () => {
+    const providerFetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({
+        totalFound: 2,
+        content: [smartPosting],
+      }, { headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(Response.json({
+        totalFound: 2,
+        content: [],
+      }, { headers: { 'content-type': 'application/json' } }))
+    const h = activationHarness({ providerFetch })
+
+    const response = await h.handler(verifyRequest())
+
+    expect(response.status).toBe(200)
+    expect(h.update).toHaveBeenCalledWith({
+      last_error: 'Manual verification failed.',
+      last_error_code: 'count_mismatch',
+    })
+    expect(h.updateEq).toHaveBeenCalledWith(
+      'source_key',
+      'smartrecruiters:global:SmartRecruiters',
+    )
+    expect(h.rpc).not.toHaveBeenCalled()
+    await expect(response.json()).resolves.toMatchObject({ ok: false, reason: 'error' })
+  })
+
+  it('keeps the real-user check textually ahead of every handler service-role transition', () => {
+    const getUser = verifyBoardSource.indexOf('.auth.getUser(token)')
+    const role = verifyBoardSource.indexOf("role !== 'authenticated'")
+    const service = verifyBoardSource.indexOf('dependencies.createServiceClient()')
+    expect(getUser).toBeGreaterThan(-1)
+    expect(getUser).toBeLessThan(role)
+    expect(role).toBeLessThan(service)
+    expect(verifyBoardSource).toContain("service.rpc('record_connector_observation'")
+  })
 })
