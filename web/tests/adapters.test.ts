@@ -12,9 +12,31 @@ import {
 import {
   mapWorkdayDetail,
 } from '../../supabase/functions/_shared/adapters/workday'
+import {
+  DEFAULT_MAX_DETAIL_REQUESTS,
+  DEFAULT_TOTAL_DURATION_MS,
+  pollSmartRecruiters,
+} from '../../supabase/functions/_shared/adapters/smartrecruiters'
 
 const decodeFixtureHtml = (value: string) =>
   value.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&')
+
+const smartRecruitersPosting = (id: number, withDescription = false) => ({
+  id: `sr-${id}`,
+  name: `Platform Engineer ${id}`,
+  releasedDate: '2026-07-17T12:00:00Z',
+  ref: `https://jobs.smartrecruiters.com/SmartRecruiters/${id}`,
+  location: { city: 'Chicago', region: 'Illinois', country: 'US' },
+  company: { name: 'SmartRecruiters' },
+  ...(withDescription
+    ? { jobAd: { sections: { jobDescription: { text: `<p>Build platform ${id}.</p>` } } } }
+    : {}),
+})
+
+const jsonResponse = (payload: unknown) => new Response(JSON.stringify(payload), {
+  status: 200,
+  headers: { 'content-type': 'application/json' },
+})
 
 describe('Greenhouse adapter mapping', () => {
   it('normalizes a live-shaped list item plus decoded detail content', () => {
@@ -137,6 +159,127 @@ describe('Workday adapter mapping', () => {
       descriptionText: 'Build reliable financial systems.',
       snapshotPartial: false,
       companyName: 'Capital One',
+    })
+  })
+})
+
+describe('SmartRecruiters invocation budgets', () => {
+  it('uses the exact production count and duration defaults', () => {
+    expect(DEFAULT_MAX_DETAIL_REQUESTS).toBe(40)
+    expect(DEFAULT_TOTAL_DURATION_MS).toBe(60_000)
+  })
+
+  it('stops before detail request 41 and retains safe partial rows', async () => {
+    const postings = Array.from(
+      { length: DEFAULT_MAX_DETAIL_REQUESTS + 1 },
+      (_, index) => smartRecruitersPosting(index + 1),
+    )
+    const detailIds: string[] = []
+    const providerFetch = async (input: string | URL | Request) => {
+      const url = String(input)
+      const detailId = url.match(/\/postings\/(sr-\d+)$/)?.[1]
+      if (!detailId) {
+        return jsonResponse({ totalFound: postings.length, content: postings })
+      }
+      detailIds.push(detailId)
+      const posting = postings.find(({ id }) => id === detailId)
+      return jsonResponse({ ...posting, ...smartRecruitersPosting(Number(detailId.slice(3)), true) })
+    }
+
+    const observation = await pollSmartRecruiters('SmartRecruiters', providerFetch)
+
+    expect(detailIds).toHaveLength(DEFAULT_MAX_DETAIL_REQUESTS)
+    expect(detailIds).not.toContain(`sr-${DEFAULT_MAX_DETAIL_REQUESTS + 1}`)
+    expect(observation).toMatchObject({
+      completeness: 'partial',
+      credibleForClosure: false,
+      expectedCount: postings.length,
+      pageCount: 1,
+      warnings: ['detail_budget_exceeded'],
+    })
+    expect(observation.jobs).toHaveLength(postings.length)
+    expect(observation.jobs.at(-1)).toMatchObject({
+      externalId: `sr-${DEFAULT_MAX_DETAIL_REQUESTS + 1}`,
+      snapshotPartial: true,
+    })
+  })
+
+  it('uses the 60-second default across list and detail work without another fetch', async () => {
+    let nowMs = 0
+    const calls: string[] = []
+    const providerFetch = async (input: string | URL | Request) => {
+      const url = String(input)
+      calls.push(url)
+      nowMs = DEFAULT_TOTAL_DURATION_MS
+      return jsonResponse({
+        totalFound: 1,
+        content: [smartRecruitersPosting(1)],
+      })
+    }
+
+    const observation = await pollSmartRecruiters(
+      'SmartRecruiters',
+      providerFetch,
+      { now: () => nowMs },
+    )
+
+    expect(calls).toHaveLength(1)
+    expect(observation).toMatchObject({
+      completeness: 'partial',
+      credibleForClosure: false,
+      expectedCount: 1,
+      pageCount: 1,
+      jobs: [{ externalId: 'sr-1', snapshotPartial: true }],
+      warnings: ['detail_budget_exceeded'],
+    })
+  })
+
+  it('accepts deterministic smaller budgets without changing production defaults', async () => {
+    const postings = Array.from({ length: 3 }, (_, index) => smartRecruitersPosting(index + 1))
+    let calls = 0
+    const observation = await pollSmartRecruiters(
+      'SmartRecruiters',
+      async (input) => {
+        calls += 1
+        const detailId = String(input).match(/\/postings\/(sr-\d+)$/)?.[1]
+        if (!detailId) return jsonResponse({ totalFound: postings.length, content: postings })
+        return jsonResponse(smartRecruitersPosting(Number(detailId.slice(3)), true))
+      },
+      { maxDetailRequests: 2, totalDurationMs: 5_000, now: () => 0 },
+    )
+
+    expect(calls).toBe(3)
+    expect(observation).toMatchObject({
+      completeness: 'partial',
+      credibleForClosure: false,
+      warnings: ['detail_budget_exceeded'],
+    })
+    expect(DEFAULT_MAX_DETAIL_REQUESTS).toBe(40)
+    expect(DEFAULT_TOTAL_DURATION_MS).toBe(60_000)
+  })
+
+  it('keeps a small board complete and credible within both budgets', async () => {
+    const postings = [smartRecruitersPosting(1), smartRecruitersPosting(2)]
+    const observation = await pollSmartRecruiters(
+      'SmartRecruiters',
+      async (input) => {
+        const detailId = String(input).match(/\/postings\/(sr-\d+)$/)?.[1]
+        if (!detailId) return jsonResponse({ totalFound: postings.length, content: postings })
+        return jsonResponse(smartRecruitersPosting(Number(detailId.slice(3)), true))
+      },
+      { now: () => 0 },
+    )
+
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      expectedCount: 2,
+      pageCount: 1,
+      warnings: [],
+      jobs: [
+        { externalId: 'sr-1', snapshotPartial: false },
+        { externalId: 'sr-2', snapshotPartial: false },
+      ],
     })
   })
 })
