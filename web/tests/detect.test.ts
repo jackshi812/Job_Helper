@@ -17,7 +17,8 @@ describe('detectAts', () => {
     ['https://jobs.eu.lever.co/foo', { ats: 'lever', slug: 'foo', region: 'eu' }],
     ['https://jobs.ashbyhq.com/ramp', { ats: 'ashby', slug: 'ramp' }],
     ['https://www.jobs.ashbyhq.com/ramp', { ats: 'ashby', slug: 'ramp' }],
-    ['https://jobs.ashbyhq.com/Acme%20Labs', { ats: 'ashby', slug: 'Acme Labs' }],
+    ['https://jobs.smartrecruiters.com/SmartRecruiters', { ats: 'smartrecruiters', slug: 'SmartRecruiters' }],
+    ['https://uturn.recruitee.com', { ats: 'recruitee', slug: 'uturn' }],
   ])('detects %s', (url, expected) => {
     expect(detectAts(url)).toEqual(expected)
   })
@@ -29,6 +30,21 @@ describe('detectAts', () => {
     'https://boards.greenhouse.io/bad.slug',
     'https://jobs.lever.co/bad%20slug',
     'https://jobs.ashbyhq.com/acme/jobs',
+    'https://jobs.ashbyhq.com/Acme%20Labs',
+    'https://jobs.ashbyhq.com/acme%2Fjobs',
+    'http://jobs.smartrecruiters.com/SmartRecruiters',
+    'https://user:password@jobs.smartrecruiters.com/SmartRecruiters',
+    'https://jobs.smartrecruiters.com:444/SmartRecruiters',
+    'https://jobs.smartrecruiters.com.evil.example/SmartRecruiters',
+    'https://jobs.smartrecruiters.com/SmartRecruiters/jobs',
+    'https://uturn.recruitee.com.evil.example',
+    'https://nested.uturn.recruitee.com',
+    'https://bad.slug.recruitee.com',
+    'https://uturn.recruitee.com/jobs',
+    'https://uturn.recruitee.com/%2Fapi',
+    'http://uturn.recruitee.com',
+    'https://user:password@uturn.recruitee.com',
+    'https://uturn.recruitee.com:444',
     '',
     'not a URL',
   ])('returns unsupported for %s', (url) => {
@@ -37,7 +53,7 @@ describe('detectAts', () => {
 
   it('exports the exact unsupported URL guidance', () => {
     expect(UNSUPPORTED_URL_MESSAGE).toBe(
-      "This URL isn't a supported job board. Job Copilot works with Greenhouse, Lever, and Ashby. Look for a link like boards.greenhouse.io/company, jobs.lever.co/company, or jobs.ashbyhq.com/company — usually where the careers page's Apply buttons point.",
+      "This URL isn't a supported job board. Job Copilot works with Greenhouse, Lever, Ashby, SmartRecruiters, and Recruitee. Use the exact public careers-board URL — usually where the careers page's Apply buttons point.",
     )
   })
 })
@@ -57,8 +73,16 @@ describe('buildEndpoint', () => {
       'https://api.eu.lever.co/v0/postings/foo?mode=json',
     ],
     [
-      { ats: 'ashby', slug: 'Acme Labs' } as const,
-      'https://api.ashbyhq.com/posting-api/job-board/Acme%20Labs',
+      { ats: 'ashby', slug: 'ramp' } as const,
+      'https://api.ashbyhq.com/posting-api/job-board/ramp',
+    ],
+    [
+      { ats: 'smartrecruiters', slug: 'SmartRecruiters' } as const,
+      'https://api.smartrecruiters.com/v1/companies/SmartRecruiters/postings',
+    ],
+    [
+      { ats: 'recruitee', slug: 'uturn' } as const,
+      'https://uturn.recruitee.com/api/offers/',
     ],
   ])('constructs an allowlisted endpoint', (detected, expected) => {
     expect(buildEndpoint(detected)).toBe(expected)
