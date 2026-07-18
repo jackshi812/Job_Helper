@@ -1333,8 +1333,18 @@ export async function runPipelineVerification() {
       cronAdvancedAt > cronBaseline && cronAdvancedAt >= Date.now() - 3 * 60_000,
       'probe 12: pg_cron advances pipeline heartbeat without a manual tick during the probe window',
     )
-    await captureDurableMutation('after_cron_heartbeat_observation', ['pipeline_heartbeat'], {
-      responseSummary: { probe: 12, baseline: cronBaseline, advancedAt: cronAdvancedAt },
+    await captureDurableMutation('after_cron_heartbeat_observation', [
+      'seed_poll_timestamps',
+      'provider_job_lifecycle',
+      'provider_company_health',
+      'pipeline_heartbeat',
+    ], {
+      responseSummary: {
+        probe: 12,
+        operation: 'scheduled_cron_poll_observation',
+        baseline: cronBaseline,
+        advancedAt: cronAdvancedAt,
+      },
     })
 
     const beforeClaimReset = lastSnapshot

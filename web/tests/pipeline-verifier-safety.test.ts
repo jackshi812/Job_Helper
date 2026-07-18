@@ -147,6 +147,17 @@ describe('pipeline verifier evidence envelope', () => {
     expect(source).toContain(PIPELINE_EVIDENCE_END)
   })
 
+  it('attributes scheduled-cron provider effects alongside its heartbeat advance', () => {
+    const cronCapture = source.match(
+      /captureDurableMutation\('after_cron_heartbeat_observation', \[([\s\S]*?)\], \{[\s\S]*?operation: 'scheduled_cron_poll_observation'/,
+    )
+
+    expect(cronCapture?.[1]).toContain("'seed_poll_timestamps'")
+    expect(cronCapture?.[1]).toContain("'provider_job_lifecycle'")
+    expect(cronCapture?.[1]).toContain("'provider_company_health'")
+    expect(cronCapture?.[1]).toContain("'pipeline_heartbeat'")
+  })
+
   it('retains expected durable diffs while requiring temporary mutations to restore', () => {
     const entry = snapshot('2026-07-18T12:00:00.000Z', {
       activeCompanies: {
