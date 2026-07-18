@@ -206,7 +206,7 @@ export function Watchlist() {
           Couldn’t add this company. Check that the URL is public and supported, then try again.
         </p>
       ) : null}
-      {removeMutation.error ? (
+      {removeMutation.error && !companyToRemove ? (
         <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-400">
           Remove failed: {boundedErrorMessage(removeMutation.error)}
         </p>
@@ -289,6 +289,7 @@ export function Watchlist() {
           cancelLabel="Keep company"
           pendingLabel="Removing…"
           initialFocus="cancel"
+          errorMessage={removeMutation.error ? boundedErrorMessage(removeMutation.error) : undefined}
           onCancel={() => setCompanyToRemove(null)}
           onConfirm={() => removeMutation.mutateAsync(companyToRemove.company_id!)}
         />

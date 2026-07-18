@@ -7,6 +7,7 @@ interface ConfirmDialogProps {
   cancelLabel?: string
   pendingLabel?: string
   initialFocus?: 'cancel' | 'confirm'
+  errorMessage?: string
   onConfirm: () => void | Promise<void>
   onCancel: () => void
 }
@@ -18,10 +19,13 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   pendingLabel = 'Deleting…',
   initialFocus = 'confirm',
+  errorMessage,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
   const titleId = useId()
+  const messageId = useId()
+  const errorId = useId()
   const [confirming, setConfirming] = useState(false)
   const cancelButton = useRef<HTMLButtonElement>(null)
   const confirmButton = useRef<HTMLButtonElement>(null)
@@ -87,12 +91,18 @@ export function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={`${messageId}${errorMessage ? ` ${errorId}` : ''}`}
         className="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
       >
         <h2 id={titleId} className="text-base font-semibold">
           {title}
         </h2>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{message}</p>
+        <p id={messageId} className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{message}</p>
+        {errorMessage ? (
+          <p id={errorId} role="alert" className="mt-3 text-sm text-red-700 dark:text-red-400">
+            Remove failed: {errorMessage}
+          </p>
+        ) : null}
         <div className="mt-5 flex justify-end gap-2">
           <button
             ref={cancelButton}
