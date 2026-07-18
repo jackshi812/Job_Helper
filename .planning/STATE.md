@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02.1
 current_phase_name: source-coverage-expansion
 status: executing
-stopped_at: Completed 02.1-09-PLAN.md
-last_updated: "2026-07-18T17:09:16.281Z"
+stopped_at: Completed 02.1-10-PLAN.md
+last_updated: "2026-07-18T17:16:51.836Z"
 last_activity: 2026-07-18
 last_activity_desc: Phase 02.1 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 23
-  completed_plans: 19
+  completed_plans: 20
   percent: 40
 ---
 
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 ## Current Position
 
 Phase: 02.1 (source-coverage-expansion) — EXECUTING
-Plan: 1 of 13
-Status: Executing Phase 02.1
+Plan: 2 of 13
+Status: Ready to execute
 Last activity: 2026-07-18 — Phase 02.1 execution started
 
 Progress: [████████░░] 78% (18/23 plans)
@@ -73,6 +73,7 @@ Progress: [████████░░] 78% (18/23 plans)
 | Phase 02.1 P07 | 743min | 3 tasks | 5 files |
 | Phase 02.1 P08 | 79 min | 3 tasks | 2 files |
 | Phase 02.1 P09 | 7 min | 2 tasks | 2 files |
+| Phase 02.1 P10 | 4 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -132,6 +133,8 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Reattach preserved provider jobs only when company_id is null and exact source/external ID returns. — This restores delete/re-add continuity while preserving first-sight snapshots and concurrent ownership.
 - [Phase 02.1]: Tie production acceptance to the exact Cloudflare deployment commit and immutable asset hash before UAT. — Prevents stale mutable-URL acceptance.
 - [Phase 02.1]: Exclude minute-scheduler-owned health fields from rejected-auth mutation baselines while retaining stable identity, activation, ledger, and job checks. — Avoids concurrent cron false positives without weakening the tested authorization boundary.
+- [Phase 02.1]: Use last_verified_at only as an Experimental display-health fallback after positive progress with zero failures and no bounded error; Active health remains poll-derived.
+- [Phase 02.1]: Keep ConfirmDialog errorMessage optional so Watchlist can announce bounded removal failures inside the modal without changing Resume or Settings destructive defaults.
 
 ### Quick Tasks Completed
 
@@ -150,6 +153,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-18T17:09:16.272Z
-Stopped at: Completed 02.1-09-PLAN.md
+Last session: 2026-07-18T17:16:33.368Z
+Stopped at: Completed 02.1-10-PLAN.md
 Resume file: None
