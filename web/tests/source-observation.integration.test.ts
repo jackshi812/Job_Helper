@@ -101,6 +101,7 @@ describe('scheduled closed-registry dispatch', () => {
       'lever',
       'recruitee',
       'smartrecruiters',
+      'workday',
     ])
   })
 

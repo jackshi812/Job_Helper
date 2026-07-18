@@ -3,6 +3,10 @@ import { pollGreenhouse } from './adapters/greenhouse.ts'
 import { pollLever } from './adapters/lever.ts'
 import { pollRecruitee } from './adapters/recruitee.ts'
 import { pollSmartRecruiters } from './adapters/smartrecruiters.ts'
+import {
+  CAPITAL_ONE_WORKDAY_SOURCE_KEY,
+  pollWorkday,
+} from './adapters/workday.ts'
 import { type PollObservation } from './adapters/types.ts'
 import { buildEndpoint, type DetectResult } from './detect.ts'
 
@@ -12,6 +16,7 @@ export type ProviderId =
   | 'ashby'
   | 'smartrecruiters'
   | 'recruitee'
+  | 'workday'
 export type SupportedDetection = Exclude<DetectResult, { ats: 'unsupported' }>
 
 export interface PollConnectorCompany {
@@ -24,7 +29,8 @@ export interface PollConnectorCompany {
 export interface ConnectorVerification {
   ats: ProviderId
   boardToken: string
-  region: 'eu' | null
+  region: 'eu' | 'wd12' | null
+  siteToken: string | null
   companyName: string
   jobCount: number
   careersUrl: string
@@ -49,10 +55,14 @@ function canonicalCareersUrl(detected: SupportedDetection) {
   if (detected.ats === 'smartrecruiters') {
     return `https://jobs.smartrecruiters.com/${slug}`
   }
+  if (detected.ats === 'workday') {
+    return 'https://capitalone.wd12.myworkdayjobs.com/Capital_One'
+  }
   return `https://${detected.slug.toLowerCase()}.recruitee.com`
 }
 
 function deterministicSourceKey(detected: SupportedDetection) {
+  if (detected.ats === 'workday') return CAPITAL_ONE_WORKDAY_SOURCE_KEY
   return `${detected.ats}:${detected.region ?? 'global'}:${detected.slug}`
 }
 
@@ -65,6 +75,7 @@ function verification(
     ats: detected.ats,
     boardToken: detected.slug,
     region: detected.region ?? null,
+    siteToken: detected.ats === 'workday' ? detected.site : null,
     companyName: companyName.trim() || detected.slug,
     jobCount,
     careersUrl: canonicalCareersUrl(detected),
@@ -127,6 +138,28 @@ async function verifyRecruitee(
   return verification(detected, detected.slug, observation.jobs.length)
 }
 
+async function verifyWorkday(
+  detected: SupportedDetection,
+  fetchImpl: FetchLike,
+) {
+  if (
+    detected.ats !== 'workday'
+    || detected.slug !== 'capitalone'
+    || detected.region !== 'wd12'
+    || detected.site !== 'Capital_One'
+  ) throw new Error('invalid_identity')
+  const observation = await pollWorkday(fetchImpl)
+  if (
+    observation.completeness !== 'complete'
+    || !observation.credibleForClosure
+    || observation.warnings.length > 0
+    || observation.expectedCount !== observation.jobs.length
+  ) {
+    throw new Error(observation.warnings[0] ?? 'provider_observation_failed')
+  }
+  return verification(detected, 'Capital One', observation.jobs.length)
+}
+
 function complete(jobs: PollObservation['jobs']): PollObservation {
   return {
     jobs,
@@ -163,6 +196,10 @@ export const providerRegistry = {
     verify: verifyRecruitee,
     poll: async (company) => pollRecruitee(company.board_token),
   },
+  workday: {
+    verify: verifyWorkday,
+    poll: async () => pollWorkday(),
+  },
 } satisfies Record<ProviderId, ProviderConnector>
 
 export async function verifyConnector(
@@ -181,6 +218,9 @@ export async function pollConnector(
   }
   if (!Object.prototype.hasOwnProperty.call(providerRegistry, company.ats_type)) {
     throw new Error(`unsupported_provider:${company.ats_type}`)
+  }
+  if (company.ats_type === 'workday') {
+    throw new Error('inactive_connector:workday_experimental_only')
   }
   return providerRegistry[company.ats_type as ProviderId].poll(company, knownIds)
 }

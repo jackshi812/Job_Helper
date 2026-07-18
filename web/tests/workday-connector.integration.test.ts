@@ -3,9 +3,19 @@ import {
   CAPITAL_ONE_WORKDAY_SOURCE_KEY,
   pollWorkday,
 } from '../../supabase/functions/_shared/adapters/workday.ts'
+import {
+  pollConnector,
+  providerRegistry,
+  verifyConnector,
+} from '../../supabase/functions/_shared/connectors.ts'
+import { detectAts } from '../../supabase/functions/_shared/detect.ts'
+import { createVerifyBoardHandler } from '../../supabase/functions/verify-board/index.ts'
 import catalogSql from '../../supabase/migrations/0013_source_coverage_catalog.sql?raw'
+import migrationSql from '../../supabase/migrations/0016_workday_experimental.sql?raw'
+import normalizedTypesSource from '../../supabase/functions/_shared/adapters/types.ts?raw'
 
 const sourceKey = 'workday:wd12:capitalone:Capital_One'
+const boardUrl = 'https://capitalone.wd12.myworkdayjobs.com/Capital_One'
 const listUrl = 'https://capitalone.wd12.myworkdayjobs.com/wday/cxs/capitalone/Capital_One/jobs'
 const detailPath = '/job/Chicago-IL/Senior-Software-Engineer_R123456'
 
@@ -39,8 +49,117 @@ describe('Capital One Workday identity contract', () => {
     expect(CAPITAL_ONE_WORKDAY_SOURCE_KEY).toBe(sourceKey)
     expect(catalogSql).toContain(`'${sourceKey}'`)
     expect(catalogSql.match(new RegExp(sourceKey, 'g'))).toHaveLength(2)
+    expect(migrationSql).toContain(`source_key = '${sourceKey}'`)
   })
 
+  it('verifies only the fixed identity and returns every server-owned identity field', async () => {
+    const detected = detectAts(boardUrl)
+    expect(detected).toEqual({
+      ats: 'workday',
+      slug: 'capitalone',
+      region: 'wd12',
+      site: 'Capital_One',
+    })
+    if (detected.ats === 'unsupported') throw new Error('expected Workday detection')
+
+    const providerFetch = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ total: 1, jobPostings: [listPosting] }))
+      .mockResolvedValueOnce(jsonResponse(detailPayload))
+    await expect(verifyConnector(detected, providerFetch)).resolves.toEqual({
+      ats: 'workday',
+      boardToken: 'capitalone',
+      region: 'wd12',
+      siteToken: 'Capital_One',
+      companyName: 'Capital One',
+      jobCount: 1,
+      careersUrl: boardUrl,
+      sourceKey,
+    })
+  })
+
+  it('registers Workday for manual verification but blocks scheduled dispatch', async () => {
+    expect(Object.keys(providerRegistry).sort()).toEqual([
+      'ashby',
+      'greenhouse',
+      'lever',
+      'recruitee',
+      'smartrecruiters',
+      'workday',
+    ])
+    const providerFetch = vi.fn()
+    vi.stubGlobal('fetch', providerFetch)
+    await expect(pollConnector({
+      ats_type: 'workday',
+      board_token: 'capitalone',
+      region: null,
+      activation_state: 'active',
+    }, new Set())).rejects.toThrow('inactive_connector:workday_experimental_only')
+    expect(providerFetch).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps final database and source unions closed with Adzuna as jobs-only exception', () => {
+    const companyCheck = migrationSql.match(/companies_ats_type_check check \(([\s\S]*?)\n  \)/)?.[1] ?? ''
+    const jobCheck = migrationSql.match(/jobs_source_check check \(([\s\S]*?)\n  \)/)?.[1] ?? ''
+    const direct = ['greenhouse', 'lever', 'ashby', 'smartrecruiters', 'recruitee', 'workday']
+    for (const provider of direct) {
+      expect(normalizedTypesSource).toContain(`| '${provider}'`)
+      expect(companyCheck).toContain(`'${provider}'`)
+      expect(jobCheck).toContain(`'${provider}'`)
+    }
+    expect(jobCheck).toContain("'adzuna'")
+    expect(companyCheck).not.toContain("'adzuna'")
+    for (const unsupported of ['oracle', 'icims', 'successfactors', 'eightfold']) {
+      expect(normalizedTypesSource.toLowerCase()).not.toContain(`'${unsupported}'`)
+      expect(companyCheck.toLowerCase()).not.toContain(`'${unsupported}'`)
+      expect(jobCheck.toLowerCase()).not.toContain(`'${unsupported}'`)
+    }
+    expect(migrationSql).toContain("activation_state = 'experimental'")
+    expect(migrationSql).toMatch(/ats_type in \('greenhouse', 'lever', 'ashby', 'smartrecruiters', 'recruitee'\)/)
+    expect(migrationSql).toContain('Only Plan 07 real-user verify-board may create/reconcile')
+    expect(migrationSql).toContain('expects zero Workday job rows')
+    expect(migrationSql).not.toMatch(/insert into public\.companies/i)
+  })
+
+  it('records Workday drift against the exact existing source key', async () => {
+    const updateEq = vi.fn().mockResolvedValue({ error: null })
+    const update = vi.fn(() => ({ eq: updateEq }))
+    const insert = vi.fn()
+    const handler = createVerifyBoardHandler({
+      createAuthClient: () => ({
+        auth: {
+          getUser: vi.fn().mockResolvedValue({
+            data: { user: { id: 'user-1', role: 'authenticated' } },
+            error: null,
+          }),
+        },
+      }),
+      createServiceClient: () => ({
+        from: vi.fn(() => ({ update, insert })),
+      }),
+      providerFetch: vi.fn().mockResolvedValue(
+        new Response('<html>challenge</html>', {
+          headers: { 'content-type': 'text/html' },
+        }),
+      ),
+    })
+    const response = await handler(new Request('https://example.test/functions/v1/verify-board', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer real-user-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ url: boardUrl }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(update).toHaveBeenCalledWith({
+      last_error: 'Manual verification failed.',
+      last_error_code: 'invalid_content_type',
+    })
+    expect(updateEq).toHaveBeenCalledWith('source_key', sourceKey)
+    expect(insert).not.toHaveBeenCalled()
+  })
 })
 
 describe('bounded Capital One Workday observation', () => {

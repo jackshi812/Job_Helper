@@ -4,10 +4,16 @@ export type DetectResult =
       slug: string
       region?: 'eu'
     }
+  | {
+      ats: 'workday'
+      slug: 'capitalone'
+      region: 'wd12'
+      site: 'Capital_One'
+    }
   | { ats: 'unsupported' }
 
 export const UNSUPPORTED_URL_MESSAGE =
-  "This URL isn't a supported job board. Job Copilot works with Greenhouse, Lever, Ashby, SmartRecruiters, and Recruitee. Use the exact public careers-board URL — usually where the careers page's Apply buttons point."
+  "This URL isn't a supported job board. Job Copilot works with Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, and the allowlisted Capital One Workday board. Use the exact public careers-board URL — usually where the careers page's Apply buttons point."
 
 const supportedHosts = {
   greenhouseBoard: new Set(['boards.greenhouse.io', 'job-boards.greenhouse.io']),
@@ -17,6 +23,7 @@ const supportedHosts = {
   ashby: 'jobs.ashbyhq.com',
   smartrecruiters: 'jobs.smartrecruiters.com',
   recruiteeSuffix: '.recruitee.com',
+  capitalOneWorkday: 'capitalone.wd12.myworkdayjobs.com',
 }
 
 const strictSlug = /^[A-Za-z0-9_-]+$/
@@ -41,6 +48,7 @@ function singlePathSegment(url: URL) {
 export function detectAts(href: string): DetectResult {
   try {
     const url = new URL(href)
+    const rawHost = url.hostname.toLowerCase()
     const host = normalizedHost(url)
 
     if (
@@ -50,6 +58,18 @@ export function detectAts(href: string): DetectResult {
       || url.port
       || url.hash
     ) return unsupported
+
+    if (rawHost === supportedHosts.capitalOneWorkday) {
+      const site = singlePathSegment(url)
+      return site === 'Capital_One' && !url.search
+        ? {
+            ats: 'workday',
+            slug: 'capitalone',
+            region: 'wd12',
+            site: 'Capital_One',
+          }
+        : unsupported
+    }
 
     if (supportedHosts.greenhouseBoard.has(host)) {
       const slug = singlePathSegment(url)
@@ -119,6 +139,9 @@ export function buildEndpoint(detected: DetectResult): string {
   }
   if (detected.ats === 'smartrecruiters') {
     return `https://api.smartrecruiters.com/v1/companies/${slug}/postings`
+  }
+  if (detected.ats === 'workday') {
+    return 'https://capitalone.wd12.myworkdayjobs.com/wday/cxs/capitalone/Capital_One/jobs'
   }
   return `https://${detected.slug.toLowerCase()}.recruitee.com/api/offers/`
 }

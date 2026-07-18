@@ -1,5 +1,8 @@
 import { detectAts, UNSUPPORTED_URL_MESSAGE } from '../_shared/detect.ts'
-import { verifyConnector } from '../_shared/connectors.ts'
+import {
+  verifyConnector,
+} from '../_shared/connectors.ts'
+import { CAPITAL_ONE_WORKDAY_SOURCE_KEY } from '../_shared/adapters/workday.ts'
 
 const VERIFICATION_FAILED_MESSAGE =
   "We couldn't verify this board — it may not exist or the URL may be misspelled. Check the address and try again."
@@ -100,6 +103,7 @@ function duplicateMessage(companyName: string) {
 }
 
 function sourceKeyForDetection(detected: Exclude<ReturnType<typeof detectAts>, { ats: 'unsupported' }>) {
+  if (detected.ats === 'workday') return CAPITAL_ONE_WORKDAY_SOURCE_KEY
   return `${detected.ats}:${detected.region ?? 'global'}:${detected.slug}`
 }
 
@@ -249,7 +253,7 @@ export function createVerifyBoardHandler(dependencies: VerifyBoardDependencies) 
           region: verified.region,
           careers_url: verified.careersUrl,
           source_key: verified.sourceKey,
-          site_token: null,
+          site_token: verified.siteToken,
           activation_state: usesStagedActivation ? 'experimental' : 'active',
           activation_successes: 0,
           last_verified_at: verifiedAt,

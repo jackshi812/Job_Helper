@@ -206,6 +206,7 @@ describe('closed registry dispatch for public connectors', () => {
       'lever',
       'recruitee',
       'smartrecruiters',
+      'workday',
     ])
   })
 
