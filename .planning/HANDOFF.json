@@ -1,77 +1,36 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-18T03:56:25.120Z",
-  "phase": "02.1",
-  "phase_name": "source-coverage-expansion",
-  "phase_dir": ".planning/phases/02.1-source-coverage-expansion",
-  "plan": 7,
-  "task": 3,
-  "total_tasks": 3,
+  "timestamp": "2026-07-18T14:16:31.406Z",
+  "phase": "03",
+  "phase_name": "scoring-feed-notifications",
+  "phase_dir": ".planning/phases/03-scoring-feed-notifications",
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
   "status": "paused",
   "completed_tasks": [
-    {
-      "id": 1,
-      "name": "Build a resumable non-destructive hosted verifier",
-      "status": "done",
-      "commit": "5366175"
-    },
-    {
-      "id": 2,
-      "name": "Push all migrations and deploy affected Edge Functions",
-      "status": "done",
-      "progress": "Migrations 0012-0016 were pushed in order. Initial verify-board and poll-tick deployments were confirmed. A later verify-board-only redeploy for commit 4241ffa was approved and launched, but its completion was not captured before pause and must be checked on resume."
-    },
-    {
-      "id": 3,
-      "name": "Gather hosted evidence across distinct server windows",
-      "status": "in_progress",
-      "progress": "First bounded resume proved the 12-row catalog, bearer rejection paths except the corrected modern sb_secret classification, the real-user positive control, and Recruitee activation/replay/contention. Recruitee has one accepted observation. Workday and SmartRecruiters had no durable company/observation rows at the last snapshot. Fixes are committed in 4241ffa."
-    }
+    {"id": 1, "name": "Phase 3 context discussion (03-CONTEXT.md, D-14..D-21)", "status": "done", "commit": "93eaec8"},
+    {"id": 2, "name": "Phase 3 technical research (03-RESEARCH.md)", "status": "done", "commit": "f8b04a0"},
+    {"id": 3, "name": "Phase 3 UI design contract (03-UI-SPEC.md) — researcher + checker, APPROVED 6/6", "status": "done", "commit": "48381a4"}
   ],
   "remaining_tasks": [
-    {
-      "id": 3,
-      "name": "Gather hosted evidence across distinct server windows",
-      "status": "in_progress",
-      "progress": "Confirm verify-board is deployed from 4241ffa with JWT enforcement, then use repeated short --resume invocations across distinct server windows until COMPLETE. Run legacy hosted verifiers, full gates, and an idempotent COMPLETE rerun before creating Plan 07 SUMMARY."
-    }
+    {"id": 4, "name": "Plan Phase 3 (/gsd-plan-phase 3) — no PLAN.md exists yet", "status": "not_started"},
+    {"id": 5, "name": "Execute Phase 3 (/gsd-execute-phase 3)", "status": "not_started"}
   ],
-  "blockers": [
-    {
-      "description": "The outcome of the approved verify-board-only redeploy for commit 4241ffa was not captured before pause.",
-      "type": "external",
-      "workaround": "Read function deployment state/version first. Redeploy verify-board with verify_jwt=true only if 4241ffa is not already live; approval for that targeted redeploy was already granted."
-    },
-    {
-      "description": "Hosted proof needs multiple distinct server-time windows and cannot complete in one long-running process.",
-      "type": "external",
-      "workaround": "Run exactly one bounded --resume invocation per opportunity. On PENDING, stop and resume at or after next_eligible_at; never sleep or loop across windows."
-    }
-  ],
+  "blockers": [],
   "async_jobs": [],
   "human_actions_pending": [],
   "decisions": [
-    {
-      "decision": "Defer hosted schema deployment to Plan 07 and bypass the phase-wide per-wave schema-drift false positive during local waves.",
-      "rationale": "The gate scanned future planned migrations that did not yet exist. The user approved the local-only bypass, and migrations 0012-0016 were later pushed together in Plan 07.",
-      "phase": "02.1"
-    },
-    {
-      "decision": "Classify modern sb_secret service-key rejection as a gateway rejection with no handler-entry headers.",
-      "rationale": "The hosted gateway rejects modern secret keys before verify-board, so expecting in-function auth-stage headers was incorrect. Commit 4241ffa fixes the verifier contract.",
-      "phase": "02.1"
-    },
-    {
-      "decision": "Bound Workday hosted verification and preserve short resumable turns.",
-      "rationale": "The first hosted attempt spent about two minutes in sequential detail fan-out. Commit 4241ffa bounds that work; no verifier process may sleep or loop across eligibility windows.",
-      "phase": "02.1"
-    }
+    {"decision": "UI-SPEC approved with 2 non-blocking FLAGs: add aria-label=\"Dismiss {job title}\" on row dismiss buttons; add aria-label=\"Remove {keyword}\" on chip × buttons; feed table is Dashboard focal point", "rationale": "Checker recommendations recorded in 03-UI-SPEC.md Checker Sign-Off; planner should carry them into tasks", "phase": "03"},
+    {"decision": "No shadcn, no icon packages — extend established manual Tailwind 4 zinc system from Phases 1-2", "rationale": "Consistent design system detected in live codebase (index.css, Shell.tsx, Watchlist.tsx)", "phase": "03"},
+    {"decision": "dompurify 3.4.12 (pinned) is the only new frontend dependency", "rationale": "JD HTML sanitization mandate from 03-RESEARCH.md package audit", "phase": "03"}
   ],
   "uncommitted_files": [
-    ".DS_Store",
-    "scripts/agent-dashboard.mjs",
-    "scripts/agent-dashboard.test.mjs"
+    {"path": "supabase/functions/poll-tick/index.ts", "note": "Orphan-job reattachment on company re-add (reattachOrphanedJobs). Leftover from Phase 02.1 source-coverage work, NOT Phase 3. Verify tests pass, then commit separately before Phase 3 execution."},
+    {"path": "web/tests/orphan-reattachment.test.ts", "note": "Test for the poll-tick orphan reattachment change. Belongs with the above."},
+    {"path": "scripts/agent-dashboard.mjs", "note": "Untracked tooling script + test; unrelated to phase work. Decide: commit as chore or discard."},
+    {"path": "scripts/agent-dashboard.test.mjs", "note": "See agent-dashboard.mjs."}
   ],
-  "next_action": "Confirm no verifier process is running, verify whether verify-board already contains commit 4241ffa with verify_jwt=true, and then run exactly one bounded `node --env-file=scripts/.env --experimental-strip-types scripts/verify-source-coverage.ts --resume` invocation.",
-  "context_notes": "Plans 01-06 are complete. Plan 07 Tasks 1-2 are complete except the post-fix verify-board deployment result must be re-confirmed. SUPABASE_JWT_SECRET is present and non-empty in gitignored scripts/.env; never print it. Last durable snapshot: SmartRecruiters absent/0/eligible, Recruitee Experimental progress=1 observations=1 next_eligible_at=2026-07-18T03:30:00Z, Workday absent/0/eligible, temporary SmartRecruiters rows=0. No background process or async manifest was detected at pause. Plan 08 has not started."
+  "next_action": "/clear then /gsd-plan-phase 3 — planner must read 03-UI-SPEC.md as design context alongside 03-CONTEXT.md and 03-RESEARCH.md",
+  "context_notes": "Phase 3 is fully prepped: CONTEXT (user decisions D-14..D-21), RESEARCH (stack: DOMPurify sanitize JD HTML, push burst-collapse, digest patterns), UI-SPEC (approved design contract). Requirements in scope: PREF-01, RESU-01, SCOR-01..05, NOTF-01..04. Deferred ideas intentionally excluded from UI-SPEC: star/shortlist state, 3-resume comparison view, Pro rescore UI. Session ended because Claude usage limit was near; handoff intended for continuing planning in another tool/session."
 }
