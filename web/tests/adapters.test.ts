@@ -17,6 +17,7 @@ import {
   DEFAULT_TOTAL_DURATION_MS,
   pollSmartRecruiters,
 } from '../../supabase/functions/_shared/adapters/smartrecruiters'
+import { planCompanySync } from '../../supabase/functions/_shared/lifecycle'
 
 const decodeFixtureHtml = (value: string) =>
   value.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&')
@@ -202,6 +203,17 @@ describe('SmartRecruiters invocation budgets', () => {
       externalId: `sr-${DEFAULT_MAX_DETAIL_REQUESTS + 1}`,
       snapshotPartial: true,
     })
+    const lifecyclePlan = planCompanySync([{
+      id: 'omitted-open-job',
+      source: 'smartrecruiters',
+      external_id: 'omitted',
+      fingerprint: 'smartrecruiters|omitted|chicago',
+      status: 'open',
+      last_seen_at: '2026-07-17T10:00:00.000Z',
+    }], observation, '2026-07-17T12:00:00.000Z')
+    expect(lifecyclePlan.newJobs).toHaveLength(postings.length)
+    expect(lifecyclePlan.closeIds).toEqual([])
+    expect(observation.warnings[0]).toHaveLength(22)
   })
 
   it('uses the 60-second default across list and detail work without another fetch', async () => {
