@@ -1,13 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UNSUPPORTED_URL_MESSAGE } from '../../../supabase/functions/_shared/detect'
+import sourceCoverageCatalogMigration from '../../../supabase/migrations/0013_source_coverage_catalog.sql?raw'
 import {
   activationPresentation,
   addCompany,
   COMPANY_COLUMNS,
   deriveHealth,
   healthPresentation,
+  listCompanies,
   mergeCoverageRows,
   safeCareersUrl,
+  SOURCE_COVERAGE_CATALOG_COLUMNS,
   type SourceCoverageCatalogRecord,
   type CompanyRecord,
 } from './watchlist'
@@ -184,6 +187,10 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
 ]
 
 describe('finance coverage presentation', () => {
+  afterEach(() => {
+    vi.mocked(supabase.from).mockReset()
+  })
+
   it('enumerates the complete fixed finance set with canonical provider evidence', () => {
     expect(financeCatalog.map((entry) => entry.company_name)).toEqual([
       'Morgan Stanley',
@@ -202,6 +209,45 @@ describe('finance coverage presentation', () => {
     expect(financeCatalog.every((entry) => entry.careers_url && entry.provider && entry.access_evidence)).toBe(true)
     expect(financeCatalog.find((entry) => entry.company_name === 'Capital One')?.source_key)
       .toBe('workday:wd12:capitalone:Capital_One')
+  })
+
+  it('pins the evidence seeds, read-only policy, and Capital One identity in migration 0013', () => {
+    for (const entry of financeCatalog) {
+      expect(sourceCoverageCatalogMigration).toContain(`'${entry.company_name}'`)
+      expect(sourceCoverageCatalogMigration).toContain(`'${entry.careers_url}'`)
+      expect(sourceCoverageCatalogMigration).toContain(`'${entry.provider}'`)
+    }
+    expect(sourceCoverageCatalogMigration).toContain("'workday:wd12:capitalone:Capital_One'")
+    expect(sourceCoverageCatalogMigration).toContain('revoke all on table public.source_coverage_catalog from public, anon, authenticated')
+    expect(sourceCoverageCatalogMigration).toContain('grant select on table public.source_coverage_catalog to authenticated')
+    expect(sourceCoverageCatalogMigration).toContain("disposition in ('experimental', 'unsupported_with_reason')")
+  })
+
+  it('loads company progress and catalog evidence without querying the observation ledger', async () => {
+    const capitalOne = company({
+      id: 'company-capital-one',
+      ats_type: 'workday',
+      region: 'wd12',
+      source_key: CAPITAL_ONE_SOURCE_KEY,
+      site_token: 'Capital_One',
+      activation_state: 'experimental',
+      activation_successes: 2,
+    })
+    vi.mocked(supabase.from).mockImplementation(((table: string) => ({
+      select: vi.fn().mockReturnValue({
+        order: vi.fn().mockResolvedValue(table === 'companies'
+          ? { data: [capitalOne], error: null }
+          : { data: financeCatalog, error: null }),
+      }),
+    })) as never)
+
+    const rows = await listCompanies()
+
+    expect(supabase.from).toHaveBeenCalledWith('companies')
+    expect(supabase.from).toHaveBeenCalledWith('source_coverage_catalog')
+    expect(supabase.from).not.toHaveBeenCalledWith('connector_observations')
+    expect(SOURCE_COVERAGE_CATALOG_COLUMNS).toContain('access_evidence')
+    expect(rows.find((row) => row.name === 'Capital One')?.activation_successes).toBe(2)
   })
 
   it.each([

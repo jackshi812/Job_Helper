@@ -1,23 +1,72 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 interface ConfirmDialogProps {
   title: string
   message: string
   confirmLabel: string
+  cancelLabel?: string
+  pendingLabel?: string
+  initialFocus?: 'cancel' | 'confirm'
   onConfirm: () => void | Promise<void>
   onCancel: () => void
 }
 
-export function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({
+  title,
+  message,
+  confirmLabel,
+  cancelLabel = 'Cancel',
+  pendingLabel = 'Deleting…',
+  initialFocus = 'confirm',
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
   const titleId = useId()
   const [confirming, setConfirming] = useState(false)
+  const cancelButton = useRef<HTMLButtonElement>(null)
+  const confirmButton = useRef<HTMLButtonElement>(null)
+  const dialog = useRef<HTMLElement>(null)
+  const origin = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !confirming) onCancel()
+    origin.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    const initialButton = initialFocus === 'cancel' ? cancelButton.current : confirmButton.current
+    initialButton?.focus()
+
+    return () => {
+      origin.current?.focus()
     }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [initialFocus])
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !confirming) {
+        event.preventDefault()
+        onCancel()
+        return
+      }
+      if (event.key !== 'Tab') return
+
+      const focusable = [cancelButton.current, confirmButton.current]
+        .filter((button): button is HTMLButtonElement => button !== null && !button.disabled)
+      if (focusable.length === 0) {
+        event.preventDefault()
+        return
+      }
+
+      const currentIndex = focusable.indexOf(document.activeElement as HTMLButtonElement)
+      const nextIndex = event.shiftKey
+        ? (currentIndex <= 0 ? focusable.length - 1 : currentIndex - 1)
+        : (currentIndex === focusable.length - 1 ? 0 : currentIndex + 1)
+      event.preventDefault()
+      focusable[nextIndex].focus()
+    }
+
+    const dialogElement = dialog.current
+    dialogElement?.addEventListener('keydown', handleKeyDown)
+    return () => dialogElement?.removeEventListener('keydown', handleKeyDown)
   }, [confirming, onCancel])
 
   async function handleConfirm() {
@@ -34,6 +83,7 @@ export function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCance
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4" role="presentation">
       <section
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -45,21 +95,22 @@ export function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCance
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{message}</p>
         <div className="mt-5 flex justify-end gap-2">
           <button
+            ref={cancelButton}
             type="button"
             onClick={onCancel}
             disabled={confirming}
             className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-800"
           >
-            Cancel
+            {cancelLabel}
           </button>
           <button
+            ref={confirmButton}
             type="button"
             onClick={handleConfirm}
             disabled={confirming}
-            autoFocus
             className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-800 disabled:cursor-wait disabled:opacity-60"
           >
-            {confirming ? 'Deleting…' : confirmLabel}
+            {confirming ? pendingLabel : confirmLabel}
           </button>
         </div>
       </section>
