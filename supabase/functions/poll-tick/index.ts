@@ -1,11 +1,6 @@
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.110.7'
-import { pollAshby } from '../_shared/adapters/ashby.ts'
-import { pollGreenhouse } from '../_shared/adapters/greenhouse.ts'
-import { pollLever } from '../_shared/adapters/lever.ts'
-import {
-  type NormalizedJob,
-  type PollObservation,
-} from '../_shared/adapters/types.ts'
+import { type NormalizedJob } from '../_shared/adapters/types.ts'
+import { pollConnector } from '../_shared/connectors.ts'
 import { fingerprint } from '../_shared/dedup.ts'
 import {
   planCompanySync,
@@ -14,14 +9,13 @@ import {
   type ExistingJobRow,
 } from '../_shared/lifecycle.ts'
 
-type AtsType = 'greenhouse' | 'lever' | 'ashby'
-
 interface Company {
   id: string
   name: string
-  ats_type: AtsType
+  ats_type: string
   board_token: string
   region: 'eu' | null
+  activation_state: string
   consecutive_failures: number
   last_success_at: string | null
 }
@@ -48,29 +42,6 @@ function requiredEnvironment(name: string) {
   const value = Deno.env.get(name)
   if (!value) throw new Error(`Missing required environment variable: ${name}`)
   return value
-}
-
-async function pollCompany(company: Company, knownIds: Set<string>) {
-  let jobs: NormalizedJob[]
-  if (company.ats_type === 'greenhouse') {
-    jobs = await pollGreenhouse(company.board_token, knownIds)
-  } else if (company.ats_type === 'lever') {
-    jobs = await pollLever(company.board_token, company.region ?? undefined)
-  } else if (company.ats_type === 'ashby') {
-    jobs = await pollAshby(company.board_token)
-  } else {
-    const exhaustive: never = company.ats_type
-    throw new Error(`Unsupported ATS type: ${exhaustive}`)
-  }
-
-  return {
-    jobs,
-    completeness: 'complete',
-    credibleForClosure: true,
-    pageCount: 1,
-    expectedCount: jobs.length,
-    warnings: [],
-  } satisfies PollObservation
 }
 
 function batches<T>(values: T[]) {
@@ -205,7 +176,7 @@ async function processCompany(
       .filter((job) => job.source === company.ats_type)
       .map((job) => job.external_id),
   )
-  let observation = await pollCompany(company, knownIds)
+  let observation = await pollConnector(company, knownIds)
 
   if (openRows.length > 0 && observation.jobs.length === 0) {
     observation = {
@@ -259,7 +230,11 @@ async function processCompany(
   )
   const { error: healthError } = await admin
     .from('companies')
-    .update(health)
+    .update({
+      ...health,
+      last_error_code: health.last_error,
+      last_observation_count: observation.jobs.length,
+    })
     .eq('id', company.id)
   if (healthError) throw healthError
 
@@ -341,6 +316,7 @@ Deno.serve(async (request) => {
         .update({
           consecutive_failures: (company.consecutive_failures ?? 0) + 1,
           last_error: code,
+          last_error_code: code,
         })
         .eq('id', company.id)
       if (failureError) console.error(`poll-tick health update ${company.id} failed`, failureError)

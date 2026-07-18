@@ -11,6 +11,7 @@ export interface PollConnectorCompany {
   ats_type: string
   board_token: string
   region: 'eu' | null
+  activation_state: string
 }
 
 export interface ConnectorVerification {
@@ -133,7 +134,10 @@ export async function pollConnector(
   company: PollConnectorCompany,
   knownIds: Set<string>,
 ): Promise<PollObservation> {
-  if (!(company.ats_type in providerRegistry)) {
+  if (company.activation_state !== 'active') {
+    throw new Error(`inactive_connector:${company.activation_state}`)
+  }
+  if (!Object.prototype.hasOwnProperty.call(providerRegistry, company.ats_type)) {
     throw new Error(`unsupported_provider:${company.ats_type}`)
   }
   return providerRegistry[company.ats_type as ProviderId].poll(company, knownIds)

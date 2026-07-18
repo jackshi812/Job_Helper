@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mapAshbyJobs } from '../../supabase/functions/_shared/adapters/ashby.ts'
 import { mapLeverPosting } from '../../supabase/functions/_shared/adapters/lever.ts'
 import { mapGreenhouseJob } from '../../supabase/functions/_shared/adapters/greenhouse.ts'
@@ -10,6 +10,10 @@ import {
   planCompanySync,
   type ExistingJobRow,
 } from '../../supabase/functions/_shared/lifecycle.ts'
+import {
+  pollConnector,
+  providerRegistry,
+} from '../../supabase/functions/_shared/connectors.ts'
 
 const nowIso = '2026-07-17T17:00:00.000Z'
 
@@ -85,4 +89,68 @@ describe('existing provider observation journey', () => {
     expect(planCompanySync([closed], complete([returned]), nowIso).reopenIds)
       .toEqual(['closed-row'])
   })
+})
+
+describe('scheduled closed-registry dispatch', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('keeps the registry exhaustive for exactly the implemented providers', () => {
+    expect(Object.keys(providerRegistry).sort()).toEqual(['ashby', 'greenhouse', 'lever'])
+  })
+
+  it('dispatches an active claimed row to its exact provider connector', async () => {
+    const providerFetch = vi.fn().mockResolvedValue(Response.json([{
+      id: 'lever-201',
+      text: 'Platform Engineer',
+      hostedUrl: 'https://jobs.lever.co/acme/lever-201',
+    }]))
+    vi.stubGlobal('fetch', providerFetch)
+
+    const observation = await pollConnector({
+      ats_type: 'lever',
+      board_token: 'acme',
+      region: null,
+      activation_state: 'active',
+    }, new Set())
+
+    expect(providerFetch).toHaveBeenCalledOnce()
+    expect(providerFetch).toHaveBeenCalledWith(
+      'https://api.lever.co/v0/postings/acme?mode=json',
+    )
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      expectedCount: 1,
+      jobs: [{ source: 'lever', externalId: 'lever-201' }],
+    })
+  })
+
+  it('fails an unknown provider closed before network access', async () => {
+    const providerFetch = vi.fn()
+    vi.stubGlobal('fetch', providerFetch)
+
+    await expect(pollConnector({
+      ats_type: 'invented-provider',
+      board_token: 'acme',
+      region: null,
+      activation_state: 'active',
+    }, new Set())).rejects.toThrow('unsupported_provider:invented-provider')
+    expect(providerFetch).not.toHaveBeenCalled()
+  })
+
+  it.each(['experimental', 'disabled'] as const)(
+    'rejects a directly injected %s row before adapter access',
+    async (activation_state) => {
+      const providerFetch = vi.fn()
+      vi.stubGlobal('fetch', providerFetch)
+
+      await expect(pollConnector({
+        ats_type: 'lever',
+        board_token: 'acme',
+        region: null,
+        activation_state,
+      }, new Set())).rejects.toThrow(`inactive_connector:${activation_state}`)
+      expect(providerFetch).not.toHaveBeenCalled()
+    },
+  )
 })
