@@ -353,7 +353,34 @@ self.addEventListener('notificationclick', (event) => {
 })
 ```
 
-**Edge side** (`_shared/webpush.ts`): import `jsr:@negrel/webpush@0.5.0`; generate VAPID keys ONCE with the repo's keygen script (`deno run https://raw.githubusercontent.com/negrel/webpush/master/cmd/generate-vapid-keys.ts`), store the JSON as edge secret `VAPID_KEYS`, put the public key in `web/.env` as `VITE_VAPID_PUBLIC_KEY`. On send: HTTP 404/410 from the push service means the subscription is dead — delete the row and trigger the email fallback path (D-20). `[VERIFIED: JSR registry v0.5.0 + GitHub README; exact ApplicationServer API surface to be confirmed from the package docs at implementation — JSR HTML page 403s for automated fetch]`
+**Edge side** (`_shared/webpush.ts`): import `jsr:@negrel/webpush@0.5.0`; generate VAPID keys ONCE with the repo's keygen script (`deno run https://raw.githubusercontent.com/negrel/webpush/master/cmd/generate-vapid-keys.ts`), store the JSON as edge secret `VAPID_KEYS`, put the public key in `web/.env` as `VITE_VAPID_PUBLIC_KEY`. On send: HTTP 404/410 from the push service means the subscription is dead — delete the row and trigger the email fallback path (D-20).
+
+**Exact API surface `[VERIFIED 2026-07-18: GitHub source — application_server.ts, subscriber.ts, example/main.ts]`:**
+
+```typescript
+import * as webpush from "jsr:@negrel/webpush@0.5.0";
+
+const vapidKeys = await webpush.importVapidKeys(
+  JSON.parse(Deno.env.get("VAPID_KEYS")!),
+  { extractable: false },
+);
+const appServer = await webpush.ApplicationServer.new({
+  contactInformation: "mailto:admin@example.com",
+  vapidKeys,
+});
+
+const subscriber = appServer.subscribe(subscriptionJson); // PushSubscription shape
+try {
+  await subscriber.pushTextMessage(JSON.stringify(payload), {
+    // PushMessageOptions — all optional:
+    // urgency?: Urgency (VeryLow|Low|Normal|High), ttl?: number (s, default 2419200), topic?: string
+  });
+} catch (err) {
+  // PushMessageError extends Error; exposes `response: Response`
+  // err.isGone() → true on 410; ALSO check err.response.status === 404
+  // (some push services return 404 for dead endpoints — isGone() covers 410 only)
+}
+```
 
 ### Pattern 4: Per-user tables over a shared pool (RLS + column-limited writes)
 
@@ -395,6 +422,7 @@ self.addEventListener('notificationclick', (event) => {
 **What goes wrong:** Official docs now label the `generateContent` structured-output page "Legacy"; a newer API surface (interactions-style) exists. Blindly copying the newest docs example can produce requests the stable endpoint rejects.
 **Why it happens:** Google is transitioning API surfaces (observed 2026-07); summaries mixing both shapes are already circulating.
 **How to avoid:** Pin `v1beta/models/{model}:generateContent` with `generationConfig.responseMimeType/responseSchema` (still fully supported); make the FIRST scoring task a live smoke call (`scripts/` verification script, `node --env-file=scripts/.env`) asserting valid JSON against the schema.
+**Re-verified 2026-07-18 (ai.google.dev/api/generate-content):** v1beta `:generateContent` carries NO deprecation notice; `responseMimeType`/`responseSchema` intact. The "Interactions API" is now GA and recommended for new development, but generateContent remains the stable pinned path for this phase.
 **Warning signs:** 400s mentioning unknown fields (`response_format`), or docs snippets referencing `/interactions`.
 
 ### Pitfall 2: Free-plan edge budget — 150s wall clock, 2s CPU
@@ -530,7 +558,7 @@ import DOMPurify from 'dompurify'
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
 | A1 | `npm:mammoth` runs inside Supabase Edge (Deno) — inferred from "npm modules + Node built-ins supported", no authoritative example found | Standard Stack / Pitfall 7 | Low — committed jszip/XML fallback in `_shared/docx.ts`; verify in first extraction task |
-| A2 | `@negrel/webpush` 0.5.0 exposes ApplicationServer/subscriber-send API per its README workflow; exact function signatures unverified (JSR docs page 403s automated fetch) | Pattern 3 | Low — read JSR docs page manually at implementation; API surface is small |
+| A2 | ~~exact function signatures unverified~~ **RESOLVED 2026-07-18:** full API verified from GitHub source (`importVapidKeys`, `ApplicationServer.new`, `subscribe().pushTextMessage`, `PushMessageError.isGone()` + `response.status`) — see Pattern 3 | Pattern 3 | Resolved |
 | A3 | Push payload practical cap ~4KB (per push service norms) | Anti-patterns | Negligible — payloads designed minimal anyway |
 | A4 | Gemini Tier-1 (paid) rate limits comfortably exceed ~50 requests/day burst pattern | Pipeline design | Negligible at this volume; 429 backoff handles any surprise |
 | A5 | Chrome-class desktop browser is the push target; Safari/iOS push (requires installed web app on iOS) is out of scope, email is the safety net | Push patterns | Low — matches CLAUDE.md "push only meets the goal while browser awake; email is the safety net by design"; confirm user's browser at UAT |
@@ -539,10 +567,8 @@ import DOMPurify from 'dompurify'
 
 ## Open Questions
 
-1. **Exact @negrel/webpush 0.5.0 API signatures**
-   - What we know: v0.5.0 latest on JSR; RFC 8291/8292; keygen script; ApplicationServer-based send flow.
-   - What's unclear: precise import names/options (automated JSR fetch blocked).
-   - Recommendation: first push task opens `jsr.io/@negrel/webpush/doc` in-browser or `deno doc jsr:@negrel/webpush@0.5.0`; budget 15 minutes, no design impact.
+1. **Exact @negrel/webpush 0.5.0 API signatures — RESOLVED 2026-07-18**
+   - Verified from GitHub source (application_server.ts, subscriber.ts, example/main.ts): `importVapidKeys(json, {extractable:false})` → `ApplicationServer.new({contactInformation, vapidKeys})` → `appServer.subscribe(sub).pushTextMessage(text, {urgency?, ttl?, topic?})`; failures throw `PushMessageError` with `.response: Response` and `.isGone()` (410 only — also check `response.status === 404`). Full snippet in Pattern 3.
 2. **Where the Preferences UI lives** (Claude's discretion)
    - What we know: D-21 puts alert tuning in Settings ▸ Notifications; PREF-01 (titles/locations/keywords) placement is discretionary.
    - Recommendation: dedicated "Preferences" nav page for job-matching prefs (they're feed semantics, not account settings); alert tuning stays in Settings per D-21. Planner may merge if nav real estate argues otherwise.
