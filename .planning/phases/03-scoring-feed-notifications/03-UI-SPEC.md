@@ -1,7 +1,8 @@
 ---
 phase: 3
 slug: scoring-feed-notifications
-status: draft
+status: approved
+reviewed_at: 2026-07-18
 shadcn_initialized: false
 preset: none
 created: 2026-07-18
@@ -168,11 +169,11 @@ No component registries in use; all components hand-rolled per the established P
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS (FLAG — non-blocking: `Retry`/`Dismiss` single-word CTAs; add `aria-label="Dismiss {job title}"` on row buttons)
+- [x] Dimension 2 Visuals: PASS (FLAG — non-blocking: declare `aria-label="Remove {keyword}"` on chip × buttons; feed table is the Dashboard focal point)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** APPROVED — gsd-ui-checker, 2026-07-18
