@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { UNSUPPORTED_URL_MESSAGE } from '../../../supabase/functions/_shared/detect'
 import {
+  activationPresentation,
   addCompany,
   COMPANY_COLUMNS,
   deriveHealth,
+  healthPresentation,
+  mergeCoverageRows,
+  safeCareersUrl,
+  type SourceCoverageCatalogRecord,
   type CompanyRecord,
 } from './watchlist'
 import { supabase } from './supabase'
@@ -40,6 +45,274 @@ function company(overrides: Partial<CompanyRecord> = {}): CompanyRecord {
     ...overrides,
   }
 }
+
+const CAPITAL_ONE_SOURCE_KEY = 'workday:wd12:capitalone:Capital_One'
+
+const financeCatalog: SourceCoverageCatalogRecord[] = [
+  {
+    id: 'catalog-morgan-stanley',
+    company_name: 'Morgan Stanley',
+    careers_url: 'https://www.morganstanley.com/careers/career-opportunities-search/',
+    provider: 'Eightfold',
+    access_evidence: 'Official machine API requires OAuth credentials.',
+    disposition: 'unsupported_with_reason',
+    verified_at: '2026-07-17',
+    unsupported_reason: 'Public API requires employer credentials',
+    source_key: null,
+  },
+  {
+    id: 'catalog-goldman-sachs',
+    company_name: 'Goldman Sachs',
+    careers_url: 'https://higher.gs.com/roles',
+    provider: 'Branded/custom',
+    access_evidence: 'No stable public listing contract was established.',
+    disposition: 'unsupported_with_reason',
+    verified_at: '2026-07-17',
+    unsupported_reason: 'No stable public feed',
+    source_key: null,
+  },
+  {
+    id: 'catalog-jpmorgan-chase',
+    company_name: 'JPMorgan Chase',
+    careers_url: 'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions',
+    provider: 'Oracle Recruiting Cloud',
+    access_evidence: 'Candidate requisition API is marked Oracle-internal.',
+    disposition: 'unsupported_with_reason',
+    verified_at: '2026-07-17',
+    unsupported_reason: 'Public API requires employer credentials',
+    source_key: null,
+  },
+  {
+    id: 'catalog-bank-of-america',
+    company_name: 'Bank of America',
+    careers_url: 'https://careers.bankofamerica.com/en-us/job-search',
+    provider: 'Branded/custom AEM',
+    access_evidence: 'No single documented anonymous source contract was established.',
+    disposition: 'unsupported_with_reason',
+    verified_at: '2026-07-17',
+    unsupported_reason: 'No stable public feed',
+    source_key: null,
+  },
+  {
+    id: 'catalog-citi',
+    company_name: 'Citi',
+    careers_url: 'https://jobs.citi.com/search-jobs',
+    provider: 'Radancy/TalentBrew',
+    access_evidence: 'No documented public listing API was established.',
+    disposition: 'unsupported_with_reason',
+    verified_at: '2026-07-17',
+    unsupported_reason: 'No stable public feed',
+    source_key: null,
+  },
+  {
+    id: 'catalog-blackrock',
+    company_name: 'BlackRock',
+    careers_url: 'https://careers.blackrock.com/search-jobs',
+    provider: 'Radancy/TalentBrew',
+    access_evidence: 'No documented public listing API was established.',
+    disposition: 'unsupported_with_reason',
+    verified_at: '2026-07-17',
+    unsupported_reason: 'No stable public feed',
+    source_key: null,
+  },
+  {
+    id: 'catalog-wells-fargo',
+    company_name: 'Wells Fargo',
+    careers_url: 'https://www.wellsfargojobs.com/en/jobs/',
+    provider: 'Branded/custom',
+    access_evidence: 'Direct automation reached a Cloudflare challenge.',
+    disposition: 'unsupported_with_reason',
+    verified_at: '2026-07-17',
+    unsupported_reason: 'Automated access is blocked',
+    source_key: null,
+  },
+  {
+    id: 'catalog-ubs',
+    company_name: 'UBS',
+    careers_url: 'https://jobs.ubs.com/TGnewUI/Search/Home/HomeWithPreLoad?PageType=JobDetails&partnerid=25008&siteid=5012',
+    provider: 'Oracle Taleo',
+    access_evidence: 'No supported anonymous machine API was established.',
+    disposition: 'unsupported_with_reason',
+    verified_at: '2026-07-17',
+    unsupported_reason: 'No stable public feed',
+    source_key: null,
+  },
+  {
+    id: 'catalog-barclays',
+    company_name: 'Barclays',
+    careers_url: 'https://search.jobs.barclays/en/search-jobs',
+    provider: 'Radancy/TalentBrew',
+    access_evidence: 'No documented public listing API was established.',
+    disposition: 'unsupported_with_reason',
+    verified_at: '2026-07-17',
+    unsupported_reason: 'No stable public feed',
+    source_key: null,
+  },
+  {
+    id: 'catalog-capital-one',
+    company_name: 'Capital One',
+    careers_url: 'https://www.capitalonecareers.com/search-jobs',
+    provider: 'Workday',
+    access_evidence: 'Allowlisted candidate CXS endpoint returned a reconciled public listing.',
+    disposition: 'experimental',
+    verified_at: '2026-07-17',
+    unsupported_reason: null,
+    source_key: CAPITAL_ONE_SOURCE_KEY,
+  },
+  {
+    id: 'catalog-fidelity',
+    company_name: 'Fidelity',
+    careers_url: 'https://jobs.fidelity.com/en/jobs/',
+    provider: 'Branded/custom',
+    access_evidence: 'Direct automation reached a Cloudflare challenge.',
+    disposition: 'unsupported_with_reason',
+    verified_at: '2026-07-17',
+    unsupported_reason: 'Automated access is blocked',
+    source_key: null,
+  },
+  {
+    id: 'catalog-charles-schwab',
+    company_name: 'Charles Schwab',
+    careers_url: 'https://www.schwabjobs.com/job-search-results/',
+    provider: 'iCIMS / Radancy',
+    access_evidence: 'The official iCIMS machine API requires Basic authentication.',
+    disposition: 'unsupported_with_reason',
+    verified_at: '2026-07-17',
+    unsupported_reason: 'Public API requires employer credentials',
+    source_key: null,
+  },
+]
+
+describe('finance coverage presentation', () => {
+  it('enumerates the complete fixed finance set with canonical provider evidence', () => {
+    expect(financeCatalog.map((entry) => entry.company_name)).toEqual([
+      'Morgan Stanley',
+      'Goldman Sachs',
+      'JPMorgan Chase',
+      'Bank of America',
+      'Citi',
+      'BlackRock',
+      'Wells Fargo',
+      'UBS',
+      'Barclays',
+      'Capital One',
+      'Fidelity',
+      'Charles Schwab',
+    ])
+    expect(financeCatalog.every((entry) => entry.careers_url && entry.provider && entry.access_evidence)).toBe(true)
+    expect(financeCatalog.find((entry) => entry.company_name === 'Capital One')?.source_key)
+      .toBe('workday:wd12:capitalone:Capital_One')
+  })
+
+  it.each([
+    ['https://jobs.example.com/search', 'https://jobs.example.com/search'],
+    ['http://jobs.example.com/search', null],
+    ['javascript:alert(1)', null],
+    ['not a URL', null],
+    ['', null],
+    [null, null],
+  ])('turns %s into a safe canonical link or Unavailable', (value, expected) => {
+    expect(safeCareersUrl(value)).toBe(expected)
+  })
+
+  it('reconciles Capital One once by the pinned source key and leaves unsupported evidence non-operational', () => {
+    const capitalOne = company({
+      id: 'company-capital-one',
+      name: 'Capital One connector',
+      ats_type: 'workday',
+      board_token: 'capitalone',
+      region: 'wd12',
+      careers_url: 'https://capitalone.wd12.myworkdayjobs.com/Capital_One',
+      source_key: CAPITAL_ONE_SOURCE_KEY,
+      site_token: 'Capital_One',
+      activation_state: 'experimental',
+      activation_successes: 2,
+    })
+
+    const rows = mergeCoverageRows([capitalOne], financeCatalog)
+    expect(rows).toHaveLength(12)
+    expect(rows.filter((row) => row.name === 'Capital One')).toHaveLength(1)
+    expect(rows.find((row) => row.name === 'Capital One')).toMatchObject({
+      company_id: 'company-capital-one',
+      careers_url: 'https://www.capitalonecareers.com/search-jobs',
+      source_key: CAPITAL_ONE_SOURCE_KEY,
+      provider: 'Workday',
+      activation_state: 'experimental',
+      activation_successes: 2,
+    })
+
+    const unsupported = rows.filter((row) => row.disposition === 'unsupported_with_reason')
+    expect(unsupported).toHaveLength(11)
+    expect(unsupported.every((row) => (
+      row.company_id === null
+      && row.source_key === null
+      && row.activation_state === 'disabled'
+      && row.health_state === 'unsupported'
+      && row.scheduled === false
+      && row.monitored === false
+    ))).toBe(true)
+  })
+
+  it('keeps activation independent from health and reads experimental progress from companies', () => {
+    const experimental = mergeCoverageRows([
+      company({
+        ats_type: 'workday',
+        region: 'wd12',
+        source_key: CAPITAL_ONE_SOURCE_KEY,
+        activation_state: 'experimental',
+        activation_successes: 2,
+        consecutive_failures: 1,
+        last_error_code: 'timeout',
+      }),
+    ], financeCatalog).find((row) => row.name === 'Capital One')!
+
+    expect(activationPresentation(experimental)).toEqual({
+      label: 'Experimental',
+      details: ['2 of 3 checks passed', 'Scheduled polling off'],
+    })
+    expect(healthPresentation(experimental)).toEqual({
+      label: 'Degraded',
+      detail: 'Timed out while syncing.',
+      retention: 'Last-known jobs retained.',
+    })
+
+    const unsupported = mergeCoverageRows([], financeCatalog)[0]
+    expect(activationPresentation(unsupported)).toEqual({
+      label: 'Disabled',
+      details: ['Scheduled polling off'],
+    })
+    expect(healthPresentation(unsupported)).toEqual({
+      label: 'Unsupported',
+      detail: 'Public API requires employer credentials',
+      retention: 'Not monitored',
+    })
+  })
+
+  it.each([
+    ['timeout', 'Timed out while syncing.'],
+    ['http_403', 'Access blocked by source.'],
+    ['malformed_response', 'Source response changed.'],
+    ['detail_failure', 'Source returned an incomplete job list.'],
+    ['implausibly_empty', 'Unexpected empty result.'],
+    ['provider_secret=https://jobs.example/?token=unsafe', 'Latest sync could not be completed.'],
+  ])('translates %s into bounded approved degraded copy', (last_error_code, detail) => {
+    const operational = mergeCoverageRows([
+      company({
+        source_key: 'greenhouse:global:acme',
+        consecutive_failures: 1,
+        last_error: 'https://jobs.example/?token=unsafe',
+        last_error_code,
+      }),
+    ], [])[0]
+
+    expect(healthPresentation(operational)).toEqual({
+      label: 'Degraded',
+      detail,
+      retention: 'Last-known jobs retained.',
+    })
+    expect(JSON.stringify(healthPresentation(operational))).not.toMatch(/token=unsafe/)
+  })
+})
 
 describe('deriveHealth', () => {
   it('is OK after two failures when the last success is fresh', () => {
