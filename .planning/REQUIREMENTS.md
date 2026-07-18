@@ -20,7 +20,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PREF-02**: User can add, edit, and remove companies on a watchlist of 100+ career-site URLs
 - [x] **PREF-03**: System auto-detects ATS platform (Greenhouse/Lever/Ashby) from a pasted career-site URL and stores the polling endpoint
 - [x] **PREF-04**: User can see per-company monitoring health (last successful poll, failing sources flagged)
-- [ ] **PREF-05**: Watchlist shows a clickable Link column that opens each company's stored job-search/careers URL in a new tab
+- [x] **PREF-05**: Watchlist shows a clickable Link column that opens each company's stored job-search/careers URL in a new tab
 
 ### Discovery & Monitoring
 
@@ -108,7 +108,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PREF-02 | Phase 2 | Complete |
 | PREF-03 | Phase 2 | Complete |
 | PREF-04 | Phase 2 | Complete |
-| PREF-05 | Phase 02.1 | Pending |
+| PREF-05 | Phase 02.1 | Complete |
 | DISC-01 | Phase 2 | Complete |
 | DISC-02 | Phase 2 | Complete |
 | DISC-03 | Phase 2 | Complete |

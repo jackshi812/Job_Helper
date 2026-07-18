@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 02.1
 current_phase_name: source-coverage-expansion
 status: executing
-stopped_at: Completed 02.1-01-PLAN.md
-last_updated: "2026-07-18T00:14:52.071Z"
+stopped_at: Completed 02.1-02-PLAN.md
+last_updated: "2026-07-18T00:32:54.909Z"
 last_activity: 2026-07-18
-last_activity_desc: Phase 02.1 execution started
+last_activity_desc: Completed Phase 02.1 Plan 02
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 18
-  completed_plans: 11
-  percent: 61
+  completed_plans: 12
+  percent: 67
 ---
 
 # Project State
@@ -29,19 +29,19 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 ## Current Position
 
 Phase: 02.1 (source-coverage-expansion) — EXECUTING
-Plan: 2 of 8
-Status: Executing Plan 02
-Last activity: 2026-07-18 — Phase 02.1 execution started
+Plan: 3 of 8
+Status: Ready for Plan 03
+Last activity: 2026-07-18 — Completed Phase 02.1 Plan 02
 
-Progress: [██████░░░░] 61% (11/18 plans)
+Progress: [███████░░░] 67% (12/18 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 11
-- Average duration: 55m
-- Total execution time: 601m
+- Total plans completed: 12
+- Average duration: 51m
+- Total execution time: 609m
 
 **By Phase:**
 
@@ -52,8 +52,8 @@ Progress: [██████░░░░] 61% (11/18 plans)
 
 **Recent Trend:**
 
-- Last 3 plans: 9m, 6m, 21m
-- Trend: Gap-closure plans stayed compact; hosted deployment and proof made the final plan the longest of the three
+- Last 3 plans: 21m, 8m, 8m
+- Trend: The hosted Phase 2 close-out was followed by two compact source-coverage foundation plans
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
@@ -64,6 +64,7 @@ Progress: [██████░░░░] 61% (11/18 plans)
 | Phase 02 P06 | 6min | 3 tasks | 8 files |
 | Phase 02 P07 | 21min | 2 tasks | 9 files |
 | Phase 02.1 P01 | 8 min | 3 tasks | 5 files |
+| Phase 02.1 P02 | 8 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,9 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Require completeness, closure credibility, positive page evidence, no warnings, and reconciled expected counts before direct-source closure.
 - [Phase 02.1]: Treat implausibly empty established boards as unknown observations that retain jobs and last_success_at.
 - [Phase 02.1]: Keep the temporary Greenhouse/Lever/Ashby dispatch exhaustive until Plan 02 replaces it with the closed connector registry.
+- [Phase 02.1]: Require auth.getUser and authenticated role before verify-board provider or privileged work. — Gateway JWT acceptance alone does not prove the bearer belongs to a real signed-in user.
+- [Phase 02.1]: Use deterministic provider-region-token source keys and separate canonical careers URLs. — Polling identity stays server-constructed while users retain a directly searchable navigation link.
+- [Phase 02.1]: Reject unknown and non-active connectors inside pollConnector before adapter access. — SQL eligibility and application dispatch independently fail closed.
 
 ### Pending Todos
 
@@ -140,6 +144,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-18T00:14:07.766Z
-Stopped at: Completed 02.1-01-PLAN.md
+Last session: 2026-07-18T00:32:54.903Z
+Stopped at: Completed 02.1-02-PLAN.md
 Resume file: None
