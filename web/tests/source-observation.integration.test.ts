@@ -95,7 +95,13 @@ describe('scheduled closed-registry dispatch', () => {
   afterEach(() => vi.unstubAllGlobals())
 
   it('keeps the registry exhaustive for exactly the implemented providers', () => {
-    expect(Object.keys(providerRegistry).sort()).toEqual(['ashby', 'greenhouse', 'lever'])
+    expect(Object.keys(providerRegistry).sort()).toEqual([
+      'ashby',
+      'greenhouse',
+      'lever',
+      'recruitee',
+      'smartrecruiters',
+    ])
   })
 
   it('dispatches an active claimed row to its exact provider connector', async () => {

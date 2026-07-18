@@ -1,10 +1,17 @@
 import { pollAshby } from './adapters/ashby.ts'
 import { pollGreenhouse } from './adapters/greenhouse.ts'
 import { pollLever } from './adapters/lever.ts'
+import { pollRecruitee } from './adapters/recruitee.ts'
+import { pollSmartRecruiters } from './adapters/smartrecruiters.ts'
 import { type PollObservation } from './adapters/types.ts'
 import { buildEndpoint, type DetectResult } from './detect.ts'
 
-export type ProviderId = 'greenhouse' | 'lever' | 'ashby'
+export type ProviderId =
+  | 'greenhouse'
+  | 'lever'
+  | 'ashby'
+  | 'smartrecruiters'
+  | 'recruitee'
 export type SupportedDetection = Exclude<DetectResult, { ats: 'unsupported' }>
 
 export interface PollConnectorCompany {
@@ -26,7 +33,7 @@ export interface ConnectorVerification {
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 
-interface ProviderConnector {
+export interface ProviderConnector {
   verify: (detected: SupportedDetection, fetchImpl: FetchLike) => Promise<ConnectorVerification>
   poll: (company: PollConnectorCompany, knownIds: Set<string>) => Promise<PollObservation>
 }
@@ -38,7 +45,11 @@ function canonicalCareersUrl(detected: SupportedDetection) {
     const host = detected.region === 'eu' ? 'jobs.eu.lever.co' : 'jobs.lever.co'
     return `https://${host}/${slug}`
   }
-  return `https://jobs.ashbyhq.com/${slug}`
+  if (detected.ats === 'ashby') return `https://jobs.ashbyhq.com/${slug}`
+  if (detected.ats === 'smartrecruiters') {
+    return `https://jobs.smartrecruiters.com/${slug}`
+  }
+  return `https://${detected.slug.toLowerCase()}.recruitee.com`
 }
 
 function deterministicSourceKey(detected: SupportedDetection) {
@@ -93,6 +104,29 @@ async function verifyAshby(detected: SupportedDetection, fetchImpl: FetchLike) {
   return verification(detected, detected.slug, count)
 }
 
+async function verifySmartRecruiters(
+  detected: SupportedDetection,
+  fetchImpl: FetchLike,
+) {
+  const observation = await pollSmartRecruiters(detected.slug, fetchImpl)
+  if (observation.completeness !== 'complete') {
+    throw new Error(observation.warnings[0] ?? 'provider_observation_failed')
+  }
+  const companyName = observation.jobs[0]?.companyName ?? detected.slug
+  return verification(detected, companyName, observation.jobs.length)
+}
+
+async function verifyRecruitee(
+  detected: SupportedDetection,
+  fetchImpl: FetchLike,
+) {
+  const observation = await pollRecruitee(detected.slug, fetchImpl)
+  if (observation.completeness !== 'complete') {
+    throw new Error(observation.warnings[0] ?? 'provider_observation_failed')
+  }
+  return verification(detected, detected.slug, observation.jobs.length)
+}
+
 function complete(jobs: PollObservation['jobs']): PollObservation {
   return {
     jobs,
@@ -120,6 +154,14 @@ export const providerRegistry = {
   ashby: {
     verify: verifyAshby,
     poll: async (company) => complete(await pollAshby(company.board_token)),
+  },
+  smartrecruiters: {
+    verify: verifySmartRecruiters,
+    poll: async (company) => pollSmartRecruiters(company.board_token),
+  },
+  recruitee: {
+    verify: verifyRecruitee,
+    poll: async (company) => pollRecruitee(company.board_token),
   },
 } satisfies Record<ProviderId, ProviderConnector>
 
