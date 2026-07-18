@@ -103,6 +103,35 @@ async function loadAdzunaMatches(admin: SupabaseClient, fingerprints: string[]) 
   return matches
 }
 
+async function reattachOrphanedJobs(
+  admin: SupabaseClient,
+  company: Company,
+  jobs: NormalizedJob[],
+) {
+  const externalIdsBySource = new Map<string, string[]>()
+  for (const job of jobs) {
+    const ids = externalIdsBySource.get(job.source) ?? []
+    ids.push(job.externalId)
+    externalIdsBySource.set(job.source, ids)
+  }
+
+  const reattached: ExistingJobRow[] = []
+  for (const [source, externalIds] of externalIdsBySource) {
+    for (const batch of batches([...new Set(externalIds)])) {
+      const { data, error } = await admin
+        .from('jobs')
+        .update({ company_id: company.id })
+        .is('company_id', null)
+        .eq('source', source)
+        .in('external_id', batch)
+        .select('id, source, external_id, fingerprint, status, last_seen_at')
+      if (error) throw error
+      reattached.push(...((data ?? []) as ExistingJobRow[]))
+    }
+  }
+  return reattached
+}
+
 async function ingestNewJobs(
   admin: SupabaseClient,
   company: Company,
@@ -169,14 +198,21 @@ async function processCompany(
     .in('status', ['open', 'closed'])
   if (jobsError) throw jobsError
 
-  const existing = (jobs ?? []) as ExistingJobRow[]
-  const openRows = existing.filter((job) => job.status === 'open')
+  let existing = (jobs ?? []) as ExistingJobRow[]
   const knownIds = new Set(
     existing
       .filter((job) => job.source === company.ats_type)
       .map((job) => job.external_id),
   )
   let observation = await pollConnector(company, knownIds)
+
+  // Company deletion intentionally preserves job snapshots with company_id
+  // set to null. If the exact board is added again, reclaim only returned
+  // provider IDs that are still orphaned. Updating company_id alone preserves
+  // the first-sight snapshot and cannot steal a row claimed concurrently.
+  const reattached = await reattachOrphanedJobs(admin, company, observation.jobs)
+  if (reattached.length > 0) existing = [...existing, ...reattached]
+  const openRows = existing.filter((job) => job.status === 'open')
 
   if (openRows.length > 0 && observation.jobs.length === 0) {
     observation = {
