@@ -100,7 +100,7 @@ export function mapSmartRecruitersPosting(
       : null,
     descriptionHtml,
     descriptionText: descriptionHtml ? htmlToText(descriptionHtml) : null,
-    snapshotPartial: false,
+    snapshotPartial: descriptionHtml === null,
     companyName: posting.company?.name?.trim() || null,
   }
 }
@@ -189,6 +189,7 @@ export async function pollSmartRecruiters(
   const maxJobs = options.maxJobs ?? DEFAULT_MAX_JOBS
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES
   const jobs: NormalizedJob[] = []
+  const postings: SmartRecruitersPosting[] = []
   let expectedCount: number | undefined
   let offset = 0
   let pageCount = 0
@@ -230,6 +231,7 @@ export async function pollSmartRecruiters(
 
     const parsed = page.content.map(parsePosting)
     const valid = parsed.filter((posting): posting is SmartRecruitersPosting => posting !== null)
+    postings.push(...valid)
     jobs.push(...valid.map(mapSmartRecruitersPosting))
     pageCount += 1
     if (valid.length !== page.content.length) {
@@ -256,6 +258,32 @@ export async function pollSmartRecruiters(
   }
   if (new Set(jobs.map((job) => job.externalId)).size !== jobs.length) {
     return incomplete(jobs, 'count_mismatch', expectedCount, pageCount)
+  }
+
+  for (let index = 0; index < postings.length; index += 2) {
+    const detailIndexes = [index, index + 1].filter((detailIndex) => (
+      detailIndex < postings.length && jobs[detailIndex].snapshotPartial
+    ))
+    try {
+      await Promise.all(detailIndexes.map(async (detailIndex) => {
+        const listed = postings[detailIndex]
+        const detailUrl = `https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(companySlug)}/postings/${encodeURIComponent(listed.id)}`
+        const detailPayload = await requestJson(detailUrl, fetchImpl, maxBytes)
+        const detail = parsePosting(detailPayload)
+        if (!detail || detail.id !== listed.id || !detail.jobAd?.sections?.jobDescription?.text) {
+          throw new ProviderError('provider_schema_invalid')
+        }
+        postings[detailIndex] = detail
+        jobs[detailIndex] = mapSmartRecruitersPosting(detail)
+      }))
+    } catch (error) {
+      return incomplete(
+        jobs,
+        error instanceof ProviderError ? error.code : 'provider_error',
+        expectedCount,
+        pageCount,
+      )
+    }
   }
 
   return {

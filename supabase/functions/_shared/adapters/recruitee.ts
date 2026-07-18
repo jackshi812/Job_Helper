@@ -71,7 +71,7 @@ export function mapRecruiteeOffer(offer: RecruiteeOffer): NormalizedJob {
     postedAt: offer.created_at ? new Date(offer.created_at).toISOString() : null,
     descriptionHtml,
     descriptionText: descriptionHtml ? htmlToText(descriptionHtml) : null,
-    snapshotPartial: false,
+    snapshotPartial: descriptionHtml === null,
     companyName: null,
   }
 }

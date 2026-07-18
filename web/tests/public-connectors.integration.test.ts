@@ -126,6 +126,24 @@ describe('SmartRecruiters bounded observation', () => {
       warnings: ['count_mismatch'],
     })
   })
+
+  it('retains a safe list row but denies closure when required detail fails', async () => {
+    const listed = { ...smartPosting, jobAd: undefined }
+    const providerFetch = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ totalFound: 1, content: [listed] }))
+      .mockResolvedValue(new Response('', { status: 503, headers: { 'content-type': 'application/json' } }))
+
+    const observation = await pollSmartRecruiters('SmartRecruiters', providerFetch)
+
+    expect(providerFetch).toHaveBeenCalledTimes(3)
+    expect(observation).toMatchObject({
+      completeness: 'partial',
+      credibleForClosure: false,
+      expectedCount: 1,
+      jobs: [{ externalId: 'sr-101', snapshotPartial: true }],
+      warnings: ['provider_http_503'],
+    })
+  })
 })
 
 describe('Recruitee bounded observation', () => {
