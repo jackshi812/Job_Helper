@@ -1,4 +1,7 @@
-import { type NormalizedJob } from './adapters/types.ts'
+import {
+  type NormalizedJob,
+  type PollObservation,
+} from './adapters/types.ts'
 
 export interface ExistingJobRow {
   id: string
@@ -18,6 +21,12 @@ export interface CompanySyncPlan {
 
 export type ExactJobReturnAction = 'insert' | 'refresh' | 'reopen'
 
+export interface ObservationHealthUpdate {
+  last_success_at: string | null
+  consecutive_failures: number
+  last_error: string | null
+}
+
 export function exactJobReturnAction(
   existing: Pick<ExistingJobRow, 'status'> | undefined,
 ): ExactJobReturnAction {
@@ -27,12 +36,49 @@ export function exactJobReturnAction(
 
 const DEFAULT_CLOSE_GRACE_MS = 35 * 60_000
 
+export function isCredibleCompleteObservation(observation: PollObservation) {
+  return observation.completeness === 'complete'
+    && observation.credibleForClosure
+    && Number.isInteger(observation.pageCount)
+    && observation.pageCount > 0
+    && observation.warnings.length === 0
+    && (observation.expectedCount === undefined
+      || observation.expectedCount === observation.jobs.length)
+}
+
+function boundedWarning(warnings: string[]) {
+  const warning = warnings.find((value) => /^[a-z][a-z0-9_]{0,79}$/.test(value))
+  return warning ?? 'source_observation_failed'
+}
+
+export function observationHealthUpdate(
+  observation: PollObservation,
+  previousSuccessAt: string | null,
+  previousFailures: number,
+  observedAt: string,
+): ObservationHealthUpdate {
+  if (isCredibleCompleteObservation(observation)) {
+    return {
+      last_success_at: observedAt,
+      consecutive_failures: 0,
+      last_error: null,
+    }
+  }
+
+  return {
+    last_success_at: previousSuccessAt,
+    consecutive_failures: Math.max(0, previousFailures) + 1,
+    last_error: boundedWarning(observation.warnings),
+  }
+}
+
 export function planCompanySync(
   existing: ExistingJobRow[],
-  returned: NormalizedJob[],
+  observation: PollObservation,
   nowIso: string,
   graceMs = DEFAULT_CLOSE_GRACE_MS,
 ): CompanySyncPlan {
+  const returned = observation.jobs
   const exactRows = new Map(
     existing.map((job) => [`${job.source}|${job.external_id}`, job]),
   )
@@ -55,7 +101,7 @@ export function planCompanySync(
 
   const seenIds = new Set([...seenOpenIds, ...reopenIds])
   const cutoff = Date.parse(nowIso) - graceMs
-  const closeIds = returned.length === 0
+  const closeIds = returned.length === 0 || !isCredibleCompleteObservation(observation)
     ? []
     : existing
       .filter((job) => (

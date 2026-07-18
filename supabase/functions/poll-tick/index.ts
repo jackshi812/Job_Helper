@@ -2,10 +2,14 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.1
 import { pollAshby } from '../_shared/adapters/ashby.ts'
 import { pollGreenhouse } from '../_shared/adapters/greenhouse.ts'
 import { pollLever } from '../_shared/adapters/lever.ts'
-import { type NormalizedJob } from '../_shared/adapters/types.ts'
+import {
+  type NormalizedJob,
+  type PollObservation,
+} from '../_shared/adapters/types.ts'
 import { fingerprint } from '../_shared/dedup.ts'
 import {
   planCompanySync,
+  observationHealthUpdate,
   shouldAdvanceSuccessHeartbeat,
   type ExistingJobRow,
 } from '../_shared/lifecycle.ts'
@@ -19,6 +23,7 @@ interface Company {
   board_token: string
   region: 'eu' | null
   consecutive_failures: number
+  last_success_at: string | null
 }
 
 interface CompanyResult {
@@ -29,8 +34,14 @@ interface CompanyResult {
 
 const DATABASE_BATCH_SIZE = 100
 
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
+function diagnosticCode(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  if (/\b429\b/.test(message)) return 'http_429'
+  if (/timeout|timed out|abort/i.test(message)) return 'timeout'
+  if (/implausible empty/i.test(message)) return 'implausibly_empty'
+  if (/HTML|WAF|content-type/i.test(message)) return 'invalid_provider_content'
+  if (/JSON|parse|schema|shape/i.test(message)) return 'malformed_response'
+  return 'source_poll_failed'
 }
 
 function requiredEnvironment(name: string) {
@@ -40,13 +51,26 @@ function requiredEnvironment(name: string) {
 }
 
 async function pollCompany(company: Company, knownIds: Set<string>) {
+  let jobs: NormalizedJob[]
   if (company.ats_type === 'greenhouse') {
-    return pollGreenhouse(company.board_token, knownIds)
+    jobs = await pollGreenhouse(company.board_token, knownIds)
+  } else if (company.ats_type === 'lever') {
+    jobs = await pollLever(company.board_token, company.region ?? undefined)
+  } else if (company.ats_type === 'ashby') {
+    jobs = await pollAshby(company.board_token)
+  } else {
+    const exhaustive: never = company.ats_type
+    throw new Error(`Unsupported ATS type: ${exhaustive}`)
   }
-  if (company.ats_type === 'lever') {
-    return pollLever(company.board_token, company.region ?? undefined)
-  }
-  return pollAshby(company.board_token)
+
+  return {
+    jobs,
+    completeness: 'complete',
+    credibleForClosure: true,
+    pageCount: 1,
+    expectedCount: jobs.length,
+    warnings: [],
+  } satisfies PollObservation
 }
 
 function batches<T>(values: T[]) {
@@ -181,14 +205,19 @@ async function processCompany(
       .filter((job) => job.source === company.ats_type)
       .map((job) => job.external_id),
   )
-  const normalizedJobs = await pollCompany(company, knownIds)
+  let observation = await pollCompany(company, knownIds)
 
-  if (openRows.length > 0 && normalizedJobs.length === 0) {
-    throw new Error(`${company.ats_type} ${company.board_token}: implausible empty board response`)
+  if (openRows.length > 0 && observation.jobs.length === 0) {
+    observation = {
+      ...observation,
+      completeness: 'unknown',
+      credibleForClosure: false,
+      warnings: ['implausibly_empty'],
+    }
   }
 
   const seenAt = new Date().toISOString()
-  const plan = planCompanySync(existing, normalizedJobs, seenAt)
+  const plan = planCompanySync(existing, observation, seenAt)
   const companyFingerprintIds = new Map(
     openRows.map((job) => [job.fingerprint, job.id]),
   )
@@ -222,18 +251,20 @@ async function processCompany(
     seenAt,
   )
 
+  const health = observationHealthUpdate(
+    observation,
+    company.last_success_at,
+    company.consecutive_failures,
+    seenAt,
+  )
   const { error: healthError } = await admin
     .from('companies')
-    .update({
-      last_success_at: seenAt,
-      consecutive_failures: 0,
-      last_error: null,
-    })
+    .update(health)
     .eq('id', company.id)
   if (healthError) throw healthError
 
   let closed = 0
-  // planCompanySync makes closure reachable only after a successful, non-empty poll.
+  // planCompanySync makes closure reachable only after complete, credible evidence.
   for (const batch of batches(plan.closeIds)) {
     const { data: closedRows, error: closeError } = await admin
       .from('jobs')
@@ -303,13 +334,13 @@ Deno.serve(async (request) => {
       }
 
       failed += 1
-      const message = errorMessage(result.reason).slice(0, 2000)
-      console.error(`poll-tick company ${company.id} failed`, message)
+      const code = diagnosticCode(result.reason)
+      console.error(`poll-tick company ${company.id} failed`, code)
       const { error: failureError } = await admin
         .from('companies')
         .update({
           consecutive_failures: (company.consecutive_failures ?? 0) + 1,
-          last_error: message,
+          last_error: code,
         })
         .eq('id', company.id)
       if (failureError) console.error(`poll-tick health update ${company.id} failed`, failureError)

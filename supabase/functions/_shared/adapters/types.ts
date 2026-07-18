@@ -10,3 +10,14 @@ export interface NormalizedJob {
   snapshotPartial: boolean
   companyName: string | null
 }
+
+export type PollCompleteness = 'complete' | 'partial' | 'unknown'
+
+export interface PollObservation {
+  jobs: NormalizedJob[]
+  completeness: PollCompleteness
+  credibleForClosure: boolean
+  pageCount: number
+  expectedCount?: number
+  warnings: string[]
+}

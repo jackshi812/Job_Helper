@@ -190,6 +190,33 @@ describe('planCompanySync', () => {
       last_error: 'detail_failure',
     })
   })
+
+  it('fails closed when complete provider counts do not reconcile', () => {
+    const missing = existingJob({
+      external_id: 'missing',
+      last_seen_at: '2026-07-17T16:00:00.000Z',
+    })
+    const mismatched = observation({ expectedCount: 2 })
+
+    expect(planCompanySync([missing], mismatched, nowIso).closeIds).toEqual([])
+    expect(observationHealthUpdate(mismatched, nowIso, 0, nowIso).last_error)
+      .toBe('source_observation_failed')
+  })
+
+  it('persists only bounded stable diagnostics from untrusted warnings', () => {
+    const unsafe = observation({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      warnings: [
+        'https://applicant.example/jobs/123?token=secret',
+        '<html>response body</html>',
+      ],
+    })
+
+    const update = observationHealthUpdate(unsafe, null, 0, nowIso)
+    expect(update.last_error).toBe('source_observation_failed')
+    expect(JSON.stringify(update)).not.toMatch(/secret|applicant|html|response body/i)
+  })
 })
 
 describe('shouldAdvanceSuccessHeartbeat', () => {
