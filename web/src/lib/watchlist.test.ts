@@ -334,6 +334,70 @@ describe('finance coverage presentation', () => {
     })
   })
 
+  it('uses successful Experimental verification evidence without enabling scheduling', () => {
+    const lastVerifiedAt = '2026-07-17T16:30:00.000Z'
+    const experimental = mergeCoverageRows([
+      company({
+        ats_type: 'workday',
+        region: 'wd12',
+        source_key: CAPITAL_ONE_SOURCE_KEY,
+        site_token: 'Capital_One',
+        activation_state: 'experimental',
+        activation_successes: 3,
+        last_success_at: null,
+        last_verified_at: lastVerifiedAt,
+        consecutive_failures: 0,
+        last_error_code: null,
+      }),
+    ], financeCatalog).find((row) => row.name === 'Capital One')!
+
+    expect(experimental).toMatchObject({
+      activation_state: 'experimental',
+      activation_successes: 3,
+      health_state: 'ok',
+      last_success_at: lastVerifiedAt,
+      scheduled: false,
+    })
+    expect(activationPresentation(experimental)).toEqual({
+      label: 'Experimental',
+      details: ['3 of 3 checks passed', 'Scheduled polling off'],
+    })
+    expect(healthPresentation(experimental)).toEqual({
+      label: 'OK',
+      detail: null,
+      retention: null,
+    })
+  })
+
+  it.each([
+    [{ consecutive_failures: 1 }, 'Latest sync could not be completed.'],
+    [{ last_error_code: 'timeout' }, 'Timed out while syncing.'],
+  ])('keeps failed Experimental verification degraded for %o', (failure, detail) => {
+    const experimental = mergeCoverageRows([
+      company({
+        ats_type: 'workday',
+        region: 'wd12',
+        source_key: CAPITAL_ONE_SOURCE_KEY,
+        activation_state: 'experimental',
+        activation_successes: 3,
+        last_success_at: null,
+        last_verified_at: '2026-07-17T16:30:00.000Z',
+        ...failure,
+      }),
+    ], financeCatalog).find((row) => row.name === 'Capital One')!
+
+    expect(experimental).toMatchObject({
+      health_state: 'degraded',
+      last_success_at: null,
+      scheduled: false,
+    })
+    expect(healthPresentation(experimental)).toEqual({
+      label: 'Degraded',
+      detail,
+      retention: 'Last-known jobs retained.',
+    })
+  })
+
   it.each([
     ['timeout', 'Timed out while syncing.'],
     ['http_403', 'Access blocked by source.'],

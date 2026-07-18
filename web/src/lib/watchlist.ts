@@ -102,10 +102,13 @@ export function safeCareersUrl(value: string | null | undefined): string | null 
   }
 }
 
-function healthState(company: CompanyRecord): Exclude<WatchlistHealthState, 'unsupported'> {
+function healthState(
+  company: CompanyRecord,
+  lastSuccessAt: string | null,
+): Exclude<WatchlistHealthState, 'unsupported'> {
   return company.consecutive_failures > 0
     || company.last_error_code !== null
-    || company.last_success_at === null
+    || lastSuccessAt === null
     ? 'degraded'
     : 'ok'
 }
@@ -114,6 +117,14 @@ function operationalRow(
   company: CompanyRecord,
   catalog: SourceCoverageCatalogRecord | null,
 ): WatchlistRow {
+  const experimentalVerificationSuccessAt = company.activation_state === 'experimental'
+    && company.activation_successes > 0
+    && company.consecutive_failures === 0
+    && company.last_error_code === null
+    ? company.last_verified_at
+    : null
+  const displaySuccessAt = company.last_success_at ?? experimentalVerificationSuccessAt
+
   return {
     key: `company:${company.id}`,
     company_id: company.id,
@@ -126,8 +137,8 @@ function operationalRow(
     disposition: catalog?.disposition ?? 'operational',
     activation_state: company.activation_state,
     activation_successes: Math.min(3, Math.max(0, company.activation_successes)),
-    health_state: healthState(company),
-    last_success_at: company.last_success_at,
+    health_state: healthState(company, displaySuccessAt),
+    last_success_at: displaySuccessAt,
     last_error_code: company.last_error_code,
     unsupported_reason: null,
     created_at: company.created_at,
