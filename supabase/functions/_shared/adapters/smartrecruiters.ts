@@ -2,11 +2,14 @@ import { type NormalizedJob, type PollObservation } from './types.ts'
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 
-interface SmartRecruitersOptions {
+export interface SmartRecruitersOptions {
   pageSize?: number
   maxPages?: number
   maxJobs?: number
   maxBytes?: number
+  maxDetailRequests?: number
+  totalDurationMs?: number
+  now?: () => number
 }
 
 interface SmartRecruitersPosting {
@@ -32,7 +35,15 @@ const DEFAULT_PAGE_SIZE = 100
 const DEFAULT_MAX_PAGES = 20
 const DEFAULT_MAX_JOBS = 1_000
 const DEFAULT_MAX_BYTES = 2_000_000
+export const DEFAULT_MAX_DETAIL_REQUESTS = 40
+export const DEFAULT_TOTAL_DURATION_MS = 60_000
+const REQUEST_TIMEOUT_MS = 15_000
 const MAX_RETRY_DELAY_MS = 100
+
+interface InvocationBudget {
+  deadline: number
+  now: () => number
+}
 
 class ProviderError extends Error {
   constructor(readonly code: string) {
@@ -118,26 +129,44 @@ function retryDelay(response: Response) {
     : 0
 }
 
+function remainingDuration({ deadline, now }: InvocationBudget) {
+  return deadline - now()
+}
+
+function requireRemainingDuration(budget: InvocationBudget) {
+  const remaining = remainingDuration(budget)
+  if (remaining <= 0) throw new ProviderError('detail_budget_exceeded')
+  return remaining
+}
+
 async function requestJson(
   url: string,
   fetchImpl: FetchLike,
   maxBytes: number,
+  budget: InvocationBudget,
 ): Promise<unknown> {
   let response: Response | undefined
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    const remaining = requireRemainingDuration(budget)
     try {
       response = await fetchImpl(url, {
         redirect: 'error',
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(Math.max(1, Math.ceil(Math.min(REQUEST_TIMEOUT_MS, remaining)))),
         headers: { accept: 'application/json' },
       })
     } catch {
+      if (remainingDuration(budget) <= 0) {
+        throw new ProviderError('detail_budget_exceeded')
+      }
       throw new ProviderError('network_error')
     }
     if (response.status !== 429 && response.status < 500) break
     if (attempt === 0) {
       const delay = retryDelay(response)
-      if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay))
+      const retryBudget = requireRemainingDuration(budget)
+      if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, Math.min(delay, retryBudget)))
+      }
     }
   }
   if (!response) throw new ProviderError('network_error')
@@ -188,6 +217,19 @@ export async function pollSmartRecruiters(
   const maxPages = options.maxPages ?? DEFAULT_MAX_PAGES
   const maxJobs = options.maxJobs ?? DEFAULT_MAX_JOBS
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES
+  const maxDetailRequests = Math.max(
+    0,
+    Math.floor(options.maxDetailRequests ?? DEFAULT_MAX_DETAIL_REQUESTS),
+  )
+  const totalDurationMs = Math.max(
+    0,
+    options.totalDurationMs ?? DEFAULT_TOTAL_DURATION_MS,
+  )
+  const now = options.now ?? (() => performance.now())
+  const budget: InvocationBudget = {
+    deadline: now() + totalDurationMs,
+    now,
+  }
   const jobs: NormalizedJob[] = []
   const postings: SmartRecruitersPosting[] = []
   let expectedCount: number | undefined
@@ -203,7 +245,7 @@ export async function pollSmartRecruiters(
 
     let payload: unknown
     try {
-      payload = await requestJson(url.toString(), fetchImpl, maxBytes)
+      payload = await requestJson(url.toString(), fetchImpl, maxBytes, budget)
     } catch (error) {
       return incomplete(
         jobs,
@@ -260,15 +302,31 @@ export async function pollSmartRecruiters(
     return incomplete(jobs, 'count_mismatch', expectedCount, pageCount)
   }
 
+  let detailRequests = 0
   for (let index = 0; index < postings.length; index += 2) {
     const detailIndexes = [index, index + 1].filter((detailIndex) => (
       detailIndex < postings.length && jobs[detailIndex].snapshotPartial
     ))
+    if (detailIndexes.length === 0) continue
+    if (remainingDuration(budget) <= 0 || detailRequests >= maxDetailRequests) {
+      return incomplete(
+        jobs,
+        'detail_budget_exceeded',
+        expectedCount,
+        pageCount,
+      )
+    }
+    const allowedDetailIndexes = detailIndexes.slice(
+      0,
+      maxDetailRequests - detailRequests,
+    )
     try {
-      await Promise.all(detailIndexes.map(async (detailIndex) => {
+      await Promise.all(allowedDetailIndexes.map(async (detailIndex) => {
+        requireRemainingDuration(budget)
+        detailRequests += 1
         const listed = postings[detailIndex]
         const detailUrl = `https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(companySlug)}/postings/${encodeURIComponent(listed.id)}`
-        const detailPayload = await requestJson(detailUrl, fetchImpl, maxBytes)
+        const detailPayload = await requestJson(detailUrl, fetchImpl, maxBytes, budget)
         const detail = parsePosting(detailPayload)
         if (!detail || detail.id !== listed.id || !detail.jobAd?.sections?.jobDescription?.text) {
           throw new ProviderError('provider_schema_invalid')
@@ -280,6 +338,14 @@ export async function pollSmartRecruiters(
       return incomplete(
         jobs,
         error instanceof ProviderError ? error.code : 'provider_error',
+        expectedCount,
+        pageCount,
+      )
+    }
+    if (allowedDetailIndexes.length !== detailIndexes.length) {
+      return incomplete(
+        jobs,
+        'detail_budget_exceeded',
         expectedCount,
         pageCount,
       )
