@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 02.1
-current_phase_name: Source Coverage Expansion
+current_phase_name: source-coverage-expansion
 status: executing
-stopped_at: Phase 02.1 planned — ready to execute
-last_updated: "2026-07-17T22:29:55.085Z"
-last_activity: 2026-07-17
-last_activity_desc: Phase 02.1 planning complete
+stopped_at: Completed 02.1-01-PLAN.md
+last_updated: "2026-07-18T00:14:52.071Z"
+last_activity: 2026-07-18
+last_activity_desc: Phase 02.1 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 18
-  completed_plans: 10
-  percent: 40
+  completed_plans: 11
+  percent: 61
 ---
 
 # Project State
@@ -28,20 +28,20 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 
 ## Current Position
 
-Phase: 02.1 — Source Coverage Expansion
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-17 — Phase 02.1 planning complete
+Phase: 02.1 (source-coverage-expansion) — EXECUTING
+Plan: 2 of 8
+Status: Executing Plan 02
+Last activity: 2026-07-18 — Phase 02.1 execution started
 
-Progress: [████░░░░░░] 40% (10/18 plans)
+Progress: [██████░░░░] 61% (11/18 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 10
-- Average duration: 59m
-- Total execution time: 593m
+- Total plans completed: 11
+- Average duration: 55m
+- Total execution time: 601m
 
 **By Phase:**
 
@@ -63,6 +63,7 @@ Progress: [████░░░░░░] 40% (10/18 plans)
 | Phase 02 P05 | 9m | 3 tasks | 3 files |
 | Phase 02 P06 | 6min | 3 tasks | 8 files |
 | Phase 02 P07 | 21min | 2 tasks | 9 files |
+| Phase 02.1 P01 | 8 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Keep partial discovery failures degraded and HTTP 200, but propagate total failure as HTTP 503 through both discovery-sweep and heartbeat.
 - [Phase 02]: Use the user-approved 30-minute 06:00-noon Chicago and two-hour otherwise aggregator cadence, about 63 requests/day for three queries.
 - [Phase 02]: Gate a frequent cron trigger with DST-safe Chicago-local slots and cap operational Adzuna usage at 75 requests/day for weekly/monthly headroom.
+- [Phase 02.1]: Require completeness, closure credibility, positive page evidence, no warnings, and reconciled expected counts before direct-source closure.
+- [Phase 02.1]: Treat implausibly empty established boards as unknown observations that retain jobs and last_success_at.
+- [Phase 02.1]: Keep the temporary Greenhouse/Lever/Ashby dispatch exhaustive until Plan 02 replaces it with the closed connector registry.
 
 ### Pending Todos
 
@@ -136,6 +140,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-17T21:54:07.450Z
-Stopped at: Phase 02.1 planned — ready to execute
-Resume file: .planning/phases/02.1-source-coverage-expansion/02.1-01-PLAN.md
+Last session: 2026-07-18T00:14:07.766Z
+Stopped at: Completed 02.1-01-PLAN.md
+Resume file: None

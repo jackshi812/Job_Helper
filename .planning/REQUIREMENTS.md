@@ -32,7 +32,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DISC-06**: Pipeline runs record a heartbeat; a dead or silently failing cron is detectable within one poll cycle
 - [ ] **DISC-07**: System validates one representative company per feasible additional source platform (SmartRecruiters, Recruitee, Workday, Oracle Recruiting, iCIMS, SuccessFactors, and Eightfold) while preserving Greenhouse/Lever/Ashby support
 - [ ] **DISC-08**: System validates the agreed finance-company set by directly monitoring each company with a stable, safely pollable public contract; every remaining company has a canonical careers link, provider evidence, and an explicit `unsupported_with_reason` disposition and is never labeled monitored
-- [ ] **DISC-09**: Failed, blocked, changed, or implausibly empty sources retain last-known jobs, report Degraded with last-success/error detail, and never close jobs from the failed observation; new connectors are staged before scheduled activation
+- [x] **DISC-09**: Failed, blocked, changed, or implausibly empty sources retain last-known jobs, report Degraded with last-success/error detail, and never close jobs from the failed observation; new connectors are staged before scheduled activation
 
 ### Scoring & Feed
 
@@ -117,7 +117,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISC-06 | Phase 2 | Complete |
 | DISC-07 | Phase 02.1 | Pending |
 | DISC-08 | Phase 02.1 | Pending |
-| DISC-09 | Phase 02.1 | Pending |
+| DISC-09 | Phase 02.1 | Complete |
 | SCOR-01 | Phase 3 | Pending |
 | SCOR-02 | Phase 3 | Pending |
 | SCOR-03 | Phase 3 | Pending |

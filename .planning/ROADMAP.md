@@ -102,14 +102,14 @@ Plans:
   4. A blocked, changed, failed, or implausibly empty source retains its last known jobs, reports Degraded with the last successful sync and useful error detail, and never closes jobs from that failed observation
   5. Every new connector passes manual verification and several successful syncs before scheduled polling is enabled; unsupported or unstable candidates remain clearly documented rather than being presented as reliable
 
-**Plans:** 8 plans
+**Plans:** 1/8 plans executed
 **UI hint:** yes
 
 Plans:
 
 **Wave 1**
 
-- [ ] 02.1-01-PLAN.md — Existing-provider PollObservation and closure-safe degradation slice
+- [x] 02.1-01-PLAN.md — Existing-provider PollObservation and closure-safe degradation slice
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -179,7 +179,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
 | 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
-| 02.1 Source Coverage Expansion | 0/8 | Not started | - |
+| 02.1 Source Coverage Expansion | 1/8 | In Progress|  |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
