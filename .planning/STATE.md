@@ -4,39 +4,33 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 02.1
 current_phase_name: source-coverage-expansion
-status: executing
-stopped_at: Completed 02.1-07-PLAN.md
-last_updated: "2026-07-18T14:20:06.258Z"
+status: verifying
+stopped_at: Completed 02.1-08-PLAN.md
+last_updated: "2026-07-18T15:45:00.325Z"
 last_activity: 2026-07-18
-last_activity_desc: Phase 02.1 execution started
+last_activity_desc: Phase 02.1 execution complete; visual UAT pending
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 18
-  completed_plans: 17
-  percent: 40
+  completed_plans: 18
+  percent: 60
 ---
 
 # Project State
-
 ## Project Reference
-
 See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** Discover relevant jobs fast (5–15 minutes from posting) and notify the user immediately — if job discovery and notification don't work reliably, nothing else matters.
 **Current focus:** Phase 02.1 — source-coverage-expansion
-
 ## Current Position
+Phase: 02.1 (source-coverage-expansion) — COMPLETE
+Plan: 8 of 8
+Status: Phase complete — ready for verification
+Last activity: 2026-07-18 — Phase 02.1 execution complete; visual UAT pending
 
-Phase: 02.1 (source-coverage-expansion) — EXECUTING
-Plan: 2 of 8
-Status: Ready to execute
-Last activity: 2026-07-18 — Phase 02.1 execution started
-
-Progress: [█████████░] 89% (16/18 plans)
-
+Progress: [██████████] 100% (18/18 plans)
 ## Performance Metrics
-
 **Velocity:**
 
 - Total plans completed: 14
@@ -71,6 +65,7 @@ Progress: [█████████░] 89% (16/18 plans)
 | Phase 02.1 P05 | 8 min | 3 tasks | 3 files |
 | Phase 02.1 P06 | 12 min | 3 tasks | 11 files |
 | Phase 02.1 P07 | 743min | 3 tasks | 5 files |
+| Phase 02.1 P08 | 79 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -128,6 +123,8 @@ Recent decisions affecting current work:
 - [Phase 02.1]: SmartRecruiters remains catalog-only unsupported; no access bypass. — Hosted anonymous verification was unavailable, so D-04 requires honest unsupported evidence.
 - [Phase 02.1]: Capital One Workday remains Experimental and unclaimable after 3/3 observations. — The public CXS surface is undocumented; the fourth-window cap passed without enabling scheduled polling.
 - [Phase 02.1]: Reattach preserved provider jobs only when company_id is null and exact source/external ID returns. — This restores delete/re-add continuity while preserving first-sight snapshots and concurrent ownership.
+- [Phase 02.1]: Tie production acceptance to the exact Cloudflare deployment commit and immutable asset hash before UAT. — Prevents stale mutable-URL acceptance.
+- [Phase 02.1]: Exclude minute-scheduler-owned health fields from rejected-auth mutation baselines while retaining stable identity, activation, ledger, and job checks. — Avoids concurrent cron false positives without weakening the tested authorization boundary.
 
 ### Quick Tasks Completed
 
@@ -146,6 +143,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-18T14:20:06.252Z
-Stopped at: Completed 02.1-07-PLAN.md
+Last session: 2026-07-18T15:43:58.335Z
+Stopped at: Completed 02.1-08-PLAN.md
 Resume file: None
