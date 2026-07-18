@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   exactJobReturnAction,
+  observationHealthUpdate,
   planCompanySync,
   shouldAdvanceSuccessHeartbeat,
 } from '../../supabase/functions/_shared/lifecycle.ts'
-import { type NormalizedJob } from '../../supabase/functions/_shared/adapters/types.ts'
+import {
+  type NormalizedJob,
+  type PollObservation,
+} from '../../supabase/functions/_shared/adapters/types.ts'
 
 const nowIso = '2026-07-17T17:00:00.000Z'
 
@@ -20,6 +24,20 @@ function returnedJob(overrides: Partial<NormalizedJob> = {}): NormalizedJob {
     descriptionText: 'Build reliable systems.',
     snapshotPartial: false,
     companyName: 'Example',
+    ...overrides,
+  }
+}
+
+function observation(
+  overrides: Partial<PollObservation> = {},
+): PollObservation {
+  return {
+    jobs: [returnedJob()],
+    completeness: 'complete',
+    credibleForClosure: true,
+    pageCount: 1,
+    expectedCount: 1,
+    warnings: [],
     ...overrides,
   }
 }
@@ -60,7 +78,7 @@ describe('planCompanySync', () => {
   it('reopens a returned closed exact-ID job without creating or closing it', () => {
     const plan = planCompanySync(
       [existingJob({ status: 'closed', last_seen_at: '2026-07-17T16:20:00.000Z' })],
-      [returnedJob()],
+      observation(),
       nowIso,
     )
 
@@ -71,7 +89,7 @@ describe('planCompanySync', () => {
   })
 
   it('classifies an open exact-ID match as seen', () => {
-    const plan = planCompanySync([existingJob()], [returnedJob()], nowIso)
+    const plan = planCompanySync([existingJob()], observation(), nowIso)
 
     expect(plan.seenOpenIds).toEqual(['job-1'])
     expect(plan.reopenIds).toEqual([])
@@ -81,7 +99,11 @@ describe('planCompanySync', () => {
   it('keeps a genuinely new returned job untouched', () => {
     const job = returnedJob({ externalId: 'new-456' })
 
-    expect(planCompanySync([existingJob()], [job], nowIso).newJobs).toEqual([job])
+    expect(planCompanySync(
+      [existingJob()],
+      observation({ jobs: [job] }),
+      nowIso,
+    ).newJobs).toEqual([job])
   })
 
   it('closes an open job missing beyond the disappearance grace period', () => {
@@ -90,7 +112,7 @@ describe('planCompanySync', () => {
       last_seen_at: '2026-07-17T16:24:00.000Z',
     })
 
-    expect(planCompanySync([missing], [returnedJob()], nowIso).closeIds).toEqual(['job-1'])
+    expect(planCompanySync([missing], observation(), nowIso).closeIds).toEqual(['job-1'])
   })
 
   it('keeps a missing open job inside the close grace period', () => {
@@ -99,13 +121,17 @@ describe('planCompanySync', () => {
       last_seen_at: '2026-07-17T16:50:00.000Z',
     })
 
-    expect(planCompanySync([missing], [returnedJob()], nowIso).closeIds).toEqual([])
+    expect(planCompanySync([missing], observation(), nowIso).closeIds).toEqual([])
   })
 
   it('closes nothing after an empty poll', () => {
     const missing = existingJob({ last_seen_at: '2026-07-17T16:00:00.000Z' })
 
-    expect(planCompanySync([missing], [], nowIso).closeIds).toEqual([])
+    expect(planCompanySync(
+      [missing],
+      observation({ jobs: [], expectedCount: 0 }),
+      nowIso,
+    ).closeIds).toEqual([])
   })
 
   it('never classifies an absent closed row as a close candidate', () => {
@@ -115,10 +141,54 @@ describe('planCompanySync', () => {
       last_seen_at: '2026-07-17T16:00:00.000Z',
     })
 
-    const plan = planCompanySync([closed], [returnedJob()], nowIso)
+    const plan = planCompanySync([closed], observation(), nowIso)
     expect(plan.closeIds).toEqual([])
     expect(plan.seenOpenIds).toEqual([])
     expect(plan.reopenIds).toEqual([])
+  })
+
+  it.each([
+    ['partial page', 'partial', false, ['partial_page']],
+    ['unknown response', 'unknown', false, ['unknown_response']],
+    ['malformed response', 'unknown', false, ['malformed_response']],
+    ['WAF HTML', 'unknown', false, ['waf_html']],
+    ['rate limit', 'unknown', false, ['http_429']],
+    ['timeout', 'unknown', false, ['timeout']],
+    ['detail failure', 'partial', false, ['detail_failure']],
+    ['count mismatch', 'partial', false, ['count_mismatch']],
+    ['implausibly empty', 'unknown', false, ['implausibly_empty']],
+  ] as const)(
+    'never closes jobs after a %s observation',
+    (_label, completeness, credibleForClosure, warnings) => {
+      const missing = existingJob({
+        external_id: 'missing',
+        last_seen_at: '2026-07-17T16:00:00.000Z',
+      })
+
+      const plan = planCompanySync(
+        [missing],
+        observation({ completeness, credibleForClosure, warnings: [...warnings] }),
+        nowIso,
+      )
+
+      expect(plan.closeIds).toEqual([])
+    },
+  )
+
+  it('ingests safe rows from a partial observation without advancing source success', () => {
+    const partial = observation({
+      completeness: 'partial',
+      credibleForClosure: false,
+      warnings: ['detail_failure'],
+    })
+    const previousSuccess = '2026-07-17T16:30:00.000Z'
+
+    expect(planCompanySync([], partial, nowIso).newJobs).toEqual(partial.jobs)
+    expect(observationHealthUpdate(partial, previousSuccess, 2, nowIso)).toEqual({
+      last_success_at: previousSuccess,
+      consecutive_failures: 3,
+      last_error: 'detail_failure',
+    })
   })
 })
 
