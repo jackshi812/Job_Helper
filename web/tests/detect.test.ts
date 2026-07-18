@@ -19,12 +19,30 @@ describe('detectAts', () => {
     ['https://www.jobs.ashbyhq.com/ramp', { ats: 'ashby', slug: 'ramp' }],
     ['https://jobs.smartrecruiters.com/SmartRecruiters', { ats: 'smartrecruiters', slug: 'SmartRecruiters' }],
     ['https://uturn.recruitee.com', { ats: 'recruitee', slug: 'uturn' }],
+    [
+      'https://capitalone.wd12.myworkdayjobs.com/Capital_One',
+      {
+        ats: 'workday',
+        slug: 'capitalone',
+        region: 'wd12',
+        site: 'Capital_One',
+      },
+    ],
   ])('detects %s', (url, expected) => {
     expect(detectAts(url)).toEqual(expected)
   })
 
   it.each([
     'https://acme.wd5.myworkdayjobs.com/jobs',
+    'http://capitalone.wd12.myworkdayjobs.com/Capital_One',
+    'https://user:password@capitalone.wd12.myworkdayjobs.com/Capital_One',
+    'https://capitalone.wd12.myworkdayjobs.com:444/Capital_One',
+    'https://capitalone.wd11.myworkdayjobs.com/Capital_One',
+    'https://other.wd12.myworkdayjobs.com/Capital_One',
+    'https://capitalone.wd12.myworkdayjobs.com/Other_Site',
+    'https://capitalone.wd12.myworkdayjobs.com/Capital_One/jobs',
+    'https://capitalone.wd12.myworkdayjobs.com/Capital%2FOne',
+    'https://capitalone.wd12.myworkdayjobs.com.evil.example/Capital_One',
     'https://careers.example.com/jobs',
     'https://boards.greenhouse.io/acme/jobs/123',
     'https://boards.greenhouse.io/bad.slug',
@@ -53,7 +71,7 @@ describe('detectAts', () => {
 
   it('exports the exact unsupported URL guidance', () => {
     expect(UNSUPPORTED_URL_MESSAGE).toBe(
-      "This URL isn't a supported job board. Job Copilot works with Greenhouse, Lever, Ashby, SmartRecruiters, and Recruitee. Use the exact public careers-board URL — usually where the careers page's Apply buttons point.",
+      "This URL isn't a supported job board. Job Copilot works with Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, and the allowlisted Capital One Workday board. Use the exact public careers-board URL — usually where the careers page's Apply buttons point.",
     )
   })
 })
@@ -83,6 +101,15 @@ describe('buildEndpoint', () => {
     [
       { ats: 'recruitee', slug: 'uturn' } as const,
       'https://uturn.recruitee.com/api/offers/',
+    ],
+    [
+      {
+        ats: 'workday',
+        slug: 'capitalone',
+        region: 'wd12',
+        site: 'Capital_One',
+      } as const,
+      'https://capitalone.wd12.myworkdayjobs.com/wday/cxs/capitalone/Capital_One/jobs',
     ],
   ])('constructs an allowlisted endpoint', (detected, expected) => {
     expect(buildEndpoint(detected)).toBe(expected)

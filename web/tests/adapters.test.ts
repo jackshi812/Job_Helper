@@ -9,6 +9,9 @@ import {
   mapAshbyJob,
   mapAshbyJobs,
 } from '../../supabase/functions/_shared/adapters/ashby'
+import {
+  mapWorkdayDetail,
+} from '../../supabase/functions/_shared/adapters/workday'
 
 const decodeFixtureHtml = (value: string) =>
   value.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&')
@@ -110,5 +113,30 @@ describe('Ashby adapter mapping', () => {
         { ...listed, id: 'hidden', title: 'Hidden role', isListed: false },
       ]).map((job) => job.externalId),
     ).toEqual(['e1a8aefa-8c75-4f8f-8b3c-cf959e14a081'])
+  })
+})
+
+describe('Workday adapter mapping', () => {
+  it('normalizes a validated Capital One detail without trusting display identity', () => {
+    expect(mapWorkdayDetail({
+      jobPostingInfo: {
+        id: 'R123456',
+        title: 'Senior Software Engineer',
+        jobDescription: '<p>Build reliable financial systems.</p>',
+        location: 'Chicago, IL',
+        postedOn: 'Posted 2 Days Ago',
+      },
+    }, '/job/Chicago-IL/Senior-Software-Engineer_R123456')).toEqual({
+      source: 'workday',
+      externalId: 'R123456',
+      title: 'Senior Software Engineer',
+      location: 'Chicago, IL',
+      absoluteUrl: 'https://capitalone.wd12.myworkdayjobs.com/Capital_One/job/Chicago-IL/Senior-Software-Engineer_R123456',
+      postedAt: null,
+      descriptionHtml: '<p>Build reliable financial systems.</p>',
+      descriptionText: 'Build reliable financial systems.',
+      snapshotPartial: false,
+      companyName: 'Capital One',
+    })
   })
 })
