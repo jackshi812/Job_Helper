@@ -102,7 +102,7 @@ Plans:
   4. A blocked, changed, failed, or implausibly empty source retains its last known jobs, reports Degraded with the last successful sync and useful error detail, and never closes jobs from that failed observation
   5. Every new connector passes manual verification and several successful syncs before scheduled polling is enabled; unsupported or unstable candidates remain clearly documented rather than being presented as reliable
 
-**Plans:** 8/8 plans complete
+**Plans:** 13 plans (8 complete + 5 gap closure from 02.1-VERIFICATION.md)
 **UI hint:** yes
 
 Plans:
@@ -135,6 +135,20 @@ Plans:
 **Wave 7** *(blocked on hosted backend proof)*
 
 - [x] 02.1-08-PLAN.md — [APPROVAL] origin/main push, SHA-matched Cloudflare deployment proof, and deployed UI acceptance
+
+**Gap Closure Wave 1** *(from 02.1-VERIFICATION.md gaps_found)*
+
+- [ ] 02.1-09-PLAN.md — Safe disposable hosted verifier with real poll-tick reopen proof and zero production-row residue
+- [ ] 02.1-10-PLAN.md — Truthful Experimental health plus accessible in-modal removal failures
+- [ ] 02.1-11-PLAN.md — Invocation-wide SmartRecruiters detail and time budgets with stable partial warnings
+
+**Gap Closure Wave 2** *(blocked on Gap Closure Wave 1)*
+
+- [ ] 02.1-12-PLAN.md — [APPROVAL] exact-SHA deployment and exhaustive mutation-evidence hosted proof
+
+**Gap Closure Wave 3** *(blocked on Gap Closure Wave 2)*
+
+- [ ] 02.1-13-PLAN.md — Final human D5 visual, destination, keyboard, focus, inert-background, and announcement UAT
 
 ### Phase 3: Scoring, Feed & Notifications
 
