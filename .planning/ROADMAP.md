@@ -102,7 +102,7 @@ Plans:
   4. A blocked, changed, failed, or implausibly empty source retains its last known jobs, reports Degraded with the last successful sync and useful error detail, and never closes jobs from that failed observation
   5. Every new connector passes manual verification and several successful syncs before scheduled polling is enabled; unsupported or unstable candidates remain clearly documented rather than being presented as reliable
 
-**Plans:** 10/13 plans executed
+**Plans:** 11/13 plans executed
 **UI hint:** yes
 
 Plans:
@@ -140,7 +140,7 @@ Plans:
 
 - [x] 02.1-09-PLAN.md — Safe disposable hosted verifier with real poll-tick reopen proof and zero production-row residue
 - [x] 02.1-10-PLAN.md — Truthful Experimental health plus accessible in-modal removal failures
-- [ ] 02.1-11-PLAN.md — Invocation-wide SmartRecruiters detail and time budgets with stable partial warnings
+- [x] 02.1-11-PLAN.md — Invocation-wide SmartRecruiters detail and time budgets with stable partial warnings
 
 **Gap Closure Wave 2** *(blocked on Gap Closure Wave 1)*
 
@@ -193,7 +193,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
 | 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
-| 02.1 Source Coverage Expansion | 10/13 | In Progress|  |
+| 02.1 Source Coverage Expansion | 11/13 | In Progress|  |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 

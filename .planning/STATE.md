@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02.1
 current_phase_name: source-coverage-expansion
 status: executing
-stopped_at: Completed 02.1-10-PLAN.md
-last_updated: "2026-07-18T17:16:51.836Z"
+stopped_at: Completed 02.1-11-PLAN.md
+last_updated: "2026-07-18T17:25:21.696Z"
 last_activity: 2026-07-18
 last_activity_desc: Phase 02.1 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 23
-  completed_plans: 20
+  completed_plans: 21
   percent: 40
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 ## Current Position
 
 Phase: 02.1 (source-coverage-expansion) — EXECUTING
-Plan: 2 of 13
+Plan: 3 of 13
 Status: Ready to execute
 Last activity: 2026-07-18 — Phase 02.1 execution started
 
-Progress: [████████░░] 78% (18/23 plans)
+Progress: [█████████░] 91% (21/23 plans)
 
 ## Performance Metrics
 
@@ -74,6 +74,7 @@ Progress: [████████░░] 78% (18/23 plans)
 | Phase 02.1 P08 | 79 min | 3 tasks | 2 files |
 | Phase 02.1 P09 | 7 min | 2 tasks | 2 files |
 | Phase 02.1 P10 | 4 min | 2 tasks | 5 files |
+| Phase 02.1 P11 | 5 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -135,6 +136,8 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Exclude minute-scheduler-owned health fields from rejected-auth mutation baselines while retaining stable identity, activation, ledger, and job checks. — Avoids concurrent cron false positives without weakening the tested authorization boundary.
 - [Phase 02.1]: Use last_verified_at only as an Experimental display-health fallback after positive progress with zero failures and no bounded error; Active health remains poll-derived.
 - [Phase 02.1]: Keep ConfirmDialog errorMessage optional so Watchlist can announce bounded removal failures inside the modal without changing Resume or Settings destructive defaults.
+- [Phase 02.1]: Use performance.now by default and an injectable clock so SmartRecruiters enforces a monotonic 60-second invocation deadline deterministically.
+- [Phase 02.1]: Allow a final one-request detail batch when one count slot remains, preserving the exact 40-request ceiling and maximum concurrency two.
 
 ### Quick Tasks Completed
 
@@ -153,6 +156,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-18T17:16:33.368Z
-Stopped at: Completed 02.1-10-PLAN.md
+Last session: 2026-07-18T17:24:52.701Z
+Stopped at: Completed 02.1-11-PLAN.md
 Resume file: None
