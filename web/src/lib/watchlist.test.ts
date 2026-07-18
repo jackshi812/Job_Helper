@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { UNSUPPORTED_URL_MESSAGE } from '../../../supabase/functions/_shared/detect'
-import { addCompany, deriveHealth, type CompanyRecord } from './watchlist'
+import {
+  addCompany,
+  COMPANY_COLUMNS,
+  deriveHealth,
+  type CompanyRecord,
+} from './watchlist'
 import { supabase } from './supabase'
 
 vi.mock('./supabase', () => ({
@@ -19,6 +24,14 @@ function company(overrides: Partial<CompanyRecord> = {}): CompanyRecord {
     ats_type: 'greenhouse',
     board_token: 'acme',
     region: null,
+    careers_url: 'https://job-boards.greenhouse.io/acme',
+    source_key: 'greenhouse:global:acme',
+    site_token: null,
+    activation_state: 'active',
+    activation_successes: 0,
+    last_verified_at: now.toISOString(),
+    last_error_code: null,
+    last_observation_count: 3,
     last_polled_at: now.toISOString(),
     last_success_at: new Date(now.getTime() - 10 * 60_000).toISOString(),
     consecutive_failures: 0,
@@ -79,5 +92,46 @@ describe('addCompany', () => {
       'Check the address and try again.',
     )
     expect(supabase.from).not.toHaveBeenCalled()
+  })
+
+  it('returns the server-written company without a browser insert', async () => {
+    const saved = company()
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { ok: true, company: saved, already_watched: false },
+      error: null,
+    } as never)
+
+    await expect(addCompany('https://job-boards.greenhouse.io/acme')).resolves.toEqual(saved)
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('verify-board', {
+      body: { url: 'https://job-boards.greenhouse.io/acme' },
+    })
+    expect(supabase.from).not.toHaveBeenCalled()
+  })
+
+  it('keeps duplicate adds friendly without attempting an operational overwrite', async () => {
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: {
+        ok: false,
+        reason: 'already_watched',
+        message: 'Acme is already on the watchlist.',
+      },
+      error: null,
+    } as never)
+
+    await expect(addCompany('https://job-boards.greenhouse.io/acme')).rejects.toThrow(
+      'Acme is already on the watchlist.',
+    )
+    expect(supabase.from).not.toHaveBeenCalled()
+  })
+
+  it('selects the canonical link and authoritative connector-state columns', () => {
+    expect(COMPANY_COLUMNS).toContain('careers_url')
+    expect(COMPANY_COLUMNS).toContain('source_key')
+    expect(COMPANY_COLUMNS).toContain('activation_state')
+    expect(COMPANY_COLUMNS).toContain('activation_successes')
+    expect(COMPANY_COLUMNS).toContain('last_verified_at')
+    expect(COMPANY_COLUMNS).toContain('last_error_code')
+    expect(COMPANY_COLUMNS).toContain('last_observation_count')
   })
 })
