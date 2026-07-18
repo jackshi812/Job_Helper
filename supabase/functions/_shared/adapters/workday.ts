@@ -346,3 +346,61 @@ export async function pollWorkday(
     warnings: [],
   }
 }
+
+export async function verifyWorkdayListing(
+  fetchImpl: FetchLike = fetch,
+  options: WorkdayOptions = {},
+) {
+  const pageSize = Math.min(Math.max(options.pageSize ?? DEFAULT_PAGE_SIZE, 1), 20)
+  const maxPages = Math.min(options.maxPages ?? DEFAULT_MAX_PAGES, DEFAULT_MAX_PAGES)
+  const maxJobs = Math.min(options.maxJobs ?? DEFAULT_MAX_JOBS, DEFAULT_MAX_JOBS)
+  const seenPaths = new Set<string>()
+  let expectedCount: number | undefined
+  let pageCount = 0
+
+  while (pageCount < maxPages) {
+    const payload = await requestJson(LIST_URL, fetchImpl, options.maxBytes ?? DEFAULT_MAX_BYTES, {
+      method: 'POST',
+      body: JSON.stringify({
+        appliedFacets: {},
+        limit: pageSize,
+        offset: seenPaths.size,
+        searchText: '',
+      }),
+    })
+    if (!payload || typeof payload !== 'object') throw new ProviderError('provider_schema_invalid')
+    const page = payload as Record<string, unknown>
+    if (!Number.isInteger(page.total) || (page.total as number) < 0 || !Array.isArray(page.jobPostings)) {
+      throw new ProviderError('provider_schema_invalid')
+    }
+    const pageTotal = page.total as number
+    if (expectedCount === undefined) expectedCount = pageTotal
+    if (pageTotal !== expectedCount) throw new ProviderError('count_mismatch')
+    if (expectedCount > maxJobs) throw new ProviderError('job_cap_exceeded')
+
+    const postings = page.jobPostings.map(parseListPosting)
+    if (postings.some((posting) => posting === null)) {
+      const unsafePath = page.jobPostings.some((posting) => (
+        posting
+        && typeof posting === 'object'
+        && 'externalPath' in posting
+        && !safeDetailPath((posting as { externalPath: unknown }).externalPath)
+      ))
+      throw new ProviderError(unsafePath ? 'unsafe_detail_path' : 'provider_schema_invalid')
+    }
+    pageCount += 1
+    for (const posting of postings as WorkdayListPosting[]) {
+      if (seenPaths.has(posting.externalPath)) throw new ProviderError('count_mismatch')
+      seenPaths.add(posting.externalPath)
+    }
+    if (seenPaths.size >= expectedCount) break
+    if (page.jobPostings.length === 0) throw new ProviderError('count_mismatch')
+  }
+
+  if (expectedCount === undefined) throw new ProviderError('provider_schema_invalid')
+  if (expectedCount === 0) throw new ProviderError('implausible_empty')
+  if (seenPaths.size !== expectedCount) {
+    throw new ProviderError(pageCount >= maxPages ? 'page_cap_exceeded' : 'count_mismatch')
+  }
+  return { jobCount: expectedCount, pageCount }
+}

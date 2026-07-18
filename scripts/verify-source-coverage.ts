@@ -296,7 +296,11 @@ async function verifyAuthorizationMatrix(
   const baseline = await mutationBaseline(admin)
   const cases = [
     { name: 'anon-key', token: environment.publishableKey, expected: 'handler' },
-    { name: 'service-role', token: environment.secretKey, expected: 'handler' },
+    {
+      name: 'service-role',
+      token: environment.secretKey,
+      expected: environment.secretKey.split('.').length === 3 ? 'handler' : 'gateway',
+    },
     { name: 'malformed', token: `malformed.${randomUUID()}.token`, expected: 'gateway' },
     { name: 'expired', token: expiredUserJwt(environment, userId), expected: 'gateway' },
   ] as const

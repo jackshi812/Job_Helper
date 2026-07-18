@@ -75,6 +75,30 @@ describe('Capital One Workday identity contract', () => {
       careersUrl: boardUrl,
       sourceKey,
     })
+    expect(providerFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('bounds manual verification to reconciled list pages without detail fan-out', async () => {
+    const detected = detectAts(boardUrl)
+    if (detected.ats === 'unsupported') throw new Error('expected Workday detection')
+    const secondPosting = {
+      ...listPosting,
+      title: 'Data Engineer',
+      externalPath: '/job/Chicago-IL/Data-Engineer_R654321',
+    }
+    const providerFetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { limit: number; offset: number }
+      expect(body).toMatchObject({ appliedFacets: {}, limit: 20, searchText: '' })
+      return body.offset === 0
+        ? jsonResponse({ total: 2, jobPostings: [listPosting] })
+        : jsonResponse({ total: 2, jobPostings: [secondPosting] })
+    })
+
+    await expect(verifyConnector(detected, providerFetch)).resolves.toMatchObject({
+      jobCount: 2,
+      sourceKey,
+    })
+    expect(providerFetch).toHaveBeenCalledTimes(2)
   })
 
   it('registers Workday for manual verification but blocks scheduled dispatch', async () => {

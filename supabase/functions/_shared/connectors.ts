@@ -6,6 +6,7 @@ import { pollSmartRecruiters } from './adapters/smartrecruiters.ts'
 import {
   CAPITAL_ONE_WORKDAY_SOURCE_KEY,
   pollWorkday,
+  verifyWorkdayListing,
 } from './adapters/workday.ts'
 import { type PollObservation } from './adapters/types.ts'
 import { buildEndpoint, type DetectResult } from './detect.ts'
@@ -148,16 +149,8 @@ async function verifyWorkday(
     || detected.region !== 'wd12'
     || detected.site !== 'Capital_One'
   ) throw new Error('invalid_identity')
-  const observation = await pollWorkday(fetchImpl)
-  if (
-    observation.completeness !== 'complete'
-    || !observation.credibleForClosure
-    || observation.warnings.length > 0
-    || observation.expectedCount !== observation.jobs.length
-  ) {
-    throw new Error(observation.warnings[0] ?? 'provider_observation_failed')
-  }
-  return verification(detected, 'Capital One', observation.jobs.length)
+  const listing = await verifyWorkdayListing(fetchImpl)
+  return verification(detected, 'Capital One', listing.jobCount)
 }
 
 function complete(jobs: PollObservation['jobs']): PollObservation {
