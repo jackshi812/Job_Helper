@@ -10,6 +10,8 @@ import {
 import {
   pollRecruitee,
 } from '../../supabase/functions/_shared/adapters/recruitee.ts'
+import migrationSql from '../../supabase/migrations/0014_public_connectors.sql?raw'
+import normalizedTypesSource from '../../supabase/functions/_shared/adapters/types.ts?raw'
 
 const smartPosting = {
   id: 'sr-101',
@@ -107,9 +109,12 @@ describe('SmartRecruiters bounded observation', () => {
   })
 
   it('retains safe rows but degrades a count mismatch', async () => {
+    const providerFetch = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ totalFound: 2, content: [smartPosting] }))
+      .mockResolvedValueOnce(jsonResponse({ totalFound: 2, content: [] }))
     const observation = await pollSmartRecruiters(
       'SmartRecruiters',
-      vi.fn().mockResolvedValue(jsonResponse({ totalFound: 2, content: [smartPosting] })),
+      providerFetch,
       { pageSize: 100 },
     )
 
@@ -155,6 +160,22 @@ describe('Recruitee bounded observation', () => {
       warnings: [warning],
     })
   })
+
+  it('preserves safe rows when another record is malformed', async () => {
+    const observation = await pollRecruitee(
+      'uturn',
+      vi.fn().mockResolvedValue(jsonResponse({
+        offers: [recruiteeOffer, { ...recruiteeOffer, id: 'bad', careers_url: 'http://unsafe.example' }],
+      })),
+    )
+    expect(observation).toMatchObject({
+      completeness: 'partial',
+      credibleForClosure: false,
+      expectedCount: 2,
+      jobs: [{ externalId: '202' }],
+      warnings: ['provider_schema_invalid'],
+    })
+  })
 })
 
 describe('closed registry dispatch for public connectors', () => {
@@ -168,6 +189,19 @@ describe('closed registry dispatch for public connectors', () => {
       'recruitee',
       'smartrecruiters',
     ])
+  })
+
+  it('keeps normalized sources and database constraints in parity', () => {
+    const executable = ['greenhouse', 'lever', 'ashby', 'smartrecruiters', 'recruitee']
+    for (const provider of executable) {
+      expect(normalizedTypesSource).toContain(`| '${provider}'`)
+      expect(migrationSql).toContain(`'${provider}'`)
+    }
+    expect(migrationSql).toContain("source in ('greenhouse', 'lever', 'ashby', 'smartrecruiters', 'recruitee', 'adzuna')")
+    expect(migrationSql).toContain("ats_type in ('greenhouse', 'lever', 'ashby', 'smartrecruiters', 'recruitee')")
+    expect(migrationSql).toContain("source = 'recruitee'")
+    expect(migrationSql).toContain("source = 'smartrecruiters'")
+    expect(migrationSql).not.toMatch(/workday|oracle|icims|successfactors|eightfold/i)
   })
 
   it.each([

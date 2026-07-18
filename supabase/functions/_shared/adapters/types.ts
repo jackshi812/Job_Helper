@@ -1,5 +1,11 @@
 export interface NormalizedJob {
-  source: 'greenhouse' | 'lever' | 'ashby' | 'adzuna'
+  source:
+    | 'greenhouse'
+    | 'lever'
+    | 'ashby'
+    | 'smartrecruiters'
+    | 'recruitee'
+    | 'adzuna'
   externalId: string
   title: string
   location: string | null
