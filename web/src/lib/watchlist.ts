@@ -5,7 +5,7 @@ import {
 import { supabase } from './supabase'
 
 export const COMPANY_COLUMNS =
-  'id, name, ats_type, board_token, region, last_polled_at, last_success_at, consecutive_failures, last_error, created_at'
+  'id, name, ats_type, board_token, region, careers_url, source_key, site_token, activation_state, activation_successes, last_verified_at, last_polled_at, last_success_at, consecutive_failures, last_error, last_error_code, last_observation_count, created_at'
 
 export interface CompanyRecord {
   id: string
@@ -13,10 +13,18 @@ export interface CompanyRecord {
   ats_type: 'greenhouse' | 'lever' | 'ashby'
   board_token: string
   region: 'eu' | null
+  careers_url: string
+  source_key: string
+  site_token: string | null
+  activation_state: 'experimental' | 'active' | 'disabled'
+  activation_successes: number
+  last_verified_at: string | null
   last_polled_at: string | null
   last_success_at: string | null
   consecutive_failures: number
   last_error: string | null
+  last_error_code: string | null
+  last_observation_count: number | null
   created_at: string
 }
 
@@ -25,15 +33,12 @@ export type HealthStatus = 'ok' | 'failing' | 'stale'
 export type VerifyBoardResponse =
   | {
       ok: true
-      ats: CompanyRecord['ats_type']
-      board_token: string
-      region: CompanyRecord['region']
-      company_name: string
-      job_count: number
+      company: CompanyRecord
+      already_watched: false
     }
   | {
       ok: false
-      reason: 'unsupported' | 'not_found' | 'error'
+      reason: 'unsupported' | 'not_found' | 'already_watched' | 'unauthorized' | 'forbidden' | 'error'
       message: string
     }
 
@@ -54,30 +59,23 @@ export async function addCompany(url: string): Promise<CompanyRecord> {
     await supabase.functions.invoke('verify-board', { body: { url } })
   const verification = verificationData as VerifyBoardResponse | null
 
-  if (verificationError) throw verificationError
+  if (verificationError) {
+    const context = (verificationError as { context?: Response }).context
+    if (context) {
+      let message: string | null = null
+      try {
+        const response = await context.clone().json() as { message?: unknown }
+        message = typeof response.message === 'string' ? response.message : null
+      } catch { /* retain the original invocation error */ }
+      if (message) throw new Error(message)
+    }
+    throw verificationError
+  }
   if (!verification?.ok) {
     throw new Error(verification?.message ?? 'Unable to verify this job board. Please try again.')
   }
 
-  const { data, error } = await supabase
-    .from('companies')
-    .insert({
-      name: verification.company_name,
-      ats_type: verification.ats,
-      board_token: verification.board_token,
-      region: verification.region,
-    })
-    .select(COMPANY_COLUMNS)
-    .single()
-
-  if (error) {
-    if ('code' in error && error.code === '23505') {
-      throw new Error(`${verification.company_name} is already on the watchlist.`)
-    }
-    throw error
-  }
-
-  return data as CompanyRecord
+  return verification.company
 }
 
 export async function removeCompany(id: string): Promise<void> {

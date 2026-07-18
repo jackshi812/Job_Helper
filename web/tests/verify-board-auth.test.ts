@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { createVerifyBoardHandler } from '../../supabase/functions/verify-board/index.ts'
 
 const userA = { id: 'user-a', role: 'authenticated' }
@@ -44,7 +46,7 @@ function harness() {
   const from = vi.fn(() => ({ insert }))
   const rpc = vi.fn()
   const createServiceClient = vi.fn(() => ({ from, rpc }))
-  const providerFetch = vi.fn().mockResolvedValue(Response.json({
+  const providerFetch = vi.fn().mockImplementation(async () => Response.json({
     jobs: [{ company_name: 'Acme' }],
     meta: { total: 1 },
   }))
@@ -164,5 +166,25 @@ describe('verify-board authorization boundary', () => {
     expect(h.insert.mock.calls[0]?.[0]).not.toHaveProperty('user_id')
     expect(h.insert.mock.calls[1]?.[0]).not.toHaveProperty('user_id')
     expect(h.rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('connector-state SQL ownership', () => {
+  const migration = readFileSync(fileURLToPath(new URL(
+    '../../supabase/migrations/0012_connector_state.sql',
+    import.meta.url,
+  )), 'utf8')
+
+  it('revokes browser insert/update and removes obsolete authority policies', () => {
+    expect(migration).toMatch(/drop policy if exists "companies_insert_shared"/i)
+    expect(migration).toMatch(/drop policy if exists "companies_update_shared"/i)
+    expect(migration).toMatch(/revoke insert, update on table public\.companies from authenticated/i)
+    expect(migration).toMatch(/grant select, delete on table public\.companies to authenticated/i)
+  })
+
+  it('claims only active connectors while retaining the nine-minute due threshold', () => {
+    expect(migration).toMatch(/where activation_state = 'active'/i)
+    expect(migration).toMatch(/last_polled_at < now\(\) - interval '9 minutes'/i)
+    expect(migration).toMatch(/for update skip locked/i)
   })
 })
