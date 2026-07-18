@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   exactJobReturnAction,
+  fingerprintRepostLifecycleUpdate,
   observationHealthUpdate,
   planCompanySync,
   shouldAdvanceSuccessHeartbeat,
@@ -50,6 +51,46 @@ describe('exactJobReturnAction', () => {
   it('refreshes an open exact-ID snapshot and inserts only a missing ID', () => {
     expect(exactJobReturnAction(existingJob())).toBe('refresh')
     expect(exactJobReturnAction(undefined)).toBe('insert')
+  })
+})
+
+describe('fingerprintRepostLifecycleUpdate', () => {
+  it('preserves first-sight identity through external-ID oscillation', () => {
+    const original = {
+      id: 'job-1',
+      company_id: 'company-1',
+      source: 'greenhouse',
+      external_id: 'provider-original',
+      title: 'Software Engineer',
+      location: 'Chicago, IL',
+      absolute_url: 'https://example.com/jobs/provider-original',
+      posted_at: '2026-07-17T16:00:00.000Z',
+      description_html: '<p>Build reliable systems.</p>',
+      description_text: 'Build reliable systems.',
+      snapshot_partial: false,
+      fingerprint: 'example|software engineer|chicago',
+      status: 'open',
+      first_seen_at: '2026-07-17T16:05:00.000Z',
+      last_seen_at: '2026-07-17T16:50:00.000Z',
+      closed_at: null,
+    }
+    let stored = original
+
+    for (const [externalId, seenAt] of [
+      ['provider-repost-a', '2026-07-17T17:00:00.000Z'],
+      ['provider-repost-b', '2026-07-17T17:05:00.000Z'],
+      ['provider-original', '2026-07-17T17:10:00.000Z'],
+    ] as const) {
+      const returned = returnedJob({ externalId })
+      expect(returned.externalId).not.toBe(stored.external_id)
+
+      stored = {
+        ...stored,
+        ...fingerprintRepostLifecycleUpdate(seenAt),
+      }
+
+      expect(stored).toEqual({ ...original, last_seen_at: seenAt })
+    }
   })
 })
 

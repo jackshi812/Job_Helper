@@ -65,6 +65,21 @@ describe('pipeline reopen verifier ownership contract', () => {
     expect(connectorSource).toContain("if (company.activation_state !== 'active')")
   })
 
+  it('keeps fingerprint repost merges lifecycle-only and duplicate-free', () => {
+    const repostBranch = pollTickSource.match(
+      /const repostId = companyFingerprintIds\.get\(job\.fingerprint\)([\s\S]*?)inserts\.push\(row\)/,
+    )?.[1]
+
+    expect(repostBranch).toBeDefined()
+    expect(repostBranch).toContain('fingerprintRepostLifecycleUpdate(seenAt)')
+    expect(repostBranch).toMatch(/\.eq\('id', repostId\)[\s\S]*?continue/)
+    expect(repostBranch).not.toMatch(/source\s*:/)
+    expect(repostBranch).not.toMatch(/external_id\s*:/)
+    expect(repostBranch).not.toMatch(/title\s*:/)
+    expect(repostBranch).not.toMatch(/location\s*:/)
+    expect(repostBranch).not.toMatch(/description_(?:html|text)\s*:/)
+  })
+
   it('orders every destructive action after preflight and bounds all hosted work', () => {
     const preflight = source.indexOf('await assertReopenFixtureAvailable(admin, fixtureBoard.externalIds)')
     const drain = source.indexOf('await drainDueCompanies(url, cronSecret)')
