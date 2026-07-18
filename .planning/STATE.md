@@ -5,43 +5,38 @@ milestone_name: milestone
 current_phase: 02.1
 current_phase_name: source-coverage-expansion
 status: executing
-stopped_at: Completed 02.1-02-PLAN.md
-last_updated: "2026-07-18T00:32:54.909Z"
+stopped_at: Completed 02.1-03-PLAN.md
+last_updated: "2026-07-18T00:49:45.447Z"
 last_activity: 2026-07-18
-last_activity_desc: Completed Phase 02.1 Plan 02
+last_activity_desc: Completed Phase 02.1 Plan 03
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 18
-  completed_plans: 12
-  percent: 67
+  completed_plans: 13
+  percent: 72
 ---
-
 # Project State
-
 ## Project Reference
-
 See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** Discover relevant jobs fast (5–15 minutes from posting) and notify the user immediately — if job discovery and notification don't work reliably, nothing else matters.
 **Current focus:** Phase 02.1 — source-coverage-expansion
-
 ## Current Position
-
 Phase: 02.1 (source-coverage-expansion) — EXECUTING
-Plan: 3 of 8
-Status: Ready for Plan 03
-Last activity: 2026-07-18 — Completed Phase 02.1 Plan 02
+Plan: 4 of 8
+Status: Ready for Plan 04
+Last activity: 2026-07-18 — Completed Phase 02.1 Plan 03
 
-Progress: [███████░░░] 67% (12/18 plans)
+Progress: [███████░░░] 72% (13/18 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 12
-- Average duration: 51m
-- Total execution time: 609m
+- Total plans completed: 13
+- Average duration: 48m
+- Total execution time: 619m
 
 **By Phase:**
 
@@ -52,8 +47,8 @@ Progress: [███████░░░] 67% (12/18 plans)
 
 **Recent Trend:**
 
-- Last 3 plans: 21m, 8m, 8m
-- Trend: The hosted Phase 2 close-out was followed by two compact source-coverage foundation plans
+- Last 3 plans: 8m, 8m, 10m
+- Trend: Three compact source-coverage plans established lifecycle, registry, and truthful catalog/UI foundations
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
@@ -65,6 +60,7 @@ Progress: [███████░░░] 67% (12/18 plans)
 | Phase 02 P07 | 21min | 2 tasks | 9 files |
 | Phase 02.1 P01 | 8 min | 3 tasks | 5 files |
 | Phase 02.1 P02 | 8 min | 3 tasks | 8 files |
+| Phase 02.1 P03 | 10 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -114,6 +110,9 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Require auth.getUser and authenticated role before verify-board provider or privileged work. — Gateway JWT acceptance alone does not prove the bearer belongs to a real signed-in user.
 - [Phase 02.1]: Use deterministic provider-region-token source keys and separate canonical careers URLs. — Polling identity stays server-constructed while users retain a directly searchable navigation link.
 - [Phase 02.1]: Reject unknown and non-active connectors inside pollConnector before adapter access. — SQL eligibility and application dispatch independently fail closed.
+- [Phase 02.1]: Keep unsupported finance entries in a select-only evidence catalog so they can never enter scheduler claims or connector dispatch.
+- [Phase 02.1]: Pin Capital One reconciliation to the literal workday:wd12:capitalone:Capital_One source key and never derive it from display data.
+- [Phase 02.1]: Let catalog rows own navigation and evidence while matched company rows exclusively own activation, progress, health, dates, and removal.
 
 ### Pending Todos
 
@@ -144,6 +143,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-18T00:32:54.903Z
-Stopped at: Completed 02.1-02-PLAN.md
+Last session: 2026-07-18T00:49:45.441Z
+Stopped at: Completed 02.1-03-PLAN.md
 Resume file: None
