@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02.1
 current_phase_name: source-coverage-expansion
 status: executing
-stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-07-18T14:15:21.739Z"
+stopped_at: Completed 02.1-07-PLAN.md
+last_updated: "2026-07-18T14:20:06.258Z"
 last_activity: 2026-07-18
 last_activity_desc: Phase 02.1 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 18
-  completed_plans: 16
+  completed_plans: 17
   percent: 40
 ---
 
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 ## Current Position
 
 Phase: 02.1 (source-coverage-expansion) — EXECUTING
-Plan: 1 of 8
-Status: Executing Phase 02.1
+Plan: 2 of 8
+Status: Ready to execute
 Last activity: 2026-07-18 — Phase 02.1 execution started
 
 Progress: [█████████░] 89% (16/18 plans)
@@ -70,6 +70,7 @@ Progress: [█████████░] 89% (16/18 plans)
 | Phase 02.1 P04 | 8 min | 3 tasks | 9 files |
 | Phase 02.1 P05 | 8 min | 3 tasks | 3 files |
 | Phase 02.1 P06 | 12 min | 3 tasks | 11 files |
+| Phase 02.1 P07 | 743min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,9 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Use database-timed provider windows and a hard three-row cap; only SmartRecruiters/Recruitee auto-promote, while real-user Edge verification derives all accepted evidence. — Prevents replay, client-time spoofing, progress divergence, and unintended Workday activation.
 - [Phase 02.1]: Pin Workday execution to workday:wd12:capitalone:Capital_One and treat empty or drifted CXS responses as closure-ineligible. — The candidate CXS contract is undocumented, so only the fixed Capital One identity and fully reconciled positive observations are trustworthy.
 - [Phase 02.1]: Keep Workday Experimental and exclude it from both SQL claims and scheduled application dispatch after all three accepted windows. — Activation evidence may establish reachability without authorizing recurring polling of an undocumented provider contract.
+- [Phase 02.1]: SmartRecruiters remains catalog-only unsupported; no access bypass. — Hosted anonymous verification was unavailable, so D-04 requires honest unsupported evidence.
+- [Phase 02.1]: Capital One Workday remains Experimental and unclaimable after 3/3 observations. — The public CXS surface is undocumented; the fourth-window cap passed without enabling scheduled polling.
+- [Phase 02.1]: Reattach preserved provider jobs only when company_id is null and exact source/external ID returns. — This restores delete/re-add continuity while preserving first-sight snapshots and concurrent ownership.
 
 ### Quick Tasks Completed
 
@@ -142,6 +146,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-18T14:15:21.731Z
-Stopped at: Phase 3 UI-SPEC approved
-Resume file: .planning/phases/03-scoring-feed-notifications/03-UI-SPEC.md
+Last session: 2026-07-18T14:20:06.252Z
+Stopped at: Completed 02.1-07-PLAN.md
+Resume file: None
