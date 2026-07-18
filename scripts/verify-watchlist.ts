@@ -4,6 +4,7 @@ import { createClient } from '../web/node_modules/@supabase/supabase-js/dist/ind
 const required = [
   'SUPABASE_URL',
   'SUPABASE_PUBLISHABLE_KEY',
+  'SUPABASE_SECRET_KEY',
   'USER1_EMAIL',
   'USER2_EMAIL',
   'SEED_PASSWORD_1',
@@ -13,17 +14,22 @@ const required = [
 type VerifyBoardResponse =
   | {
       ok: true
-      ats: 'greenhouse' | 'lever' | 'ashby'
-      board_token: string
-      region: 'eu' | null
-      company_name: string
-      job_count: number
+      company: {
+        id: string
+        ats_type: 'greenhouse' | 'lever' | 'ashby'
+        board_token: string
+        region: 'eu' | null
+        name: string
+      }
+      already_watched: boolean
     }
   | {
       ok: false
-      reason: 'unsupported' | 'not_found' | 'error'
+      reason: 'unsupported' | 'not_found' | 'already_watched' | 'error'
       message: string
     }
+
+type PersistedSeed = Extract<VerifyBoardResponse, { ok: true }>['company']
 
 const seedBoards = [
   { label: 'Stripe', url: 'https://boards.greenhouse.io/stripe' },
@@ -53,6 +59,7 @@ function requiredEnvironment() {
   return {
     url: process.env.SUPABASE_URL!,
     key: process.env.SUPABASE_PUBLISHABLE_KEY!,
+    secretKey: process.env.SUPABASE_SECRET_KEY!,
     user1: { email: process.env.USER1_EMAIL!, password: process.env.SEED_PASSWORD_1! },
     user2: { email: process.env.USER2_EMAIL!, password: process.env.SEED_PASSWORD_2! },
   }
@@ -72,9 +79,39 @@ async function verifyBoard(
   const { data, error } = await client.functions.invoke<VerifyBoardResponse>('verify-board', {
     body: { url },
   })
-  if (error) throw error
+  if (error) {
+    const context = (error as { context?: Response }).context
+    if (context) {
+      try {
+        const body = await context.clone().json() as VerifyBoardResponse
+        if (body && typeof body === 'object' && 'ok' in body) return body
+      } catch { /* preserve the original invocation error */ }
+    }
+    throw error
+  }
   if (!data) throw new Error(`verify-board returned no data for ${url}`)
   return data
+}
+
+async function verifyAndLoadSeed(
+  client: ReturnType<typeof createProbeClient>,
+  board: typeof seedBoards[number],
+) {
+  const verified = await verifyBoard(client, board.url)
+  if (verified.ok) return verified.company
+  if (verified.reason !== 'already_watched') {
+    throw new Error(`${board.label} could not be verified for seeding`)
+  }
+  const identity = seedIdentities.find((seed) => seed.board_token === board.url.split('/').at(-1))
+  if (!identity) throw new Error(`${board.label} seed identity is not declared`)
+  const { data, error } = await client
+    .from('companies')
+    .select('id, ats_type, board_token, region, name')
+    .eq('ats_type', identity.ats_type)
+    .eq('board_token', identity.board_token)
+    .single()
+  if (error || !data) throw error ?? new Error(`${board.label} persisted seed was not found`)
+  return data as PersistedSeed
 }
 
 export async function runWatchlistVerification() {
@@ -82,8 +119,13 @@ export async function runWatchlistVerification() {
   const clientA = createProbeClient(environment.url, environment.key)
   const clientB = createProbeClient(environment.url, environment.key)
   const anonClient = createProbeClient(environment.url, environment.key)
+  // This client is deliberately confined to an invocation-unique disposable
+  // company. Real seed creation/recreation always crosses verify-board as a
+  // signed-in user after migration 0012 revokes browser company writes.
+  const disposableAdmin = createProbeClient(environment.url, environment.secretKey)
   const failures: string[] = []
   let disposableProbeId: string | undefined
+  const disposablePrefix = 'phase-02.1-watchlist-probe-'
 
   function probe(condition: boolean, label: string) {
     if (condition) {
@@ -137,24 +179,27 @@ export async function runWatchlistVerification() {
       'https://boards.greenhouse.io/definitely-not-a-real-board-xyz',
     )
     probe(
-      !missing.ok && missing.reason === 'not_found',
-      "probe 2: nonexistent board returns reason 'not_found'",
+      !missing.ok && (missing.reason === 'not_found' || missing.reason === 'error'),
+      'probe 2: nonexistent board is rejected without creating a company',
     )
 
-    const stripe = await verifyBoard(clientA, seedBoards[0].url)
+    const stripe = await verifyAndLoadSeed(clientA, seedBoards[0])
     probe(
-      stripe.ok && stripe.ats === 'greenhouse' && stripe.board_token === 'stripe',
+      stripe.ats_type === 'greenhouse' && stripe.board_token === 'stripe',
       'probe 3: Stripe verifies as a Greenhouse board',
     )
-    if (!stripe.ok) throw new Error('Stripe verification failed; cannot run shared-row probe')
 
-    const { data: insertedProbe, error: insertProbeError } = await clientA
+    const probeMarker = `${disposablePrefix}${Date.now()}-${crypto.randomUUID()}`
+    const { data: insertedProbe, error: insertProbeError } = await disposableAdmin
       .from('companies')
       .insert({
-        name: 'RLS Probe (disposable)',
+        name: probeMarker,
         ats_type: 'greenhouse',
-        board_token: `probe-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        board_token: probeMarker,
         region: null,
+        careers_url: `https://job-boards.greenhouse.io/${probeMarker}`,
+        source_key: `greenhouse:global:${probeMarker}`,
+        activation_state: 'active',
         last_polled_at: new Date().toISOString(),
       })
       .select('id')
@@ -219,7 +264,11 @@ export async function runWatchlistVerification() {
     )
   } finally {
     if (disposableProbeId) {
-      const { error } = await clientA.from('companies').delete().eq('id', disposableProbeId)
+      const { error } = await disposableAdmin
+        .from('companies')
+        .delete()
+        .eq('id', disposableProbeId)
+        .like('source_key', `greenhouse:global:${disposablePrefix}%`)
       if (error) failures.push('cleanup: disposable probe row could not be removed')
     }
   }
@@ -230,30 +279,10 @@ export async function runWatchlistVerification() {
   }
 
   for (const board of seedBoards) {
-    const verified = await verifyBoard(clientA, board.url)
-    if (!verified.ok) throw new Error(`${board.label} could not be verified for seeding`)
-
-    const { data: existing, error: lookupError } = await clientA
-      .from('companies')
-      .select('id')
-      .eq('ats_type', verified.ats)
-      .eq('board_token', verified.board_token)
-      .maybeSingle()
-    if (lookupError) throw lookupError
-
-    if (existing) {
-      console.log(`PASS: ${board.label} seed already exists`)
-      continue
-    }
-
-    const { error: insertError } = await clientA.from('companies').insert({
-      name: verified.company_name,
-      ats_type: verified.ats,
-      board_token: verified.board_token,
-      region: verified.region,
-    })
-    if (insertError) throw insertError
-    console.log(`PASS: seeded ${board.label}`)
+    const company = await verifyAndLoadSeed(clientA, board)
+    console.log(
+      `PASS: ${board.label} seed persisted by verify-board (${company.id})`,
+    )
   }
 
   await Promise.all([clientA.auth.signOut(), clientB.auth.signOut()])

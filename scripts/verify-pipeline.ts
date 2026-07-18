@@ -88,8 +88,8 @@ function sleep(milliseconds: number) {
 }
 
 async function ensureSeeds(
-  admin: ReturnType<typeof createClient>,
-  userClient: ReturnType<typeof createClient>,
+  admin: ReturnType<typeof client>,
+  userClient: ReturnType<typeof client>,
 ) {
   for (const board of seedBoards) {
     const { data: existing, error: lookupError } = await admin
@@ -101,19 +101,29 @@ async function ensureSeeds(
     if (lookupError) throw lookupError
     if (existing) continue
 
-    const { data: verified, error: verifyError } = await userClient.functions.invoke('verify-board', {
+    const { data: rawVerified, error: verifyError } = await userClient.functions.invoke('verify-board', {
       body: { url: board.url },
     })
-    if (verifyError || !verified?.ok) {
+    const verified = rawVerified as null | {
+      ok?: boolean
+      company?: { id?: string }
+    }
+    if (verifyError || !verified?.ok || !verified.company?.id) {
       throw verifyError ?? new Error(`${board.label} board verification failed`)
     }
-    const { error: insertError } = await userClient.from('companies').insert({
-      name: verified.company_name,
-      ats_type: verified.ats,
-      board_token: verified.board_token,
-      region: verified.region,
-    })
-    if (insertError) throw insertError
+
+    const { data: persisted, error: persistedError } = await admin
+      .from('companies')
+      .select('id, ats_type, board_token')
+      .eq('id', verified.company.id)
+      .single()
+    if (
+      persistedError ||
+      persisted?.ats_type !== board.source ||
+      persisted?.board_token !== board.boardToken
+    ) {
+      throw persistedError ?? new Error(`${board.label} persisted seed identity drifted`)
+    }
   }
 }
 
@@ -149,6 +159,14 @@ export async function runPipelineVerification() {
     )
 
     const seedIds = companies.map((company) => company.id)
+    const { count: seedJobCountBefore, error: seedJobCountBeforeError } = await admin
+      .from('jobs')
+      .select('*', { count: 'exact', head: true })
+      .in('company_id', seedIds)
+    if (seedJobCountBeforeError) throw seedJobCountBeforeError
+    if (seedIds.length !== seedBoards.length) {
+      throw new Error('Seed identity snapshot is incomplete; refusing destructive probes')
+    }
     await admin.from('companies').update({ last_polled_at: null }).in('id', seedIds)
     let polledCompanies: typeof companies = []
     for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -156,7 +174,7 @@ export async function runPipelineVerification() {
       if (!response.ok) throw new Error(`poll-tick returned HTTP ${response.status}`)
       const { data: refreshed, error: refreshError } = await admin
         .from('companies')
-        .select('id, name, ats_type, last_polled_at, last_success_at, consecutive_failures')
+        .select('id, name, ats_type, board_token, last_polled_at, last_success_at, consecutive_failures')
         .in('id', seedIds)
       if (refreshError) throw refreshError
       polledCompanies = refreshed
@@ -363,6 +381,13 @@ export async function runPipelineVerification() {
       .update({ last_polled_at: null })
       .in('id', seedIds)
     if (resetClaimsError) throw resetClaimsError
+    const { data: claimBaselineRows, error: claimBaselineError } = await admin
+      .from('companies')
+      .select('id, last_polled_at')
+    if (claimBaselineError) throw claimBaselineError
+    const claimBaseline = new Map(
+      (claimBaselineRows ?? []).map((row) => [row.id, row.last_polled_at]),
+    )
     const concurrentClaims = await Promise.all(
       Array.from({ length: 4 }, () =>
         admin.rpc('claim_due_companies', { batch_size: 2 }),
@@ -378,40 +403,69 @@ export async function runPipelineVerification() {
       uniqueClaimedIds.size === allClaimedIds.length,
       'probe 13: concurrent claim_due_companies calls return disjoint company batches',
     )
+    for (const result of concurrentClaims) {
+      for (const row of result.data ?? []) {
+        const previous = claimBaseline.get(row.id)
+        if (previous === undefined) continue
+        const { error: restoreClaimError } = await admin
+          .from('companies')
+          .update({ last_polled_at: previous })
+          .eq('id', row.id)
+          .eq('last_polled_at', row.last_polled_at)
+        if (restoreClaimError) throw restoreClaimError
+      }
+    }
 
     const now = new Date().toISOString()
-    const { error: makeAllCurrentError } = await admin
+    const { data: activeRows, error: activeRowsError } = await admin
       .from('companies')
-      .update({ last_polled_at: now })
-      .not('id', 'is', null)
-    if (makeAllCurrentError) throw makeAllCurrentError
+      .select('id, last_polled_at')
+      .eq('activation_state', 'active')
+    if (activeRowsError) throw activeRowsError
+    const activeIds = (activeRows ?? []).map((row) => row.id)
     const { data: noWorkBaseline, error: noWorkBaselineError } = await admin
       .from('pipeline_heartbeat')
       .select('last_success_at')
       .eq('id', true)
       .single()
     if (noWorkBaselineError) throw noWorkBaselineError
-    const noWorkResponse = await postTick(environment.url, environment.cronSecret)
-    const noWorkBody = await noWorkResponse.json() as { claimed?: number }
-    const { data: noWorkAfter, error: noWorkAfterError } = await admin
-      .from('pipeline_heartbeat')
-      .select('last_success_at')
-      .eq('id', true)
-      .single()
-    if (noWorkAfterError) throw noWorkAfterError
-    const noWorkBaselineMs = noWorkBaseline.last_success_at
-      ? new Date(noWorkBaseline.last_success_at).getTime()
-      : null
-    const noWorkAfterMs = noWorkAfter.last_success_at
-      ? new Date(noWorkAfter.last_success_at).getTime()
-      : null
-    assert(
-      noWorkResponse.ok &&
-        noWorkBody.claimed === 0 &&
-        noWorkAfterMs !== null &&
-        (noWorkBaselineMs === null || noWorkAfterMs > noWorkBaselineMs),
-      'probe 14: a successful no-work tick advances last_success_at',
-    )
+    try {
+      const { error: makeAllCurrentError } = await admin
+        .from('companies')
+        .update({ last_polled_at: now })
+        .in('id', activeIds)
+      if (makeAllCurrentError) throw makeAllCurrentError
+      const noWorkResponse = await postTick(environment.url, environment.cronSecret)
+      const noWorkBody = await noWorkResponse.json() as { claimed?: number }
+      const { data: noWorkAfter, error: noWorkAfterError } = await admin
+        .from('pipeline_heartbeat')
+        .select('last_success_at')
+        .eq('id', true)
+        .single()
+      if (noWorkAfterError) throw noWorkAfterError
+      const noWorkBaselineMs = noWorkBaseline.last_success_at
+        ? new Date(noWorkBaseline.last_success_at).getTime()
+        : null
+      const noWorkAfterMs = noWorkAfter.last_success_at
+        ? new Date(noWorkAfter.last_success_at).getTime()
+        : null
+      assert(
+        noWorkResponse.ok &&
+          noWorkBody.claimed === 0 &&
+          noWorkAfterMs !== null &&
+          (noWorkBaselineMs === null || noWorkAfterMs > noWorkBaselineMs),
+        'probe 14: a successful no-work tick advances last_success_at',
+      )
+    } finally {
+      for (const row of activeRows ?? []) {
+        const { error: restoreCurrentError } = await admin
+          .from('companies')
+          .update({ last_polled_at: row.last_polled_at })
+          .eq('id', row.id)
+          .eq('last_polled_at', now)
+        if (restoreCurrentError) throw restoreCurrentError
+      }
+    }
 
     const { data: reopenCandidate, error: reopenCandidateError } = await admin
       .from('jobs')
@@ -486,6 +540,25 @@ export async function runPipelineVerification() {
     assert(
       (discoverySkipped || validDiscoveryStatus) && discoveryHeartbeatPersisted,
       'probe 16: discovery sweep surfaces health state in its response and heartbeat row',
+    )
+
+    const { data: seedIdentityAfter, error: seedIdentityAfterError } = await admin
+      .from('companies')
+      .select('id, ats_type, board_token')
+      .in('id', seedIds)
+    if (seedIdentityAfterError) throw seedIdentityAfterError
+    const { count: seedJobCountAfter, error: seedJobCountAfterError } = await admin
+      .from('jobs')
+      .select('*', { count: 'exact', head: true })
+      .in('company_id', seedIds)
+    if (seedJobCountAfterError) throw seedJobCountAfterError
+    assert(
+      seedIdentityAfter?.length === seedIds.length &&
+        seedBoards.every((board) => seedIdentityAfter.some((row) =>
+          row.ats_type === board.source && row.board_token === board.boardToken
+        )) &&
+        (seedJobCountAfter ?? 0) >= (seedJobCountBefore ?? 0),
+      'probe 17: seed identities and linked job count survive every pipeline probe',
     )
   } finally {
     if (reopenProbeRestore) {
