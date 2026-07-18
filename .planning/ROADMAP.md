@@ -102,7 +102,7 @@ Plans:
   4. A blocked, changed, failed, or implausibly empty source retains its last known jobs, reports Degraded with the last successful sync and useful error detail, and never closes jobs from that failed observation
   5. Every new connector passes manual verification and several successful syncs before scheduled polling is enabled; unsupported or unstable candidates remain clearly documented rather than being presented as reliable
 
-**Plans:** 5/8 plans executed
+**Plans:** 6/8 plans executed
 **UI hint:** yes
 
 Plans:
@@ -126,7 +126,7 @@ Plans:
 
 **Wave 5** *(blocked on activation policy)*
 
-- [ ] 02.1-06-PLAN.md — Allowlisted Capital One Workday connector retained as Experimental
+- [x] 02.1-06-PLAN.md — Allowlisted Capital One Workday connector retained as Experimental
 
 **Wave 6** *(blocked on catalog, activation, and Workday implementation)*
 
@@ -179,7 +179,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
 | 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
-| 02.1 Source Coverage Expansion | 5/8 | In Progress|  |
+| 02.1 Source Coverage Expansion | 6/8 | In Progress|  |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 

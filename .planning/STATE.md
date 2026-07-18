@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 02.1
 current_phase_name: source-coverage-expansion
-status: Ready for Plan 06
-stopped_at: Completed 02.1-05-PLAN.md
-last_updated: "2026-07-18T01:20:43.851Z"
+status: Ready for Plan 07
+stopped_at: Completed 02.1-06-PLAN.md
+last_updated: "2026-07-18T01:37:48.292Z"
 last_activity: 2026-07-18
-last_activity_desc: Completed Phase 02.1 Plan 05
+last_activity_desc: Completed Phase 02.1 Plan 06
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 18
-  completed_plans: 15
+  completed_plans: 16
   percent: 40
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 ## Current Position
 
 Phase: 02.1 (source-coverage-expansion) — EXECUTING
-Plan: 6 of 8
-Status: Ready for Plan 06
-Last activity: 2026-07-18 — Completed Phase 02.1 Plan 05
+Plan: 7 of 8
+Status: Ready for Plan 07
+Last activity: 2026-07-18 — Completed Phase 02.1 Plan 06
 
-Progress: [████████░░] 83% (15/18 plans)
+Progress: [█████████░] 89% (16/18 plans)
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ Progress: [████████░░] 83% (15/18 plans)
 | Phase 02.1 P03 | 10 min | 2 tasks | 5 files |
 | Phase 02.1 P04 | 8 min | 3 tasks | 9 files |
 | Phase 02.1 P05 | 8 min | 3 tasks | 3 files |
+| Phase 02.1 P06 | 12 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -121,10 +122,8 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Make page, count, schema, content-type, cap, and required-detail failures closure-ineligible while retaining safe partial rows.
 - [Phase 02.1]: Add only SmartRecruiters and Recruitee to migration 0014 executable-provider checks; Workday and unsupported targets remain gated.
 - [Phase 02.1]: Use database-timed provider windows and a hard three-row cap; only SmartRecruiters/Recruitee auto-promote, while real-user Edge verification derives all accepted evidence. — Prevents replay, client-time spoofing, progress divergence, and unintended Workday activation.
-
-### Pending Todos
-
-None yet.
+- [Phase 02.1]: Pin Workday execution to workday:wd12:capitalone:Capital_One and treat empty or drifted CXS responses as closure-ineligible. — The candidate CXS contract is undocumented, so only the fixed Capital One identity and fully reconciled positive observations are trustworthy.
+- [Phase 02.1]: Keep Workday Experimental and exclude it from both SQL claims and scheduled application dispatch after all three accepted windows. — Activation evidence may establish reachability without authorizing recurring polling of an undocumented provider contract.
 
 ### Quick Tasks Completed
 
@@ -141,12 +140,8 @@ None yet.
 
 - Phase 02.1 inserted after Phase 2: Expand representative ATS and branded finance career-site coverage with safe degraded-source behavior (URGENT)
 
-## Deferred Items
-
-None.
-
 ## Session Continuity
 
-Last session: 2026-07-18T01:18:49.893Z
-Stopped at: Completed 02.1-05-PLAN.md
+Last session: 2026-07-18T01:37:48.286Z
+Stopped at: Completed 02.1-06-PLAN.md
 Resume file: None
