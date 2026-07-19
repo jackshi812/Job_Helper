@@ -1,36 +1,97 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-18T14:16:31.406Z",
+  "timestamp": "2026-07-19T03:06:05.631Z",
   "phase": "03",
   "phase_name": "scoring-feed-notifications",
   "phase_dir": ".planning/phases/03-scoring-feed-notifications",
   "plan": null,
-  "task": null,
-  "total_tasks": null,
+  "task": 0,
+  "total_tasks": 7,
   "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "Phase 3 context discussion (03-CONTEXT.md, D-14..D-21)", "status": "done", "commit": "93eaec8"},
-    {"id": 2, "name": "Phase 3 technical research (03-RESEARCH.md)", "status": "done", "commit": "f8b04a0"},
-    {"id": 3, "name": "Phase 3 UI design contract (03-UI-SPEC.md) — researcher + checker, APPROVED 6/6", "status": "done", "commit": "48381a4"}
+    {
+      "id": 1,
+      "name": "Execute Phase 02.1 gap plans 09-13",
+      "status": "done",
+      "commit": "24ea44b"
+    },
+    {
+      "id": 2,
+      "name": "Complete exact-SHA hosted pipeline and source-coverage proof",
+      "status": "done",
+      "commit": "70eccdc"
+    },
+    {
+      "id": 3,
+      "name": "Record Phase 02.1 human UAT and defer removal-modal timeout",
+      "status": "done",
+      "commit": "24ea44b"
+    },
+    {
+      "id": 4,
+      "name": "Create seven Phase 03 plans",
+      "status": "done",
+      "commit": "d3ae8b7"
+    },
+    {
+      "id": 5,
+      "name": "Cross-AI review Phase 03 plans",
+      "status": "done",
+      "commit": "a007ead"
+    }
   ],
   "remaining_tasks": [
-    {"id": 4, "name": "Plan Phase 3 (/gsd-plan-phase 3) — no PLAN.md exists yet", "status": "not_started"},
-    {"id": 5, "name": "Execute Phase 3 (/gsd-execute-phase 3)", "status": "not_started"}
+    {
+      "id": 6,
+      "name": "Revise Phase 03 plans to resolve the cross-AI review",
+      "status": "not_started"
+    },
+    {
+      "id": 7,
+      "name": "Execute the seven revised Phase 03 plans",
+      "status": "not_started"
+    }
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "description": "Current Phase 03 plans have unresolved HIGH-risk review findings: migration numbering drift, non-exclusive paid extraction, missing extraction-to-rescore trigger, non-atomic notification delivery, terminal retry suppression, missing company data in the feed query, and unsafe production notification verification.",
+      "type": "technical",
+      "workaround": "Run $gsd-plan-phase 03 --reviews, revise every affected plan, and require plan-check/review convergence before execution."
+    }
+  ],
   "async_jobs": [],
   "human_actions_pending": [],
   "decisions": [
-    {"decision": "UI-SPEC approved with 2 non-blocking FLAGs: add aria-label=\"Dismiss {job title}\" on row dismiss buttons; add aria-label=\"Remove {keyword}\" on chip × buttons; feed table is Dashboard focal point", "rationale": "Checker recommendations recorded in 03-UI-SPEC.md Checker Sign-Off; planner should carry them into tasks", "phase": "03"},
-    {"decision": "No shadcn, no icon packages — extend established manual Tailwind 4 zinc system from Phases 1-2", "rationale": "Consistent design system detected in live codebase (index.css, Shell.tsx, Watchlist.tsx)", "phase": "03"},
-    {"decision": "dompurify 3.4.12 (pinned) is the only new frontend dependency", "rationale": "JD HTML sanitization mandate from 03-RESEARCH.md package audit", "phase": "03"}
+    {
+      "decision": "Defer the Phase 02.1 offline removal-modal timeout and skip UAT checks 6-8 by explicit user choice.",
+      "rationale": "The user chose to move on; the failure remains recorded as gaps_found and must not be represented as passed.",
+      "phase": "02.1"
+    },
+    {
+      "decision": "Keep production pinned to ee21a719 while local verifier-only pagination hardening remains later in git history.",
+      "rationale": "The pagination fix changes only the local audit command and not the deployed frontend or Edge bundle.",
+      "phase": "02.1"
+    },
+    {
+      "decision": "Do not begin Phase 03 execution from the currently reviewed plan set.",
+      "rationale": "Commit a007ead documents multiple HIGH-risk cross-plan correctness defects that must be resolved in planning first.",
+      "phase": "03"
+    }
   ],
   "uncommitted_files": [
-    {"path": "supabase/functions/poll-tick/index.ts", "note": "Orphan-job reattachment on company re-add (reattachOrphanedJobs). Leftover from Phase 02.1 source-coverage work, NOT Phase 3. Verify tests pass, then commit separately before Phase 3 execution."},
-    {"path": "web/tests/orphan-reattachment.test.ts", "note": "Test for the poll-tick orphan reattachment change. Belongs with the above."},
-    {"path": "scripts/agent-dashboard.mjs", "note": "Untracked tooling script + test; unrelated to phase work. Decide: commit as chore or discard."},
-    {"path": "scripts/agent-dashboard.test.mjs", "note": "See agent-dashboard.mjs."}
+    {
+      "path": ".DS_Store",
+      "note": "Pre-existing user change; preserve and do not commit with GSD work."
+    },
+    {
+      "path": "scripts/agent-dashboard.mjs",
+      "note": "Untracked user tooling; preserve and do not commit with GSD work."
+    },
+    {
+      "path": "scripts/agent-dashboard.test.mjs",
+      "note": "Untracked user tooling; preserve and do not commit with GSD work."
+    }
   ],
-  "next_action": "/clear then /gsd-plan-phase 3 — planner must read 03-UI-SPEC.md as design context alongside 03-CONTEXT.md and 03-RESEARCH.md",
-  "context_notes": "Phase 3 is fully prepped: CONTEXT (user decisions D-14..D-21), RESEARCH (stack: DOMPurify sanitize JD HTML, push burst-collapse, digest patterns), UI-SPEC (approved design contract). Requirements in scope: PREF-01, RESU-01, SCOR-01..05, NOTF-01..04. Deferred ideas intentionally excluded from UI-SPEC: star/shortlist state, 3-resume comparison view, Pro rescore UI. Session ended because Claude usage limit was near; handoff intended for continuing planning in another tool/session."
+  "next_action": "$gsd-plan-phase 03 --reviews",
+  "context_notes": "Phase 02.1 has 13/13 plans executed but remains gaps_found because offline removal can hang forever at Removing with both actions disabled; Curi Capital remained after safe recovery and the user explicitly deferred the fix. Phase 03 has seven plans and a Codex cross-AI review, but the review has not been incorporated. Resume by revising the plans, not by executing them. Local HEAD before this handoff was a007ead; origin/main and production remain ee21a719. No background process or async external job is active."
 }
