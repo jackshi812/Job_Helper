@@ -39,8 +39,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **SCOR-01**: Cheap filters (title/location/keyword rules) discard irrelevant postings before any AI call
 - [ ] **SCOR-02**: AI scores surviving postings against the user's preferences and uploaded resume
 - [ ] **SCOR-03**: Each scored job shows plain-language match reasons ("why this matched")
-- [ ] **SCOR-04**: User can view a dashboard feed of new matches with score, match reasons, posted-time, and direct link to the employer's apply page
-- [ ] **SCOR-05**: User can view job detail with full JD snapshot and keyword-gap panel (categorized gaps vs their resume, advisory only)
+- [x] **SCOR-04**: User can view a dashboard feed of new matches with score, match reasons, posted-time, and direct link to the employer's apply page
+- [x] **SCOR-05**: User can view job detail with full JD snapshot and keyword-gap panel (categorized gaps vs their resume, advisory only)
 
 ### Notifications
 
@@ -121,8 +121,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCOR-01 | Phase 3 | Pending |
 | SCOR-02 | Phase 3 | Pending |
 | SCOR-03 | Phase 3 | Pending |
-| SCOR-04 | Phase 3 | Pending |
-| SCOR-05 | Phase 3 | Pending |
+| SCOR-04 | Phase 3 | Complete |
+| SCOR-05 | Phase 3 | Complete |
 | NOTF-01 | Phase 3 | Pending |
 | NOTF-02 | Phase 3 | Pending |
 | NOTF-03 | Phase 3 | Pending |

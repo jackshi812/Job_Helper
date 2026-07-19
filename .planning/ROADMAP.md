@@ -165,7 +165,16 @@ Plans:
   4. A strong match triggers a browser web push (with the tab closed while the browser runs) and a backup email that respects the free-tier digest cap — and notifications fire only for deduplicated, scored jobs above the user's threshold
   5. User can tune their own score threshold and quiet hours, and alerts respect both
 
-**Plans**: TBD
+**Plans**: 4/7 plans executed
+
+- [x] 03-01-PLAN.md
+- [x] 03-02-PLAN.md
+- [x] 03-03-PLAN.md
+- [x] 03-04-PLAN.md
+- [ ] 03-05-PLAN.md
+- [ ] 03-06-PLAN.md
+- [ ] 03-07-PLAN.md
+
 **UI hint**: yes
 
 ### Phase 4: Resume Tailoring & Tracker
@@ -195,7 +204,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
 | 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
 | 02.1 Source Coverage Expansion | 13/13 | Gaps found (deferred) |  |
-| 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
+| 3. Scoring, Feed & Notifications | 4/7 | In Progress|  |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
