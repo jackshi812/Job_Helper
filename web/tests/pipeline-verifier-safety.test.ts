@@ -5,6 +5,7 @@ import {
   PIPELINE_EVIDENCE_BEGIN,
   PIPELINE_EVIDENCE_END,
   PIPELINE_MUTATION_CLASSES,
+  collectPipelineJobRows,
   createPipelineEvidenceEnvelope,
   finalizePipelineEvidenceEnvelope,
   journalPipelineMutation,
@@ -120,6 +121,73 @@ const snapshot = (
 })
 
 describe('pipeline verifier evidence envelope', () => {
+  it('paginates beyond 1000 jobs without displacement or false immutable drift', async () => {
+    const company = { id: 'company', ats_type: 'greenhouse', activation_state: 'active' }
+    const job = (id: string, firstSeenAt = '2026-07-17T12:00:00.000Z') => ({
+      id,
+      company_id: company.id,
+      source: 'greenhouse',
+      external_id: `provider-${id}`,
+      title: `Engineer ${id}`,
+      location: 'Chicago',
+      absolute_url: `https://example.com/jobs/${id}`,
+      posted_at: '2026-07-17T11:00:00.000Z',
+      description_html_hash: `html-${id}`,
+      description_text_hash: `text-${id}`,
+      snapshot_partial: false,
+      fingerprint: `fingerprint-${id}`,
+      status: 'open',
+      first_seen_at: firstSeenAt,
+      last_seen_at: firstSeenAt,
+      closed_at: null,
+    })
+    let rows = Array.from({ length: 1_005 }, (_, index) => job(`m${String(index).padStart(4, '0')}`))
+    const cursors: Array<string | null> = []
+    const loadPage = async (afterId: string | null, limit: number) => {
+      cursors.push(afterId)
+      return {
+        data: rows.filter(({ id }) => afterId === null || id > afterId).slice(0, limit),
+        error: null,
+      }
+    }
+
+    const entryRows = await collectPipelineJobRows(loadPage)
+    expect(entryRows).toHaveLength(1_005)
+    expect(cursors).toEqual([null, 'm0999'])
+
+    rows = [
+      ...Array.from(
+        { length: 63 },
+        (_, index) => job(`a${String(index).padStart(3, '0')}`, '2026-07-18T12:00:30.000Z'),
+      ),
+      ...rows,
+    ].sort((left, right) => left.id.localeCompare(right.id))
+    cursors.length = 0
+    const finalRows = await collectPipelineJobRows(loadPage)
+    expect(finalRows).toHaveLength(1_068)
+    expect(cursors).toEqual([null, 'm0936'])
+    expect(entryRows.every(({ id }) => finalRows.some((row) => row.id === id))).toBe(true)
+
+    const entry = snapshot('2026-07-18T12:00:00.000Z', {
+      activeCompanies: { company },
+      jobs: Object.fromEntries(entryRows.map((row) => [row.id, row])),
+    })
+    const final = snapshot('2026-07-18T12:01:00.000Z', {
+      activeCompanies: { company },
+      jobs: Object.fromEntries(finalRows.map((row) => [row.id, row])),
+    })
+    const envelope = createPipelineEvidenceEnvelope('invocation', 'verify-pipeline', entry)
+    journalPipelineMutation(envelope, 'provider_job_lifecycle', entry, final, {
+      identifiers: [company.id],
+      responseSummary: { claimed: 1, succeeded: 1, inserted: 63 },
+    })
+
+    const result = finalizePipelineEvidenceEnvelope(envelope, final)
+    expect(result.success).toBe(true)
+    expect(result.immutableDrift).toEqual([])
+    expect(result.unexplainedDiffs).toEqual([])
+  })
+
   it('registers every production mutation class with one explicit disposition', () => {
     expect(PIPELINE_MUTATION_CLASSES.map(({ id }) => id)).toEqual([
       'optional_seed_creation',
