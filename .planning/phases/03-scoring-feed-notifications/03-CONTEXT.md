@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-Per-user job preferences (titles, locations, include/exclude keywords) drive cheap filters that gate AI cost; Gemini scores survivors against the user's own resume and preferences; a dashboard feed shows deduplicated matches with scores and reasons; job detail shows the JD snapshot plus an advisory keyword-gap panel; strong matches trigger instant web push with a daily email digest as backup. RESU-01 (base resume upload) already shipped in Phase 1 — this phase consumes those resumes, it does not rebuild upload. Resume tailoring, tracker, and outreach remain Phase 4+.
+Per-user job preferences (titles, locations, include/exclude keywords) drive cheap filters that gate AI cost; OpenAI scores survivors against the user's own resume and preferences; a dashboard feed shows deduplicated matches with scores and reasons; job detail shows the JD snapshot plus an advisory keyword-gap panel; strong matches trigger instant web push with a daily email digest as backup. RESU-01 (base resume upload) already shipped in Phase 1 — this phase consumes those resumes, it does not rebuild upload. Resume tailoring, tracker, and outreach remain Phase 4+.
 
 **Note:** Phase 02.1 (source coverage expansion) is executing in parallel via another agent. Planning must re-verify 02.1's final schema/adapter surface before execution begins (jobs.source values, connector states, degraded-source semantics).
 
@@ -29,10 +29,10 @@ Per-user job preferences (titles, locations, include/exclude keywords) drive che
 - **D-09:** Match reasons (SCOR-03): 3–5 short structured bullets — skill overlaps, title fit, location, resume-specific hooks.
 - **D-10:** Rescoring: when a resume or preferences change, rescore still-open jobs from a recent window (~7 days). Older jobs keep stale scores marked with scored-at time.
 
-### AI model plan (budget: some cost OK, <$5/month)
-- **D-11:** Provider: Google Gemini only, **all paid tier** (never free tier — free-tier inputs may train Google models; resume is personal data). No OpenAI (user subscriptions to ChatGPT Pro/Gemini Pro do not cover API usage; second provider adds no value at this scale).
-- **D-12:** Model split: **Gemini 2.5 Flash** (`gemini-2.5-flash`) = scorer + resume keyword extraction; **Gemini 2.5 Flash-Lite** (`gemini-2.5-flash-lite`) = JD triage. Structured JSON output, temperature 0, rubric-in-prompt. Estimated ~$3/month at ~50 survivors/day.
-- **D-13:** Escalation valve (build as config, not rebuild): optional stage-2 rescore of Strong matches only with Gemini 2.5 Pro if reason quality proves weak after real use.
+### AI model plan (budget: some cost OK, <$5/month target)
+- **D-11 (revised 2026-07-19):** Provider: OpenAI API only. Use the stateless Responses API with `store: false`; OpenAI states API data is not used to train models unless the customer explicitly opts in. Default abuse-monitoring logs may retain prompts/responses for up to 30 days, so resume/JD content must never be copied into application logs or persisted in `ai_usage`. A ChatGPT subscription does not include API usage.
+- **D-12 (revised 2026-07-19):** **GPT-5.4 nano** (`gpt-5.4-nano`) handles both resume keyword extraction and job scoring with strict Structured Outputs and `reasoning.effort: 'none'`. It is purpose-fit for extraction/classification/ranking and costs $0.20 input / $1.25 output per 1M tokens. At ~50 survivors/day with the existing 3K-input/0.5K-output assumption, estimate ~$1.84/month. No separate AI triage stage ships initially.
+- **D-13 (revised 2026-07-19):** Escalation valve: keep the model name configurable and upgrade only measured low-quality cases to **GPT-5.6 Luna** (`gpt-5.6-luna`) after representative evals. Do not add a second provider or automatic dual-model calls.
 
 ### Feed & job detail
 - **D-14:** Feed defaults to newest-first with score + tier column visible; column-header sort by score available. Dense-table style per Phase 1 D-15.
@@ -53,7 +53,7 @@ Per-user job preferences (titles, locations, include/exclude keywords) drive che
 - Preferences page layout/UX (titles, locations, keyword chips) within Phase 1 D-15 style
 - Push permission onboarding flow, service-worker structure, notification click-through target
 - Digest email layout; queue/delivery bookkeeping tables
-- Where triage (Flash-Lite pass/fail) sits in the pipeline vs relying on cheap filters alone — drop triage stage entirely if cheap filters prove sufficient
+- Whether representative scoring evals justify upgrading selected calls from GPT-5.4 nano to GPT-5.6 Luna; default remains nano and there is no separate triage stage
 
 </decisions>
 
@@ -68,8 +68,8 @@ Per-user job preferences (titles, locations, include/exclude keywords) drive che
 - `.planning/PROJECT.md` — core value (5–15 min discovery-to-notification), budget/compliance constraints
 
 ### Stack decisions
-- `.claude/CLAUDE.md` §Technology Stack — Gemini pricing/tiers, `@negrel/webpush` (JSR, Deno edge push), Resend free-tier caps, per-job-email prohibition, two-stage scoring pattern
-- `.claude/CLAUDE.md` §Free-Tier Limits — Resend 100/day binding cap, Gemini free-tier data-training caveat (why paid tier is locked)
+- OpenAI official docs: `https://developers.openai.com/api/docs/models/gpt-5.4-nano`, `/api/docs/guides/structured-outputs`, and `/api/docs/guides/your-data` — model fit/pricing, strict JSON Schema, and retention/training controls
+- `.claude/CLAUDE.md` §Technology Stack / Free-Tier Limits — historical Gemini guidance is superseded for Phase 3 by D-11 through D-13 above; web-push and Resend constraints still apply
 
 ### Prior phase constraints (MUST re-verify 02.1 after its execution completes)
 - `.planning/phases/02-watchlist-ingestion-monitoring/02-CONTEXT.md` — shared watchlist (D-01), Adzuna seed queries that Phase 3 preferences replace (D-08), health semantics
@@ -96,7 +96,7 @@ Per-user job preferences (titles, locations, include/exclude keywords) drive che
 
 ### Integration Points
 - Phase 2 D-08 Adzuna seed queries are replaced by the Phase 3 preferences UI as the discovery-query source
-- New edge surface: scoring worker, notification dispatcher, digest sender; new Gemini API key + VAPID keys in Vault/secrets
+- New edge surface: scoring worker, notification dispatcher, digest sender; new OpenAI API key + VAPID keys in Vault/secrets
 - Service worker for web push is new frontend surface (vanilla, no library; browser uses native PushManager)
 
 </code_context>
@@ -114,7 +114,7 @@ Per-user job preferences (titles, locations, include/exclude keywords) drive che
 
 - Star/shortlist state in feed — proto-tracker behavior, belongs in Phase 4 tracker (saved stage)
 - Score-against-all-3-resumes comparison view — revisit only if keyword routing misroutes in practice
-- Gemini 2.5 Pro stage-2 rescore — config valve, activate only on evidence of weak reason quality
+- GPT-5.6 Luna selective upgrade — config valve, activate only after representative evals show GPT-5.4 nano reason quality is insufficient
 
 </deferred>
 

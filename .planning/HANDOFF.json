@@ -1,11 +1,11 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-19T03:41:39.851Z",
+  "timestamp": "2026-07-19T04:05:48.251Z",
   "phase": "03",
   "phase_name": "scoring-feed-notifications",
   "phase_dir": ".planning/phases/03-scoring-feed-notifications",
-  "plan": 1,
-  "task": 0,
+  "plan": 2,
+  "task": 1,
   "total_tasks": 7,
   "status": "paused",
   "completed_tasks": [
@@ -39,18 +39,26 @@
       "status": "done",
       "commit": null,
       "progress": "External Claude export was denied twice by tenant privacy policy; the user accepted the residual review risk and chose execution handoff."
+    },
+    {
+      "id": 6,
+      "name": "Execute Plan 01: preferences and cheap filters",
+      "status": "done",
+      "commit": "1268c25"
+    },
+    {
+      "id": 7,
+      "name": "Revise the unexecuted AI integration from Gemini to OpenAI",
+      "status": "done",
+      "commit": null,
+      "progress": "GPT-5.4 nano is the default through Responses store:false and strict Structured Outputs; GPT-5.6 Luna is gated by a 20-pair quality eval."
     }
   ],
   "remaining_tasks": [
     {
-      "id": 1,
-      "name": "Execute Plan 01: preferences and cheap filters",
-      "status": "not_started"
-    },
-    {
       "id": 2,
-      "name": "Execute Plan 02: DOCX extraction and Gemini integration",
-      "status": "not_started"
+      "name": "Execute Plan 02: DOCX extraction and OpenAI integration",
+      "status": "in_progress"
     },
     {
       "id": 3,
@@ -80,9 +88,9 @@
   ],
   "blockers": [
     {
-      "description": "Plan 02 live verification requires a billing-enabled paid-tier Gemini key and explicit approval for the paid call.",
+      "description": "Plan 02 live verification requires a project-scoped OpenAI API key with separate API billing/credits and explicit approval for the paid call.",
       "type": "human_action",
-      "workaround": "Start Plan 01 locally and stop at the Plan 02 human checkpoint."
+      "workaround": "Plan 01 is complete. Resume directly at the Plan 02 human key/billing checkpoint."
     },
     {
       "description": "Plans 05 and 07 require a verified Resend sender and credentials.",
@@ -98,9 +106,9 @@
   "async_jobs": [],
   "human_actions_pending": [
     {
-      "action": "Provide a billing-enabled paid-tier GEMINI_API_KEY in gitignored scripts/.env, provide the requested Google project/key attestation, and approve the paid smoke test.",
+      "action": "Provide a project-scoped OPENAI_API_KEY from an API-billed OpenAI project in gitignored scripts/.env, record the non-secret project/key identifier, and approve the paid smoke test. ChatGPT Pro billing is separate.",
       "context": "Plan 02 extraction/scoring integration cannot be proven live without it.",
-      "blocking": false
+      "blocking": true
     },
     {
       "action": "Provide RESEND_API_KEY and RESEND_FROM backed by a verified sender/domain.",
@@ -133,6 +141,11 @@
       "decision": "Keep the Phase 02.1 removal-modal hang as a deferred gap.",
       "rationale": "The user explicitly chose to move on; it remains truthful UAT debt and is outside Phase 03 scope.",
       "phase": "02.1"
+    },
+    {
+      "decision": "Replace Gemini with GPT-5.4 nano through the OpenAI Responses API for Phase 03 extraction and scoring.",
+      "rationale": "Nano is purpose-fit for extraction/classification/ranking and is estimated at about $1.84/month for 50 scores/day; strict Structured Outputs and a 20-pair quality eval keep the choice measurable. GPT-5.6 Luna remains an eval-gated configuration upgrade only.",
+      "phase": "03"
     }
   ],
   "uncommitted_files": [
@@ -141,5 +154,5 @@
     "scripts/agent-dashboard.test.mjs"
   ],
   "next_action": "$gsd-execute-phase 03",
-  "context_notes": "Claude should resume and execute the seven revised Phase 03 plans starting with local Plan 01. No Phase 03 execution has started. Preserve unrelated worktree files, exact-SHA proof, complete paginated evidence, first-sight job identity, fixed migrations 0017-0020, and all explicit human/external checkpoints. Do not retry or fabricate independent review convergence."
+  "context_notes": "Claude completed Phase 03 Plan 01 at commit 1268c25. Resume at Plan 02 Task 1, the OpenAI API key/billing checkpoint. The 2026-07-19 provider revision uses GPT-5.4 nano through OpenAI Responses with store:false and strict Structured Outputs; GPT-5.6 Luna is gated by a 20-pair quality eval. No Gemini implementation has started. Preserve unrelated worktree files, exact-SHA proof, complete paginated evidence, first-sight job identity, fixed migrations 0017-0020, and all explicit human/external checkpoints. Do not retry or fabricate independent review convergence."
 }

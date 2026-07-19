@@ -18,7 +18,7 @@
 | `supabase/functions/_shared/filters.ts` (new) | utility (pure) | transform | `supabase/functions/_shared/dedup.ts` | exact |
 | `supabase/functions/_shared/routing.ts` (new) | utility (pure) | transform | `supabase/functions/_shared/dedup.ts` + `lifecycle.ts` | exact |
 | `supabase/functions/_shared/quiet-hours.ts` (new) | utility (pure) | transform | `supabase/functions/_shared/lifecycle.ts` | role-match |
-| `supabase/functions/_shared/gemini.ts` (new) | service (API client) | request-response | `supabase/functions/_shared/adapters/greenhouse.ts` | role-match |
+| `supabase/functions/_shared/openai.ts` (new) | service (API client) | request-response | `supabase/functions/_shared/adapters/greenhouse.ts` | role-match |
 | `supabase/functions/_shared/webpush.ts` (new) | service (API client) | request-response | `adapters/greenhouse.ts` (npm-import + error style only) | partial — API surface from RESEARCH.md Pattern 3 |
 | `supabase/functions/_shared/docx.ts` (new) | utility | file-I/O transform | `adapters/greenhouse.ts` (`htmlToText` philosophy) | partial — mammoth usage from RESEARCH.md |
 
@@ -127,7 +127,7 @@ failed += 1
 const code = diagnosticCode(result.reason)
 console.error(`poll-tick company ${company.id} failed`, code)
 ```
-For score-tick: same shape with `gemini_http_429` etc. NEVER log prompt content or resume text (RESEARCH §Security V7).
+For score-tick: same shape with `openai_http_429`, `openai_refusal`, and other bounded codes. NEVER log prompt content, response text, or resume text (RESEARCH §Security V7).
 
 **Batched DB writes** (lines 29, 47–53, 77–89) — `DATABASE_BATCH_SIZE = 100`, `batches<T>()` helper, `.in('id', batch)` loops. Reuse for `user_jobs` upserts.
 
@@ -190,7 +190,7 @@ Keep filters/routing/quiet-hours free of Deno globals and `npm:`/`jsr:` specifie
 
 ---
 
-### `supabase/functions/_shared/gemini.ts` (API client wrapper)
+### `supabase/functions/_shared/openai.ts` (API client wrapper)
 
 **Analog:** `supabase/functions/_shared/adapters/greenhouse.ts` — plain-`fetch` provider client with typed response interfaces and bounded error strings.
 
@@ -206,7 +206,7 @@ export async function pollGreenhouse(token: string, knownIds: Set<string>): Prom
 
   const { jobs } = (await listResponse.json()) as GreenhouseListResponse
 ```
-Apply: `throw new Error(\`gemini_http_${response.status}\`)`; typed request/response interfaces at top of file like `GreenhouseJob`/`GreenhouseListResponse` (lines 3–15). The Gemini request body (responseSchema, temperature 0, `v1beta` pin) is fully specified in RESEARCH.md Pattern 1 — combine that body with this file's fetch/error/typing style. Capture `usageMetadata` into an `ai_usage` row (counts and cost only, never prompt content). Retry per RESEARCH: 429/5xx → 2 tries, 1s/4s backoff, then leave row unscored for next tick.
+Apply: `throw new Error(\`openai_http_${response.status}\`)`; typed request/response interfaces at the top like `GreenhouseJob`/`GreenhouseListResponse` (lines 3–15). POST to `https://api.openai.com/v1/responses` with a project-scoped bearer key, `store:false`, `reasoning.effort:'none'`, and strict `text.format` JSON Schema as specified in revised Plan 02. Parse exactly one assistant output-text item and map `usage.input_tokens`, `usage.output_tokens`, and reasoning tokens into `ai_usage` (counts/cost only, never prompt/response content). Retry 429/5xx at most twice with 1s/4s backoff, then leave the row for the next tick.
 
 **npm-in-Deno import precedent** (greenhouse.ts lines 60–65, dynamic import with vite-ignore so web tests don't choke):
 ```typescript
@@ -548,7 +548,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { createClient } from '../web/node_modules/@supabase/supabase-js/dist/index.mjs'
 ```
-The Gemini live smoke test (RESEARCH Pitfall 1) and RLS checks for new tables (`scripts/verify-rls.ts` precedent) follow this pattern.
+The OpenAI live strict Structured Outputs smoke test and RLS checks for new tables (`scripts/verify-rls.ts` precedent) follow this pattern.
 
 ## Shared Patterns
 

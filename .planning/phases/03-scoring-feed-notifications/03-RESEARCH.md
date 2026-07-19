@@ -1,8 +1,20 @@
 # Phase 3: Scoring, Feed & Notifications - Research
 
 **Researched:** 2026-07-18
-**Domain:** AI scoring pipeline (Gemini from Deno edge), web push + email notifications, per-user feed on a shared job pool
+**Domain:** AI scoring pipeline (OpenAI Responses API from Deno edge), web push + email notifications, per-user feed on a shared job pool
 **Confidence:** HIGH overall (core patterns verified against official docs and the live codebase; a few items flagged for at-implementation verification)
+
+## Provider Revision — 2026-07-19 (authoritative)
+
+The user replaced the original Gemini decision before Phase 3 execution. Every Gemini-specific provider, endpoint, model, pricing, free/paid-tier, and implementation recommendation later in this research file is retained only as historical research and is **superseded** by this section, revised CONTEXT D-11 through D-13, and revised Plans 02/03/07.
+
+- Provider: OpenAI API only, using `POST https://api.openai.com/v1/responses` with a project-scoped `OPENAI_API_KEY`.
+- Default model: `gpt-5.4-nano`, chosen because OpenAI positions it for classification, data extraction, and ranking. It supports Structured Outputs.
+- Request contract: `store:false`, `reasoning.effort:'none'`, and strict `text.format` JSON Schema; do not send `temperature`.
+- Upgrade valve: `gpt-5.6-luna` only after representative evals show nano quality is insufficient; never call both automatically.
+- Privacy: OpenAI states API data is not used for training unless explicitly opted in. `store:false` prevents Responses application-state storage but is not Zero Data Retention; default abuse-monitoring logs may retain prompts/responses up to 30 days.
+- Pricing checked 2026-07-19: GPT-5.4 nano $0.20 input / $1.25 output per 1M tokens. Under the existing 3K-input/0.5K-output assumption: ~$1.84/month at 50 scores/day, ~$7.35/month at 200 scores/day, and ~$0.25 for a single 200-score day.
+- Official references: `https://developers.openai.com/api/docs/models/gpt-5.4-nano`, `https://developers.openai.com/api/docs/guides/structured-outputs`, `https://developers.openai.com/api/docs/guides/your-data`.
 
 <user_constraints>
 ## User Constraints (from CONTEXT.md)
@@ -23,10 +35,10 @@
 - **D-09:** Match reasons (SCOR-03): 3–5 short structured bullets — skill overlaps, title fit, location, resume-specific hooks.
 - **D-10:** Rescoring: when a resume or preferences change, rescore still-open jobs from a recent window (~7 days). Older jobs keep stale scores marked with scored-at time.
 
-#### AI model plan (budget: some cost OK, <$5/month)
-- **D-11:** Provider: Google Gemini only, **all paid tier** (never free tier — free-tier inputs may train Google models; resume is personal data). No OpenAI (user subscriptions to ChatGPT Pro/Gemini Pro do not cover API usage; second provider adds no value at this scale).
-- **D-12:** Model split: **Gemini 2.5 Flash** (`gemini-2.5-flash`) = scorer + resume keyword extraction; **Gemini 2.5 Flash-Lite** (`gemini-2.5-flash-lite`) = JD triage. Structured JSON output, temperature 0, rubric-in-prompt. Estimated ~$3/month at ~50 survivors/day.
-- **D-13:** Escalation valve (build as config, not rebuild): optional stage-2 rescore of Strong matches only with Gemini 2.5 Pro if reason quality proves weak after real use.
+#### AI model plan (revised; budget target <$5/month)
+- **D-11:** OpenAI API only; Responses API with `store:false`; no training by default, with default abuse-monitoring retention up to 30 days disclosed.
+- **D-12:** `gpt-5.4-nano` for resume extraction and scoring; strict Structured Outputs; reasoning effort none; no separate triage call.
+- **D-13:** Configurable upgrade to `gpt-5.6-luna` only after representative eval evidence; never automatic dual-model calls.
 
 #### Feed & job detail
 - **D-14:** Feed defaults to newest-first with score + tier column visible; column-header sort by score available. Dense-table style per Phase 1 D-15.
@@ -47,12 +59,12 @@
 - Preferences page layout/UX (titles, locations, keyword chips) within Phase 1 D-15 style
 - Push permission onboarding flow, service-worker structure, notification click-through target
 - Digest email layout; queue/delivery bookkeeping tables
-- Where triage (Flash-Lite pass/fail) sits in the pipeline vs relying on cheap filters alone — drop triage stage entirely if cheap filters prove sufficient
+- Whether representative evals justify a selective GPT-5.6 Luna upgrade; default is GPT-5.4 nano with no separate triage stage
 
 ### Deferred Ideas (OUT OF SCOPE)
 - Star/shortlist state in feed — proto-tracker behavior, belongs in Phase 4 tracker (saved stage)
 - Score-against-all-3-resumes comparison view — revisit only if keyword routing misroutes in practice
-- Gemini 2.5 Pro stage-2 rescore — config valve, activate only on evidence of weak reason quality
+- GPT-5.6 Luna selective upgrade — config valve, activate only on evidence of weak nano quality
 </user_constraints>
 
 <phase_requirements>
@@ -63,7 +75,7 @@
 | PREF-01 | User can set job preferences: target titles, locations, keywords (include/exclude) | New per-user `preferences` table with Phase 1 RLS style (`(select auth.uid())` per-operation policies); Preferences UI in Settings/dedicated page; re-filter on save (D-04) via a scan-based worker (see Pipeline pattern) |
 | RESU-01 | User can upload and manage multiple base resumes (DOCX) in private encrypted storage | Shipped in Phase 1 (`web/src/lib/resumes.ts`, `0002_resumes.sql`, `0003_storage.sql`). Phase 3 only ADDS a text-extraction + keyword step over existing resumes (mammoth `extractRawText` in edge fn, fallback jszip+XML) |
 | SCOR-01 | Cheap filters discard irrelevant postings before any AI call | Pure-TS filter module (`_shared/filters.ts`) mirroring the Phase 2 "pure logic + fixture tests" pattern; D-01/D-02/D-03 semantics; filtered rows retained with reason (D-04) |
-| SCOR-02 | AI scores survivors against preferences + uploaded resume | Gemini `generateContent` REST with `generationConfig.responseSchema`, temp 0, `gemini-2.5-flash`, from a new `score-tick` edge function; resume routing by keyword overlap (D-06) |
+| SCOR-02 | AI scores survivors against preferences + uploaded resume | OpenAI Responses API with `store:false`, `reasoning.effort:'none'`, strict `text.format` JSON Schema, and `gpt-5.4-nano`, from a new `score-tick` edge function; resume routing by keyword overlap (D-06) |
 | SCOR-03 | Plain-language match reasons | `reasons: string[]` (3–5 items) in the scoring responseSchema (D-09); stored per (job,user) |
 | SCOR-04 | Dashboard feed: score, reasons, posted-time, apply link | `user_jobs` joined to shared `jobs`; TanStack Query per `watchlist.ts` pattern; dense table per Phase 1 D-15; `absolute_url` is the apply link; `posted_at` falling back to `first_seen_at` |
 | SCOR-05 | Job detail: full JD snapshot + categorized keyword-gap panel | Render `description_html` ONLY through DOMPurify (mandated by 0006 migration comment); gap panel produced in the same scoring call (schema fields: gaps by category + covered list) — no extra AI call |
@@ -75,7 +87,7 @@
 
 ## Summary
 
-Phase 3 turns the existing shared job pool (Phases 2/02.1 ingestion, already deduplicated at insert) into a per-user scored feed with instant push and digest email. The pipeline is: **new/changed jobs → per-user cheap filters (pure TS, no AI) → keyword-overlap resume routing → one Gemini 2.5 Flash structured-output call per (job, user) → per-user score rows → notification dispatcher (burst-collapsed push for Strong, quiet-hours queue, daily digest email)**. All backend work lives in new Supabase Edge Functions scheduled by the existing pg_cron + pg_net + Vault + `x-cron-secret` pattern.
+Phase 3 turns the existing shared job pool (Phases 2/02.1 ingestion, already deduplicated at insert) into a per-user scored feed with instant push and digest email. The pipeline is: **new/changed jobs → per-user cheap filters (pure TS, no AI) → keyword-overlap resume routing → one GPT-5.4 nano strict Structured Outputs call per (job, user) → per-user score rows → notification dispatcher (burst-collapsed push for Strong, quiet-hours queue, daily digest email)**. All backend work lives in new Supabase Edge Functions scheduled by the existing pg_cron + pg_net + Vault + `x-cron-secret` pattern.
 
 The single most important architectural recommendation: **do not modify `poll-tick` or any 02.1-touched file**. Phase 02.1 is executing in parallel; instead of hooking scoring into ingestion, add a separate `score-tick` cron function that *scans* for jobs lacking per-user state (plus rows flagged for rescore) and claims them via a SQL claim RPC — the same decoupled pattern `claim_due_companies` already uses. This isolates Phase 3 completely from the in-flight 02.1 changes, is idempotent, naturally handles both watchlist and discovery-sweep inserts, and gives rescore-on-preference-change for free (mark rows, same worker picks them up). A scan-based scorer running every minute adds at most ~60s to the discovery-to-notification path, which still comfortably meets the 5–15 minute promise.
 
@@ -90,7 +102,7 @@ All risky externals were verified this session: `@negrel/webpush` is at **0.5.0*
 | Preferences CRUD (PREF-01) | Database (RLS-scoped tables) | Browser (form UI) | RLS is the authorization boundary (Phase 1 decision); UI is just editing |
 | Cheap filters (SCOR-01) | API/Backend (edge fn, pure TS module) | — | Must gate AI cost server-side; runs against service-role job reads; pure module also unit-testable in Vitest |
 | Resume text extraction + keywords | API/Backend (edge fn) | Database (cached in `resume_extracts`) | Resume bytes live in private storage; extraction needs service-role storage read; results cached once per resume (D-06) |
-| AI scoring (SCOR-02/03) + keyword gap (SCOR-05) | API/Backend (edge fn → Gemini REST) | Database (persisted per job,user) | API key secrecy; paid-tier enforcement (D-11); results are durable data, not recomputed per view |
+| AI scoring (SCOR-02/03) + keyword gap (SCOR-05) | API/Backend (edge fn → OpenAI Responses REST) | Database (persisted per job,user) | API key secrecy; `store:false`; disclosed retention semantics (D-11); results are durable data, not recomputed per view |
 | Feed + job detail rendering (SCOR-04/05) | Browser (React SPA) | Database (reads via RLS) | Pure read views over `user_jobs ⋈ jobs`; JD HTML sanitized in browser at render time |
 | Seen/dismiss state (D-16) | Database (column-limited user writes) | Browser | Per-user rows; users may update only their own state columns |
 | Push subscription lifecycle | Browser (SW + PushManager) | Database (subscription rows) | Subscription is created by the browser; server only stores/uses it |
@@ -100,10 +112,10 @@ All risky externals were verified this session: `@negrel/webpush` is at **0.5.0*
 
 ## Project Constraints (from CLAUDE.md)
 
-- **Budget:** near-zero; AI calls budget-capped, cheap model, invoked only after cheap filtering. Gemini **paid tier for anything containing resume text** (free-tier inputs may train Google models) — locked again by D-11.
+- **Budget:** near-zero; AI calls budget-capped, GPT-5.4 nano invoked only after cheap filtering. Target ~$1.84/month at 50 scores/day under the planning token assumption; ChatGPT Pro is separate from API billing.
 - **Stack:** Cloudflare Pages SPA (React 19 + Vite), Supabase Free (auth/Postgres/storage/edge functions), pg_cron + pg_net + Vault scheduling. All backend logic in Deno edge functions.
 - **What NOT to use:** Node `web-push` package (doesn't target Deno — use `@negrel/webpush` JSR); per-job notification emails (blows Resend 100/day — push per match, email as batched digest); mammoth as an edit/save path (preview/extraction only); LinkedIn scraping (out of scope).
-- **Free-tier limits that bind here:** Resend 100/day (digest design), Supabase 5 GB egress/mo (keep Gemini payloads lean-ish — fine at this volume), edge function wall-clock cap (shard work across ticks), 500K invocations/mo (3 every-minute crons ≈ 130K/mo — fine).
+- **Free-tier limits that bind here:** Resend 100/day (digest design), Supabase 5 GB egress/mo (keep OpenAI payloads bounded), edge function wall-clock cap (shard work across ticks), 500K invocations/mo (3 every-minute crons ≈ 130K/mo — fine). GPT-5.4 nano requires separately billed OpenAI API access.
 - **Security/integrity:** resumes in encrypted private storage, strict per-user separation (RLS), user-controlled deletion; `description_html` must be sanitized (DOMPurify) before render — explicitly noted in migration 0006.
 - **Performance:** 5–15 min discovery-to-notification; scoring+notify stages may add only ~1–2 min on top of ingestion.
 - **GSD workflow:** all edits through GSD commands; migrations sequence next: **0017**; verification scripts in `scripts/` run with `node --env-file=scripts/.env`.
@@ -114,7 +126,7 @@ All risky externals were verified this session: `@negrel/webpush` is at **0.5.0*
 
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
-| Gemini API (`gemini-2.5-flash`, `gemini-2.5-flash-lite`) | REST `v1beta` `:generateContent` | Scoring, resume keyword extraction, (optional) triage | Locked by D-11/D-12. Structured output via `generationConfig.responseMimeType: "application/json"` + `responseSchema` `[CITED: ai.google.dev/gemini-api/docs/structured-output; ai.google.dev/api/generate-content]`. Pricing re-verified 2026-07: Flash-Lite $0.10/$0.40 per 1M tokens; Flash ≈ $0.30/$2.50 `[CITED: ai.google.dev/gemini-api/docs/pricing via search]` |
+| OpenAI API (`gpt-5.4-nano`; configurable `gpt-5.6-luna` upgrade) | REST `POST /v1/responses` | Scoring + resume keyword extraction | Revised D-11/D-13. Use `store:false`, `reasoning.effort:'none'`, and strict `text.format` JSON Schema. Nano pricing checked 2026-07-19: $0.20/$1.25 per 1M input/output tokens. `[CITED: developers.openai.com/api/docs/models/gpt-5.4-nano; /guides/structured-outputs; /guides/your-data]` |
 | `@negrel/webpush` | **0.5.0** (JSR, verified via `jsr.io/@negrel/webpush/meta.json` this session) | Send web push (RFC 8291/8292) from Deno edge fns | Only Deno-native web push lib; deps limited to `@std/*` + `http-ece`; ships VAPID keygen script `[VERIFIED: JSR registry + GitHub README]` |
 | Resend REST API | `POST https://api.resend.com/emails` | Digest + fallback email via plain `fetch` | No SDK needed in Deno. `Authorization: Bearer`, JSON body `from/to/subject/html`; **`Idempotency-Key` header supported** (unique, ≤256 chars, 24h) — use for digest dedup `[CITED: resend.com/docs/api-reference/emails/send-email]` |
 | `@supabase/supabase-js` | 2.110.7 (already pinned) | DB/storage client browser + edge | Existing pattern (`npm:@supabase/supabase-js@2.110.7` in edge code) `[VERIFIED: codebase]` |

@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 02.1
-current_phase_name: source-coverage-expansion
-status: gaps_found
-stopped_at: Plan 02.1-13 UAT recorded; modal timeout deferred by user
-last_updated: "2026-07-19T02:48:48.000Z"
-last_activity: 2026-07-18
-last_activity_desc: Phase 02.1 Plan 13 human UAT found a user-deferred offline removal timeout gap
+current_phase: 03
+current_phase_name: scoring-feed-notifications
+status: executing
+stopped_at: Phase 03 Plan 01 complete; Plan 02 waiting for OpenAI API key/billing checkpoint
+last_updated: "2026-07-19T04:05:48.251Z"
+last_activity: 2026-07-19
+last_activity_desc: Phase 03 Plan 01 completed; provider revised to GPT-5.4 nano before Plan 02
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 23
-  completed_plans: 23
-  percent: 40
+  completed_phases: 3
+  total_plans: 30
+  completed_plans: 24
+  percent: 60
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** Discover relevant jobs fast (5–15 minutes from posting) and notify the user immediately — if job discovery and notification don't work reliably, nothing else matters.
-**Current focus:** Phase 02.1 — source-coverage-expansion
+**Current focus:** Phase 03 — scoring-feed-notifications
 
 ## Current Position
 
-Phase: 02.1 (source-coverage-expansion) — GAPS FOUND
-Plan: 13 of 13
-Status: Gaps found — removal timeout accepted for deferral
-Last activity: 2026-07-18 — Plan 13 human UAT recorded
+Phase: 03 (scoring-feed-notifications) — EXECUTING
+Plan: 2 of 7 (Task 1 checkpoint)
+Status: Plan 01 complete; awaiting OpenAI API key/billing for Plan 02
+Last activity: 2026-07-19 — Plan 01 completed and provider revised before AI implementation
 
-Progress: [██████████] 100% (23/23 plans executed)
+Progress: [█░░░░░░░░░] 14% (1/7 Phase 03 plans executed)
 
 ## Performance Metrics
 
@@ -143,6 +143,7 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Preserve source, external ID, and first-sight fields on fingerprint repost refreshes; only last_seen_at may advance on the existing row.
 - [Phase 02.1]: Paginate complete hosted job snapshots because evidence reconciliation cannot be safe when the provider default silently truncates rows.
 - [Phase 02.1]: Record the offline removal hang as a real deferred gap, not a pass; the user chose to move on without running human Checks 6-8.
+- [Phase 03]: Use GPT-5.4 nano through OpenAI Responses (`store:false`, strict Structured Outputs, reasoning none) for extraction/scoring; ChatGPT Pro is separate from API billing; compare GPT-5.6 Luna only if fewer than 16/20 representative scores pass human quality review.
 
 ### Quick Tasks Completed
 
@@ -162,6 +163,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-19T03:27:04.871Z
-Stopped at: Session resumed; Phase 03 plans revised at 22049a9, awaiting review convergence before execution
-Resume file: `.planning/phases/03-scoring-feed-notifications/.continue-here.md` (handoff consumed; revision step completed)
+Last session: 2026-07-19T04:05:48.251Z
+Stopped at: Phase 03 Plan 01 complete; Plan 02 Task 1 awaits OpenAI API key and API billing/credits
+Resume file: `.planning/phases/03-scoring-feed-notifications/.continue-here.md`

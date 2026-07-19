@@ -192,3 +192,16 @@
 - Star/shortlist feed state — Phase 4 tracker
 - Score-against-all-3-resumes comparison view — only if routing misroutes
 - Gemini 2.5 Pro stage-2 rescore — config valve on evidence
+
+---
+
+## Provider revision — 2026-07-19
+
+After reviewing automatic scoring volume and monthly cost, the user requested a switch from Gemini to an OpenAI model. The accepted planning baseline is:
+
+- `gpt-5.4-nano` for cached resume extraction and per-user job scoring.
+- OpenAI Responses API with `store:false`, `reasoning.effort:'none'`, and strict Structured Outputs.
+- ChatGPT Pro remains separate from API billing.
+- Cost estimate using 3K input + 0.5K output tokens per score: ~$1.84/month at 50 scores/day, ~$7.35/month at 200 scores/day, ~$0.25 for one isolated 200-score day.
+- Quality gate: test 20 representative resume/job pairs; keep nano if schema, tier, reasons, and gaps are acceptable. `gpt-5.6-luna` is a configuration-only upgrade valve, never an automatic second call.
+- Privacy disclosure: API data is not used for training unless explicitly opted in; `store:false` is not Zero Data Retention, and default abuse-monitoring logs may retain content up to 30 days.
