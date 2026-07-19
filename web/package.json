@@ -14,6 +14,7 @@
     "@supabase/supabase-js": "2.110.7",
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/react-query": "5.101.2",
+    "dompurify": "3.4.12",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-router": "8.2.0",
