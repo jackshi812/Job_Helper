@@ -8,6 +8,7 @@ import { RequireAuth } from './auth/RequireAuth'
 import { Shell } from './components/Shell'
 import { Dashboard } from './pages/Dashboard'
 import { Login } from './pages/Login'
+import { Preferences } from './pages/Preferences'
 import { ResetPassword } from './pages/ResetPassword'
 import { Resumes } from './pages/Resumes'
 import { Settings } from './pages/Settings'
@@ -32,6 +33,7 @@ createRoot(document.getElementById('root')!).render(
               }
             >
               <Route index element={<Dashboard />} />
+              <Route path="preferences" element={<Preferences />} />
               <Route path="watchlist" element={<Watchlist />} />
               <Route path="resumes" element={<Resumes />} />
               <Route path="tracker" element={<Tracker />} />
