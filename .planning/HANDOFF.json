@@ -1,158 +1,40 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-19T04:05:48.251Z",
+  "timestamp": "2026-07-19T14:39:21.416Z",
   "phase": "03",
   "phase_name": "scoring-feed-notifications",
   "phase_dir": ".planning/phases/03-scoring-feed-notifications",
-  "plan": 2,
-  "task": 1,
+  "plan": 3,
+  "task": 0,
   "total_tasks": 7,
   "status": "paused",
   "completed_tasks": [
-    {
-      "id": 1,
-      "name": "Complete Phase 02.1 gap closure and hosted evidence",
-      "status": "done",
-      "commit": "70eccdc"
-    },
-    {
-      "id": 2,
-      "name": "Create Phase 03 context, research, UI contract, patterns, and plans",
-      "status": "done",
-      "commit": "d3ae8b7"
-    },
-    {
-      "id": 3,
-      "name": "Review Phase 03 plans",
-      "status": "done",
-      "commit": "a007ead"
-    },
-    {
-      "id": 4,
-      "name": "Revise all Phase 03 plans against review findings",
-      "status": "done",
-      "commit": "22049a9"
-    },
-    {
-      "id": 5,
-      "name": "Attempt independent review convergence",
-      "status": "done",
-      "commit": null,
-      "progress": "External Claude export was denied twice by tenant privacy policy; the user accepted the residual review risk and chose execution handoff."
-    },
-    {
-      "id": 6,
-      "name": "Execute Plan 01: preferences and cheap filters",
-      "status": "done",
-      "commit": "1268c25"
-    },
-    {
-      "id": 7,
-      "name": "Revise the unexecuted AI integration from Gemini to OpenAI",
-      "status": "done",
-      "commit": null,
-      "progress": "GPT-5.4 nano is the default through Responses store:false and strict Structured Outputs; GPT-5.6 Luna is gated by a 20-pair quality eval."
-    }
+    {"id": 1, "name": "Execute Plan 03-01: preferences schema/UI + cheap filters", "status": "done", "commit": "1268c25"},
+    {"id": 2, "name": "Revise Phase 03 plans Gemini->OpenAI gpt-5.4 nano", "status": "done", "commit": "62fdaf6"},
+    {"id": 3, "name": "Execute Plan 03-02: DOCX extraction + OpenAI Responses wrapper (one approved live smoke call succeeded)", "status": "done", "commit": "e2d5fbb"}
   ],
   "remaining_tasks": [
-    {
-      "id": 2,
-      "name": "Execute Plan 02: DOCX extraction and OpenAI integration",
-      "status": "in_progress"
-    },
-    {
-      "id": 3,
-      "name": "Execute Plan 03: scoring pipeline",
-      "status": "not_started"
-    },
-    {
-      "id": 4,
-      "name": "Execute Plan 04: feed and job detail",
-      "status": "not_started"
-    },
-    {
-      "id": 5,
-      "name": "Execute Plan 05: notification backend",
-      "status": "not_started"
-    },
-    {
-      "id": 6,
-      "name": "Execute Plan 06: push enablement and alert settings",
-      "status": "not_started"
-    },
-    {
-      "id": 7,
-      "name": "Execute Plan 07: deploy and verify hosted Phase 03",
-      "status": "not_started"
-    }
+    {"id": 4, "name": "Execute Plan 03-03: atomic scoring pipeline (score-tick, routing, 0019 migration) — autonomous, local", "status": "not_started"},
+    {"id": 5, "name": "Execute Plan 03-04: scored feed + sanitized job detail — non-autonomous", "status": "not_started"},
+    {"id": 6, "name": "Execute Plan 03-05: exactly-once push/email notification backend — needs Resend key at delivery proof", "status": "not_started"},
+    {"id": 7, "name": "Execute Plan 03-06: push enablement, service worker, alert settings — autonomous", "status": "not_started"},
+    {"id": 8, "name": "Execute Plan 03-07: VAPID/secrets, migrations push, deploy, exact-SHA verify, human UAT — every external mutation needs explicit approval", "status": "not_started"}
   ],
   "blockers": [
-    {
-      "description": "Plan 02 live verification requires a project-scoped OpenAI API key with separate API billing/credits and explicit approval for the paid call.",
-      "type": "human_action",
-      "workaround": "Plan 01 is complete. Resume directly at the Plan 02 human key/billing checkpoint."
-    },
-    {
-      "description": "Plans 05 and 07 require a verified Resend sender and credentials.",
-      "type": "human_action",
-      "workaround": "Complete earlier local waves before the notification/deployment checkpoint."
-    },
-    {
-      "description": "Independent Claude review convergence could not run because tenant privacy policy denied export.",
-      "type": "external",
-      "workaround": "The user accepted the residual review risk; execute the Codex-reviewed and revised plans without fabricating a convergence pass."
-    }
+    {"description": "Plan 05/07 email delivery proof needs RESEND_API_KEY + RESEND_FROM backed by a verified Resend sender/domain.", "type": "human_action", "workaround": "Execute Plans 03/04/05/06 code locally; stop at the Resend checkpoint."},
+    {"description": "Plan 07 hosted deploy needs VAPID keys, Cloudflare/Supabase edge secrets, and explicit approval for schema push, function deploy, frontend deploy, and each live verifier invocation.", "type": "human_action", "workaround": "Complete all local waves first; present each external mutation at its checkpoint."}
   ],
   "async_jobs": [],
   "human_actions_pending": [
-    {
-      "action": "Provide a project-scoped OPENAI_API_KEY from an API-billed OpenAI project in gitignored scripts/.env, record the non-secret project/key identifier, and approve the paid smoke test. ChatGPT Pro billing is separate.",
-      "context": "Plan 02 extraction/scoring integration cannot be proven live without it.",
-      "blocking": true
-    },
-    {
-      "action": "Provide RESEND_API_KEY and RESEND_FROM backed by a verified sender/domain.",
-      "context": "Plans 05 and 07 require real email delivery proof.",
-      "blocking": false
-    },
-    {
-      "action": "Approve VAPID generation, secrets, schema push, function/frontend deployments, and each live verifier invocation when Plan 07 reaches those checkpoints.",
-      "context": "These are external mutations or live operations and are not pre-authorized by this handoff.",
-      "blocking": false
-    }
+    {"action": "Provide RESEND_API_KEY and RESEND_FROM from a verified Resend sender/domain.", "context": "Plans 05 and 07 require real email delivery proof.", "blocking": false},
+    {"action": "Approve VAPID generation, edge secrets (incl. setting OPENAI_API_KEY as a Supabase secret), schema push, function/frontend deploys, and each live verifier invocation at Plan 07 checkpoints.", "context": "These are external mutations/spend and are not pre-authorized.", "blocking": false}
   ],
   "decisions": [
-    {
-      "decision": "Proceed with Phase 03 execution using the plans revised in commit 22049a9.",
-      "rationale": "The Codex review findings were incorporated; independent Claude convergence was unavailable due privacy policy and the user accepted the residual risk.",
-      "phase": "03"
-    },
-    {
-      "decision": "Use fixed migration numbers 0017 through 0020.",
-      "rationale": "Fixed allocation prevents parallel-wave and deployed-schema collisions.",
-      "phase": "03"
-    },
-    {
-      "decision": "Require explicit approval for every external mutation, paid call, deployment, and live verifier invocation.",
-      "rationale": "The handoff transfers execution context, not authority for external state changes or spend.",
-      "phase": "03"
-    },
-    {
-      "decision": "Keep the Phase 02.1 removal-modal hang as a deferred gap.",
-      "rationale": "The user explicitly chose to move on; it remains truthful UAT debt and is outside Phase 03 scope.",
-      "phase": "02.1"
-    },
-    {
-      "decision": "Replace Gemini with GPT-5.4 nano through the OpenAI Responses API for Phase 03 extraction and scoring.",
-      "rationale": "Nano is purpose-fit for extraction/classification/ranking and is estimated at about $1.84/month for 50 scores/day; strict Structured Outputs and a 20-pair quality eval keep the choice measurable. GPT-5.6 Luna remains an eval-gated configuration upgrade only.",
-      "phase": "03"
-    }
+    {"decision": "Switched the AI scoring/extraction provider from Google Gemini to OpenAI, model gpt-5.4 nano (default), via the Responses API with strict Structured Outputs and store:false.", "rationale": "User directive. Revised the plan contract first (commit 62fdaf6) rather than diverging inline. gpt-5.4 nano honors the near-zero-cost budget; store:false + OpenAI API no-train-by-default covers the resume-text privacy concern that D-11 originally protected. One approved live smoke call succeeded at ~$0.000076.", "phase": "03"},
+    {"decision": "Preserve fixed migration allocation 0017-0020; write migration FILES locally only — no hosted push before Plan 07.", "rationale": "Prevents parallel-wave/deployed-schema collisions and keeps hosted state untouched until the approved deploy checkpoint.", "phase": "03"},
+    {"decision": "Worktree isolation disabled for this run; executors run sequentially on main.", "rationale": "Worktree fork base unresolved (origin/HEAD, #683) — auto-degraded to avoid base mismatch.", "phase": "03"}
   ],
-  "uncommitted_files": [
-    ".DS_Store",
-    "scripts/agent-dashboard.mjs",
-    "scripts/agent-dashboard.test.mjs"
-  ],
-  "next_action": "$gsd-execute-phase 03",
-  "context_notes": "Claude completed Phase 03 Plan 01 at commit 1268c25. Resume at Plan 02 Task 1, the OpenAI API key/billing checkpoint. The 2026-07-19 provider revision uses GPT-5.4 nano through OpenAI Responses with store:false and strict Structured Outputs; GPT-5.6 Luna is gated by a 20-pair quality eval. No Gemini implementation has started. Preserve unrelated worktree files, exact-SHA proof, complete paginated evidence, first-sight job identity, fixed migrations 0017-0020, and all explicit human/external checkpoints. Do not retry or fabricate independent review convergence."
+  "uncommitted_files": [".DS_Store", "scripts/agent-dashboard.mjs", "scripts/agent-dashboard.test.mjs"],
+  "next_action": "$gsd-execute-phase 03 (resumes at Wave 2, Plan 03-03 — autonomous, local, no paid call during execution).",
+  "context_notes": "Wave 1 done: 03-01 (preferences + pure cheapFilter, 322 tests green) and 03-02 (DOCX extraction + OpenAI Responses wrapper _shared/openai.ts, exactly-once SKIP LOCKED claim, one approved live gpt-5.4-nano smoke call succeeded). Provider swap fully committed across Plans 02/03/07 + CONTEXT/RESEARCH/PATTERNS; residual 'Gemini' strings in RESEARCH/CONTEXT/DISCUSSION-LOG are self-marked superseded history, not live guidance. Wave 2 = 03-03 (deps 01,02) is next and is local/autonomous — the actual paid OpenAI scoring calls happen at hosted runtime, not during local plan execution, so 03-03 needs no spend approval. HEAD e2d5fbb. Local production remains pinned at SHA ee21a719 — Phase 03 local work must NOT imply a production deploy. Keep the Phase 02.1 offline-removal-modal hang as a deferred gap (out of Phase 03 scope). The three Phase 02.1 blocking anti-patterns (mutable-URL proof, first-page-only reconciliation, retry-through-quota) still govern Plan 07 hosted verification."
 }
