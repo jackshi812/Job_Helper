@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Access** - Deployed app with invite-only auth for two users and RLS-enforced data isolation (completed 2026-07-16)
 - [x] **Phase 2: Watchlist Ingestion & Monitoring** - New postings from 100+ watched sites land deduplicated within 5–15 minutes, with visible pipeline health (completed 2026-07-17)
-- [x] **Phase 02.1: Source Coverage Expansion (INSERTED)** - Prove representative ATS/portal connectors and direct ingestion from major branded finance career sites with safe degraded-source behavior (completed 2026-07-18)
+- [ ] **Phase 02.1: Source Coverage Expansion (INSERTED)** - Prove representative ATS/portal connectors and direct ingestion from major branded finance career sites with safe degraded-source behavior (13/13 plans executed; user-deferred UAT gap)
 - [ ] **Phase 3: Scoring, Feed & Notifications** - Preferences + cheap filters + AI scoring produce a match feed, and strong matches trigger push + email alerts
 - [ ] **Phase 4: Resume Tailoring & Tracker** - Truthful DOCX-preserving tailoring to PDF with mandatory review, plus a manual application tracker
 
@@ -102,7 +102,8 @@ Plans:
   4. A blocked, changed, failed, or implausibly empty source retains its last known jobs, reports Degraded with the last successful sync and useful error detail, and never closes jobs from that failed observation
   5. Every new connector passes manual verification and several successful syncs before scheduled polling is enabled; unsupported or unstable candidates remain clearly documented rather than being presented as reliable
 
-**Plans:** 12/13 plans executed
+**Plans:** 13/13 plans executed
+**Status:** Gaps found — offline Watchlist removal can remain indefinitely pending; user accepted deferral without marking it passed.
 **UI hint:** yes
 
 Plans:
@@ -148,7 +149,7 @@ Plans:
 
 **Gap Closure Wave 3** *(blocked on Gap Closure Wave 2)*
 
-- [ ] 02.1-13-PLAN.md — Final human D5 visual, destination, keyboard, focus, inert-background, and announcement UAT
+- [x] 02.1-13-PLAN.md — Final human D5 UAT concluded: Checks 1-4 passed; offline removal timeout failed; Checks 6-8 deferred by user
 
 ### Phase 3: Scoring, Feed & Notifications
 
@@ -193,7 +194,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
 | 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
-| 02.1 Source Coverage Expansion | 12/13 | In Progress|  |
+| 02.1 Source Coverage Expansion | 13/13 | Gaps found (deferred) |  |
 | 3. Scoring, Feed & Notifications | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 

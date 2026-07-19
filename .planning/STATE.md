@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 02.1
 current_phase_name: source-coverage-expansion
-status: executing
-stopped_at: Completed 02.1-12-PLAN.md
-last_updated: "2026-07-19T02:30:00.000Z"
+status: gaps_found
+stopped_at: Plan 02.1-13 UAT recorded; modal timeout deferred by user
+last_updated: "2026-07-19T02:48:48.000Z"
 last_activity: 2026-07-18
-last_activity_desc: Phase 02.1 execution started
+last_activity_desc: Phase 02.1 Plan 13 human UAT found a user-deferred offline removal timeout gap
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 23
-  completed_plans: 22
+  completed_plans: 23
   percent: 40
 ---
 
@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 
 ## Current Position
 
-Phase: 02.1 (source-coverage-expansion) — EXECUTING
-Plan: 4 of 13
-Status: Ready to execute
-Last activity: 2026-07-18 — Phase 02.1 execution started
+Phase: 02.1 (source-coverage-expansion) — GAPS FOUND
+Plan: 13 of 13
+Status: Gaps found — removal timeout accepted for deferral
+Last activity: 2026-07-18 — Plan 13 human UAT recorded
 
-Progress: [██████████] 96% (22/23 plans)
+Progress: [██████████] 100% (23/23 plans executed)
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ Progress: [██████████] 96% (22/23 plans)
 | Phase 02.1 P10 | 4 min | 2 tasks | 5 files |
 | Phase 02.1 P11 | 5 min | 2 tasks | 2 files |
 | Phase 02.1 P12 | 9h 5m | 3 tasks | 4 files |
+| Phase 02.1 P13 | 14min | 1 checkpoint | 5 planning files |
 
 ## Accumulated Context
 
@@ -141,6 +142,7 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Allow a final one-request detail batch when one count slot remains, preserving the exact 40-request ceiling and maximum concurrency two.
 - [Phase 02.1]: Preserve source, external ID, and first-sight fields on fingerprint repost refreshes; only last_seen_at may advance on the existing row.
 - [Phase 02.1]: Paginate complete hosted job snapshots because evidence reconciliation cannot be safe when the provider default silently truncates rows.
+- [Phase 02.1]: Record the offline removal hang as a real deferred gap, not a pass; the user chose to move on without running human Checks 6-8.
 
 ### Quick Tasks Completed
 
@@ -151,6 +153,7 @@ Recent decisions affecting current work:
 ### Blockers/Concerns
 
 - [Phase 2 verification]: cron-job.org failure email delivery and HTTP 200 recovery were observed, but recovery-email receipt was user-waived and remains unverified; do not record it as passed.
+- [Phase 02.1 UAT]: offline Watchlist removal can remain indefinitely at `Removing…` with both actions disabled and no modal error. Curi Capital remained after recovery. The user accepted deferring the fix and Checks 6-8; do not record the behavior as passed.
 - [Phase 4]: Highest-uncertainty area (DOCX XML run-splitting, truthful-edit prompting, CloudConvert fidelity + PII posture) — research flagged for deeper research during planning
 
 ### Roadmap Evolution
@@ -159,6 +162,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-19T02:30:00.000Z
-Stopped at: Completed 02.1-12-PLAN.md
+Last session: 2026-07-19T02:48:48.000Z
+Stopped at: Plan 02.1-13 UAT recorded; modal timeout deferred by user
 Resume file: None
