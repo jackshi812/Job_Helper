@@ -9,6 +9,7 @@ const PIPELINE_REOPEN_MAX_JOBS = 25
 const PIPELINE_REOPEN_DRAIN_ATTEMPTS = 20
 const PIPELINE_REOPEN_OBSERVATION_ATTEMPTS = 12
 const PIPELINE_REOPEN_OBSERVATION_DELAY_MS = 1_000
+const PIPELINE_JOB_PAGE_SIZE = 1_000
 const PIPELINE_JOB_COLUMNS = [
   'id',
   'company_id',
@@ -621,13 +622,63 @@ function recordsById(rows: Record<string, unknown>[]) {
   return Object.fromEntries(rows.map((row) => [String(row.id), row]))
 }
 
+export async function collectPipelineJobRows<T extends { id: unknown }>(
+  loadPage: (
+    afterId: string | null,
+    limit: number,
+  ) => Promise<{ data: T[] | null; error: unknown }>,
+  pageSize = PIPELINE_JOB_PAGE_SIZE,
+): Promise<T[]> {
+  if (!Number.isInteger(pageSize) || pageSize < 1) {
+    throw new Error('Pipeline job snapshot page size must be a positive integer')
+  }
+
+  const rows: T[] = []
+  let afterId: string | null = null
+  while (true) {
+    const { data, error } = await loadPage(afterId, pageSize)
+    if (error) throw error
+    const page = data ?? []
+    if (page.length > pageSize) {
+      throw new Error('Pipeline job snapshot page exceeded its requested limit')
+    }
+
+    let previousId = afterId
+    for (const row of page) {
+      if (typeof row.id !== 'string' || row.id.length === 0) {
+        throw new Error('Pipeline job snapshot encountered a missing job ID')
+      }
+      if (previousId !== null && row.id <= previousId) {
+        throw new Error('Pipeline job snapshot pages must be strictly ordered by job ID')
+      }
+      previousId = row.id
+      rows.push(row)
+    }
+
+    if (page.length < pageSize) return rows
+    afterId = previousId
+  }
+}
+
+async function selectAllPipelineJobs(admin: ReturnType<typeof client>) {
+  return collectPipelineJobRows<Record<string, unknown>>(async (afterId, limit) => {
+    let query = admin
+      .from('jobs')
+      .select(PIPELINE_JOB_COLUMNS)
+      .order('id', { ascending: true })
+    if (afterId !== null) query = query.gt('id', afterId)
+    const { data, error } = await query.limit(limit)
+    return { data: data as Record<string, unknown>[] | null, error }
+  })
+}
+
 export async function capturePipelineEvidenceSnapshot(
   admin: ReturnType<typeof client>,
   label: string,
   fixture?: ReopenFixtureState,
   deniedRlsExternalId?: string,
 ): Promise<PipelineEvidenceSnapshot> {
-  const [companiesResult, jobsResult, heartbeatResult] = await Promise.all([
+  const [companiesResult, jobRowsResult, heartbeatResult] = await Promise.all([
     admin.from('companies').select([
       'id',
       'name',
@@ -647,15 +698,14 @@ export async function capturePipelineEvidenceSnapshot(
       'last_error_code',
       'last_observation_count',
     ].join(', ')).order('id', { ascending: true }),
-    admin.from('jobs').select(PIPELINE_JOB_COLUMNS).order('id', { ascending: true }),
+    selectAllPipelineJobs(admin),
     admin.from('pipeline_heartbeat').select('*').eq('id', true).single(),
   ])
   if (companiesResult.error) throw companiesResult.error
-  if (jobsResult.error) throw jobsResult.error
   if (heartbeatResult.error) throw heartbeatResult.error
 
   const companyRows = (companiesResult.data ?? []) as Record<string, unknown>[]
-  const jobRows = ((jobsResult.data ?? []) as Record<string, unknown>[]).map((row) => ({
+  const jobRows = jobRowsResult.map((row) => ({
     ...row,
     description_html_hash: typeof row.description_html === 'string'
       ? sha256(row.description_html)
@@ -836,12 +886,7 @@ async function drainDueCompanies(
 }
 
 async function snapshotRealJobs(admin: ReturnType<typeof client>) {
-  const { data, error } = await admin
-    .from('jobs')
-    .select(PIPELINE_JOB_COLUMNS)
-    .order('id', { ascending: true })
-  if (error) throw error
-  return data ?? []
+  return selectAllPipelineJobs(admin)
 }
 
 async function assertRealJobsUnchanged(
