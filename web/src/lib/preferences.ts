@@ -66,4 +66,11 @@ export async function savePreferences(input: SavePreferencesInput): Promise<void
     )
 
   if (error) throw error
+
+  // D-04 retroactive feedback / D-10 rescore window: flag the caller's recent
+  // jobs for refilter so tuning preferences re-runs cheap filters and rescores
+  // only real changes (the worker owns the rescore-economy decision). Scoped to
+  // auth.uid() and a 7-day window inside the RPC (Settings.tsx rpc precedent).
+  const { error: rpcError } = await supabase.rpc('mark_recent_jobs_for_refilter')
+  if (rpcError) throw rpcError
 }

@@ -7,6 +7,8 @@ vi.mock('./supabase', () => ({
     auth: { getUser: vi.fn() },
     storage: { from: vi.fn() },
     from: vi.fn(),
+    // Refilter trigger fired after a successful upload/delete (D-04/D-10).
+    rpc: vi.fn().mockResolvedValue({ error: null }),
   },
 }))
 
