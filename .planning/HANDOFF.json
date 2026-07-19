@@ -1,0 +1,145 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-19T03:41:39.851Z",
+  "phase": "03",
+  "phase_name": "scoring-feed-notifications",
+  "phase_dir": ".planning/phases/03-scoring-feed-notifications",
+  "plan": 1,
+  "task": 0,
+  "total_tasks": 7,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Complete Phase 02.1 gap closure and hosted evidence",
+      "status": "done",
+      "commit": "70eccdc"
+    },
+    {
+      "id": 2,
+      "name": "Create Phase 03 context, research, UI contract, patterns, and plans",
+      "status": "done",
+      "commit": "d3ae8b7"
+    },
+    {
+      "id": 3,
+      "name": "Review Phase 03 plans",
+      "status": "done",
+      "commit": "a007ead"
+    },
+    {
+      "id": 4,
+      "name": "Revise all Phase 03 plans against review findings",
+      "status": "done",
+      "commit": "22049a9"
+    },
+    {
+      "id": 5,
+      "name": "Attempt independent review convergence",
+      "status": "done",
+      "commit": null,
+      "progress": "External Claude export was denied twice by tenant privacy policy; the user accepted the residual review risk and chose execution handoff."
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 1,
+      "name": "Execute Plan 01: preferences and cheap filters",
+      "status": "not_started"
+    },
+    {
+      "id": 2,
+      "name": "Execute Plan 02: DOCX extraction and Gemini integration",
+      "status": "not_started"
+    },
+    {
+      "id": 3,
+      "name": "Execute Plan 03: scoring pipeline",
+      "status": "not_started"
+    },
+    {
+      "id": 4,
+      "name": "Execute Plan 04: feed and job detail",
+      "status": "not_started"
+    },
+    {
+      "id": 5,
+      "name": "Execute Plan 05: notification backend",
+      "status": "not_started"
+    },
+    {
+      "id": 6,
+      "name": "Execute Plan 06: push enablement and alert settings",
+      "status": "not_started"
+    },
+    {
+      "id": 7,
+      "name": "Execute Plan 07: deploy and verify hosted Phase 03",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Plan 02 live verification requires a billing-enabled paid-tier Gemini key and explicit approval for the paid call.",
+      "type": "human_action",
+      "workaround": "Start Plan 01 locally and stop at the Plan 02 human checkpoint."
+    },
+    {
+      "description": "Plans 05 and 07 require a verified Resend sender and credentials.",
+      "type": "human_action",
+      "workaround": "Complete earlier local waves before the notification/deployment checkpoint."
+    },
+    {
+      "description": "Independent Claude review convergence could not run because tenant privacy policy denied export.",
+      "type": "external",
+      "workaround": "The user accepted the residual review risk; execute the Codex-reviewed and revised plans without fabricating a convergence pass."
+    }
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {
+      "action": "Provide a billing-enabled paid-tier GEMINI_API_KEY in gitignored scripts/.env, provide the requested Google project/key attestation, and approve the paid smoke test.",
+      "context": "Plan 02 extraction/scoring integration cannot be proven live without it.",
+      "blocking": false
+    },
+    {
+      "action": "Provide RESEND_API_KEY and RESEND_FROM backed by a verified sender/domain.",
+      "context": "Plans 05 and 07 require real email delivery proof.",
+      "blocking": false
+    },
+    {
+      "action": "Approve VAPID generation, secrets, schema push, function/frontend deployments, and each live verifier invocation when Plan 07 reaches those checkpoints.",
+      "context": "These are external mutations or live operations and are not pre-authorized by this handoff.",
+      "blocking": false
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Proceed with Phase 03 execution using the plans revised in commit 22049a9.",
+      "rationale": "The Codex review findings were incorporated; independent Claude convergence was unavailable due privacy policy and the user accepted the residual risk.",
+      "phase": "03"
+    },
+    {
+      "decision": "Use fixed migration numbers 0017 through 0020.",
+      "rationale": "Fixed allocation prevents parallel-wave and deployed-schema collisions.",
+      "phase": "03"
+    },
+    {
+      "decision": "Require explicit approval for every external mutation, paid call, deployment, and live verifier invocation.",
+      "rationale": "The handoff transfers execution context, not authority for external state changes or spend.",
+      "phase": "03"
+    },
+    {
+      "decision": "Keep the Phase 02.1 removal-modal hang as a deferred gap.",
+      "rationale": "The user explicitly chose to move on; it remains truthful UAT debt and is outside Phase 03 scope.",
+      "phase": "02.1"
+    }
+  ],
+  "uncommitted_files": [
+    ".DS_Store",
+    "scripts/agent-dashboard.mjs",
+    "scripts/agent-dashboard.test.mjs"
+  ],
+  "next_action": "$gsd-execute-phase 03",
+  "context_notes": "Claude should resume and execute the seven revised Phase 03 plans starting with local Plan 01. No Phase 03 execution has started. Preserve unrelated worktree files, exact-SHA proof, complete paginated evidence, first-sight job identity, fixed migrations 0017-0020, and all explicit human/external checkpoints. Do not retry or fabricate independent review convergence."
+}
