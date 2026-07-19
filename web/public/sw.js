@@ -10,7 +10,7 @@ self.addEventListener('push', (event) => {
   let data
   try {
     data = event.data ? event.data.json() : null
-  } catch (_err) {
+  } catch {
     data = null
   }
   if (!data) data = { title: 'New job matches', url: '/' }

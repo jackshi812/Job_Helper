@@ -86,7 +86,7 @@ export async function enablePushOnThisDevice(): Promise<void> {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
     })
-  } catch (_err) {
+  } catch {
     throw new Error('subscription failed')
   }
 
