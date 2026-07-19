@@ -18,7 +18,7 @@
     {"id": 7, "name": "Plan 03-06: push enablement, service worker, alert settings", "status": "done", "commit": "961e56c"}
   ],
   "remaining_tasks": [
-    {"id": 8, "name": "Plan 03-07 part A (LOCAL, no external): write scripts/generate-vapid-keys.mjs, scripts/verify-scoring.ts, scripts/verify-notifications.ts, web/.env.example", "status": "not_started"},
+    {"id": 8, "name": "Plan 03-07 part A (LOCAL, no external): write scripts/generate-vapid-keys.mjs, scripts/verify-scoring.ts, scripts/verify-notifications.ts, web/.env.example, gitignore vapid-keys.json", "status": "done_uncommitted", "note": "Written+verified 2026-07-19: VAPID generator ran clean (ECDSA P-256 JWK pair + base64url public key); both TS verifiers type-strip clean. Not yet committed."},
     {"id": 9, "name": "Plan 03-07 part B (HOSTED, per-step approval): provide RESEND_API_KEY+RESEND_FROM; generate VAPID; set edge secrets (OPENAI_API_KEY, VAPID_KEYS, RESEND_*, SITE_URL); push migrations 0017-0020; deploy extract-resume/score-tick/notify-tick (verify_jwt=false); deploy frontend with VITE_VAPID_PUBLIC_KEY; re-verify 02.1 head; run hosted verifiers (one approved invocation each, exact-SHA-bound, paginated); human UAT (real job end-to-end + tab-closed push)", "status": "not_started"}
   ],
   "blockers": [
