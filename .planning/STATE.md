@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: scoring-feed-notifications
 status: executing
-stopped_at: Completed 03-09-PLAN.md
-last_updated: "2026-07-20T14:33:41.540Z"
+stopped_at: Completed 03-10-PLAN.md
+last_updated: "2026-07-20T16:27:12.131Z"
 last_activity: 2026-07-20
-last_activity_desc: Completed Plan 03-09 focused feed freshness and cache eviction
+last_activity_desc: Completed Plan 03-10 approved scoring rollout and exact release evidence
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 34
-  completed_plans: 32
-  percent: 60
+  completed_plans: 33
+  percent: 97
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 ## Current Position
 
 Phase: 03 (scoring-feed-notifications) — EXECUTING
-Plan: 10 of 11
+Plan: 11 of 11
 Status: Ready to execute
-Last activity: 2026-07-20 — Completed Plan 03-09 focused feed freshness and cache eviction
+Last activity: 2026-07-20 — Completed Plan 03-10 approved scoring rollout and exact release evidence
 
-Progress: [████████░░] 82% (9/11 Phase 03 plans executed)
+Progress: [█████████░] 91% (10/11 Phase 03 plans executed)
 
 ## Performance Metrics
 
@@ -79,6 +79,7 @@ Progress: [████████░░] 82% (9/11 Phase 03 plans executed)
 | Phase 02.1 P13 | 14min | 1 checkpoint | 5 planning files |
 | Phase 03 P08 | 14m | 2 tasks | 10 files |
 | Phase 03 P09 | 6m | 2 tasks | 7 files |
+| Phase 03 P10 | 9m | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -153,6 +154,9 @@ Recent decisions affecting current work:
 - [Phase 03]: Require scored, score >=50, nondismissed, needs_refilter=false, and open job state for focused-feed visibility. — Prevents stale, closed, weak, failed, filtered, or pending rows from appearing as current matches while preserving All jobs diagnostics.
 - [Phase 03]: Prefer normalized companies.name, then bounded source_company_name, and withhold identity-less feed rows. — Every displayed provider row has truthful nonblank identity without fabricated labels.
 - [Phase 03]: Cancel and remove feed cache only after preference upsert plus revision signal succeed, then invalidate feed and preferences. — A success message cannot coexist with stale focused rows, while failures retain cache and editable chips for retry.
+- [Phase 03]: Apply migration 0025 from a checksum-matched isolated project containing no migration 0026; 0026 remains pending remotely. — This made the approved production schema mutation structurally incapable of applying the later local migration.
+- [Phase 03]: Deploy only score-tick with verify_jwt=false so its existing x-cron-secret handler boundary remains authoritative. — The scheduled caller uses a dedicated shared-secret boundary rather than a user JWT.
+- [Phase 03]: Bind the frontend release through the exact GitHub check-run SHA, Cloudflare deployment metadata, deployment URL, and immutable asset SHA-256. — Cross-provider identity and immutable content evidence prevent acceptance of a stale mutable production URL.
 
 ### Quick Tasks Completed
 
@@ -172,7 +176,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-20T14:32:41.014Z
-Stopped at: Completed 03-09-PLAN.md
+Last session: 2026-07-20T16:26:45.887Z
+Stopped at: Completed 03-10-PLAN.md
 Resume file: None
-Last session (2026-07-20): Plan 03-08 completed locally with provider-agnostic title filtering, semantic freshness/CAS, truthful company persistence, and the expiring two-fixture verification latch. Continue with Plan 03-09; no rollout or hosted verification occurred.
+Last session (2026-07-20): Plan 03-10 deployed only migration 0025, score-tick v3, and exact SHA c15ad867 to Cloudflare production with validated release evidence and zero verifier/manual-tick/maintenance/OpenAI effects. Plan 03-11 requires separate paid-run approval.
