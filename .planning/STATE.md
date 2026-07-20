@@ -5,10 +5,10 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: scoring-feed
 status: executing
-stopped_at: Phase 03 Plan 07 notification removal implemented locally; hosted cleanup and deployment await approval
-last_updated: "2026-07-19T20:30:00-05:00"
+stopped_at: Notifications removed end-to-end; Phase 03 Plan 07 scoring verification and human UAT remain
+last_updated: "2026-07-19T20:20:00-05:00"
 last_activity: 2026-07-19
-last_activity_desc: Notification subsystem removed locally; Phase 3 narrowed to scoring and feed
+last_activity_desc: Notification subsystem removed from local code, hosted Supabase, and Cloudflare production
 progress:
   total_phases: 5
   completed_phases: 3
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 ## Current Position
 
 Phase: 03 (scoring-feed) — EXECUTING
-Plan: 7 of 7 (local removal complete; hosted cleanup pending)
-Status: Notifications removed locally; verification and hosted destructive cleanup remain
-Last activity: 2026-07-19 — owner removed notifications from product scope
+Plan: 7 of 7 (notification removal complete; scoring UAT pending)
+Status: Notifications removed end-to-end; hosted scoring verification and human UAT remain
+Last activity: 2026-07-19 — feed-only release deployed and verified
 
 Progress: [█████████░] 86% (6/7 Phase 03 plans executed)
 
@@ -164,7 +164,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-19T20:30:00-05:00
-Stopped at: Phase 03 Plan 07 local notification removal complete; hosted cleanup/deploy awaits explicit approval
+Last session: 2026-07-19T20:20:00-05:00
+Stopped at: Notifications removed end-to-end; Phase 03 scoring verification and human UAT remain
 Resume file: `.planning/phases/03-scoring-feed-notifications/.continue-here.md`
-Last session (2026-07-19): Notification sender, client, service worker, controls, tests, verifier, VAPID tooling/key, and schema were removed locally. Hosted `notify-tick`, cron/data, secrets, and frontend remain until approval.
+Last session (2026-07-19): Migration 0024, function/secret deletion, exact-SHA frontend deployment, and Cloudflare VAPID-variable cleanup all verified. Notifications are fully removed; continue only with scoring/feed verification and UAT.
