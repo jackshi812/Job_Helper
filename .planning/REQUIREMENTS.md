@@ -16,7 +16,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Preferences & Watchlist
 
-- [ ] **PREF-01**: User can set job preferences: target titles, locations, keywords (include/exclude)
+- [x] **PREF-01**: User can set job preferences: target titles, locations, keywords (include/exclude)
 - [x] **PREF-02**: User can add, edit, and remove companies on a watchlist of 100+ career-site URLs
 - [x] **PREF-03**: System auto-detects ATS platform (Greenhouse/Lever/Ashby) from a pasted career-site URL and stores the polling endpoint
 - [x] **PREF-04**: User can see per-company monitoring health (last successful poll, failing sources flagged)
@@ -36,9 +36,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Scoring & Feed
 
-- [ ] **SCOR-01**: Cheap filters (title/location/keyword rules) discard irrelevant postings before any AI call
-- [ ] **SCOR-02**: AI scores surviving postings against the user's preferences and uploaded resume
-- [ ] **SCOR-03**: Each scored job shows plain-language match reasons ("why this matched")
+- [x] **SCOR-01**: Cheap filters (title/location/keyword rules) discard irrelevant postings before any AI call
+- [x] **SCOR-02**: AI scores surviving postings against the user's preferences and uploaded resume
+- [x] **SCOR-03**: Each scored job shows plain-language match reasons ("why this matched")
 - [x] **SCOR-04**: User can view a dashboard feed of new matches with score, match reasons, posted-time, and direct link to the employer's apply page
 - [x] **SCOR-05**: User can view job detail with full JD snapshot and keyword-gap panel (categorized gaps vs their resume, advisory only)
 
@@ -97,7 +97,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
 | AUTH-04 | Phase 1 | Complete |
-| PREF-01 | Phase 3 | Pending |
+| PREF-01 | Phase 3 | Complete |
 | PREF-02 | Phase 2 | Complete |
 | PREF-03 | Phase 2 | Complete |
 | PREF-04 | Phase 2 | Complete |
@@ -111,9 +111,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISC-07 | Phase 02.1 | Complete |
 | DISC-08 | Phase 02.1 | Complete |
 | DISC-09 | Phase 02.1 | Complete |
-| SCOR-01 | Phase 3 | Pending |
-| SCOR-02 | Phase 3 | Pending |
-| SCOR-03 | Phase 3 | Pending |
+| SCOR-01 | Phase 3 | Complete |
+| SCOR-02 | Phase 3 | Complete |
+| SCOR-03 | Phase 3 | Complete |
 | SCOR-04 | Phase 3 | Complete |
 | SCOR-05 | Phase 3 | Complete |
 | RESU-01 | Phase 3 | Pending |

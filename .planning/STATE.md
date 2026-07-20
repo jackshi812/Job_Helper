@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: scoring-feed-notifications
 status: executing
-stopped_at: Phase 03 gap plans 08-11 verified; paused before execution
-last_updated: "2026-07-20T14:05:30.340Z"
+stopped_at: Completed 03-08-PLAN.md
+last_updated: "2026-07-20T14:22:03.124Z"
 last_activity: 2026-07-20
-last_activity_desc: Phase 03 execution started
+last_activity_desc: Completed Plan 03-08 scoring freshness and isolation
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 34
-  completed_plans: 30
-  percent: 60
+  completed_plans: 31
+  percent: 91
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 ## Current Position
 
 Phase: 03 (scoring-feed-notifications) — EXECUTING
-Plan: 1 of 11
-Status: Executing Phase 03
-Last activity: 2026-07-20 — Phase 03 execution started
+Plan: 9 of 11
+Status: Ready to execute
+Last activity: 2026-07-20 — Completed Plan 03-08 scoring freshness and isolation
 
-Progress: [██████░░░░] 64% (7/11 Phase 03 plans executed)
+Progress: [███████░░░] 73% (8/11 Phase 03 plans executed)
 
 ## Performance Metrics
 
@@ -77,6 +77,7 @@ Progress: [██████░░░░] 64% (7/11 Phase 03 plans executed)
 | Phase 02.1 P11 | 5 min | 2 tasks | 2 files |
 | Phase 02.1 P12 | 9h 5m | 3 tasks | 4 files |
 | Phase 02.1 P13 | 14min | 1 checkpoint | 5 planning files |
+| Phase 03 P08 | 14m | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -145,6 +146,9 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Record the offline removal hang as a real deferred gap, not a pass; the user chose to move on without running human Checks 6-8.
 - [Phase 03]: Use GPT-5.4 nano through OpenAI Responses (`store:false`, strict Structured Outputs, reasoning none) for extraction/scoring; ChatGPT Pro is separate from API billing; compare GPT-5.6 Luna only if fewer than 16/20 representative scores pass human quality review.
 - [Phase 03]: Remove browser push, email alerts, alert tuning, and notification persistence; scored matches are feed-only. — Owner decision on 2026-07-19.
+- [Phase 03]: Authorize score reuse only when the complete server-computed semantic input hash matches; use desired revisions solely as CAS publication fences.
+- [Phase 03]: While the short-lived scoring-verification latch is active, suppress ordinary and mismatched claims before seeding and permit only its two registered existing fixture rows.
+- [Phase 03]: Keep scoring provider-agnostic after dedup; every claimed job passes the same cheap filter before routing, hashing, or paid AI work.
 
 ### Quick Tasks Completed
 
@@ -164,7 +168,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-20T05:00:08.187Z
-Stopped at: Phase 03 gap plans 08-11 verified; paused before execution
-Resume file: `.planning/phases/03-scoring-feed-notifications/.continue-here.md`
-Last session (2026-07-20): Plan 07 implementation/deployment closed honestly with its failed Equity Research UAT truth transferred to Plans 08-11. Final checker passed. Resume with Plan 03-08; no source implementation for the gap has started.
+Last session: 2026-07-20T14:22:03.114Z
+Stopped at: Completed 03-08-PLAN.md
+Resume file: None
+Last session (2026-07-20): Plan 03-08 completed locally with provider-agnostic title filtering, semantic freshness/CAS, truthful company persistence, and the expiring two-fixture verification latch. Continue with Plan 03-09; no rollout or hosted verification occurred.
