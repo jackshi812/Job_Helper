@@ -200,14 +200,41 @@ Plans:
 
 ### Phase 03.1: Workday & ATS Connector Expansion (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Monitor an eight-tenant Workday pilot and Paylocity Recruiting employers in the unified feed, where every tenant earns independent closure-credible evidence before scheduled polling and no tenant's failure can close, delay, or block another's jobs
+**Requirements**: DISC-07, DISC-08, DISC-09
 **Depends on:** Phase 3
-**Plans:** 0 plans
+**Context:** `.planning/phases/03.1-workday-ats-connector-expansion/03.1-CONTEXT.md`
+**Research:** `.planning/phases/03.1-workday-ats-connector-expansion/03.1-RESEARCH.md`
+**Plans:** 12 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 03.1 to break down)
+- [ ] 03.1-01-PLAN.md — Paylocity detection and adapter on the documented public feed contract
+- [ ] 03.1-02-PLAN.md — Pure ingest predicate module with bounded reason codes
+- [ ] 03.1-03-PLAN.md — Paylocity connector registry, verification, and staged activation
+- [ ] 03.1-04-PLAN.md — Migration 0028: Paylocity source unions and activation ledger
+- [ ] 03.1-05-PLAN.md — Workday reviewed eight-tenant allowlist and allowlist-gated detection
+- [ ] 03.1-06-PLAN.md — Workday per-tenant identity and bounded incremental detail enrichment
+- [ ] 03.1-07-PLAN.md — Per-tenant Workday dispatch gate and shared source-key derivation
+- [ ] 03.1-08-PLAN.md — Migration 0029: tenant identity constraints and per-tenant SQL claim proof
+- [ ] 03.1-09-PLAN.md — Scheduler predicate ingest, distinct closure reasons, migration 0030
+- [ ] 03.1-10-PLAN.md — Cross-tenant isolation regression, pilot catalog 0031, honesty audits
+- [ ] 03.1-11-PLAN.md — [BLOCKING] Owner-approved schema push and edge deployment
+- [ ] 03.1-12-PLAN.md — Owner-approved per-tenant live evidence and truthful dispositions
+
+**Success Criteria** (what must be TRUE):
+
+- Paylocity employers verify, ingest, and re-poll without duplicates on the documented public feed contract
+- Each allowlisted Workday tenant resolves a server-derived identity, with company display names from the reviewed allowlist and never from the tenant slug
+- A complete reconciled list observation is the sole closure authority; missing detail enrichment never closes jobs and never reads as an empty board
+- Each tenant reaches scheduled polling only after its own repeated, warning-free, closure-credible windows
+- One failing tenant cannot close another tenant's jobs, delay its polling, or promote it
+- The pilot is described as eight companies until two further distinct companies are supplied
+
+**Scope notes:**
+
+- SAP SuccessFactors is **deferred to its own phase** (owner decision 2026-07-20) — no SuccessFactors work belongs here
+- PIMCO is **removed** from the pilot — no resolvable public Workday identity
 
 ### Phase 03.2: Dashboard Precision & Company Visibility (INSERTED)
 
