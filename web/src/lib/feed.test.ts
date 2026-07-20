@@ -37,6 +37,7 @@ function feedRow(overrides: Partial<FeedRow> = {}): FeedRow {
       posted_at: '2026-07-18T00:00:00.000Z',
       first_seen_at: '2026-07-18T01:00:00.000Z',
       status: 'open',
+      source_company_name: null,
       companies: { name: 'Acme' },
     },
     ...overrides,

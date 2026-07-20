@@ -124,7 +124,10 @@ export function Preferences() {
       }),
     onSuccess: async () => {
       setError(null)
+      await queryClient.cancelQueries({ queryKey: ['feed'] })
+      queryClient.removeQueries({ queryKey: ['feed'] })
       setMessage('Preferences saved — recent jobs re-filtering.')
+      await queryClient.invalidateQueries({ queryKey: ['feed'] })
       await queryClient.invalidateQueries({ queryKey: ['preferences'] })
     },
     onError: () => {

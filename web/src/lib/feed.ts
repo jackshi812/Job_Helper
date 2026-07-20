@@ -17,16 +17,16 @@ import { supabase } from './supabase'
 export const FEED_LIST_COLUMNS =
   'id, status, filter_reason, filter_detail, score, tier, reasons, ' +
   'matched_include_keywords, routed_resume_id, runner_up_resume_id, scored_at, ' +
-  'seen_at, dismissed_at, ' +
+  'needs_refilter, seen_at, dismissed_at, ' +
   'jobs ( id, title, location, absolute_url, posted_at, first_seen_at, status, ' +
-  'companies ( name ) )'
+  'source_company_name, companies ( name ) )'
 
 export const FEED_DETAIL_COLUMNS =
   'id, status, filter_reason, filter_detail, score, tier, reasons, gaps, covered, ' +
   'matched_include_keywords, routed_resume_id, runner_up_resume_id, scored_at, ' +
-  'seen_at, dismissed_at, ' +
+  'needs_refilter, seen_at, dismissed_at, ' +
   'jobs ( id, title, location, absolute_url, posted_at, first_seen_at, status, ' +
-  'description_html, description_text, companies ( name ) )'
+  'source_company_name, description_html, description_text, companies ( name ) )'
 
 export type FeedStatus = 'pending' | 'filtered' | 'scored' | 'failed'
 export type FilterReason = 'excluded_keyword' | 'wrong_location' | 'title_non_overlap'
@@ -44,6 +44,7 @@ export interface FeedJob {
   posted_at: string | null
   first_seen_at: string
   status: string
+  source_company_name: string | null
   companies: FeedCompany | null
   // Detail-only (FEED_DETAIL_COLUMNS): the only place JD bodies are fetched.
   description_html?: string | null
@@ -69,6 +70,7 @@ export interface FeedRow {
   routed_resume_id: string | null
   runner_up_resume_id: string | null
   scored_at: string | null
+  needs_refilter: boolean
   seen_at: string | null
   dismissed_at: string | null
   jobs: FeedJob | null
@@ -111,18 +113,30 @@ export function filteredReasonLabel(
   return base
 }
 
-// D-15/D-16 default view: scored rows scoring >=50 (Strong+Good) that are not
-// dismissed. Weak, filtered, pending/failed, and dismissed rows are hidden until
-// the All-jobs / Show-dismissed toggles reveal them.
+// D-15/D-16 default view: only current scored rows for open jobs scoring >=50
+// (Strong+Good) that are not dismissed. Diagnostic states remain available to
+// the All-jobs / Show-dismissed toggles.
 export function defaultVisible(row: FeedRow): boolean {
-  return row.status === 'scored' && (row.score ?? 0) >= 50 && row.dismissed_at === null
+  return row.status === 'scored'
+    && (row.score ?? 0) >= 50
+    && row.dismissed_at === null
+    && row.needs_refilter === false
+    && row.jobs?.status === 'open'
 }
 
-// The company name lives on companies.name, reached through jobs.company_id.
-// Returns null when the FK is unset (jobs.company_id is nullable / on delete set
-// null) so the caller can render '—'.
+function nonblankName(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+// Prefer normalized company ownership, then the bounded source-provided name.
+// Missing identity remains null: callers never invent a provider/company label.
 export function companyName(row: FeedRow): string | null {
-  return row.jobs?.companies?.name ?? null
+  const normalized = nonblankName(row.jobs?.companies?.name)
+  if (normalized) return normalized
+
+  const sourceProvided = nonblankName(row.jobs?.source_company_name)
+  return sourceProvided && sourceProvided.length <= 200 ? sourceProvided : null
 }
 
 // The timestamp to render as a relative posted-time: prefer the job's posted_at,
@@ -158,7 +172,8 @@ export async function listFeed(): Promise<FeedRow[]> {
     .limit(200)
 
   if (error) throw error
-  return (data ?? []) as unknown as FeedRow[]
+  const rows = (data ?? []) as unknown as FeedRow[]
+  return rows.filter((row) => companyName(row) !== null)
 }
 
 // The only place JD bodies (description_html/description_text) are fetched.
