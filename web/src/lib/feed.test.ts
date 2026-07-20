@@ -5,6 +5,7 @@ import {
   filteredReasonLabel,
   relativePostedTime,
   safeApplyUrl,
+  scoreFreshnessLabel,
   tierPresentation,
   type FeedRow,
 } from './feed'
@@ -27,6 +28,7 @@ function feedRow(overrides: Partial<FeedRow> = {}): FeedRow {
     runner_up_resume_id: null,
     scored_at: '2026-07-19T00:00:00.000Z',
     needs_refilter: false,
+    score_deferred_until: null,
     seen_at: null,
     dismissed_at: null,
     jobs: {
@@ -119,7 +121,7 @@ describe('defaultVisible', () => {
 })
 
 describe('focused feed freshness gap', () => {
-  it('hides every noncurrent closed weak dismissed or needs-refilter row', () => {
+  it('shows only previously scored strong/good stale rows with an updating label', () => {
     expect(defaultVisible(feedRow({ status: 'scored', score: 50 }))).toBe(true)
     expect(defaultVisible(feedRow({ status: 'scored', score: 100 }))).toBe(true)
 
@@ -127,7 +129,23 @@ describe('focused feed freshness gap', () => {
     expect(defaultVisible(feedRow({ status: 'failed', score: null }))).toBe(false)
     expect(defaultVisible(feedRow({ status: 'filtered', score: null }))).toBe(false)
     expect(defaultVisible(feedRow({ status: 'scored', score: 49, tier: 'Weak' }))).toBe(false)
-    expect(defaultVisible(feedRow({ status: 'scored', score: 75, needs_refilter: true }))).toBe(false)
+    const staleScored = feedRow({
+      status: 'scored',
+      score: 75,
+      needs_refilter: true,
+      score_deferred_until: '2026-07-21T00:00:00.000Z',
+    })
+    expect(defaultVisible(staleScored)).toBe(true)
+    expect(scoreFreshnessLabel(staleScored)).toBe('Updating')
+    expect(defaultVisible(feedRow({ status: 'scored', score: 75, needs_refilter: true })))
+      .toBe(false)
+    expect(scoreFreshnessLabel(feedRow({
+      status: 'pending',
+      score: null,
+      needs_refilter: true,
+      score_deferred_until: '2026-07-21T00:00:00.000Z',
+    })))
+      .toBeNull()
     expect(
       defaultVisible(feedRow({
         status: 'scored',

@@ -9,6 +9,7 @@ import {
   listFeed,
   relativePostedTime,
   safeApplyUrl,
+  scoreFreshnessLabel,
   tierPresentation,
   undismissJob,
   type FeedRow,
@@ -273,6 +274,7 @@ export function Dashboard() {
                   : undefined
                 const firstReason = row.reasons?.[0]
                 const filteredLabel = filteredReasonLabel(row)
+                const freshnessLabel = scoreFreshnessLabel(row)
                 return (
                   <tr
                     key={row.id}
@@ -300,9 +302,17 @@ export function Dashboard() {
                       {isFiltered ? (
                         <span className="text-xs">{filteredLabel ?? '—'}</span>
                       ) : row.score !== null ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold">{row.score}</span>
                           <TierBadge score={row.score} />
+                          {freshnessLabel ? (
+                            <span
+                              title="Score and match details are from previous inputs; an update is pending."
+                              className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                            >
+                              {freshnessLabel}
+                            </span>
+                          ) : null}
                         </div>
                       ) : (
                         <span className="text-zinc-500">—</span>
@@ -311,6 +321,10 @@ export function Dashboard() {
                     <td className="max-w-72 px-4 py-3">
                       {isFiltered ? (
                         <span className="text-xs">{filteredLabel ?? '—'}</span>
+                      ) : freshnessLabel ? (
+                        <span className="text-xs text-amber-800 dark:text-amber-300">
+                          Updating match details…
+                        </span>
                       ) : firstReason ? (
                         <span className="line-clamp-2 text-xs">{firstReason}</span>
                       ) : (

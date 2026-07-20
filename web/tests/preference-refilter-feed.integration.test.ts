@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cheapFilter } from '../../supabase/functions/_shared/filters'
-import { defaultVisible, type FeedRow } from '../src/lib/feed'
+import { defaultVisible, scoreFreshnessLabel, type FeedRow } from '../src/lib/feed'
 
 function row(title: string, overrides: Partial<FeedRow> = {}): FeedRow {
   return {
@@ -15,6 +15,7 @@ function row(title: string, overrides: Partial<FeedRow> = {}): FeedRow {
     runner_up_resume_id: null,
     scored_at: '2026-07-19T00:00:00.000Z',
     needs_refilter: false,
+    score_deferred_until: null,
     seen_at: null,
     dismissed_at: null,
     jobs: {
@@ -33,10 +34,28 @@ function row(title: string, overrides: Partial<FeedRow> = {}): FeedRow {
 }
 
 describe('preference refilter feed gap', () => {
-  it('hides stale shared-token roles and converges on fresh matches', () => {
-    const stale = row('Research Data Analyst', { needs_refilter: true })
+  it('keeps a previously scored match visible but truthfully updating after a capped preference save', () => {
+    const dailyScoreUsage = 200
+    const dailyScoreCap = 200
+    const stale = row('Research Data Analyst', {
+      needs_refilter: true,
+      score_deferred_until: '2026-07-21T00:00:00.000Z',
+    })
+    const newlyEligible = row('Equity Research Associate', {
+      status: 'pending',
+      score: null,
+      tier: null,
+      reasons: null,
+      scored_at: null,
+      needs_refilter: true,
+      score_deferred_until: '2026-07-21T00:00:00.000Z',
+    })
 
-    expect(defaultVisible(stale)).toBe(false)
+    expect(dailyScoreUsage).toBe(dailyScoreCap)
+    expect(defaultVisible(stale)).toBe(true)
+    expect(scoreFreshnessLabel(stale)).toBe('Updating')
+    expect(defaultVisible(newlyEligible)).toBe(false)
+    expect(scoreFreshnessLabel(newlyEligible)).toBeNull()
 
     const preferences = {
       titles: ['Equity Research'],

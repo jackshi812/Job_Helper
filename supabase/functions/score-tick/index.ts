@@ -67,6 +67,7 @@ interface ClaimedUserJob {
   needs_refilter: boolean
   scoring_input_hash: string | null
   claimed_input_revision: number
+  attempts: number
 }
 
 interface JobRow {
@@ -100,7 +101,18 @@ interface ScoreResult {
   covered: string[]
 }
 
-type RowOutcome = 'filtered' | 'scored' | 'rescore_skipped' | 'stale_discarded'
+type RowOutcome =
+  | 'filtered'
+  | 'scored'
+  | 'rescore_skipped'
+  | 'budget_deferred'
+  | 'stale_discarded'
+
+interface ScoreReservation {
+  reserved: boolean
+  requests_today: number
+  budget_date: string
+}
 
 const KNOWN_ERROR_CODES = new Set([
   'no_resume_extract',
@@ -202,7 +214,7 @@ function parseScoreResult(result: unknown): ScoreResult {
 
 async function processRow(
   admin: SupabaseClient,
-  openaiKey: string,
+  dailyCap: number,
   claimed: ClaimedUserJob,
   job: JobRow | undefined,
   prefsRow: PreferencesRow | undefined,
@@ -235,6 +247,7 @@ async function processRow(
         needs_refilter: false,
         claimed_at: null,
         claimed_input_revision: null,
+        score_deferred_until: null,
         error_code: null,
         score: null,
         tier: null,
@@ -287,6 +300,7 @@ async function processRow(
         needs_refilter: false,
         claimed_at: null,
         claimed_input_revision: null,
+        score_deferred_until: null,
         error_code: null,
       })
       .eq('id', claimed.id)
@@ -296,6 +310,37 @@ async function processRow(
     if (error) throw new Error('score_write_failed')
     if (!data) return 'stale_discarded'
     return 'rescore_skipped'
+  }
+
+  // The paid cap gates only a genuinely new OpenAI request. The database RPC
+  // serializes admission across overlapping ticks and accounts for in-flight
+  // reservations that have not written their token usage yet.
+  const openaiKey = requiredEnvironment('OPENAI_API_KEY')
+  const { data: reservationData, error: reservationError } = await admin.rpc('reserve_score_request', {
+    p_daily_cap: dailyCap,
+  })
+  if (reservationError) throw reservationError
+  const reservation = (reservationData as ScoreReservation[] | null)?.[0]
+  if (!reservation) throw new Error('score_write_failed')
+
+  if (!reservation.reserved) {
+    const deferredUntil = new Date()
+    deferredUntil.setUTCHours(24, 0, 0, 0)
+    const { data, error } = await admin
+      .from('user_jobs')
+      .update({
+        claimed_at: null,
+        claimed_input_revision: null,
+        score_deferred_until: deferredUntil.toISOString(),
+        attempts: Math.max(0, claimed.attempts - 1),
+      })
+      .eq('id', claimed.id)
+      .eq('desired_input_revision', claimed.claimed_input_revision)
+      .select('id')
+      .maybeSingle()
+    if (error) throw new Error('score_write_failed')
+    if (!data) return 'stale_discarded'
+    return 'budget_deferred'
   }
 
   const { result, usage } = await generateStructured({
@@ -329,6 +374,7 @@ async function processRow(
       needs_refilter: false,
       claimed_at: null,
       claimed_input_revision: null,
+      score_deferred_until: null,
       scoring_input_hash: currentInputHash,
     })
     .eq('id', claimed.id)
@@ -379,22 +425,7 @@ Deno.serve(async (request) => {
         },
       },
     )
-    const openaiKey = requiredEnvironment('OPENAI_API_KEY')
-
-    // Budget guard first (Pitfall 6, T-3-13): stop scoring past the daily cap.
     const dailyCap = Number(Deno.env.get('AI_DAILY_SCORE_CAP') ?? DEFAULT_DAILY_SCORE_CAP)
-    const startOfDay = new Date()
-    startOfDay.setUTCHours(0, 0, 0, 0)
-    const { count: usedToday, error: usageCountError } = await admin
-      .from('ai_usage')
-      .select('id', { count: 'exact', head: true })
-      .eq('purpose', 'score')
-      .gte('occurred_at', startOfDay.toISOString())
-    if (usageCountError) throw usageCountError
-    if ((usedToday ?? 0) >= dailyCap) {
-      console.error('score-tick skipped', 'ai_budget_cap_reached')
-      return Response.json({ skipped: 'ai_budget_cap_reached' })
-    }
 
     // D-13 escalation valve (config-only this phase): the flag is read so the
     // wiring exists, but no Pro model call is built now — scoring always uses the
@@ -416,6 +447,7 @@ Deno.serve(async (request) => {
     let filtered = 0
     let scored = 0
     let rescoreSkipped = 0
+    let budgetDeferred = 0
     let staleDiscarded = 0
     let failed = 0
 
@@ -483,7 +515,7 @@ Deno.serve(async (request) => {
           chunk.map((row) =>
             processRow(
               admin,
-              openaiKey,
+              dailyCap,
               row,
               jobsById.get(row.job_id),
               prefsByUser.get(row.user_id),
@@ -500,6 +532,7 @@ Deno.serve(async (request) => {
             if (result.value === 'filtered') filtered += 1
             else if (result.value === 'scored') scored += 1
             else if (result.value === 'rescore_skipped') rescoreSkipped += 1
+            else if (result.value === 'budget_deferred') budgetDeferred += 1
             else staleDiscarded += 1
             continue
           }
@@ -515,6 +548,7 @@ Deno.serve(async (request) => {
               needs_refilter: false,
               claimed_at: null,
               claimed_input_revision: null,
+              score_deferred_until: null,
             })
             .eq('id', row.id)
             .eq('desired_input_revision', row.claimed_input_revision)
@@ -533,6 +567,7 @@ Deno.serve(async (request) => {
       filtered,
       scored,
       rescore_skipped: rescoreSkipped,
+      budget_deferred: budgetDeferred,
       stale_discarded: staleDiscarded,
       failed,
     }

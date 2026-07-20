@@ -17,14 +17,14 @@ import { supabase } from './supabase'
 export const FEED_LIST_COLUMNS =
   'id, status, filter_reason, filter_detail, score, tier, reasons, ' +
   'matched_include_keywords, routed_resume_id, runner_up_resume_id, scored_at, ' +
-  'needs_refilter, seen_at, dismissed_at, ' +
+  'needs_refilter, score_deferred_until, seen_at, dismissed_at, ' +
   'jobs ( id, title, location, absolute_url, posted_at, first_seen_at, status, ' +
   'source_company_name, companies ( name ) )'
 
 export const FEED_DETAIL_COLUMNS =
   'id, status, filter_reason, filter_detail, score, tier, reasons, gaps, covered, ' +
   'matched_include_keywords, routed_resume_id, runner_up_resume_id, scored_at, ' +
-  'needs_refilter, seen_at, dismissed_at, ' +
+  'needs_refilter, score_deferred_until, seen_at, dismissed_at, ' +
   'jobs ( id, title, location, absolute_url, posted_at, first_seen_at, status, ' +
   'source_company_name, description_html, description_text, companies ( name ) )'
 
@@ -71,6 +71,7 @@ export interface FeedRow {
   runner_up_resume_id: string | null
   scored_at: string | null
   needs_refilter: boolean
+  score_deferred_until: string | null
   seen_at: string | null
   dismissed_at: string | null
   jobs: FeedJob | null
@@ -113,15 +114,27 @@ export function filteredReasonLabel(
   return base
 }
 
-// D-15/D-16 default view: only current scored rows for open jobs scoring >=50
-// (Strong+Good) that are not dismissed. Diagnostic states remain available to
-// the All-jobs / Show-dismissed toggles.
+// D-15/D-16 default view: scored rows for open jobs scoring >=50 (Strong+Good)
+// that are not dismissed. A previously scored row awaiting refilter remains
+// useful but must be rendered with scoreFreshnessLabel so it is never presented
+// as current. Pending rows without an existing score remain hidden.
 export function defaultVisible(row: FeedRow): boolean {
   return row.status === 'scored'
     && (row.score ?? 0) >= 50
     && row.dismissed_at === null
-    && row.needs_refilter === false
+    && (!row.needs_refilter || row.score_deferred_until !== null)
     && row.jobs?.status === 'open'
+}
+
+export function scoreFreshnessLabel(
+  row: Pick<FeedRow, 'status' | 'score' | 'needs_refilter' | 'score_deferred_until'>,
+): 'Updating' | null {
+  return row.status === 'scored'
+      && row.score !== null
+      && row.needs_refilter
+      && row.score_deferred_until !== null
+    ? 'Updating'
+    : null
 }
 
 function nonblankName(value: string | null | undefined): string | null {

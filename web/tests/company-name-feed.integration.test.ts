@@ -30,6 +30,7 @@ function providerRow(
     runner_up_resume_id: null,
     scored_at: '2026-07-20T00:00:00.000Z',
     needs_refilter: false,
+    score_deferred_until: null,
     seen_at: null,
     dismissed_at: null,
     jobs: {

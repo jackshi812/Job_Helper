@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const scoringInputPath = `${root}/supabase/functions/_shared/scoring-input.ts`
 const migrationPath = `${root}/supabase/migrations/0025_scoring_freshness.sql`
+const budgetMigrationPath = `${root}/supabase/migrations/0027_score_budget_after_free_work.sql`
 const workerPath = `${root}/supabase/functions/score-tick/index.ts`
 const notificationMigrationPath = `${root}/supabase/migrations/0024_remove_notifications.sql`
 
@@ -305,5 +306,43 @@ describe('score-tick isolation and survivor ordering contract', () => {
     expect(ai).toBeGreaterThan(hash)
     expect(worker).not.toMatch(/job\.(source|provider)|claimed\.(source|provider)|source\s*===|provider\s*===/i)
     expect(worker.match(/generateStructured\(\{/g)).toHaveLength(1)
+  })
+
+  it('claims and completes free work before reserving budget immediately before paid scoring', () => {
+    const worker = read(workerPath)
+    const claim = worker.indexOf("admin.rpc('claim_scoring_work'")
+    const filter = worker.indexOf('cheapFilter(filterInput, prefs)')
+    const hash = worker.indexOf('scoringInputHash(', filter)
+    const reuse = worker.indexOf('if (!shouldRescore(', hash)
+    const reserve = worker.indexOf("admin.rpc('reserve_score_request'", reuse)
+    const ai = worker.indexOf('generateStructured({', reserve)
+    const handler = worker.indexOf('Deno.serve')
+
+    expect(claim).toBeGreaterThanOrEqual(0)
+    expect(filter).toBeGreaterThanOrEqual(0)
+    expect(hash).toBeGreaterThan(filter)
+    expect(reuse).toBeGreaterThan(hash)
+    expect(reserve).toBeGreaterThan(reuse)
+    expect(ai).toBeGreaterThan(reserve)
+    expect(worker.slice(handler, claim)).not.toContain(".from('ai_usage')")
+    expect(worker).toContain("return 'budget_deferred'")
+  })
+
+  it('serializes exact-cap reservations and defers only paid rows until UTC rollover', () => {
+    expect(existsSync(budgetMigrationPath), 'migration 0027 must exist').toBe(true)
+    if (!existsSync(budgetMigrationPath)) return
+    const sql = read(budgetMigrationPath)
+
+    expect(sql).toMatch(/add column score_deferred_until timestamptz/i)
+    expect(sql).toMatch(/create table public\.score_request_budget/i)
+    expect(sql).toMatch(/create or replace function public\.reserve_score_request\s*\(/i)
+    expect(sql).toMatch(/for update/i)
+    expect(sql).toMatch(/select count\(\*\)[\s\S]*from public\.ai_usage[\s\S]*purpose = 'score'/i)
+    expect(sql).toMatch(/greatest\(current_count, observed_usage\)/i)
+    expect(sql).toMatch(/current_count\s*>=\s*p_daily_cap[\s\S]*select false/i)
+    expect(sql).toMatch(/score_deferred_until is null[\s\S]*score_deferred_until <= now\(\)/i)
+    expect(sql).toMatch(/order by \(uj\.status = 'scored' and coalesce\(uj\.score, 0\) >= 50\) desc/i)
+    expect(sql.match(/score_deferred_until\s*=\s*null/gi)?.length).toBeGreaterThanOrEqual(2)
+    expect(sql).toMatch(/grant execute on function public\.reserve_score_request\(integer\) to service_role/i)
   })
 })
