@@ -17,7 +17,7 @@ score_tick_version: 5
 score_tick_deployment: ae6c147f-c3a8-417e-8057-d4105ac9aed5
 cloudflare_deployment: 3173f84e-07e6-4432-b950-2b6adea187a4
 asset_path: /assets/index-lyvShdhx.js
-asset_sha256: not_recorded
+asset_sha256: a6f11edc4d18ed264233d5d17e2fd2005e9064036ec09409cf95761498013d66
 ---
 
 ## Current Test
