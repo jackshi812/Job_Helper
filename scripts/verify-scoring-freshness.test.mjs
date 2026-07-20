@@ -4,6 +4,7 @@ import { test } from 'node:test'
 
 import {
   FAILURE_INJECTION_STAGES,
+  assertDedicatedVerifierUser,
   buildCronActiveSql,
   claimForLatch,
   collectPaginatedRows,
@@ -299,6 +300,22 @@ test('cron pause and restore SQL mutate only the active field', () => {
   )
 })
 
+test('production verification accepts only the configured service-tagged verifier account', () => {
+  const verifier = {
+    email: 'scoring-verifier@example.com',
+    app_metadata: { scoring_verifier: true },
+  }
+  assert.doesNotThrow(() => assertDedicatedVerifierUser(verifier, verifier.email))
+  assert.throws(
+    () => assertDedicatedVerifierUser({ ...verifier, app_metadata: {} }, verifier.email),
+    /dedicated scoring verifier account/,
+  )
+  assert.throws(
+    () => assertDedicatedVerifierUser(verifier, 'real-user@example.com'),
+    /email mismatch/,
+  )
+})
+
 test('tick failure is never retried and cleanup still releases the latch', async () => {
   const { adapters, state } = fakeAdapters({ failAt: 'invoke_tick' })
   await assert.rejects(runFreshnessVerification(adapters), /injected:invoke_tick/)
@@ -315,4 +332,11 @@ test('source is import-safe and contains no retry, poll, or legacy-verifier fall
   assert.doesNotMatch(source, /for\s*\([^)]*(?:attempt|retry)/i)
   assert.doesNotMatch(source, /while\s*\(/)
   assert.match(source, /pathToFileURL/)
+  assert.match(source, /SCORING_VERIFIER_EMAIL/)
+  assert.match(source, /SCORING_VERIFIER_PASSWORD/)
+  assert.doesNotMatch(source, /USER1_EMAIL|SEED_PASSWORD_1/)
+  assert.match(
+    source,
+    /\.from\('user_jobs'\)[\s\S]*?\.select\('\*', \{ count: 'exact' \}\)[\s\S]*?\.eq\('user_id', targetUserId\)[\s\S]*?\.order\('id'\)/,
+  )
 })

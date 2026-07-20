@@ -321,8 +321,8 @@ const REQUIRED_ENVIRONMENT = [
   'SUPABASE_ACCESS_TOKEN',
   'SUPABASE_PROJECT_REF',
   'CRON_SECRET',
-  'USER1_EMAIL',
-  'SEED_PASSWORD_1',
+  'SCORING_VERIFIER_EMAIL',
+  'SCORING_VERIFIER_PASSWORD',
 ] as const
 
 type RequiredEnvironmentName = (typeof REQUIRED_ENVIRONMENT)[number]
@@ -336,6 +336,18 @@ function loadEnvironment(): ProductionEnvironment {
     values[name] = value
   }
   return values
+}
+
+export function assertDedicatedVerifierUser(
+  user: { email?: string | null; app_metadata?: Record<string, unknown> | null },
+  expectedEmail: string,
+) {
+  if (user.email?.trim().toLowerCase() !== expectedEmail.trim().toLowerCase()) {
+    throw new Error('dedicated scoring verifier email mismatch')
+  }
+  if (user.app_metadata?.scoring_verifier !== true) {
+    throw new Error('dedicated scoring verifier account marker is missing')
+  }
 }
 
 function assertUuid(value: string, label: string) {
@@ -417,6 +429,9 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
 
   async function restoreRows(rows: Record<string, unknown>[]) {
     for (const row of rows) {
+      if (!targetUserId || row.user_id !== targetUserId) {
+        throw new Error('refusing to restore a non-verifier user_job')
+      }
       const { id, user_id: _userId, job_id: _jobId, ...values } = row
       const { error } = await admin.from('user_jobs').update(values).eq('id', id)
       if (error) throw new Error(`user_jobs restore failed: ${error.message}`)
@@ -428,10 +443,11 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
     makeMismatchedRunId: () => crypto.randomUUID(),
     async validateEnvironment() {
       const { data, error } = await user.auth.signInWithPassword({
-        email: env.USER1_EMAIL,
-        password: env.SEED_PASSWORD_1,
+        email: env.SCORING_VERIFIER_EMAIL,
+        password: env.SCORING_VERIFIER_PASSWORD,
       })
       if (error || !data.user) throw new Error('Target user authentication failed')
+      assertDedicatedVerifierUser(data.user, env.SCORING_VERIFIER_EMAIL)
       targetUserId = data.user.id
       const { count, error: extractError } = await admin
         .from('resume_extracts')
@@ -479,6 +495,7 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
         const { data, error, count } = await admin
           .from('user_jobs')
           .select('*', { count: 'exact' })
+          .eq('user_id', targetUserId)
           .order('id')
           .range(from, to)
         if (error) throw new Error(`user_jobs snapshot failed: ${error.message}`)
