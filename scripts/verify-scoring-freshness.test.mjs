@@ -4,6 +4,7 @@ import { test } from 'node:test'
 
 import {
   FAILURE_INJECTION_STAGES,
+  buildCronActiveSql,
   claimForLatch,
   collectPaginatedRows,
   runFreshnessVerification,
@@ -285,6 +286,17 @@ test('snapshot pagination reads all rows beyond one hosted response page', async
     [1_000, 1_999],
     [2_000, 2_991],
   ])
+})
+
+test('cron pause and restore SQL mutate only the active field', () => {
+  assert.equal(
+    buildCronActiveSql(ORIGINAL_CRON.jobid, false),
+    'select cron.alter_job(job_id := 19, active := false) as altered',
+  )
+  assert.equal(
+    buildCronActiveSql(ORIGINAL_CRON.jobid, true),
+    'select cron.alter_job(job_id := 19, active := true) as altered',
+  )
 })
 
 test('tick failure is never retried and cleanup still releases the latch', async () => {
