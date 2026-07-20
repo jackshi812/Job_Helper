@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 4
-current_phase_name: Resume Tailoring & Tracker
+current_phase: 03.1
+current_phase_name: Workday & ATS Connector Expansion
 status: ready_to_plan
-stopped_at: Phase 3 complete; ready to plan Phase 4
-last_updated: "2026-07-20T21:18:08.220Z"
+stopped_at: Phase 3 complete; ready to plan Phase 03.1
+last_updated: "2026-07-20T22:00:33.067Z"
 last_activity: 2026-07-20
-last_activity_desc: Phase 3 complete, transitioned to Phase 4
+last_activity_desc: Inserted connector and dashboard-precision phases; ready to plan Phase 03.1
 progress:
-  total_phases: 5
+  total_phases: 7
   completed_phases: 4
   total_plans: 34
   completed_plans: 34
-  percent: 80
+  percent: 57
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 4 — Resume Tailoring & Tracker
+**Current focus:** Phase 03.1 — Workday & ATS Connector Expansion
 
 ## Current Position
 
-Phase: 4 — Resume Tailoring & Tracker
+Phase: 03.1 — Workday & ATS Connector Expansion
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-07-20 — Phase 3 complete, transitioned to Phase 4
+Last activity: 2026-07-20 — Inserted connector and dashboard-precision phases; ready to plan Phase 03.1
 
 Progress: [████████████████████] 34/34 planned plans complete; milestone 4/5 phases complete (80%)
 
@@ -187,10 +187,12 @@ Recent decisions affecting current work:
 ### Roadmap Evolution
 
 - Phase 02.1 inserted after Phase 2: Expand representative ATS and branded finance career-site coverage with safe degraded-source behavior (URGENT)
+- Phase 03.1 inserted after Phase 3: Workday & ATS Connector Expansion (URGENT)
+- Phase 03.2 inserted after Phase 3: Dashboard Precision & Company Visibility (URGENT)
 
 ## Session Continuity
 
 Last session: 2026-07-20T21:18:08.220Z
-Stopped at: Phase 3 complete; ready to plan Phase 4
+Stopped at: Phase 3 complete; ready to plan Phase 03.1
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

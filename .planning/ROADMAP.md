@@ -198,6 +198,28 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 03.1: Workday & ATS Connector Expansion (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 3
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 03.1 to break down)
+
+### Phase 03.2: Dashboard Precision & Company Visibility (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 03.1
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 03.2 to break down)
+
 ### Phase 4: Resume Tailoring & Tracker
 
 **Goal**: User can turn any match into a truthfully tailored, formatting-faithful PDF resume after mandatory review, and track every application from saved through offer

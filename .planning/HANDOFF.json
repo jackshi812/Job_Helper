@@ -1,89 +1,51 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-20T21:27:10.833Z",
-  "phase": "4",
-  "phase_name": "pre-Phase-4 additions",
-  "phase_dir": ".planning",
+  "timestamp": "2026-07-20T22:06:51.647Z",
+  "phase": "03.1",
+  "phase_name": "Workday & ATS Connector Expansion",
+  "phase_dir": ".planning/phases/03.1-workday-ats-connector-expansion",
   "plan": null,
   "task": 0,
   "total_tasks": 0,
   "status": "paused",
   "completed_tasks": [
-    {
-      "id": 1,
-      "name": "Complete and transition Phase 3",
-      "status": "done",
-      "commit": "f854367"
-    },
-    {
-      "id": 2,
-      "name": "Capture four pre-Phase-4 additions",
-      "status": "done",
-      "commit": "5bcfffd"
-    }
+    {"id": 1, "name": "Insert Phase 03.1 and Phase 03.2 before Phase 4", "status": "done"},
+    {"id": 2, "name": "Start Phase 03.1 context discovery", "status": "done"}
   ],
   "remaining_tasks": [
-    {
-      "id": 1,
-      "name": "Choose inserted-phase structure before Phase 4",
-      "status": "not_started"
-    },
-    {
-      "id": 2,
-      "name": "Plan and implement ten-company Workday monitoring",
-      "status": "not_started"
-    },
-    {
-      "id": 3,
-      "name": "Plan and implement SAP SuccessFactors and Paylocity Recruiting connectors",
-      "status": "not_started"
-    },
-    {
-      "id": 4,
-      "name": "Plan and implement Focused entry-level eligibility and company visibility checkboxes",
-      "status": "not_started"
-    }
+    {"id": 1, "name": "Research provider contracts and plan Phase 03.1", "status": "not_started"},
+    {"id": 2, "name": "Implement and verify the connector expansion", "status": "not_started"}
   ],
   "blockers": [
     {
-      "description": "Only four of the requested ten Workday companies are named: BMO, Capital One, Avant, and PIMCO.",
+      "description": "One distinct Workday company is still needed to complete the requested ten-company pilot; Apollo Global Management was supplied twice.",
       "type": "human_action",
-      "workaround": "Research and architecture can start, but final ten-company scope requires six more names."
+      "workaround": "Research and plan the nine named companies now; do not claim a ten-company scope is complete until the final company is supplied."
     },
     {
-      "description": "Workday's public CXS contract is undocumented; the prior Capital One connector is intentionally Experimental and unclaimable.",
+      "description": "Workday public CXS contracts remain undocumented and Capital One is intentionally Experimental and unclaimable.",
       "type": "technical",
-      "workaround": "Preserve fail-closed status until each tenant independently passes bounded completeness, lifecycle, and repeated hosted evidence."
+      "workaround": "Require independently bounded completeness, lifecycle safety, and repeated hosted evidence per tenant before scheduling any tenant."
     }
   ],
   "async_jobs": [],
   "human_actions_pending": [
     {
-      "action": "Provide six additional companies for the ten-company Workday round.",
-      "context": "BMO, Capital One, Avant, and PIMCO are the four currently named companies.",
+      "action": "Provide one final distinct Workday company.",
+      "context": "The nine named companies are BMO, Capital One, Avant, PIMCO, Visa, Workday, Apollo Global Management, State Street, and Invesco.",
       "blocking": true
     }
   ],
   "decisions": [
     {
-      "decision": "Hold Phase 4 until the four new additions are placed and completed.",
-      "rationale": "The owner explicitly requested these additions before moving on.",
-      "phase": "pre-4"
+      "decision": "Use two inserted phases before Phase 4.",
+      "rationale": "Connector trust boundaries differ from dashboard precision work.",
+      "phase": "03.1/03.2"
     },
     {
-      "decision": "Keep source connector expansion separate from dashboard precision/filtering work.",
-      "rationale": "They have different trust boundaries, implementation surfaces, and validation needs.",
-      "phase": "pre-4"
-    },
-    {
-      "decision": "Entry-level-only applies to Focused and rejects explicit required minimums of three or more years; All jobs remains preference-pass regardless of score.",
-      "rationale": "This matches the owner's latest wording without silently changing the accepted All jobs contract.",
-      "phase": "pre-4"
-    },
-    {
-      "decision": "Company checkboxes change visibility only.",
-      "rationale": "Hiding a company must not alter matching, scoring, ingestion, or stored job state.",
-      "phase": "pre-4"
+      "decision": "Fold the Workday pilot into Phase 03.1.",
+      "rationale": "It directly defines the connector-expansion scope.",
+      "phase": "03.1"
     }
   ],
   "uncommitted_files": [
@@ -91,6 +53,6 @@
     "scripts/agent-dashboard.mjs (pre-existing untracked user file)",
     "scripts/agent-dashboard.test.mjs (pre-existing untracked user file)"
   ],
-  "next_action": "Read the four pending todos, request the remaining six Workday companies, and decide whether to insert one combined phase or separate source-coverage and dashboard-precision phases before Phase 4.",
-  "context_notes": "Phase 3 is complete: 17/17 formal truths, 52/52 planned security threats, 8/8 UAT, final release 0202952. No Phase 4 work has started. No production action, paid call, deployment, or background process is pending."
+  "next_action": "Claude should research and plan Phase 03.1; start with the prior Phase 02.1 Workday constraints and the nine named companies, then request the tenth company before finalizing the pilot scope.",
+  "context_notes": "No CONTEXT.md, research artifact, PLAN.md, deployment, paid API call, or background process was created for Phase 03.1. The user paused specifically to use Claude for research and planning."
 }

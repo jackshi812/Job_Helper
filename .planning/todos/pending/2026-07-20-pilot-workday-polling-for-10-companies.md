@@ -10,7 +10,7 @@ files:
 
 ## Problem
 
-The user wants Job Copilot to successfully add, implement, and continuously monitor an initial set of 10 companies that use Workday before Phase 4 begins. The first four named companies are BMO, Capital One, Avant, and PIMCO; six company names are still required. Current Phase 02.1 evidence keeps Workday experimental and unclaimable because the public CXS contract is undocumented, so expanding it requires a deliberate safety and reliability design rather than simply enabling the existing Capital One experiment.
+The user wants Job Copilot to successfully add, implement, and continuously monitor an initial set of 10 companies that use Workday before Phase 4 begins. Nine distinct companies are named: BMO, Capital One, Avant, PIMCO, Visa, Workday, Apollo Global Management, State Street, and Invesco. Apollo Global Management was listed twice, so one additional distinct company is still required. Current Phase 02.1 evidence keeps Workday experimental and unclaimable because the public CXS contract is undocumented, so expanding it requires a deliberate safety and reliability design rather than simply enabling the existing Capital One experiment.
 
 ## Solution
 
