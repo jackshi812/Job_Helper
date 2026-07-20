@@ -26,6 +26,7 @@ function feedRow(overrides: Partial<FeedRow> = {}): FeedRow {
     routed_resume_id: null,
     runner_up_resume_id: null,
     scored_at: '2026-07-19T00:00:00.000Z',
+    needs_refilter: false,
     seen_at: null,
     dismissed_at: null,
     jobs: {
@@ -113,6 +114,30 @@ describe('defaultVisible', () => {
     expect(
       defaultVisible(feedRow({ status: 'scored', score: 90, dismissed_at: '2026-07-19T00:00:00.000Z' })),
     ).toBe(false)
+  })
+})
+
+describe('focused feed freshness gap', () => {
+  it('hides every noncurrent closed weak dismissed or needs-refilter row', () => {
+    expect(defaultVisible(feedRow({ status: 'scored', score: 50 }))).toBe(true)
+    expect(defaultVisible(feedRow({ status: 'scored', score: 100 }))).toBe(true)
+
+    expect(defaultVisible(feedRow({ status: 'pending', score: null }))).toBe(false)
+    expect(defaultVisible(feedRow({ status: 'failed', score: null }))).toBe(false)
+    expect(defaultVisible(feedRow({ status: 'filtered', score: null }))).toBe(false)
+    expect(defaultVisible(feedRow({ status: 'scored', score: 49, tier: 'Weak' }))).toBe(false)
+    expect(defaultVisible(feedRow({ status: 'scored', score: 75, needs_refilter: true }))).toBe(false)
+    expect(
+      defaultVisible(feedRow({
+        status: 'scored',
+        score: 75,
+        dismissed_at: '2026-07-20T00:00:00.000Z',
+      })),
+    ).toBe(false)
+    expect(defaultVisible(feedRow({
+      jobs: { ...feedRow().jobs!, status: 'closed' },
+    }))).toBe(false)
+    expect(defaultVisible(feedRow({ jobs: null }))).toBe(false)
   })
 })
 
