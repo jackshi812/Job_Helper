@@ -1,58 +1,67 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-20T22:06:51.647Z",
+  "timestamp": "2026-07-20T23:45:32.245Z",
   "phase": "03.1",
   "phase_name": "Workday & ATS Connector Expansion",
   "phase_dir": ".planning/phases/03.1-workday-ats-connector-expansion",
   "plan": null,
   "task": 0,
-  "total_tasks": 0,
+  "total_tasks": 31,
   "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "Insert Phase 03.1 and Phase 03.2 before Phase 4", "status": "done"},
-    {"id": 2, "name": "Start Phase 03.1 context discovery", "status": "done"}
+    {"id": 1, "name": "Research and context decisions D-01 through D-27", "status": "done", "commit": "501bca1"},
+    {"id": 2, "name": "Create the twelve-plan Phase 03.1 execution set", "status": "done", "commit": "b4d7cc9"},
+    {"id": 3, "name": "Resolve checker blockers and warnings in the plan set", "status": "done", "commit": "c41d260"}
   ],
   "remaining_tasks": [
-    {"id": 1, "name": "Research provider contracts and plan Phase 03.1", "status": "not_started"},
-    {"id": 2, "name": "Implement and verify the connector expansion", "status": "not_started"}
+    {"id": 1, "name": "Execute plans 03.1-01 through 03.1-10", "status": "not_started"},
+    {"id": 2, "name": "Run the owner-approved deployment checkpoint in plan 03.1-11", "status": "not_started"},
+    {"id": 3, "name": "Run per-tenant live evidence in plan 03.1-12", "status": "not_started"}
   ],
   "blockers": [
     {
-      "description": "One distinct Workday company is still needed to complete the requested ten-company pilot; Apollo Global Management was supplied twice.",
+      "description": "Two further distinct Workday companies are needed before the pilot can be described as ten companies.",
       "type": "human_action",
-      "workaround": "Research and plan the nine named companies now; do not claim a ten-company scope is complete until the final company is supplied."
+      "workaround": "The reviewed eight-company pilot can proceed; never claim ten-company completion until both companies are supplied."
     },
     {
-      "description": "Workday public CXS contracts remain undocumented and Capital One is intentionally Experimental and unclaimable.",
+      "description": "Seven reviewed Workday identities have search-level evidence only and must be confirmed independently by live server-side observation.",
       "type": "technical",
-      "workaround": "Require independently bounded completeness, lifecycle safety, and repeated hosted evidence per tenant before scheduling any tenant."
+      "workaround": "Keep each tenant unscheduled until its own closure-credible evidence satisfies both SQL claim and application dispatch gates."
     }
   ],
   "async_jobs": [],
   "human_actions_pending": [
     {
-      "action": "Provide one final distinct Workday company.",
-      "context": "The nine named companies are BMO, Capital One, Avant, PIMCO, Visa, Workday, Apollo Global Management, State Street, and Invesco.",
-      "blocking": true
+      "action": "Provide two further distinct Workday companies if a ten-company pilot is still required.",
+      "context": "PIMCO was removed because no public Workday identity could be resolved, leaving eight reviewed companies.",
+      "blocking": false
     }
   ],
   "decisions": [
     {
-      "decision": "Use two inserted phases before Phase 4.",
-      "rationale": "Connector trust boundaries differ from dashboard precision work.",
-      "phase": "03.1/03.2"
+      "decision": "Pause the broad twelve-plan Phase 03.1 rollout and prioritize Capital One as a standalone first implementation slice.",
+      "rationale": "The owner wants Capital One activated and its jobs visible in the dashboard before expanding to the remaining providers and tenants.",
+      "phase": "03.1"
     },
     {
-      "decision": "Fold the Workday pilot into Phase 03.1.",
-      "rationale": "It directly defines the connector-expansion scope.",
+      "decision": "Preserve the reviewed Phase 03.1 plan set unchanged for later resumption.",
+      "rationale": "The plan set already passed two checker-remediation rounds and remains the source of truth for the broader rollout.",
+      "phase": "03.1"
+    },
+    {
+      "decision": "Capital One activation must retain complete-observation closure safety and server-owned identity.",
+      "rationale": "The existing Workday CXS contract is undocumented and was intentionally experimental and unclaimable after prior evidence.",
       "phase": "03.1"
     }
   ],
   "uncommitted_files": [
     ".DS_Store (pre-existing user change)",
+    ".planning/STATE.md (pre-existing Claude planning update)",
+    ".planning/todos/pending/2026-07-20-add-successfactors-and-paylocity-connectors.md (pre-existing Claude planning update)",
     "scripts/agent-dashboard.mjs (pre-existing untracked user file)",
     "scripts/agent-dashboard.test.mjs (pre-existing untracked user file)"
   ],
-  "next_action": "Claude should research and plan Phase 03.1; start with the prior Phase 02.1 Workday constraints and the nine named companies, then request the tenth company before finalizing the pilot scope.",
-  "context_notes": "No CONTEXT.md, research artifact, PLAN.md, deployment, paid API call, or background process was created for Phase 03.1. The user paused specifically to use Claude for research and planning."
+  "next_action": "Resume the broad phase only after reconciling the Capital One-first implementation against plans 03.1-05 through 03.1-10.",
+  "context_notes": "Planning is complete and execution has not started. The user explicitly redirected work to Capital One first, including activation and dashboard ingestion. No async jobs or background processes are active."
 }
