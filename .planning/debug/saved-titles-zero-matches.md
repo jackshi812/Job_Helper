@@ -2,15 +2,15 @@
 status: awaiting_human_verify
 trigger: 'Phase 03 UAT Check 4: saved four target titles, waited more than 20 minutes, and the focused Dashboard still showed no matches.'
 created: 2026-07-20T18:03:42Z
-updated: 2026-07-20T18:30:00Z
+updated: 2026-07-20T18:36:42Z
 ---
 
 ## Current Focus
 
 hypothesis: CONFIRMED — the global daily score cap is reached before preference-save refilter work can be claimed; marking all open rows needs_refilter simultaneously hides every prior focused match.
-test: Local verification is complete; human verification must confirm the original preference-save workflow after the migration, worker, and web changes are eventually released through the normal deployment process.
-expecting: At an exhausted daily cap, prior >=50 matches that still pass free filters reappear with Updating within the first scoring ticks, nonmatching rows free-filter away, and new unscored matches remain pending until UTC budget rollover.
-next_action: Await end-to-end human confirmation; do not archive this session as resolved without it.
+test: Production rollout and read-only backend verification are complete; human verification must confirm the refreshed focused Dashboard renders the recovered matches.
+expecting: The focused Dashboard shows recovered matches at the exhausted daily cap. Existing still-stale scores may render as Updating, nonmatching rows disappear after free filtering, and new unscored matches remain pending until UTC budget rollover.
+next_action: Ask the user to hard-refresh the Dashboard and confirm the recovered jobs are visible; do not archive this session as resolved without that browser confirmation.
 
 reasoning_checkpoint:
   hypothesis: "The pre-claim global AI_DAILY_SCORE_CAP guard causes the zero feed: saving preferences flags all open user_jobs as needs_refilter, focused mode hides every flagged row, and once daily usage is 200 score-tick exits before claim_scoring_work can clear any flag."
@@ -47,6 +47,20 @@ started: Observed during Phase 03 Plan 11 UAT Check 4 on 2026-07-20 after the ex
 - asset: /assets/index-BxwGvdK2.js
 - asset_sha256: b29c1297c2945749aa4b2ed891567ca352ee643947126db3cfed867f815175af
 - paid_proof: passed after remediation; exact restoration and zero residue recorded in 03-11-PAID-PROOF.md
+
+## Post-fix Production Release
+
+- git_sha: 08335867e78ce203c36d916bf9715b3e1beef0c6
+- migration_head: 0027
+- score_tick_version: 4
+- score_tick_sha256: 610b107eb5c7ceded1f809105e693c1e5527659de40987928537257666fe4c3b
+- verify_board_version: 12
+- verify_board_sha256: db3635d96e0436c1170009bc5afbb11cff1296da8b16a0dfd56c5d06ae87c2ec
+- cloudflare_deployment: eec67d2a-a61e-4afe-83c8-630fcf3592da
+- cloudflare_check_run: 88439868484
+- asset: /assets/index-BabHf86W.js
+- asset_sha256: 2b2caf61110d82837f7a3ca585b85c39b4f6fd73e686dd8be416ab883a94347d
+- paid_verifier: not_run
 
 ## Eliminated
 
@@ -144,6 +158,11 @@ started: Observed during Phase 03 Plan 11 UAT Check 4 on 2026-07-20 after the ex
   checked: Scoped local implementation commit
   found: Commit 2876c74 records only the migration, score worker, feed/UI, and regression-test changes. Existing .DS_Store, .planning/HANDOFF.json deletion, and agent-dashboard files remain outside the commit.
   implication: The implementation is captured atomically without modifying unrelated worktree state or passed exact-release evidence.
+
+- timestamp: 2026-07-20T18:36:42Z
+  checked: Approved production rollout and read-only post-release state
+  found: Production migrations 0026 and 0027 are applied; score-tick v4 and verify-board v12 are ACTIVE with their intended JWT boundaries; score-tick-every-minute remains active; origin/main and Cloudflare are bound to exact SHA 08335867e78ce203c36d916bf9715b3e1beef0c6; the immutable deployment and production alias serve the same asset and SHA-256. The score-request ledger remains at 200, proving no new paid score request was used. The affected account already has 11 undismissed open focused matches after free processing, including 10 Adzuna and 1 Greenhouse result. Production also exposes resumes.display_name, and the deployed verify-board bundle contains Greenhouse EU host support.
+  implication: The backend root cause is fixed and production data is recovering without paid work. Only the user's refreshed-browser confirmation remains before resolving and archiving the debug session.
 
 ## Resolution
 
