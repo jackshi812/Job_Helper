@@ -163,7 +163,7 @@ Plans:
   2. User can upload and manage multiple DOCX base resumes in private encrypted storage, and surviving postings receive AI scores with plain-language match reasons grounded in that resume and the user's preferences
   3. User can view a dashboard feed of new matches showing score, match reasons, posted-time, and a direct link to the employer's apply page, plus a job detail view with the full JD snapshot and an advisory keyword-gap panel
 
-**Plans**: 8/11 plans executed
+**Plans**: 9/11 plans executed
 
 - [x] 03-01-PLAN.md
 - [x] 03-02-PLAN.md
@@ -179,7 +179,7 @@ Plans:
 
 **Gap Closure Wave 2** *(blocked on Gap Closure Wave 1)*
 
-- [ ] 03-09-PLAN.md — current-preference focused feed, truthful company display, and save-time cache invalidation
+- [x] 03-09-PLAN.md — current-preference focused feed, truthful company display, and save-time cache invalidation
 
 **Gap Closure Wave 3** *(blocked on Gap Closure Wave 2)*
 
@@ -225,7 +225,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
 | 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
 | 02.1 Source Coverage Expansion | 13/13 | Gaps found (deferred) |  |
-| 3. Scoring & Feed | 8/11 | In Progress|  |
+| 3. Scoring & Feed | 9/11 | In Progress|  |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage

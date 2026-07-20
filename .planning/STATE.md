@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: scoring-feed-notifications
 status: executing
-stopped_at: Completed 03-08-PLAN.md
-last_updated: "2026-07-20T14:22:03.124Z"
+stopped_at: Completed 03-09-PLAN.md
+last_updated: "2026-07-20T14:33:41.540Z"
 last_activity: 2026-07-20
-last_activity_desc: Completed Plan 03-08 scoring freshness and isolation
+last_activity_desc: Completed Plan 03-09 focused feed freshness and cache eviction
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 34
-  completed_plans: 31
-  percent: 91
+  completed_plans: 32
+  percent: 60
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 ## Current Position
 
 Phase: 03 (scoring-feed-notifications) — EXECUTING
-Plan: 9 of 11
+Plan: 10 of 11
 Status: Ready to execute
-Last activity: 2026-07-20 — Completed Plan 03-08 scoring freshness and isolation
+Last activity: 2026-07-20 — Completed Plan 03-09 focused feed freshness and cache eviction
 
-Progress: [███████░░░] 73% (8/11 Phase 03 plans executed)
+Progress: [████████░░] 82% (9/11 Phase 03 plans executed)
 
 ## Performance Metrics
 
@@ -78,6 +78,7 @@ Progress: [███████░░░] 73% (8/11 Phase 03 plans executed)
 | Phase 02.1 P12 | 9h 5m | 3 tasks | 4 files |
 | Phase 02.1 P13 | 14min | 1 checkpoint | 5 planning files |
 | Phase 03 P08 | 14m | 2 tasks | 10 files |
+| Phase 03 P09 | 6m | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -149,6 +150,9 @@ Recent decisions affecting current work:
 - [Phase 03]: Authorize score reuse only when the complete server-computed semantic input hash matches; use desired revisions solely as CAS publication fences.
 - [Phase 03]: While the short-lived scoring-verification latch is active, suppress ordinary and mismatched claims before seeding and permit only its two registered existing fixture rows.
 - [Phase 03]: Keep scoring provider-agnostic after dedup; every claimed job passes the same cheap filter before routing, hashing, or paid AI work.
+- [Phase 03]: Require scored, score >=50, nondismissed, needs_refilter=false, and open job state for focused-feed visibility. — Prevents stale, closed, weak, failed, filtered, or pending rows from appearing as current matches while preserving All jobs diagnostics.
+- [Phase 03]: Prefer normalized companies.name, then bounded source_company_name, and withhold identity-less feed rows. — Every displayed provider row has truthful nonblank identity without fabricated labels.
+- [Phase 03]: Cancel and remove feed cache only after preference upsert plus revision signal succeed, then invalidate feed and preferences. — A success message cannot coexist with stale focused rows, while failures retain cache and editable chips for retry.
 
 ### Quick Tasks Completed
 
@@ -168,7 +172,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-20T14:22:03.114Z
-Stopped at: Completed 03-08-PLAN.md
+Last session: 2026-07-20T14:32:41.014Z
+Stopped at: Completed 03-09-PLAN.md
 Resume file: None
 Last session (2026-07-20): Plan 03-08 completed locally with provider-agnostic title filtering, semantic freshness/CAS, truthful company persistence, and the expiring two-fixture verification latch. Continue with Plan 03-09; no rollout or hosted verification occurred.
