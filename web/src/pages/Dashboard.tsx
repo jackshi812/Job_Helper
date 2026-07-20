@@ -13,7 +13,7 @@ import {
   undismissJob,
   type FeedRow,
 } from '../lib/feed'
-import { listResumes } from '../lib/resumes'
+import { listResumes, resumeLabel } from '../lib/resumes'
 import { loadPreferences } from '../lib/preferences'
 
 const fullDateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -96,7 +96,7 @@ export function Dashboard() {
 
   const resumeNames = useMemo(() => {
     const map = new Map<string, string>()
-    for (const resume of resumesQuery.data ?? []) map.set(resume.id, resume.filename)
+    for (const resume of resumesQuery.data ?? []) map.set(resume.id, resumeLabel(resume))
     return map
   }, [resumesQuery.data])
 

@@ -1,10 +1,12 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import {
+  defaultDisplayName,
   deleteResume,
   downloadResume,
   listResumes,
+  resumeLabel,
   uploadResume,
   type ResumeRecord,
 } from '../lib/resumes'
@@ -26,14 +28,16 @@ export function Resumes() {
   const queryClient = useQueryClient()
   const fileInput = useRef<HTMLInputElement>(null)
   const [resumeToDelete, setResumeToDelete] = useState<ResumeRecord | null>(null)
+  const [displayName, setDisplayName] = useState('')
   const [downloadError, setDownloadError] = useState('')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   const resumesQuery = useQuery({ queryKey: ['resumes'], queryFn: listResumes })
   const uploadMutation = useMutation({
-    mutationFn: uploadResume,
+    mutationFn: ({ file, name }: { file: File; name: string }) => uploadResume(file, name),
     onSuccess: async () => {
       if (fileInput.current) fileInput.current.value = ''
+      setDisplayName('')
       await queryClient.invalidateQueries({ queryKey: ['resumes'] })
     },
   })
@@ -50,7 +54,12 @@ export function Resumes() {
     const file = fileInput.current?.files?.[0]
     if (!file) return
     uploadMutation.reset()
-    uploadMutation.mutate(file)
+    uploadMutation.mutate({ file, name: displayName })
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    setDisplayName(file ? defaultDisplayName(file.name) : '')
   }
 
   async function handleDownload(resume: ResumeRecord) {
@@ -85,8 +94,22 @@ export function Resumes() {
             type="file"
             accept=".docx,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
             required
+            onChange={handleFileChange}
             className="max-w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-zinc-100 file:px-3 file:py-1 file:text-sm file:font-medium dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-zinc-800"
           />
+        </label>
+        <label className="grid gap-1.5 text-sm font-medium">
+          Display name
+          <input
+            type="text"
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+            placeholder="Optional"
+            className="max-w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          />
+          <span className="text-xs font-normal text-zinc-600 dark:text-zinc-400">
+            Optional — defaults to the file name.
+          </span>
         </label>
         <button
           type="submit"
@@ -126,7 +149,7 @@ export function Resumes() {
           <table className="w-full min-w-2xl border-collapse text-left text-sm">
             <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-medium tracking-wide text-zinc-600 uppercase dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
               <tr>
-                <th scope="col" className="px-4 py-2.5">Filename</th>
+                <th scope="col" className="px-4 py-2.5">Name</th>
                 <th scope="col" className="px-4 py-2.5">Size</th>
                 <th scope="col" className="px-4 py-2.5">Uploaded</th>
                 <th scope="col" className="px-4 py-2.5 text-right">Actions</th>
@@ -135,7 +158,7 @@ export function Resumes() {
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {resumesQuery.data.map((resume) => (
                 <tr key={resume.id}>
-                  <td className="max-w-sm truncate px-4 py-3 font-medium">{resume.filename}</td>
+                  <td className="max-w-sm truncate px-4 py-3 font-medium">{resumeLabel(resume)}</td>
                   <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{formatBytes(resume.size_bytes)}</td>
                   <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
                     {dateFormatter.format(new Date(resume.created_at))}
@@ -172,7 +195,7 @@ export function Resumes() {
       {resumeToDelete ? (
         <ConfirmDialog
           title="Delete resume?"
-          message={`This permanently deletes ${resumeToDelete.filename} from storage and your resume list.`}
+          message={`This permanently deletes ${resumeLabel(resumeToDelete)} from storage and your resume list.`}
           confirmLabel="Delete resume"
           onCancel={() => setResumeToDelete(null)}
           onConfirm={() =>

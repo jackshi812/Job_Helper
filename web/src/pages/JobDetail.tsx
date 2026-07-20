@@ -12,7 +12,7 @@ import {
   type FeedRow,
   type GapGroups,
 } from '../lib/feed'
-import { listResumes } from '../lib/resumes'
+import { listResumes, resumeLabel } from '../lib/resumes'
 
 const relativeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
 
@@ -175,9 +175,10 @@ export function JobDetail() {
   const company = companyName(row)
   const applyUrl = safeApplyUrl(job?.absolute_url)
   const postedTimestamp = relativePostedTime(row)
-  const resumeName = row.routed_resume_id
-    ? resumesQuery.data?.find((resume) => resume.id === row.routed_resume_id)?.filename ?? 'routed'
-    : 'routed'
+  const routedResume = row.routed_resume_id
+    ? resumesQuery.data?.find((resume) => resume.id === row.routed_resume_id)
+    : undefined
+  const resumeName = routedResume ? resumeLabel(routedResume) : 'routed'
   const sanitizedDescription = job?.description_html
     ? DOMPurify.sanitize(job.description_html, { FORBID_TAGS: ['style', 'form'] })
     : null
