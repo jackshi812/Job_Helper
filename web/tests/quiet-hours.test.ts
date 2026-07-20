@@ -135,4 +135,46 @@ describe('digestDue', () => {
       ),
     ).toBe(true)
   })
+
+  // Regression: Postgres `time` columns serialize through PostgREST WITH seconds
+  // ("08:00:00"). The HH:MM-only parser silently disabled every digest in prod.
+  it('accepts the HH:MM:SS form Postgres returns for a time column', () => {
+    expect(
+      digestDue(
+        { digestTime: '08:00:00', timezone: CHICAGO, lastDigestDate: null },
+        '2026-07-15T13:05:00Z',
+      ),
+    ).toBe(true)
+  })
+
+  it('is not due before an HH:MM:SS digest time', () => {
+    // 07:00 Chicago, before 08:00:00.
+    expect(
+      digestDue(
+        { digestTime: '08:00:00', timezone: CHICAGO, lastDigestDate: null },
+        '2026-07-15T12:00:00Z',
+      ),
+    ).toBe(false)
+  })
+
+  it('treats midnight "00:00:00" as a valid (always-reached) digest time', () => {
+    expect(
+      digestDue(
+        { digestTime: '00:00:00', timezone: 'UTC', lastDigestDate: null },
+        '2026-07-15T23:40:00Z',
+      ),
+    ).toBe(true)
+  })
+})
+
+describe('quietHoursState with HH:MM:SS (Postgres time serialization)', () => {
+  it('evaluates a wrapping 22:00:00-07:00:00 window the same as 22:00-07:00', () => {
+    // 2026-07-16T04:30:00Z == 23:30 Chicago -> inside the window.
+    expect(
+      quietHoursState(
+        { quietStart: '22:00:00', quietEnd: '07:00:00', timezone: CHICAGO },
+        '2026-07-16T04:30:00Z',
+      ).inQuietWindow,
+    ).toBe(true)
+  })
 })

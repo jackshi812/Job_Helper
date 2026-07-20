@@ -19,11 +19,14 @@ export interface DigestPrefs {
   lastDigestDate: string | null
 }
 
-// Parse an "HH:MM" string to minutes-since-midnight. Returns null for malformed
-// input so callers can treat "no valid window" as "no quiet hours".
+// Parse an "HH:MM" (or "HH:MM:SS") string to minutes-since-midnight. Returns null
+// for malformed input so callers can treat "no valid window" as "no quiet hours".
+// Postgres `time` columns (digest_time, quiet_start, quiet_end) serialize through
+// PostgREST WITH seconds ("08:00:00"), so the optional :SS group is required — its
+// absence silently disabled every digest and quiet-hours window in production.
 function parseHhMm(value: string | null): number | null {
   if (!value) return null
-  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim())
+  const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(value.trim())
   if (!match) return null
   const hours = Number(match[1])
   const minutes = Number(match[2])
