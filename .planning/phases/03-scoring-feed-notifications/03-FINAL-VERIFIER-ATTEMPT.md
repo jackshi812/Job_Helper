@@ -110,3 +110,70 @@ because no auth user or resume was created.
 
 The local correction now generates a 40-byte password and enforces a 12–72 byte
 invariant in a dedicated regression test.
+
+## Successful zero-paid auth preflight on `d5805a9`
+
+status: pass
+approval_signal: approve
+git_sha: d5805a933ecd1523618559106c537feb369833c2
+cloudflare_deployment_id: 1d9bc36d-80b3-4ef3-a77a-aa42ef2b970b
+cloudflare_url: https://1d9bc36d.job-helper-qs9.pages.dev
+asset_path: /assets/index-lyvShdhx.js
+asset_sha256: a6f11edc4d18ed264233d5d17e2fd2005e9064036ec09409cf95761498013d66
+password_bytes: 40
+account_created: true
+account_deleted: true
+resume_created: false
+score_tick_invocations: 0
+openai_calls_by_preflight: 0
+budget_after: 359
+cron_active_after: true
+maintenance_residue_count: 0
+verifier_auth_residue_count: 0
+
+The corrected password was accepted. The one service-tagged preflight account
+was deleted immediately without a resume, worker invocation, latch, or OpenAI
+request. The production alias and immutable deployment served the same asset
+bytes and SHA-256.
+
+## Paid verifier transport failure on `d5805a9`
+
+status: failed_after_one_owned_paid_call
+approval_signal: approve
+invocation_command: node --env-file=scripts/.env --experimental-strip-types scripts/verify-scoring-freshness.ts
+git_sha: d5805a933ecd1523618559106c537feb369833c2
+verifier_process_attempts: 1
+verifier_owned_score_usage: 1
+verifier_model: gpt-5.4-nano
+verifier_usage_at: 2026-07-20T20:47:42.592695Z
+failure: ERR_HTTP2_GOAWAY_SESSION
+automatic_cleanup_complete: false
+manual_exact_cleanup_complete: true
+cron_active_after: true
+maintenance_residue_count: 0
+verifier_auth_residue_count: 0
+verifier_profile_residue_count: 0
+verifier_preference_residue_count: 0
+verifier_resume_residue_count: 0
+verifier_extract_residue_count: 0
+verifier_user_job_residue_count: 0
+fixture_job_residue_count: 0
+global_request_ledger_at_final_audit: 364
+
+The one approved process entered its bounded drain and was monitored through the
+same process session without restart. It created the disposable verifier and
+made exactly one target-owned paid scoring request, then Node's long-lived HTTP/2
+session received GOAWAY during post-call verification/cleanup. The process was
+not retried and is not classified as passing proof.
+
+The failing cleanup reported tracked user-job deletion, zero-residue assertion,
+and verifier-account inventory errors. A read-only audit found one tagged account,
+1,671 verifier user-job rows, and exactly three validated `verify-*` jobs on
+`example.invalid`; the latch was already absent and cron was active. Manual
+containment deleted only the tagged account and those three exact fixture jobs.
+A final audit proved every verifier-owned mutable table and fixture count was zero.
+The immutable target-owned usage ledger row remains as audit evidence.
+
+The local transport correction pins all verifier Supabase, Management API, and
+score-tick requests to fresh HTTPS/1.1 connections (`agent: false`) so a drained
+HTTP/2 session cannot be reused during evidence or cleanup.

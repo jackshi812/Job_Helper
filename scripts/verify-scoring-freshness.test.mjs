@@ -9,6 +9,7 @@ import {
   buildCronActiveSql,
   claimForLatch,
   collectPaginatedRows,
+  fetchHttp1,
   runFreshnessVerification,
 } from './verify-scoring-freshness.ts'
 
@@ -339,6 +340,16 @@ test('disposable verifier password stays within the bcrypt byte limit', () => {
   assert.match(password, /[a-z]/)
   assert.match(password, /\d/)
   assert.match(password, /[^A-Za-z0-9]/)
+})
+
+test('verifier transport is pinned to fresh HTTPS/1.1 requests', async () => {
+  await assert.rejects(fetchHttp1('http://example.invalid'), /requires HTTPS/)
+  const source = await readFile(new URL('./verify-scoring-freshness.ts', import.meta.url), 'utf8')
+  assert.match(source, /request as httpsRequest.*node:https/)
+  assert.equal(source.match(/global: \{ fetch: fetchHttp1 \}/g)?.length, 2)
+  assert.match(source, /status === 204 \|\| status === 205 \|\| status === 304/)
+  assert.match(source, /const response = await fetchHttp1\([\s\S]*?Management SQL/)
+  assert.match(source, /fetchHttp1\(`\$\{env\.SUPABASE_URL\}\/functions\/v1\/score-tick`/)
 })
 
 test('tick failure is never retried and cleanup still releases the latch', async () => {

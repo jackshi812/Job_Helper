@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
+import { request as httpsRequest } from 'node:https'
 import { createClient } from '../web/node_modules/@supabase/supabase-js/dist/index.mjs'
 
 const SCORE_CRON_NAME = 'score-tick-every-minute'
@@ -369,6 +370,52 @@ export function buildVerifierPassword() {
   return password
 }
 
+export async function fetchHttp1(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const request = new Request(input, init)
+  const url = new URL(request.url)
+  if (url.protocol !== 'https:') throw new Error('Verifier transport requires HTTPS')
+
+  const headers = new Headers(request.headers)
+  headers.set('accept-encoding', 'identity')
+  const body = request.method === 'GET' || request.method === 'HEAD'
+    ? undefined
+    : Buffer.from(await request.arrayBuffer())
+
+  return await new Promise<Response>((resolve, reject) => {
+    const outgoing = httpsRequest(url, {
+      method: request.method,
+      headers: Object.fromEntries(headers.entries()),
+      agent: false,
+      signal: request.signal,
+    }, (incoming) => {
+      const chunks: Buffer[] = []
+      incoming.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+      incoming.on('error', reject)
+      incoming.on('end', () => {
+        const status = incoming.statusCode ?? 500
+        const responseHeaders = new Headers()
+        for (const [name, value] of Object.entries(incoming.headers)) {
+          if (Array.isArray(value)) {
+            for (const item of value) responseHeaders.append(name, item)
+          } else if (value !== undefined) {
+            responseHeaders.set(name, String(value))
+          }
+        }
+        const responseBody = status === 204 || status === 205 || status === 304
+          ? null
+          : Buffer.concat(chunks)
+        resolve(new Response(responseBody, {
+          status,
+          statusText: incoming.statusMessage,
+          headers: responseHeaders,
+        }))
+      })
+    })
+    outgoing.on('error', reject)
+    outgoing.end(body)
+  })
+}
+
 function assertUuid(value: string, label: string) {
   if (!UUID_PATTERN.test(value)) throw new Error(`${label} is not a UUID`)
 }
@@ -409,9 +456,11 @@ function cronFromRow(row: Record<string, unknown>): CronSnapshot {
 export function createProductionAdapters(env: ProductionEnvironment): FreshnessAdapters {
   const admin = createClient(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+    global: { fetch: fetchHttp1 },
   })
   const user = createClient(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+    global: { fetch: fetchHttp1 },
   })
   let targetUserId: string | null = null
   const verifierNonce = crypto.randomUUID().replaceAll('-', '').slice(0, 12)
@@ -422,7 +471,7 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
   let lateJobId: string | null = null
 
   async function managementSql(query: string) {
-    const response = await fetch(
+    const response = await fetchHttp1(
       `https://api.supabase.com/v1/projects/${env.SUPABASE_PROJECT_REF}/database/query`,
       {
         method: 'POST',
@@ -747,7 +796,7 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
       return data ?? []
     },
     async invokeTick(runId) {
-      const response = await fetch(`${env.SUPABASE_URL}/functions/v1/score-tick`, {
+      const response = await fetchHttp1(`${env.SUPABASE_URL}/functions/v1/score-tick`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
