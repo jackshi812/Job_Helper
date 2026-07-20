@@ -1,16 +1,16 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: 'Phase 03 UAT Check 4: saved four target titles, waited more than 20 minutes, and the focused Dashboard still showed no matches.'
 created: 2026-07-20T18:03:42Z
-updated: 2026-07-20T18:44:58Z
+updated: 2026-07-20T19:42:27Z
 ---
 
 ## Current Focus
 
-hypothesis: CONFIRMED SECONDARY CAUSE — after the cap fix recovered valid rows, listFeed still limited an arbitrarily ordered parent user_jobs slice because referencedTable ordering sorts only the embedded jobs object; the pending backlog therefore excluded every focused candidate before browser filtering.
-test: Frontend patch 80d772e is live and its focused server query returns the affected account's valid candidates; human verification must confirm the production Dashboard renders them after refresh.
-expecting: The focused Dashboard shows at least the currently valid Greenhouse matches marked Updating while the paid cap remains exhausted; more newly scored matches can arrive after UTC rollover.
-next_action: Ask the user to hard-refresh the Dashboard and confirm jobs are visible; do not archive this session as resolved without that browser confirmation.
+hypothesis: CONFIRMED AND RESOLVED — paid-cap ordering and the bounded parent feed query composed to hide valid matches.
+test: User completed the production workflow and explicitly reported "all tests pass."
+expecting: Confirmed preference-pass jobs appear under All jobs regardless of score, while current open scores 50+ appear in Focused.
+next_action: None; archive this resolved session.
 
 reasoning_checkpoint:
   hypothesis: "The pre-claim global AI_DAILY_SCORE_CAP guard causes the zero feed: saving preferences flags all open user_jobs as needs_refilter, focused mode hides every flagged row, and once daily usage is 200 score-tick exits before claim_scoring_work can clear any flag."
@@ -171,13 +171,13 @@ started: Observed during Phase 03 Plan 11 UAT Check 4 on 2026-07-20 after the ex
 - timestamp: 2026-07-20T18:44:58Z
   checked: Failed human verification screenshot, exact RLS-scoped production feed query, corrected query probe, regression suite, and frontend patch rollout
   found: The refreshed Dashboard still rendered zero rows although Greenhouse EU and resume upload were confirmed fixed. The exact old listFeed query returned 200 rows spanning 2026-07-20 to 2026-05-20 with zero scored >=50 rows because `.order('posted_at', { foreignTable: 'jobs' })` ordered only the embedded relation, not parent user_jobs. Even corrected parent ordering allowed the pending backlog to fill the newest 200 before focused filtering. A separate server-filtered status=scored/score>=50 query returned the affected account's six deferred candidates, three of which currently have truthful company identity and open/undismissed jobs. Patch 80d772e merges those bounded focused candidates with the newest diagnostic window, passed 403/403 tests, lint, build, and diff check, and Cloudflare successfully deployed matching asset /assets/index-CTtXNGMU.js to both immutable and production URLs.
-  implication: The secondary feed-query cause is fixed in production. A final hard-refresh confirmation is required before resolving the GSD debug session.
+  implication: The secondary feed-query cause is fixed in production; the user later confirmed all Phase 3 human tests pass.
 
 ## Resolution
 
 root_cause: Two defects composed. Saving preferences marked every open row needs_refilter=true while the global score worker's pre-claim 200-call guard prevented all free refilter work, hiding prior scores. After that was fixed, listFeed still limited an arbitrarily ordered 200-parent-row slice: referencedTable ordering sorted only embedded jobs, and the large pending backlog excluded all valid focused candidates before browser filtering.
-fix: Added migration 0027 with atomic paid-request reservation and UTC deferral so free filtering/reuse proceeds at the cap; preserved truthful deferred scores as Updating. Then changed listFeed to use PostgREST to-one parent ordering and merge a bounded server-filtered scored>=50 candidate query with the recent diagnostic window, preventing pending rows from crowding focused matches out.
-verification: The cap fix passed 34/34 targeted and 402/402 full tests before its production rollout. The secondary feed test failed RED on the old one-query implementation, then the patch passed 23/23 targeted and 403/403 full tests, lint, TypeScript/Vite build, and diff check. Read-only production probes confirmed the corrected focused query returns six candidates and three currently renderable matches for the affected account. Patch 80d772e and matching Cloudflare asset are live; final browser confirmation remains outstanding.
+fix: Added migration 0027 with atomic paid-request reservation and UTC deferral so free filtering/reuse proceeds at the cap; preserved truthful deferred scores as Updating. Then changed listFeed to use PostgREST to-one parent ordering and a server-filtered preference-pass pool, preventing pending or filtered rows from crowding valid matches out.
+verification: The cap fix passed 34/34 targeted and 402/402 full tests before rollout. Subsequent feed regressions passed the complete 404-test suite, lint, TypeScript/Vite build, and diff check. Read-only production probes confirmed current preference-pass and focused rows, and the user explicitly reported "all tests pass."
 files_changed:
   - supabase/migrations/0027_score_budget_after_free_work.sql
   - supabase/functions/score-tick/index.ts
@@ -187,4 +187,4 @@ files_changed:
   - web/tests/preference-refilter-feed.integration.test.ts
   - web/tests/scoring-input.test.ts
   - web/tests/company-name-feed.integration.test.ts
-  - .planning/debug/saved-titles-zero-matches.md
+  - .planning/debug/resolved/saved-titles-zero-matches.md

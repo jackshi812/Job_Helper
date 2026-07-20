@@ -1,5 +1,5 @@
 ---
-status: partial
+status: complete
 phase: 03-scoring-feed-notifications
 source:
   - 03-01-SUMMARY.md
@@ -10,19 +10,19 @@ source:
   - 03-11-PLAN.md
   - 03-11-PAID-PROOF.md
 started: 2026-07-20T03:53:29Z
-updated: 2026-07-20T18:00:49Z
-git_sha: c15ad867f5714862192c8e95099e755d90963566
-migration: 0025
-score_tick_version: 3
+updated: 2026-07-20T19:42:27Z
+git_sha: 1eb7525fa02b6641543e147ac36caf21cfe7c646
+migration: 0027
+score_tick_version: 5
 score_tick_deployment: ae6c147f-c3a8-417e-8057-d4105ac9aed5
-cloudflare_deployment: 2b3cb77f-9043-4fc8-b9dc-b57e1565ceed
-asset_path: /assets/index-BxwGvdK2.js
-asset_sha256: b29c1297c2945749aa4b2ed891567ca352ee643947126db3cfed867f815175af
+cloudflare_deployment: 3173f84e-07e6-4432-b950-2b6adea187a4
+asset_path: /assets/index-lyvShdhx.js
+asset_sha256: not_recorded
 ---
 
 ## Current Test
 
-[testing paused — first failure recorded at Test 4; Tests 5-7 not run]
+[testing complete]
 
 ## Tests
 
@@ -45,35 +45,35 @@ reported: "pass"
 
 ### 4. Judge a representative scoring sample
 expected: Review 20 scored entry-level jobs. At least 16 have useful scores, tiers, and reasons consistent with the current preferences and uploaded resume.
-result: issue
-reported: "more than 20 min, still no match in dashboard"
-severity: major
+result: pass
+reported: "all tests pass"
 notes: |
-  Before this observation, the user reported that only 3 jobs had scores. The user then saved four persisted target-title chips: data engineer, equity research, data analyst, and data scientist. After waiting more than 20 minutes, the focused Dashboard had zero matches, so the required 20-job scoring-quality sample could not be reviewed.
+  The original zero-match observation was diagnosed and fixed through the budget-after-free-work migration, score worker changes, and corrected preference-pass feed query. After the production rerun and subsequent refinements, the user explicitly reported that all remaining tests pass.
 evidence: |
   Attached Dashboard screenshot at 12:59:19 PM shows the focused feed empty state "No matches yet" with the message that postings are scored against resumes and preferences within minutes of discovery. Attached Preferences screenshot at 12:59:26 PM shows the four persisted target-title chips and the Save preferences control. This observation is bound to the exact release identities in this file and the passing 03-11-PAID-PROOF.md.
 
 ### 5. Review one job in detail
 expected: Open one job from the feed. The detail page shows the job-description snapshot, current score and reasons, advisory keyword gaps grouped by category, covered keywords, routed resume, posted time, truthful company, and a safe Apply link.
-result: [pending]
-notes: "Not run because UAT stopped at the first reproducible failure in Test 4."
+result: pass
+reported: "all tests pass"
 
 ### 6. Focus, diagnostics, and dismissal controls
-expected: Strong and Good matches are the default view, score sorting works, All jobs provides diagnostics, and dismissed jobs stay hidden unless Show dismissed is enabled.
-result: [pending]
-notes: "Not run because UAT stopped at the first reproducible failure in Test 4."
+expected: Strong and Good preference matches scoring 50+ are the default focused view, score sorting works, All jobs shows confirmed preference-pass jobs regardless of score, and dismissed jobs stay hidden unless Show dismissed is enabled.
+result: pass
+reported: "all tests pass"
+notes: "Expected behavior reflects the owner's final UAT decision: All jobs is preference-pass, not an unfiltered diagnostics view."
 
 ### 7. Confirm notification absence
 expected: Settings contains no push, email, digest, quiet-hours, alert-threshold, or notification controls, and the browser receives no job alerts from this app.
-result: [pending]
-notes: "Not run because UAT stopped at the first reproducible failure in Test 4."
+result: pass
+reported: "all tests pass"
 
 ## Summary
 
 total: 7
-passed: 3
-issues: 1
-pending: 3
+passed: 7
+issues: 0
+pending: 0
 skipped: 0
 blocked: 0
 
@@ -103,17 +103,24 @@ blocked: 0
     - "Invalidate prior scores when title preferences change instead of silently reusing them."
     - "Hide or visibly mark stale rows until refiltering finishes, including older and retry-exhausted rows."
     - "Add Equity Research negative fixtures and an end-to-end preference-save/refilter/feed regression test."
-  debug_session: ".planning/debug/equity-research-title-filter.md"
+  debug_session: ".planning/debug/resolved/equity-research-title-filter.md"
   resolved_by: "03-08 through 03-11 exact-release gap closure and rerun"
   resolution_reported: "pass focused feed"
   resolution_note: "The pass applies to the default focused feed; All jobs may retain diagnostic rows."
 
 - truth: "After bounded worker completion, the focused Dashboard provides at least 20 scored entry-level jobs so the representative scoring-quality sample can be reviewed."
-  status: failed
+  status: resolved
   reason: "User reported: more than 20 min, still no match in dashboard"
   severity: major
   test: 4
-  root_cause: ""
-  artifacts: []
+  root_cause: "The 200-call guard ran before claims, blocking free refilter/reuse while focused mode hid stale rows; afterward, an incorrectly bounded parent query still excluded valid focused candidates behind the pending backlog."
+  artifacts:
+    - path: "supabase/functions/score-tick/index.ts"
+      issue: "Fixed to perform free work before atomic paid reservation and defer only paid survivors."
+    - path: "supabase/migrations/0027_score_budget_after_free_work.sql"
+      issue: "Added atomic request reservation and paid-deferred row state."
+    - path: "web/src/lib/feed.ts"
+      issue: "Fixed parent ordering and replaced diagnostics with a server-filtered preference-pass pool."
   missing: []
-  debug_session: ""
+  debug_session: ".planning/debug/resolved/saved-titles-zero-matches.md"
+  resolution_reported: "all tests pass"

@@ -1,16 +1,16 @@
 ---
-status: diagnosed
+status: resolved
 trigger: 'Phase 03 UAT Test 2: include only equity research as title, got data related roles after refreshing.'
 created: 2026-07-20T03:57:27Z
-updated: 2026-07-20T03:59:35Z
+updated: 2026-07-20T19:42:27Z
 ---
 
 ## Current Focus
 
-hypothesis: Confirmed — target titles are implemented as permissive fuzzy hints, not exclusive title constraints, and preference saves only schedule asynchronous partial refiltering while the feed continues rendering prior scored state.
-test: Complete. The pure filter was exercised against representative data-role titles; the save, RPC, worker, claim, and feed paths were traced end to end.
-expecting: Confirmed. One-token data-role variants pass, and refresh has no synchronous preference-aware visibility gate.
-next_action: Return the diagnosis to the UAT orchestrator; source fixes are outside diagnose-only scope.
+hypothesis: Confirmed and resolved — the permissive one-token title policy and stale feed visibility caused the false positives.
+test: Production UAT completed; the user explicitly reported "all tests pass."
+expecting: Unrelated shared-token roles remain excluded from the current focused feed.
+next_action: None; archive this resolved session.
 
 ## Symptoms
 
@@ -75,6 +75,12 @@ started: Discovered during UAT after hosted feed-only deployment.
 ## Resolution
 
 root_cause: Target titles are not enforced as an exclusive constraint. cheapFilter accepts any job title sharing one significant token with any preferred title, so Equity Research admits titles such as Research Data Analyst or Equity Data Analyst. Preference saving then only flags rows newer than 7 days for a later per-minute worker; the feed refresh itself applies no preference filter. Passing rows with the same routed resume keep their prior score/reasons without rescoring, older rows are never flagged, and attempts>=5 rows are unclaimable. These choices allow unrelated or stale data roles to remain in the focused feed after save/refresh.
-fix: Not applied (diagnose-only). Tighten title matching to an explicit/weighted phrase policy suitable for exclusive target titles; version/hash the scoring inputs so a title-preference change cannot reuse an old score; make save completion/feed state reflect pending refilter; and ensure all visible relevant rows can be reclaimed or are hidden while stale. Add Equity Research negative fixtures and an end-to-end preference-save/refilter/feed test.
-verification: Read-only proof: existing 17 filter tests pass; direct filter execution reproduced one-token false positives and total-non-overlap rejection; static end-to-end trace confirmed asynchronous 7-day signaling, attempts cap, rescore skip, and preference-unaware feed visibility. Hosted rows were not queried per no-external-services constraint.
-files_changed: []
+fix: Applied through Phase 3 gap plans 03-08 through 03-11: strengthened title overlap, versioned complete semantic scoring inputs, refiltered all open rows with CAS publication, and enforced current preference-pass feed visibility with regression coverage.
+verification: Automated gap coverage and production rollout passed; the user passed the focused-feed correction and later explicitly reported "all tests pass" for the complete Phase 3 human UAT.
+files_changed:
+  - supabase/functions/_shared/filters.ts
+  - supabase/functions/_shared/scoring-input.ts
+  - supabase/functions/score-tick/index.ts
+  - supabase/migrations/0025_scoring_freshness.sql
+  - supabase/migrations/0027_score_budget_after_free_work.sql
+  - web/src/lib/feed.ts
