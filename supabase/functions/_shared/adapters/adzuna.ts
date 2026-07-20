@@ -11,6 +11,7 @@ interface AdzunaResult {
 }
 
 export function mapAdzunaResult(result: AdzunaResult): NormalizedJob {
+  const companyName = result.company?.display_name?.trim() || null
   return {
     source: 'adzuna',
     externalId: String(result.id),
@@ -21,7 +22,7 @@ export function mapAdzunaResult(result: AdzunaResult): NormalizedJob {
     descriptionHtml: null,
     descriptionText: result.description ?? null,
     snapshotPartial: true,
-    companyName: result.company?.display_name ?? null,
+    companyName,
   }
 }
 

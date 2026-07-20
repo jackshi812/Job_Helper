@@ -44,6 +44,70 @@ function semanticInput() {
   }
 }
 
+interface ModelRow {
+  id: string
+  open: boolean
+  desired: number
+  attempts: number
+  needsRefilter: boolean
+  claimedRevision: number | null
+}
+
+class MaintenanceClaimModel {
+  rows = new Map<string, ModelRow>()
+  latch: { runId: string; ids: [string, string]; expiresAt: number } | null = null
+
+  add(id: string) {
+    this.rows.set(id, {
+      id,
+      open: true,
+      desired: 0,
+      attempts: 0,
+      needsRefilter: true,
+      claimedRevision: null,
+    })
+  }
+
+  begin(runId: string, first: string, second: string, expiresAt: number) {
+    if (first === second || !this.rows.has(first) || !this.rows.has(second)) throw new Error('invalid fixtures')
+    this.latch = { runId, ids: [first, second], expiresAt }
+  }
+
+  signal() {
+    for (const row of this.rows.values()) {
+      if (!row.open) continue
+      row.desired += 1
+      row.attempts = 0
+      row.needsRefilter = true
+      row.claimedRevision = null
+    }
+  }
+
+  claim(runId: string | null, now: number): string[] {
+    const active = this.latch && this.latch.expiresAt > now ? this.latch : null
+    if (active && active.runId !== runId) return []
+    if (!active && runId !== null) return []
+    const allowed = active ? new Set(active.ids) : null
+    const claimed: string[] = []
+    for (const row of this.rows.values()) {
+      if (allowed && !allowed.has(row.id)) continue
+      if (!row.needsRefilter || row.attempts >= 5 || row.claimedRevision !== null) continue
+      row.attempts += 1
+      row.claimedRevision = row.desired
+      claimed.push(row.id)
+    }
+    return claimed
+  }
+
+  publish(id: string, capturedRevision: number) {
+    return this.rows.get(id)?.desired === capturedRevision
+  }
+
+  end(runId: string) {
+    if (this.latch?.runId === runId) this.latch = null
+  }
+}
+
 describe('semantic scoring input freshness', () => {
   it('loads an explicit scoring-input module instead of treating its absence as infrastructure failure', async () => {
     const module = await loadScoringInput()
@@ -129,10 +193,16 @@ describe('migration 0025 scoring freshness contract', () => {
     const worker = read(workerPath)
     expect(sql).toMatch(/claimed_input_revision\s+bigint/i)
     expect(sql).toMatch(/claimed_input_revision\s*=\s*uj\.desired_input_revision/i)
-    expect(worker.match(/\.eq\('desired_input_revision',\s*claimed\.claimed_input_revision\)/g)?.length)
+    expect(worker.match(/\.eq\('desired_input_revision',\s*(?:claimed|row)\.claimed_input_revision\)/g)?.length)
       .toBeGreaterThanOrEqual(4)
     expect(worker.match(/\.select\('id'\)|\.maybeSingle\(\)/g)?.length)
       .toBeGreaterThanOrEqual(4)
+
+    const row = { desired: 8 }
+    const captured = 7
+    for (const terminal of ['filtered', 'reused', 'scored', 'failed']) {
+      expect(row.desired === captured, terminal).toBe(false)
+    }
   })
 
   it('enforces a short-lived service-only exactly-two-fixture maintenance latch', () => {
@@ -157,11 +227,41 @@ describe('migration 0025 scoring freshness contract', () => {
     if (!existsSync(migrationPath)) return
     const sql = read(migrationPath)
     expect(sql).toMatch(/delete from public\.scoring_verification_maintenance[\s\S]*expires_at\s*<=\s*now\(\)/i)
-    expect(sql).toMatch(/p_verification_run_id\s+uuid/i)
-    expect(sql).toMatch(/active\.run_id\s*=\s*p_verification_run_id/i)
+    expect(sql).toMatch(/verification_run_id\s+uuid\s+default\s+null/i)
+    expect(sql).toMatch(/active\.run_id\s*<>\s*requested_run_id/i)
     expect(sql).toMatch(/uj\.id\s+in\s*\(active\.fixture_user_job_id_1,\s*active\.fixture_user_job_id_2\)/i)
-    expect(sql).toMatch(/p_verification_run_id\s+is\s+not\s+null[\s\S]*return/i)
+    expect(sql).toMatch(/requested_run_id\s+is\s+not\s+null[\s\S]*return/i)
     expect(sql).toMatch(/limit\s+batch_size[\s\S]*for update skip locked/i)
+
+    const model = new MaintenanceClaimModel()
+    model.add('fixture-positive')
+    model.add('fixture-negative')
+    model.begin('exact-run', 'fixture-positive', 'fixture-negative', 100)
+    model.add('late-job')
+    model.signal() // authenticated preference signal
+    model.signal() // ready-extraction reroute signal
+
+    expect(model.claim(null, 10)).toEqual([])
+    expect(model.claim('mismatched-run', 10)).toEqual([])
+    const exactClaim = model.claim('exact-run', 10)
+    expect(new Set(exactClaim)).toEqual(new Set(['fixture-positive', 'fixture-negative']))
+    expect(model.claim('exact-run', 10)).toEqual([]) // concurrent SKIP LOCKED equivalent
+    expect(exactClaim).not.toContain('late-job')
+
+    const captured = model.rows.get('fixture-positive')!.claimedRevision!
+    model.signal()
+    expect(model.publish('fixture-positive', captured)).toBe(false)
+
+    model.end('exact-run')
+    expect(model.claim(null, 20)).toContain('late-job')
+
+    const expired = new MaintenanceClaimModel()
+    expired.add('one')
+    expired.add('two')
+    expired.add('ordinary')
+    expired.begin('expired-run', 'one', 'two', 30)
+    expect(expired.claim(null, 31)).toContain('ordinary')
+    expect(expired.claim('expired-run', 31)).toEqual([])
   })
 
   it('keeps pipeline fields service-owned and notification runtime absent', () => {
@@ -186,7 +286,9 @@ describe('score-tick isolation and survivor ordering contract', () => {
     expect(auth).toBeGreaterThan(method)
     expect(header).toBeGreaterThan(auth)
     expect(claim).toBeGreaterThan(header)
-    expect(worker).toMatch(/^[\s\S]*[0-9a-f]\{8\}-[0-9a-f]\{4\}-[1-5][0-9a-f]\{3\}-[89ab][0-9a-f]\{3\}-[0-9a-f]\{12\}/im)
+    expect(worker).toContain(
+      'const STRICT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i',
+    )
   })
 
   it('has no provider source bypass and reaches routing hashing and AI only after cheapFilter passes', () => {

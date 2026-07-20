@@ -6,6 +6,10 @@ import {
 } from '../_shared/filters.ts'
 import { routeResume, tierFor, type ResumeExtractInput } from '../_shared/routing.ts'
 import { generateStructured, OPENAI_SCORING_MODEL } from '../_shared/openai.ts'
+import {
+  scoringInputHash,
+  shouldRescore,
+} from '../_shared/scoring-input.ts'
 
 // Scan/claim scoring worker (RESEARCH Pattern 2). Fully decoupled from ingestion:
 // it never touches poll-tick. Each tick it claims a bounded batch of (job, user)
@@ -24,6 +28,9 @@ import { generateStructured, OPENAI_SCORING_MODEL } from '../_shared/openai.ts'
 const SCORE_BATCH_SIZE = 12
 const SCORE_CONCURRENCY = 4
 const DEFAULT_DAILY_SCORE_CAP = 200
+const SCORING_PROMPT_REVISION = 'score-v1'
+const SCORING_FILTER_REVISION = 'filter-v2'
+const STRICT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 // Strict Structured Outputs schema. additionalProperties:false at every object
 // level and every property listed in required (OpenAI strict mode). The score is
@@ -58,6 +65,8 @@ interface ClaimedUserJob {
   status: string
   routed_resume_id: string | null
   needs_refilter: boolean
+  scoring_input_hash: string | null
+  claimed_input_revision: number
 }
 
 interface JobRow {
@@ -80,6 +89,8 @@ interface ExtractRow {
   user_id: string
   keywords: unknown
   text_content: string | null
+  model: string | null
+  extracted_at: string | null
 }
 
 interface ScoreResult {
@@ -89,7 +100,7 @@ interface ScoreResult {
   covered: string[]
 }
 
-type RowOutcome = 'filtered' | 'scored' | 'rescore_skipped'
+type RowOutcome = 'filtered' | 'scored' | 'rescore_skipped' | 'stale_discarded'
 
 const KNOWN_ERROR_CODES = new Set([
   'no_resume_extract',
@@ -197,6 +208,7 @@ async function processRow(
   prefsRow: PreferencesRow | undefined,
   extracts: ResumeExtractInput[],
   resumeTextById: Map<string, string>,
+  extractByResumeId: Map<string, ExtractRow>,
 ): Promise<RowOutcome> {
   // Defensive: claim_scoring_work only returns rows for existing jobs (FK), but a
   // concurrent prune could remove one between claim and load. Surface a bounded code.
@@ -214,7 +226,7 @@ async function processRow(
 
   if (!outcome.pass) {
     // D-04: keep the row with a bounded reason; clear the refilter flag.
-    const { error } = await admin
+    const { data, error } = await admin
       .from('user_jobs')
       .update({
         status: 'filtered',
@@ -222,10 +234,25 @@ async function processRow(
         filter_detail: outcome.detail,
         needs_refilter: false,
         claimed_at: null,
+        claimed_input_revision: null,
         error_code: null,
+        score: null,
+        tier: null,
+        reasons: null,
+        gaps: null,
+        covered: null,
+        matched_include_keywords: null,
+        routed_resume_id: null,
+        runner_up_resume_id: null,
+        scored_at: null,
+        scoring_input_hash: null,
       })
       .eq('id', claimed.id)
+      .eq('desired_input_revision', claimed.claimed_input_revision)
+      .select('id')
+      .maybeSingle()
     if (error) throw new Error('score_write_failed')
+    if (!data) return 'stale_discarded'
     return 'filtered'
   }
 
@@ -234,23 +261,43 @@ async function processRow(
   const routed = routeResume(`${job.title} ${job.description_text ?? ''}`, extracts)
   if (!routed) throw new Error('no_resume_extract')
 
-  // Pitfall 6 rescore economy: a previously scored row flagged for refilter that
-  // still passes the filter AND keeps the same routed resume keeps its existing
-  // score (D-10 stale-score semantics) — no paid re-score.
-  const wasScored = claimed.status === 'scored'
-  const wasFiltered = claimed.status === 'filtered'
-  const routedChanged = claimed.routed_resume_id !== routed.resumeId
-  const filterOutcomeChanged = wasFiltered // was filtered, now passes
-  if (wasScored && claimed.needs_refilter && !routedChanged && !filterOutcomeChanged) {
-    const { error } = await admin
+  const selectedExtract = extractByResumeId.get(routed.resumeId)
+  if (!selectedExtract) throw new Error('no_resume_extract')
+  const resumeText = resumeTextById.get(routed.resumeId) ?? ''
+  const currentInputHash = await scoringInputHash({
+    preferences: prefs,
+    job: filterInput,
+    routedResumeId: routed.resumeId,
+    extraction: {
+      textContent: resumeText,
+      keywords: toStringArray(selectedExtract.keywords),
+      model: selectedExtract.model,
+      extractedAt: selectedExtract.extracted_at,
+    },
+    scoringModel: OPENAI_SCORING_MODEL,
+    promptRevision: SCORING_PROMPT_REVISION,
+    filterRevision: SCORING_FILTER_REVISION,
+  })
+
+  // Reuse is safe only when the complete server-derived semantic hash is equal.
+  if (!shouldRescore(claimed.scoring_input_hash, currentInputHash)) {
+    const { data, error } = await admin
       .from('user_jobs')
-      .update({ needs_refilter: false, claimed_at: null })
+      .update({
+        needs_refilter: false,
+        claimed_at: null,
+        claimed_input_revision: null,
+        error_code: null,
+      })
       .eq('id', claimed.id)
+      .eq('desired_input_revision', claimed.claimed_input_revision)
+      .select('id')
+      .maybeSingle()
     if (error) throw new Error('score_write_failed')
+    if (!data) return 'stale_discarded'
     return 'rescore_skipped'
   }
 
-  const resumeText = resumeTextById.get(routed.resumeId) ?? ''
   const { result, usage } = await generateStructured({
     model: OPENAI_SCORING_MODEL,
     prompt: buildScorePrompt(prefs, resumeText, job),
@@ -263,7 +310,7 @@ async function processRow(
   const parsed = parseScoreResult(result)
   const tier = tierFor(parsed.score)
 
-  const { error: writeError } = await admin
+  const { data: written, error: writeError } = await admin
     .from('user_jobs')
     .update({
       status: 'scored',
@@ -281,8 +328,13 @@ async function processRow(
       scored_at: new Date().toISOString(),
       needs_refilter: false,
       claimed_at: null,
+      claimed_input_revision: null,
+      scoring_input_hash: currentInputHash,
     })
     .eq('id', claimed.id)
+    .eq('desired_input_revision', claimed.claimed_input_revision)
+    .select('id')
+    .maybeSingle()
   if (writeError) throw new Error('score_write_failed')
 
   // Best-effort token accounting (counts only, never prompt/response content).
@@ -295,6 +347,7 @@ async function processRow(
   })
   if (usageError) console.error('score-tick usage write failed', 'ai_usage_write_failed')
 
+  if (!written) return 'stale_discarded'
   return 'scored'
 }
 
@@ -307,6 +360,12 @@ Deno.serve(async (request) => {
   if (!cronSecret || request.headers.get('x-cron-secret') !== cronSecret) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const verificationHeader = request.headers.get('x-scoring-verification-run-id')
+  if (verificationHeader !== null && !STRICT_UUID.test(verificationHeader)) {
+    return Response.json({ error: 'Invalid scoring verification run id' }, { status: 400 })
+  }
+  const verificationRunId = verificationHeader?.toLowerCase() ?? null
 
   try {
     const admin = createClient(
@@ -349,6 +408,7 @@ Deno.serve(async (request) => {
 
     const { data: claimData, error: claimError } = await admin.rpc('claim_scoring_work', {
       batch_size: SCORE_BATCH_SIZE,
+      verification_run_id: verificationRunId,
     })
     if (claimError) throw claimError
     const claimed = (claimData ?? []) as ClaimedUserJob[]
@@ -356,6 +416,7 @@ Deno.serve(async (request) => {
     let filtered = 0
     let scored = 0
     let rescoreSkipped = 0
+    let staleDiscarded = 0
     let failed = 0
 
     if (claimed.length > 0) {
@@ -370,7 +431,7 @@ Deno.serve(async (request) => {
           .in('user_id', userIds),
         admin
           .from('resume_extracts')
-          .select('resume_id, user_id, keywords, text_content')
+          .select('resume_id, user_id, keywords, text_content, model, extracted_at')
           .eq('status', 'ready')
           .in('user_id', userIds),
       ])
@@ -402,6 +463,7 @@ Deno.serve(async (request) => {
 
       const extractsByUser = new Map<string, ResumeExtractInput[]>()
       const resumeTextById = new Map<string, string>()
+      const extractByResumeId = new Map<string, ExtractRow>()
       for (const row of extractRows) {
         const list = extractsByUser.get(row.user_id) ?? []
         list.push({
@@ -411,6 +473,7 @@ Deno.serve(async (request) => {
         })
         extractsByUser.set(row.user_id, list)
         resumeTextById.set(row.resume_id, row.text_content ?? '')
+        extractByResumeId.set(row.resume_id, row)
       }
 
       // Fan out at bounded concurrency (Pitfall 2) over chunks.
@@ -426,6 +489,7 @@ Deno.serve(async (request) => {
               prefsByUser.get(row.user_id),
               extractsByUser.get(row.user_id) ?? [],
               resumeTextById,
+              extractByResumeId,
             ),
           ),
         )
@@ -435,31 +499,47 @@ Deno.serve(async (request) => {
           if (result.status === 'fulfilled') {
             if (result.value === 'filtered') filtered += 1
             else if (result.value === 'scored') scored += 1
-            else rescoreSkipped += 1
+            else if (result.value === 'rescore_skipped') rescoreSkipped += 1
+            else staleDiscarded += 1
             continue
           }
 
           failed += 1
           const code = diagnosticCode(result.reason)
           console.error(`score-tick user_job ${row.id} failed`, code)
-          const { error: failureError } = await admin
+          const { data: failureWritten, error: failureError } = await admin
             .from('user_jobs')
-            .update({ status: 'failed', error_code: code, claimed_at: null })
+            .update({
+              status: 'failed',
+              error_code: code,
+              needs_refilter: false,
+              claimed_at: null,
+              claimed_input_revision: null,
+            })
             .eq('id', row.id)
+            .eq('desired_input_revision', row.claimed_input_revision)
+            .select('id')
+            .maybeSingle()
           if (failureError) {
             console.error(`score-tick failure update ${row.id} failed`, 'failure_update_failed')
           }
+          if (!failureWritten) staleDiscarded += 1
         }
       }
     }
 
-    return Response.json({
+    const response: Record<string, unknown> = {
       claimed: claimed.length,
       filtered,
       scored,
       rescore_skipped: rescoreSkipped,
+      stale_discarded: staleDiscarded,
       failed,
-    })
+    }
+    if (verificationRunId) {
+      response.verification_claimed_ids = claimed.map((row) => row.id)
+    }
+    return Response.json(response)
   } catch (error) {
     console.error('score-tick failed', diagnosticCode(error))
     return Response.json({ error: 'Scoring tick failed' }, { status: 500 })

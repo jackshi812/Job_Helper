@@ -199,8 +199,9 @@ Deno.serve(async (request) => {
 
       for (const raw of results) {
         const normalized = mapAdzunaResult(raw)
+        const sourceCompanyName = normalized.companyName?.trim().slice(0, 200) || null
         const jobFingerprint = fingerprint(
-          normalized.companyName ?? '',
+          sourceCompanyName ?? '',
           normalized.title,
           normalized.location,
         )
@@ -212,7 +213,12 @@ Deno.serve(async (request) => {
         if (exactAction !== 'insert' && exact) {
           const { error: refreshError } = await admin
             .from('jobs')
-            .update({ status: 'open', closed_at: null, last_seen_at: seenAt })
+            .update({
+              status: 'open',
+              closed_at: null,
+              last_seen_at: seenAt,
+              source_company_name: sourceCompanyName,
+            })
             .eq('source', 'adzuna')
             .eq('external_id', normalized.externalId)
           if (refreshError) throw refreshError
@@ -240,6 +246,7 @@ Deno.serve(async (request) => {
             description_html: normalized.descriptionHtml,
             description_text: normalized.descriptionText,
             snapshot_partial: normalized.snapshotPartial,
+            source_company_name: sourceCompanyName,
             fingerprint: jobFingerprint,
             last_seen_at: seenAt,
           },

@@ -82,8 +82,10 @@ function containsTokenSequence(haystack: string[], needle: string[]): boolean {
 }
 
 // Token-level bidirectional synonym index. Each token of a synonym key is linked
-// to each token of every value form and vice-versa, so overlap stays lenient
-// (D-01: discard only on clear non-overlap).
+// to each token of every value form and vice-versa. A multi-word configured form
+// therefore lets one abbreviation satisfy each of its concepts (for example,
+// `ds` satisfies both `data` and `scientist`) without making unrelated shared
+// words sufficient for an entire preferred title.
 const SYNONYM_INDEX: Map<string, Set<string>> = (() => {
   const index = new Map<string, Set<string>>()
   const link = (a: string, b: string) => {
@@ -105,13 +107,47 @@ const SYNONYM_INDEX: Map<string, Set<string>> = (() => {
   return index
 })()
 
-function significantTitleTokens(value: string): Set<string> {
+// Conservative one-step variants only. Variants are derived from the original
+// token and never fed back through this function, so there is no recursive
+// stemming or broad fuzzy match.
+function inflectionVariants(token: string): Set<string> {
+  const variants = new Set([token])
+  if (token.endsWith('ies')) {
+    const stem = token.slice(0, -3)
+    if (stem.length >= 3) variants.add(`${stem}y`)
+  }
+  if (token.endsWith('s')) {
+    const base = token.slice(0, -1)
+    if (base.length >= 4 && !base.endsWith('ss')) variants.add(base)
+  }
+  if (token.endsWith('er')) {
+    const base = token.slice(0, -2)
+    if (base.length >= 6) variants.add(base)
+  }
+  if (token.endsWith('ing')) {
+    const base = token.slice(0, -3)
+    if (base.length >= 6) variants.add(base)
+  }
+  return variants
+}
+
+function titleConceptVariants(token: string): Set<string> {
+  const expanded = inflectionVariants(token)
+  for (const variant of [...expanded]) {
+    const synonyms = SYNONYM_INDEX.get(variant)
+    if (synonyms) for (const synonym of synonyms) expanded.add(synonym)
+  }
+  return expanded
+}
+
+function significantTitleConcepts(value: string): string[] {
+  return tokenize(value).filter((token) => !TITLE_STOPWORDS.has(token))
+}
+
+function expandedJobTitleConcepts(value: string): Set<string> {
   const expanded = new Set<string>()
-  for (const token of tokenize(value)) {
-    if (TITLE_STOPWORDS.has(token)) continue
-    expanded.add(token)
-    const synonyms = SYNONYM_INDEX.get(token)
-    if (synonyms) for (const s of synonyms) expanded.add(s)
+  for (const token of significantTitleConcepts(value)) {
+    for (const variant of titleConceptVariants(token)) expanded.add(variant)
   }
   return expanded
 }
@@ -143,16 +179,20 @@ export function cheapFilter(job: FilterJobInput, prefs: FilterPreferences): Filt
     }
   }
 
-  // 3. Title overlap — pass on empty prefs.titles or any shared significant/expanded
-  // token; discard only on clear non-overlap (D-01).
+  // 3. Title intent — pass on empty prefs.titles, otherwise at least one
+  // preferred title must have every significant concept represented in the job
+  // title by identity, a configured synonym, or one conservative inflection.
+  // Word order is irrelevant and extra job-title suffixes are allowed.
   if (prefs.titles.length > 0) {
-    const jobTitleTokens = significantTitleTokens(job.title)
+    const jobTitleConcepts = expandedJobTitleConcepts(job.title)
     const overlaps = prefs.titles.some((prefTitle) => {
-      const prefTokens = significantTitleTokens(prefTitle)
-      for (const token of prefTokens) {
-        if (jobTitleTokens.has(token)) return true
-      }
-      return false
+      const preferredConcepts = significantTitleConcepts(prefTitle)
+      return preferredConcepts.length === 0 || preferredConcepts.every((concept) => {
+        for (const variant of titleConceptVariants(concept)) {
+          if (jobTitleConcepts.has(variant)) return true
+        }
+        return false
+      })
     })
     if (!overlaps) {
       return { pass: false, reason: 'title_non_overlap', detail: normalize(job.title) }
