@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 03
 current_phase_name: scoring-feed-notifications
-status: executing
-stopped_at: Completed 03-10-PLAN.md
-last_updated: "2026-07-20T16:27:12.131Z"
+status: verification_gaps
+stopped_at: Phase 03 verification found four blockers
+last_updated: "2026-07-20T20:02:35Z"
 last_activity: 2026-07-20
-last_activity_desc: Completed Plan 03-10 approved scoring rollout and exact release evidence
+last_activity_desc: Completed 11/11 plans and recorded Phase 03 verification gaps
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 34
-  completed_plans: 33
-  percent: 97
+  completed_plans: 34
+  percent: 100
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 03 — scoring-feed-notifications
+**Current focus:** Phase 03 verification gap closure
 
 ## Current Position
 
-Phase: 03 (scoring-feed-notifications) — EXECUTING
+Phase: 03 (scoring-feed-notifications) — VERIFICATION GAPS
 Plan: 11 of 11
-Status: Ready to execute
-Last activity: 2026-07-20 — Completed Plan 03-10 approved scoring rollout and exact release evidence
+Status: Four verification blockers require gap-closure planning
+Last activity: 2026-07-20 — Completed 11/11 plans; verifier scored 13/17 must-haves
 
-Progress: [█████████░] 91% (10/11 Phase 03 plans executed)
+Progress: [██████████] 100% (11/11 Phase 03 plans executed; phase not verified)
 
 ## Performance Metrics
 
@@ -174,6 +174,10 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
+- [Phase 3 verification]: DOCX archive bounds run after Mammoth starts expanding untrusted content.
+- [Phase 3 verification]: The 499 logical-score reservation ceiling can permit up to 1,497 physical OpenAI attempts through retries.
+- [Phase 3 verification]: The production verifier can overwrite concurrent real-user preference or reroute changes during unconditional cleanup.
+- [Phase 3 verification]: Paid proof and final 7/7 UAT are bound to different immutable releases; the final asset hash is not recorded.
 - [Phase 2 verification]: cron-job.org failure email delivery and HTTP 200 recovery were observed, but recovery-email receipt was user-waived and remains unverified; do not record it as passed.
 - [Phase 02.1 UAT]: offline Watchlist removal can remain indefinitely at `Removing…` with both actions disabled and no modal error. Curi Capital remained after recovery. The user accepted deferring the fix and Checks 6-8; do not record the behavior as passed.
 - [Phase 4]: Highest-uncertainty area (DOCX XML run-splitting, truthful-edit prompting, CloudConvert fidelity + PII posture) — research flagged for deeper research during planning
