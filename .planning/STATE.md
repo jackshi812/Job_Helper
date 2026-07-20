@@ -163,6 +163,7 @@ Recent decisions affecting current work:
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260716-nw6 | Enforce current-password reauthentication in Settings changePassword (CR-01/T-01-07) | 2026-07-16 | def0e91 | [260716-nw6-enforce-current-password-reauthenticatio](./quick/260716-nw6-enforce-current-password-reauthenticatio/) |
+| 2 | Raise the July 20 score-call cap to 499 with automatic UTC rollover | 2026-07-20 | 1e169cc | — |
 
 ### Blockers/Concerns
 
