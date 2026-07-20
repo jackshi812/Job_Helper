@@ -1,0 +1,93 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-20T05:01:40.129Z",
+  "phase": "03",
+  "phase_name": "scoring-feed-notifications",
+  "phase_dir": ".planning/phases/03-scoring-feed-notifications",
+  "plan": 8,
+  "task": 1,
+  "total_tasks": 2,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Diagnose Equity Research UAT failure",
+      "status": "done",
+      "commit": "b315d0f"
+    },
+    {
+      "id": 2,
+      "name": "Plan and verify gap closure",
+      "status": "done",
+      "commit": "b3a0d39"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 3,
+      "name": "Execute Plan 03-08 backend relevance and freshness slice",
+      "status": "not_started"
+    },
+    {
+      "id": 4,
+      "name": "Execute Plan 03-09 focused-feed and company display slice",
+      "status": "not_started"
+    },
+    {
+      "id": 5,
+      "name": "Execute Plan 03-10 verifier and approved rollout",
+      "status": "not_started"
+    },
+    {
+      "id": 6,
+      "name": "Execute Plan 03-11 one-shot paid proof and UAT",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [],
+  "blocking_constraints": [
+    {
+      "name": "sole_matching_claim",
+      "severity": "blocking",
+      "description": "The production verifier must not directly issue the matching claim before score-tick; the sole score-tick invocation is the matching claim proof.",
+      "mitigation": "Use direct no-ID and mismatched-ID probes only, then require the one matching-header score-tick response to contain exactly the two fixture IDs."
+    }
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {
+      "action": "Approve the exact Plan 03-10 production rollout scope",
+      "context": "Required only after local implementation and verifier safety tests pass; excludes verifier execution and paid calls.",
+      "blocking": false
+    },
+    {
+      "action": "Approve exactly one Plan 03-11 paid verifier process",
+      "context": "Separate approval after rollout evidence passes; no retry or loop is authorized.",
+      "blocking": false
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Use one provider-agnostic preference filter for Adzuna, Greenhouse, and Ashby.",
+      "rationale": "Relevance is user-intent logic, not a provider-specific concern.",
+      "phase": "03"
+    },
+    {
+      "decision": "Keep one unified dashboard and fix truthful company-name propagation/display.",
+      "rationale": "Separating provider pages is deferred and does not solve missing identity data.",
+      "phase": "03"
+    },
+    {
+      "decision": "Keep rollout and paid verification under separate approvals.",
+      "rationale": "Deployment authority must not implicitly authorize fixtures, score-tick invocation, or AI spend.",
+      "phase": "03"
+    }
+  ],
+  "uncommitted_files": [
+    ".DS_Store",
+    "scripts/agent-dashboard.mjs",
+    "scripts/agent-dashboard.test.mjs"
+  ],
+  "next_action": "Run $gsd-execute-phase 3 --gaps-only and begin Plan 03-08 after acknowledging the sole-matching-claim constraint.",
+  "context_notes": "Plan checker passed. Core Phase 3/feed-only release is deployed, but UAT remains open. No gap implementation, deployment, fixture creation, verifier execution, or paid call has started."
+}
