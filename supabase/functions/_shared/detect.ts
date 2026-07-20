@@ -16,7 +16,15 @@ export const UNSUPPORTED_URL_MESSAGE =
   "This URL isn't a supported job board. Job Copilot works with Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, and the allowlisted Capital One Workday board. Use the exact public careers-board URL — usually where the careers page's Apply buttons point."
 
 const supportedHosts = {
-  greenhouseBoard: new Set(['boards.greenhouse.io', 'job-boards.greenhouse.io']),
+  // Exact hosts only. Never match by suffix/wildcard/endsWith against
+  // greenhouse.io — that would admit evil-greenhouse.io and
+  // greenhouse.io.attacker.example. This Set is the SSRF gate.
+  greenhouseBoard: new Set([
+    'boards.greenhouse.io',
+    'job-boards.greenhouse.io',
+    'job-boards.eu.greenhouse.io',
+    'boards.eu.greenhouse.io',
+  ]),
   greenhouseEmbed: 'greenhouse.io',
   lever: 'jobs.lever.co',
   leverEu: 'jobs.eu.lever.co',
@@ -71,6 +79,13 @@ export function detectAts(href: string): DetectResult {
         : unsupported
     }
 
+    // Deliberately no `region` here, unlike the Lever branch below. Greenhouse's
+    // EU hosts are display-only: the Job Board API is unified on
+    // boards-api.greenhouse.io (boards-api.eu.greenhouse.io does not resolve), so
+    // one board is one identity. Adding a region would make deterministicSourceKey
+    // emit greenhouse:eu:<slug> and greenhouse:global:<slug> for the same board,
+    // splitting it into two sources and ingesting every job twice. Lever, by
+    // contrast, has a genuinely separate regional API host, so it does carry one.
     if (supportedHosts.greenhouseBoard.has(host)) {
       const slug = singlePathSegment(url)
       return slug && strictSlug.test(slug) ? { ats: 'greenhouse', slug } : unsupported
