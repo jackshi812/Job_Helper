@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-const RESUME_COLUMNS = 'id, filename, storage_path, size_bytes, created_at'
+const RESUME_COLUMNS = 'id, filename, display_name, storage_path, size_bytes, created_at'
 
 const CONTENT_TYPES = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -10,6 +10,8 @@ const CONTENT_TYPES = {
 export interface ResumeRecord {
   id: string
   filename: string
+  /** Optional user-chosen label. Cosmetic only — never the file identity. */
+  display_name: string | null
   storage_path: string
   size_bytes: number | null
   created_at: string
@@ -28,7 +30,29 @@ function allowedExtension(filename: string): keyof typeof CONTENT_TYPES {
   return extension
 }
 
-export async function uploadResume(file: File): Promise<ResumeRecord> {
+/**
+ * The single render helper for naming a resume in the UI. Rows predating the
+ * display_name column carry NULL and keep rendering their filename.
+ */
+export function resumeLabel(resume: Pick<ResumeRecord, 'display_name' | 'filename'>): string {
+  return resume.display_name ?? resume.filename
+}
+
+/** Strips only the final dot-suffix, so dotfile-style names survive intact. */
+export function defaultDisplayName(filename: string): string {
+  const lastDot = filename.lastIndexOf('.')
+  if (lastDot <= 0) return filename
+  return filename.slice(0, lastDot)
+}
+
+function normalizeDisplayName(displayName?: string): string | null {
+  const trimmed = displayName?.trim()
+  return trimmed ? trimmed : null
+}
+
+export async function uploadResume(file: File, displayName?: string): Promise<ResumeRecord> {
+  // Extension validation and the storage path stay bound to the real file name;
+  // the user-supplied display name never influences either (T-WUI-02).
   const extension = allowedExtension(file.name)
   const { data: userData, error: userError } = await supabase.auth.getUser()
 
@@ -48,6 +72,7 @@ export async function uploadResume(file: File): Promise<ResumeRecord> {
     .from('resumes')
     .insert({
       filename: file.name,
+      display_name: normalizeDisplayName(displayName),
       storage_path: storagePath,
       size_bytes: file.size,
     })
