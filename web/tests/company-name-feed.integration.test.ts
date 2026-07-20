@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { companyName, defaultVisible, listFeed, type FeedRow } from '../src/lib/feed'
+import {
+  companyName,
+  defaultVisible,
+  listFeed,
+  preferenceVisible,
+  type FeedRow,
+} from '../src/lib/feed'
 
 const mocks = vi.hoisted(() => ({
-  eq: vi.fn(),
   from: vi.fn(),
-  gte: vi.fn(),
   limit: vi.fn(),
+  or: vi.fn(),
   order: vi.fn(),
   select: vi.fn(),
 }))
@@ -53,9 +58,8 @@ describe('truthful company feed gap', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.from.mockReturnValue({ select: mocks.select })
-    mocks.select.mockReturnValue({ eq: mocks.eq, order: mocks.order })
-    mocks.eq.mockReturnValue({ gte: mocks.gte })
-    mocks.gte.mockReturnValue({ order: mocks.order })
+    mocks.select.mockReturnValue({ or: mocks.or })
+    mocks.or.mockReturnValue({ order: mocks.order })
     mocks.order.mockReturnValue({ limit: mocks.limit })
   })
 
@@ -81,23 +85,34 @@ describe('truthful company feed gap', () => {
     expect(mocks.select).toHaveBeenCalledWith(expect.stringContaining('source_company_name'))
   })
 
-  it('keeps focused matches even when they fall outside the newest diagnostic window', async () => {
-    const recentPending = providerRow('Newest pending diagnostic', 0, { name: 'Recent Co' }, null)
-    recentPending.status = 'pending'
-    recentPending.score = null
-    recentPending.tier = null
-    const olderFocused = providerRow('Older focused match', 84, { name: 'Focused Co' }, null)
+  it('returns only current preference-pass candidates while focused mode keeps score 50+', async () => {
+    const filtered = providerRow('Filtered mismatch', 0, { name: 'Filtered Co' }, null)
+    filtered.status = 'filtered'
+    filtered.score = null
+    filtered.tier = null
+    const weak = providerRow('Preference pass weak score', 42, { name: 'Weak Co' }, null)
+    weak.tier = 'Weak'
+    const pendingScore = providerRow('Preference pass awaiting score', 0, { name: 'Pending Co' }, null)
+    pendingScore.status = 'pending'
+    pendingScore.score = null
+    pendingScore.tier = null
+    pendingScore.needs_refilter = true
+    pendingScore.score_deferred_until = '2026-07-21T00:00:00.000Z'
+    const focused = providerRow('Focused match', 84, { name: 'Focused Co' }, null)
 
-    mocks.limit
-      .mockResolvedValueOnce({ data: [recentPending], error: null })
-      .mockResolvedValueOnce({ data: [olderFocused], error: null })
+    mocks.limit.mockResolvedValue({ data: [filtered, weak, pendingScore, focused], error: null })
 
     const returned = await listFeed()
 
-    expect(returned.map((row) => row.id)).toEqual([recentPending.id, olderFocused.id])
-    expect(returned.filter(defaultVisible).map((row) => row.id)).toEqual([olderFocused.id])
-    expect(mocks.eq).toHaveBeenCalledWith('status', 'scored')
-    expect(mocks.gte).toHaveBeenCalledWith('score', 50)
+    expect(returned.filter(preferenceVisible).map((row) => row.id)).toEqual([
+      weak.id,
+      pendingScore.id,
+      focused.id,
+    ])
+    expect(returned.filter(defaultVisible).map((row) => row.id)).toEqual([focused.id])
+    expect(mocks.or).toHaveBeenCalledWith(
+      'status.eq.scored,status.eq.failed,score_deferred_until.not.is.null',
+    )
     expect(mocks.order).toHaveBeenCalledWith('jobs(posted_at)', {
       ascending: false,
       nullsFirst: false,

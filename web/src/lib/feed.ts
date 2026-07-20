@@ -126,6 +126,17 @@ export function defaultVisible(row: FeedRow): boolean {
     && row.jobs?.status === 'open'
 }
 
+// All jobs is the current preference-pass pool, independent of AI score. A
+// completed score or post-filter failure proves the cheap preference filter
+// passed for the current revision. A deferred row is also confirmed because
+// deferral occurs only after cheapFilter passes. Unknown pending work and stale
+// rows awaiting a new free-filter decision remain hidden.
+export function preferenceVisible(row: FeedRow): boolean {
+  if (row.jobs?.status !== 'open') return false
+  if (row.needs_refilter) return row.score_deferred_until !== null
+  return row.status === 'scored' || row.status === 'failed'
+}
+
 export function scoreFreshnessLabel(
   row: Pick<FeedRow, 'status' | 'score' | 'needs_refilter' | 'score_deferred_until'>,
 ): 'Updating' | null {
@@ -174,38 +185,22 @@ export function safeApplyUrl(value: string | null | undefined): string | null {
 
 // Queries — throw on error, cast, return typed rows (watchlist.ts idiom).
 
-// RLS-scoped to the current user. PostgREST's `referencedTable`/`foreignTable`
-// option sorts only the embedded jobs object; it does not reorder parent
-// user_jobs. Parent ordering must use the `jobs(posted_at)` to-one syntax.
-//
-// Keep the newest 200 diagnostic rows for All jobs, plus a separate bounded
-// server-filtered candidate query for the focused feed. Without the second
-// query, a large pending backlog can fill the diagnostic window and hide every
-// valid scored match before defaultVisible runs in the browser.
+// RLS-scoped to the current user. Query only rows that can represent a confirmed
+// preference pass: completed scores, post-filter failures, or paid-deferred
+// survivors. preferenceVisible applies the current-revision/open-job boundary
+// after hydration. Parent ordering uses PostgREST's to-one jobs(posted_at)
+// syntax; referencedTable/foreignTable would sort only the embedded job object.
 export async function listFeed(): Promise<FeedRow[]> {
-  const recentQuery = supabase
+  const { data, error } = await supabase
     .from('user_jobs')
     .select(FEED_LIST_COLUMNS)
-    .order('jobs(posted_at)', { ascending: false, nullsFirst: false })
-    .limit(200)
-  const focusedQuery = supabase
-    .from('user_jobs')
-    .select(FEED_LIST_COLUMNS)
-    .eq('status', 'scored')
-    .gte('score', 50)
+    .or('status.eq.scored,status.eq.failed,score_deferred_until.not.is.null')
     .order('jobs(posted_at)', { ascending: false, nullsFirst: false })
     .limit(200)
 
-  const [recent, focused] = await Promise.all([recentQuery, focusedQuery])
-  if (recent.error) throw recent.error
-  if (focused.error) throw focused.error
-
-  const rowsById = new Map<string, FeedRow>()
-  for (const row of [...(recent.data ?? []), ...(focused.data ?? [])] as unknown as FeedRow[]) {
-    rowsById.set(row.id, row)
-  }
-  const rows = [...rowsById.values()]
-  return rows.filter((row) => companyName(row) !== null)
+  if (error) throw error
+  const rows = (data ?? []) as unknown as FeedRow[]
+  return rows.filter((row) => companyName(row) !== null && preferenceVisible(row))
 }
 
 // The only place JD bodies (description_html/description_text) are fetched.

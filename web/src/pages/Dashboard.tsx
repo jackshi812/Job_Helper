@@ -7,6 +7,7 @@ import {
   dismissJob,
   filteredReasonLabel,
   listFeed,
+  preferenceVisible,
   relativePostedTime,
   safeApplyUrl,
   scoreFreshnessLabel,
@@ -140,7 +141,7 @@ export function Dashboard() {
     const filtered = all.filter((row) => {
       if (showDismissed) return row.dismissed_at !== null
       if (row.dismissed_at !== null) return false
-      if (viewAll) return true
+      if (viewAll) return preferenceVisible(row)
       return defaultVisible(row)
     })
     const sorted = [...filtered]
