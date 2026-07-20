@@ -4,6 +4,10 @@ import {
   detectAts,
   UNSUPPORTED_URL_MESSAGE,
 } from '../../supabase/functions/_shared/detect'
+import {
+  type SupportedDetection,
+  verifyConnector,
+} from '../../supabase/functions/_shared/connectors'
 
 describe('detectAts', () => {
   it.each([
@@ -12,6 +16,10 @@ describe('detectAts', () => {
     ['https://greenhouse.io/embed/job_board?for=acme', { ats: 'greenhouse', slug: 'acme' }],
     ['https://www.greenhouse.io/embed/job_board?for=acme', { ats: 'greenhouse', slug: 'acme' }],
     ['https://www.boards.greenhouse.io/stripe', { ats: 'greenhouse', slug: 'stripe' }],
+    ['https://job-boards.eu.greenhouse.io/imc', { ats: 'greenhouse', slug: 'imc' }],
+    ['https://job-boards.eu.greenhouse.io/imc/', { ats: 'greenhouse', slug: 'imc' }],
+    ['https://boards.eu.greenhouse.io/imc', { ats: 'greenhouse', slug: 'imc' }],
+    ['https://www.job-boards.eu.greenhouse.io/imc', { ats: 'greenhouse', slug: 'imc' }],
     ['https://jobs.lever.co/palantir', { ats: 'lever', slug: 'palantir' }],
     ['https://www.jobs.lever.co/palantir', { ats: 'lever', slug: 'palantir' }],
     ['https://jobs.eu.lever.co/foo', { ats: 'lever', slug: 'foo', region: 'eu' }],
@@ -46,6 +54,15 @@ describe('detectAts', () => {
     'https://careers.example.com/jobs',
     'https://boards.greenhouse.io/acme/jobs/123',
     'https://boards.greenhouse.io/bad.slug',
+    'https://evil-greenhouse.io/imc',
+    'https://greenhouse.io.attacker.example/imc',
+    'https://job-boards.eu.greenhouse.io.evil.example/imc',
+    'https://job-boards.eu.greenhouse.io/imc/jobs/123',
+    'https://job-boards.eu.greenhouse.io/bad.slug',
+    'https://job-boards.eu.greenhouse.io/bad%2Fslug',
+    'http://job-boards.eu.greenhouse.io/imc',
+    'https://user:password@job-boards.eu.greenhouse.io/imc',
+    'https://job-boards.eu.greenhouse.io:444/imc',
     'https://jobs.lever.co/bad%20slug',
     'https://jobs.ashbyhq.com/acme/jobs',
     'https://jobs.ashbyhq.com/Acme%20Labs',
@@ -117,5 +134,40 @@ describe('buildEndpoint', () => {
 
   it('rejects unsupported results', () => {
     expect(() => buildEndpoint({ ats: 'unsupported' })).toThrow(UNSUPPORTED_URL_MESSAGE)
+  })
+})
+
+describe('greenhouse EU source identity', () => {
+  const stubFetch = (async () => ({
+    ok: true,
+    json: async () => ({ jobs: [{ company_name: 'IMC' }] }),
+  })) as unknown as typeof fetch
+
+  const supported = (href: string): SupportedDetection => {
+    const detected = detectAts(href)
+    if (detected.ats === 'unsupported') throw new Error(`unexpectedly unsupported: ${href}`)
+    return detected
+  }
+
+  it('resolves EU and US URLs for one board to the same source key', async () => {
+    const eu = await verifyConnector(
+      supported('https://job-boards.eu.greenhouse.io/imc/'),
+      stubFetch,
+    )
+    const us = await verifyConnector(
+      supported('https://job-boards.greenhouse.io/imc'),
+      stubFetch,
+    )
+
+    expect(eu.sourceKey).toBe('greenhouse:global:imc')
+    expect(eu.sourceKey).toBe(us.sourceKey)
+    expect(eu.region).toBeNull()
+    expect(us.region).toBeNull()
+  })
+
+  it('uses the unified US API host for EU boards', () => {
+    expect(buildEndpoint(detectAts('https://job-boards.eu.greenhouse.io/imc'))).toBe(
+      'https://boards-api.greenhouse.io/v1/boards/imc/jobs',
+    )
   })
 })
