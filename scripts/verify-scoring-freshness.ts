@@ -109,6 +109,48 @@ interface FreshnessResult {
   mismatchedIdClaimed: 0
 }
 
+interface PaginatedRows<T> {
+  rows: T[]
+  count: number | null
+}
+
+const SNAPSHOT_PAGE_SIZE = 1_000
+
+export async function collectPaginatedRows<T>(
+  fetchPage: (from: number, to: number) => Promise<PaginatedRows<T>>,
+  pageSize = SNAPSHOT_PAGE_SIZE,
+): Promise<T[]> {
+  if (!Number.isInteger(pageSize) || pageSize < 1) {
+    throw new Error('snapshot page size must be a positive integer')
+  }
+
+  const first = await fetchPage(0, pageSize - 1)
+  if (!Number.isInteger(first.count) || (first.count ?? -1) < 0) {
+    throw new Error('paginated snapshot count is unavailable')
+  }
+  const total = first.count as number
+  const expectedFirstLength = Math.min(pageSize, total)
+  if (first.rows.length !== expectedFirstLength) {
+    throw new Error('paginated snapshot first page was truncated')
+  }
+
+  const rows = [...first.rows]
+  const pageCount = Math.ceil(total / pageSize)
+  for (let page = 1; page < pageCount; page += 1) {
+    const from = page * pageSize
+    const to = Math.min(from + pageSize - 1, total - 1)
+    const next = await fetchPage(from, to)
+    if (next.count !== total) throw new Error('paginated snapshot count changed during read')
+    if (next.rows.length !== to - from + 1) {
+      throw new Error(`paginated snapshot page ${page + 1} was truncated`)
+    }
+    rows.push(...next.rows)
+  }
+
+  if (rows.length !== total) throw new Error('paginated snapshot was incomplete')
+  return rows
+}
+
 export function claimForLatch(
   latch: LatchState | null,
   runId: string | null,
@@ -429,19 +471,22 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
     },
     async snapshotData() {
       if (!targetUserId) throw new Error('target user is unavailable')
-      const { data: rows, error: rowsError, count } = await admin
-        .from('user_jobs')
-        .select('*', { count: 'exact' })
-        .order('id')
-      if (rowsError) throw new Error(`user_jobs snapshot failed: ${rowsError.message}`)
-      if (count !== (rows?.length ?? 0)) throw new Error('user_jobs snapshot was truncated')
+      const rows = await collectPaginatedRows(async (from, to) => {
+        const { data, error, count } = await admin
+          .from('user_jobs')
+          .select('*', { count: 'exact' })
+          .order('id')
+          .range(from, to)
+        if (error) throw new Error(`user_jobs snapshot failed: ${error.message}`)
+        return { rows: data ?? [], count }
+      })
       const { data: preferences, error: preferencesError } = await admin
         .from('preferences')
         .select('*')
         .eq('user_id', targetUserId)
         .maybeSingle()
       if (preferencesError) throw new Error(`preferences snapshot failed: ${preferencesError.message}`)
-      return { rows: rows ?? [], preferences, targetUserId }
+      return { rows, preferences, targetUserId }
     },
     async createFixtures() {
       if (!targetUserId) throw new Error('target user is unavailable')

@@ -159,11 +159,40 @@ export async function validateEvidenceFile(mode, filePath) {
   return validateEvidenceText(mode, await readFile(filePath, 'utf8'))
 }
 
+function requirePaidReleaseMatch(rollout, paid) {
+  const links = [
+    ['local_git_sha', 'rollout_local_git_sha', 'rollout local git SHA'],
+    ['origin_git_sha', 'rollout_origin_git_sha', 'rollout origin git SHA'],
+    ['migration_head', 'rollout_migration_head', 'rollout migration head'],
+    ['score_tick_deployment_id', 'rollout_score_tick_deployment_id', 'rollout score-tick deployment'],
+    ['cloudflare_deployment_id', 'rollout_cloudflare_deployment_id', 'rollout Cloudflare deployment'],
+    ['asset_sha256', 'rollout_asset_sha256', 'rollout asset SHA'],
+  ]
+  for (const [rolloutKey, paidKey, label] of links) {
+    if (rollout.fields[rolloutKey] !== paid.fields[paidKey]) {
+      throw new Error(`${label} does not match rollout evidence`)
+    }
+  }
+}
+
+export async function validateEvidenceArguments(argv, loadEvidence = validateEvidenceFile) {
+  if (argv[0] === '--rollout' && argv.length === 2) {
+    return loadEvidence('rollout', argv[1])
+  }
+  if (argv[0] === '--paid' && argv.length === 3) {
+    const rollout = await loadEvidence('rollout', argv[1])
+    const paid = await loadEvidence('paid', argv[2])
+    requirePaidReleaseMatch(rollout, paid)
+    return paid
+  }
+  throw new Error(usage())
+}
+
 function usage() {
   return [
     'Usage:',
     '  node scripts/verify-scoring-evidence.mjs --rollout PATH',
-    '  node scripts/verify-scoring-evidence.mjs --paid PATH',
+    '  node scripts/verify-scoring-evidence.mjs --paid ROLLOUT_PATH PROOF_PATH',
   ].join('\n')
 }
 
@@ -172,11 +201,7 @@ async function main(argv) {
     console.log(usage())
     return
   }
-  if (argv.length !== 2 || !['--rollout', '--paid'].includes(argv[0])) {
-    throw new Error(usage())
-  }
-  const mode = argv[0] === '--rollout' ? 'rollout' : 'paid'
-  const result = await validateEvidenceFile(mode, argv[1])
+  const result = await validateEvidenceArguments(argv)
   console.log(`PASS: ${result.mode} scoring evidence is complete and internally consistent`)
 }
 
