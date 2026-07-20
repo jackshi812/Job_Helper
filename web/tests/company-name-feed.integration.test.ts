@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { companyName, defaultVisible, listFeed, type FeedRow } from '../src/lib/feed'
 
 const mocks = vi.hoisted(() => ({
+  eq: vi.fn(),
   from: vi.fn(),
+  gte: vi.fn(),
   limit: vi.fn(),
   order: vi.fn(),
   select: vi.fn(),
@@ -51,7 +53,9 @@ describe('truthful company feed gap', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.from.mockReturnValue({ select: mocks.select })
-    mocks.select.mockReturnValue({ order: mocks.order })
+    mocks.select.mockReturnValue({ eq: mocks.eq, order: mocks.order })
+    mocks.eq.mockReturnValue({ gte: mocks.gte })
+    mocks.gte.mockReturnValue({ order: mocks.order })
     mocks.order.mockReturnValue({ limit: mocks.limit })
   })
 
@@ -75,5 +79,28 @@ describe('truthful company feed gap', () => {
     expect(ranked.every(defaultVisible)).toBe(true)
     expect(ranked.some((entry) => companyName(entry) === 'Unknown')).toBe(false)
     expect(mocks.select).toHaveBeenCalledWith(expect.stringContaining('source_company_name'))
+  })
+
+  it('keeps focused matches even when they fall outside the newest diagnostic window', async () => {
+    const recentPending = providerRow('Newest pending diagnostic', 0, { name: 'Recent Co' }, null)
+    recentPending.status = 'pending'
+    recentPending.score = null
+    recentPending.tier = null
+    const olderFocused = providerRow('Older focused match', 84, { name: 'Focused Co' }, null)
+
+    mocks.limit
+      .mockResolvedValueOnce({ data: [recentPending], error: null })
+      .mockResolvedValueOnce({ data: [olderFocused], error: null })
+
+    const returned = await listFeed()
+
+    expect(returned.map((row) => row.id)).toEqual([recentPending.id, olderFocused.id])
+    expect(returned.filter(defaultVisible).map((row) => row.id)).toEqual([olderFocused.id])
+    expect(mocks.eq).toHaveBeenCalledWith('status', 'scored')
+    expect(mocks.gte).toHaveBeenCalledWith('score', 50)
+    expect(mocks.order).toHaveBeenCalledWith('jobs(posted_at)', {
+      ascending: false,
+      nullsFirst: false,
+    })
   })
 })

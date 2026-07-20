@@ -174,18 +174,37 @@ export function safeApplyUrl(value: string | null | undefined): string | null {
 
 // Queries — throw on error, cast, return typed rows (watchlist.ts idiom).
 
-// Newest-first, RLS-scoped to the current user. Ordering is on the embedded
-// jobs.posted_at (a plain .order on user_jobs would error — posted_at lives on
-// the embedded jobs row). Bounded to a recent 200-row window (Codex LOW).
+// RLS-scoped to the current user. PostgREST's `referencedTable`/`foreignTable`
+// option sorts only the embedded jobs object; it does not reorder parent
+// user_jobs. Parent ordering must use the `jobs(posted_at)` to-one syntax.
+//
+// Keep the newest 200 diagnostic rows for All jobs, plus a separate bounded
+// server-filtered candidate query for the focused feed. Without the second
+// query, a large pending backlog can fill the diagnostic window and hide every
+// valid scored match before defaultVisible runs in the browser.
 export async function listFeed(): Promise<FeedRow[]> {
-  const { data, error } = await supabase
+  const recentQuery = supabase
     .from('user_jobs')
     .select(FEED_LIST_COLUMNS)
-    .order('posted_at', { foreignTable: 'jobs', ascending: false })
+    .order('jobs(posted_at)', { ascending: false, nullsFirst: false })
+    .limit(200)
+  const focusedQuery = supabase
+    .from('user_jobs')
+    .select(FEED_LIST_COLUMNS)
+    .eq('status', 'scored')
+    .gte('score', 50)
+    .order('jobs(posted_at)', { ascending: false, nullsFirst: false })
     .limit(200)
 
-  if (error) throw error
-  const rows = (data ?? []) as unknown as FeedRow[]
+  const [recent, focused] = await Promise.all([recentQuery, focusedQuery])
+  if (recent.error) throw recent.error
+  if (focused.error) throw focused.error
+
+  const rowsById = new Map<string, FeedRow>()
+  for (const row of [...(recent.data ?? []), ...(focused.data ?? [])] as unknown as FeedRow[]) {
+    rowsById.set(row.id, row)
+  }
+  const rows = [...rowsById.values()]
   return rows.filter((row) => companyName(row) !== null)
 }
 
