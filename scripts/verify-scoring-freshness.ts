@@ -351,6 +351,12 @@ function sqlText(value: string) {
   return `'${value.replaceAll("'", "''")}'`
 }
 
+export function buildCronActiveSql(jobId: number, active: boolean) {
+  if (!Number.isInteger(jobId) || jobId < 1) throw new Error('cron job id is invalid')
+  if (typeof active !== 'boolean') throw new Error('cron active state is invalid')
+  return `select cron.alter_job(job_id := ${jobId}, active := ${active ? 'true' : 'false'}) as altered`
+}
+
 function cronFromRow(row: Record<string, unknown>): CronSnapshot {
   const cron = Object.fromEntries(CRON_FIELDS.map((field) => [field, row[field]])) as unknown as CronSnapshot
   if (
@@ -436,9 +442,7 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
     },
     snapshotCron: readUniqueCron,
     async pauseCron(snapshot) {
-      const rows = await managementSql(
-        `select cron.alter_job(job_id := ${snapshot.jobid}, active := false) as altered`,
-      )
+      const rows = await managementSql(buildCronActiveSql(snapshot.jobid, false))
       if (rows.length !== 1) throw new Error('cron.alter_job pause was unavailable')
     },
     readCron: readUniqueCron,
@@ -742,16 +746,7 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
       if (results.some((item) => item.error || item.count !== 0)) throw new Error('verification residue remains')
     },
     async restoreCron(snapshot) {
-      const rows = await managementSql(
-        `select cron.alter_job(
-           job_id := ${snapshot.jobid},
-           schedule := ${sqlText(snapshot.schedule)},
-           command := ${sqlText(snapshot.command)},
-           database := ${sqlText(snapshot.database)},
-           username := ${sqlText(snapshot.username)},
-           active := ${snapshot.active ? 'true' : 'false'}
-         ) as altered`,
-      )
+      const rows = await managementSql(buildCronActiveSql(snapshot.jobid, snapshot.active))
       if (rows.length !== 1) throw new Error('cron.alter_job restoration was unavailable')
     },
     readRestoredCron: readUniqueCron,
