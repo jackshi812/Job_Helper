@@ -1,0 +1,207 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { describe, expect, it } from 'vitest'
+
+const root = fileURLToPath(new URL('../..', import.meta.url))
+const scoringInputPath = `${root}/supabase/functions/_shared/scoring-input.ts`
+const migrationPath = `${root}/supabase/migrations/0025_scoring_freshness.sql`
+const workerPath = `${root}/supabase/functions/score-tick/index.ts`
+const notificationMigrationPath = `${root}/supabase/migrations/0024_remove_notifications.sql`
+
+function read(path: string) {
+  return readFileSync(path, 'utf8')
+}
+
+async function loadScoringInput() {
+  expect(existsSync(scoringInputPath), 'scoring-input module must be implemented').toBe(true)
+  if (!existsSync(scoringInputPath)) return null
+  return import('../../supabase/functions/_shared/scoring-input')
+}
+
+function semanticInput() {
+  return {
+    preferences: {
+      titles: ['Equity Research'],
+      locations: ['Chicago'],
+      includeKeywords: ['Valuation'],
+      excludeKeywords: ['Senior'],
+    },
+    job: {
+      title: 'Equity Research Analyst',
+      location: 'Chicago, IL',
+      descriptionText: 'Build valuation models.',
+    },
+    routedResumeId: '11111111-1111-4111-8111-111111111111',
+    extraction: {
+      textContent: 'Finance resume text',
+      keywords: ['Valuation', 'Excel'],
+      model: 'gpt-5.4-nano',
+      extractedAt: '2026-07-20T00:00:00.000Z',
+    },
+    scoringModel: 'gpt-5.4-nano',
+    promptRevision: 'score-v1',
+    filterRevision: 'filter-v2',
+  }
+}
+
+describe('semantic scoring input freshness', () => {
+  it('loads an explicit scoring-input module instead of treating its absence as infrastructure failure', async () => {
+    const module = await loadScoringInput()
+    expect(module).toMatchObject({
+      SCORING_INPUT_VERSION: expect.any(String),
+      jobSnapshotDigest: expect.any(Function),
+      resumeExtractionDigest: expect.any(Function),
+      scoringInputHash: expect.any(Function),
+      shouldRescore: expect.any(Function),
+    })
+  })
+
+  it('hashes every semantic preference job extraction routing model prompt filter and version input', async () => {
+    const module = await loadScoringInput()
+    if (!module) return
+    const base = semanticInput()
+    const baseHash = await module.scoringInputHash(base)
+    const variants = [
+      { ...base, preferences: { ...base.preferences, titles: ['Credit Research'] } },
+      { ...base, preferences: { ...base.preferences, locations: ['New York'] } },
+      { ...base, preferences: { ...base.preferences, includeKeywords: ['Python'] } },
+      { ...base, preferences: { ...base.preferences, excludeKeywords: ['Director'] } },
+      { ...base, job: { ...base.job, title: 'Equity Research Associate' } },
+      { ...base, job: { ...base.job, location: 'New York, NY' } },
+      { ...base, job: { ...base.job, descriptionText: 'Cover regional banks.' } },
+      { ...base, routedResumeId: '22222222-2222-4222-8222-222222222222' },
+      { ...base, extraction: { ...base.extraction, textContent: 'Changed resume' } },
+      { ...base, extraction: { ...base.extraction, keywords: ['Bloomberg'] } },
+      { ...base, extraction: { ...base.extraction, model: 'extract-v2' } },
+      { ...base, extraction: { ...base.extraction, extractedAt: '2026-07-21T00:00:00.000Z' } },
+      { ...base, scoringModel: 'gpt-5.6-luna' },
+      { ...base, promptRevision: 'score-v2' },
+      { ...base, filterRevision: 'filter-v3' },
+      { ...base, scoringInputVersion: 'scoring-input-v999' },
+    ]
+
+    for (const variant of variants) {
+      expect(await module.scoringInputHash(variant)).not.toBe(baseHash)
+    }
+  })
+
+  it('canonicalizes order and case semantic no-ops while equality alone permits reuse', async () => {
+    const module = await loadScoringInput()
+    if (!module) return
+    const base = semanticInput()
+    const equivalent = {
+      ...base,
+      preferences: {
+        titles: ['  equity research  '],
+        locations: ['CHICAGO'],
+        includeKeywords: ['valuation'],
+        excludeKeywords: ['senior'],
+      },
+      extraction: { ...base.extraction, keywords: ['excel', 'VALUATION'] },
+    }
+    const baseHash = await module.scoringInputHash(base)
+    const equivalentHash = await module.scoringInputHash(equivalent)
+    expect(equivalentHash).toBe(baseHash)
+    expect(module.shouldRescore(null, baseHash)).toBe(true)
+    expect(module.shouldRescore('legacy', baseHash)).toBe(true)
+    expect(module.shouldRescore(baseHash, baseHash)).toBe(false)
+  })
+})
+
+describe('migration 0025 scoring freshness contract', () => {
+  it('advances all applicable open rows and resets retry claim and error state', () => {
+    expect(existsSync(migrationPath), 'migration 0025 must exist').toBe(true)
+    if (!existsSync(migrationPath)) return
+    const sql = read(migrationPath)
+    expect(sql).toMatch(/desired_input_revision\s+bigint\s+not null\s+default\s+0/i)
+    expect(sql).toMatch(/desired_input_revision\s*=\s*desired_input_revision\s*\+\s*1/i)
+    expect(sql).toMatch(/attempts\s*=\s*0/i)
+    expect(sql).toMatch(/claimed_at\s*=\s*null/i)
+    expect(sql).toMatch(/error_code\s*=\s*null/i)
+    expect(sql).toMatch(/j\.status\s*=\s*'open'/i)
+    expect(sql).not.toMatch(/interval\s*'7 days'/i)
+  })
+
+  it('captures claimed revision and requires id plus revision CAS on every terminal worker write', () => {
+    expect(existsSync(migrationPath), 'migration 0025 must exist').toBe(true)
+    if (!existsSync(migrationPath)) return
+    const sql = read(migrationPath)
+    const worker = read(workerPath)
+    expect(sql).toMatch(/claimed_input_revision\s+bigint/i)
+    expect(sql).toMatch(/claimed_input_revision\s*=\s*uj\.desired_input_revision/i)
+    expect(worker.match(/\.eq\('desired_input_revision',\s*claimed\.claimed_input_revision\)/g)?.length)
+      .toBeGreaterThanOrEqual(4)
+    expect(worker.match(/\.select\('id'\)|\.maybeSingle\(\)/g)?.length)
+      .toBeGreaterThanOrEqual(4)
+  })
+
+  it('enforces a short-lived service-only exactly-two-fixture maintenance latch', () => {
+    expect(existsSync(migrationPath), 'migration 0025 must exist').toBe(true)
+    if (!existsSync(migrationPath)) return
+    const sql = read(migrationPath)
+    expect(sql).toMatch(/create table public\.scoring_verification_maintenance/i)
+    expect(sql).toMatch(/fixture_user_job_id_1\s+uuid/i)
+    expect(sql).toMatch(/fixture_user_job_id_2\s+uuid/i)
+    expect(sql).toMatch(/fixture_user_job_id_1\s*<>\s*fixture_user_job_id_2/i)
+    expect(sql).toMatch(/begin_scoring_verification/i)
+    expect(sql).toMatch(/end_scoring_verification/i)
+    expect(sql).toMatch(/expires_at/i)
+    expect(sql).toMatch(/verification_run_id\s+uuid\s+default\s+null/i)
+    expect(sql).toMatch(/for update skip locked/i)
+    expect(sql).toMatch(/revoke all on table public\.scoring_verification_maintenance from public, anon, authenticated/i)
+    expect(sql).toMatch(/grant execute on function public\.begin_scoring_verification[\s\S]*to service_role/i)
+  })
+
+  it('models late signals no-id mismatch exact concurrent end and expiry claim boundaries', () => {
+    expect(existsSync(migrationPath), 'migration 0025 must exist').toBe(true)
+    if (!existsSync(migrationPath)) return
+    const sql = read(migrationPath)
+    expect(sql).toMatch(/delete from public\.scoring_verification_maintenance[\s\S]*expires_at\s*<=\s*now\(\)/i)
+    expect(sql).toMatch(/p_verification_run_id\s+uuid/i)
+    expect(sql).toMatch(/active\.run_id\s*=\s*p_verification_run_id/i)
+    expect(sql).toMatch(/uj\.id\s+in\s*\(active\.fixture_user_job_id_1,\s*active\.fixture_user_job_id_2\)/i)
+    expect(sql).toMatch(/p_verification_run_id\s+is\s+not\s+null[\s\S]*return/i)
+    expect(sql).toMatch(/limit\s+batch_size[\s\S]*for update skip locked/i)
+  })
+
+  it('keeps pipeline fields service-owned and notification runtime absent', () => {
+    expect(existsSync(migrationPath), 'migration 0025 must exist').toBe(true)
+    if (!existsSync(migrationPath)) return
+    const sql = read(migrationPath)
+    const notificationSql = read(notificationMigrationPath)
+    expect(sql).toMatch(/revoke update \(scoring_input_hash, desired_input_revision, claimed_input_revision\)/i)
+    expect(sql).not.toMatch(/notification|push_subscription|notify_tick/i)
+    expect(notificationSql).toMatch(/drop table if exists public\.notifications/i)
+  })
+})
+
+describe('score-tick isolation and survivor ordering contract', () => {
+  it('validates a strict verification UUID after method and cron auth before claim', () => {
+    const worker = read(workerPath)
+    const method = worker.indexOf("request.method !== 'POST'")
+    const auth = worker.indexOf("request.headers.get('x-cron-secret')")
+    const header = worker.indexOf('x-scoring-verification-run-id')
+    const claim = worker.indexOf("admin.rpc('claim_scoring_work'")
+    expect(method).toBeGreaterThanOrEqual(0)
+    expect(auth).toBeGreaterThan(method)
+    expect(header).toBeGreaterThan(auth)
+    expect(claim).toBeGreaterThan(header)
+    expect(worker).toMatch(/^[\s\S]*[0-9a-f]\{8\}-[0-9a-f]\{4\}-[1-5][0-9a-f]\{3\}-[89ab][0-9a-f]\{3\}-[0-9a-f]\{12\}/im)
+  })
+
+  it('has no provider source bypass and reaches routing hashing and AI only after cheapFilter passes', () => {
+    const worker = read(workerPath)
+    const filter = worker.indexOf('cheapFilter(filterInput, prefs)')
+    const failingBranch = worker.indexOf('if (!outcome.pass)', filter)
+    const route = worker.indexOf('routeResume(', failingBranch)
+    const hash = worker.indexOf('scoringInputHash(', route)
+    const ai = worker.indexOf('generateStructured({', hash)
+    expect(filter).toBeGreaterThanOrEqual(0)
+    expect(failingBranch).toBeGreaterThan(filter)
+    expect(route).toBeGreaterThan(failingBranch)
+    expect(hash).toBeGreaterThan(route)
+    expect(ai).toBeGreaterThan(hash)
+    expect(worker).not.toMatch(/job\.(source|provider)|claimed\.(source|provider)|source\s*===|provider\s*===/i)
+    expect(worker.match(/generateStructured\(\{/g)).toHaveLength(1)
+  })
+})

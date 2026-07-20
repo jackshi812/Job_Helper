@@ -198,3 +198,76 @@ describe('SYNONYMS table (D-01)', () => {
     expect(SYNONYMS.mgr).toContain('manager')
   })
 })
+
+describe('cheapFilter — exclusive multi-concept title intent', () => {
+  it('rejects Equity Research shared-token data and science roles', () => {
+    for (const title of [
+      'Research Data Analyst',
+      'Equity Data Analyst',
+      'Data Researcher',
+      'Research Scientist',
+    ]) {
+      expect(
+        cheapFilter(job({ title, location: null, descriptionText: '' }), prefs({
+          titles: ['Equity Research'],
+        })),
+        title,
+      ).toMatchObject({ pass: false, reason: 'title_non_overlap' })
+    }
+  })
+
+  it('accepts reordered plural inflected and suffixed Equity Research variants', () => {
+    for (const title of [
+      'Equity Research Analyst',
+      'Equities Research Analyst',
+      'Research Analyst - Equities',
+      'Equity Research Associate',
+      'Equity Researcher',
+    ]) {
+      expect(
+        cheapFilter(job({ title, location: null, descriptionText: '' }), prefs({
+          titles: ['Equity Research'],
+        })).pass,
+        title,
+      ).toBe(true)
+    }
+  })
+
+  it('accepts conservative general inflections and configured synonym concepts', () => {
+    const cases = [
+      ['Software Engineering Intern', 'Software Engineer'],
+      ['Quant Researcher', 'Quantitative Researcher'],
+      ['DS Intern', 'Data Scientist'],
+    ] as const
+
+    for (const [title, preferred] of cases) {
+      expect(
+        cheapFilter(job({ title, location: null, descriptionText: '' }), prefs({
+          titles: [preferred],
+        })).pass,
+        `${preferred} -> ${title}`,
+      ).toBe(true)
+    }
+  })
+
+  it('uses one provider-agnostic post-dedup filter path for named fixtures', () => {
+    const fixtures = [
+      { source: 'adzuna', title: 'Coffee Distributor', pass: false },
+      { source: 'greenhouse', title: 'Product Delivery Associate', pass: false },
+      { source: 'ashby', title: 'Equity Research Analyst', pass: true },
+      { source: 'adzuna', title: 'Research Analyst - Equities', pass: true },
+      { source: 'greenhouse', title: 'Equity Researcher', pass: true },
+    ] as const
+
+    for (const fixture of fixtures) {
+      const result = cheapFilter(
+        job({ title: fixture.title, location: null, descriptionText: '' }),
+        prefs({ titles: ['Equity Research'] }),
+      )
+      expect(result.pass, `${fixture.source}: ${fixture.title}`).toBe(fixture.pass)
+      if (!fixture.pass) {
+        expect(result).toMatchObject({ reason: 'title_non_overlap' })
+      }
+    }
+  })
+})
