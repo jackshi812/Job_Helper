@@ -55,3 +55,31 @@ The verifier now:
 No additional production invocation is authorized by this corrective work.
 The corrected verifier passed 13/13 verifier/evidence tests, 409/409 web tests,
 lint with one pre-existing Fast Refresh warning, and the production build.
+
+## Replacement attempt on `f40c2eb`
+
+status: failed_before_verifier_account
+approval_signal: approve
+invocation_command: node --env-file=scripts/.env --experimental-strip-types scripts/verify-scoring-freshness.ts
+git_sha: f40c2ebc121cdaec41790f2c71bbb629bda7272f
+cloudflare_deployment_id: 05e7f5e6-bd14-4c75-a86e-be94036895f2
+verifier_process_attempts: 1
+verifier_tick_invocations: 0
+verifier_fixture_jobs_created: 0
+maintenance_runs_started: 0
+openai_calls_by_verifier_process: 0
+failure: Dedicated verifier account creation failed
+budget_before: 358
+budget_after: 358
+cron_restored_active: true
+maintenance_residue_count: 0
+verifier_auth_residue_count: 0
+
+The separately approved replacement process was consumed and was not retried.
+It paused and drained the cron, then failed closed while attempting to recreate
+the previously deleted fixed-email verifier identity. Cleanup restored the cron;
+no account, fixture, latch, verifier tick, or paid request was created.
+
+The next local correction uses a short per-run email nonce so a deleted identity
+is never reused. The account remains service-tagged, is still created only after
+cron pause/drain, and is still deleted before cron restoration.

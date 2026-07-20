@@ -405,7 +405,8 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   })
   let targetUserId: string | null = null
-  const verifierEmail = `scoring-verifier+${env.SUPABASE_PROJECT_REF}@example.com`
+  const verifierNonce = crypto.randomUUID().replaceAll('-', '').slice(0, 12)
+  const verifierEmail = `scoring-verifier+${verifierNonce}@example.com`
   let trackedJobIds: string[] = []
   let trackedUserJobIds: string[] = []
   let trackedRunId: string | null = null
@@ -480,7 +481,9 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
         email_confirm: true,
         app_metadata: { scoring_verifier: true },
       })
-      if (createError || !created.user) throw new Error('Dedicated verifier account creation failed')
+      if (createError || !created.user) {
+        throw new Error(`Dedicated verifier account creation failed: ${createError?.code ?? 'unknown'}`)
+      }
       targetUserId = created.user.id
 
       const { data, error } = await user.auth.signInWithPassword({
