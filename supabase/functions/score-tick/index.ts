@@ -28,6 +28,10 @@ import {
 const SCORE_BATCH_SIZE = 12
 const SCORE_CONCURRENCY = 4
 const DEFAULT_DAILY_SCORE_CAP = 200
+// Owner-approved one-day allowance. UTC date matches the request ledger and
+// automatically falls back to the configured 200-call cap after rollover.
+const TEMPORARY_DAILY_SCORE_CAP_DATE = '2026-07-20'
+const TEMPORARY_DAILY_SCORE_CAP = 499
 const SCORING_PROMPT_REVISION = 'score-v1'
 const SCORING_FILTER_REVISION = 'filter-v2'
 const STRICT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -136,6 +140,14 @@ function requiredEnvironment(name: string) {
   const value = Deno.env.get(name)
   if (!value) throw new Error(`Missing required environment variable: ${name}`)
   return value
+}
+
+function effectiveDailyScoreCap(now: Date) {
+  const configuredCap = Number(Deno.env.get('AI_DAILY_SCORE_CAP') ?? DEFAULT_DAILY_SCORE_CAP)
+  const utcDate = now.toISOString().slice(0, 10)
+  return utcDate === TEMPORARY_DAILY_SCORE_CAP_DATE
+    ? TEMPORARY_DAILY_SCORE_CAP
+    : configuredCap
 }
 
 function toStringArray(value: unknown): string[] {
@@ -425,7 +437,7 @@ Deno.serve(async (request) => {
         },
       },
     )
-    const dailyCap = Number(Deno.env.get('AI_DAILY_SCORE_CAP') ?? DEFAULT_DAILY_SCORE_CAP)
+    const dailyCap = effectiveDailyScoreCap(new Date())
 
     // D-13 escalation valve (config-only this phase): the flag is read so the
     // wiring exists, but no Pro model call is built now — scoring always uses the

@@ -345,4 +345,14 @@ describe('score-tick isolation and survivor ordering contract', () => {
     expect(sql.match(/score_deferred_until\s*=\s*null/gi)?.length).toBeGreaterThanOrEqual(2)
     expect(sql).toMatch(/grant execute on function public\.reserve_score_request\(integer\) to service_role/i)
   })
+
+  it('bounds the July 20 one-day score allowance below 500 and restores the configured cap afterward', () => {
+    const worker = read(workerPath)
+    expect(worker).toContain("const TEMPORARY_DAILY_SCORE_CAP_DATE = '2026-07-20'")
+    expect(worker).toContain('const TEMPORARY_DAILY_SCORE_CAP = 499')
+    expect(worker).toMatch(
+      /utcDate\s*===\s*TEMPORARY_DAILY_SCORE_CAP_DATE\s*\?\s*TEMPORARY_DAILY_SCORE_CAP\s*:\s*configuredCap/,
+    )
+    expect(worker).toContain('effectiveDailyScoreCap(new Date())')
+  })
 })
