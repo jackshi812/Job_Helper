@@ -171,6 +171,10 @@ function fakeAdapters({ failAt = null, expireBeforeTick = false } = {}) {
       assert.equal(state.residue.size, 0)
       if (failAt === 'assert_zero_residue') throw new Error('injected:assert_zero_residue')
     },
+    async cleanupVerifierAccount() {
+      state.events.push('cleanup_verifier_account')
+      if (failAt === 'cleanup_verifier_account') throw new Error('injected:cleanup_verifier_account')
+    },
     async restoreCron(snapshot) {
       state.events.push('restore_cron')
       state.cron = { ...snapshot }
@@ -217,12 +221,16 @@ test('success uses latch isolation and the sole matching claim is the one tick a
   before(state.events, 'pause_cron', 'preseed_current_pairs')
   before(state.events, 'read_paused_cron', 'preseed_current_pairs')
   before(state.events, 'prove_quiescent', 'preseed_current_pairs')
+  before(state.events, 'prove_quiescent', 'validate_environment')
+  before(state.events, 'validate_environment', 'preseed_current_pairs')
   before(state.events, 'begin_latch', 'signal_preferences')
   before(state.events, 'signal_preferences', 'protect_nonfixtures')
   before(state.events, 'inject_late_reroute', 'claim_no_id')
   before(state.events, 'claim_mismatched_id', 'invoke_tick')
   before(state.events, 'end_latch', 'restore_data')
   before(state.events, 'restore_data', 'delete_tracked_fixtures')
+  before(state.events, 'assert_zero_residue', 'cleanup_verifier_account')
+  before(state.events, 'cleanup_verifier_account', 'restore_cron')
   before(state.events, 'assert_zero_residue', 'restore_cron')
   assert.equal(state.events.at(-1), 'read_restored_cron')
   assert.deepEqual(state.cron, ORIGINAL_CRON)
@@ -247,6 +255,12 @@ test('all declared setup/runtime failures continue nested cleanup and restore cr
       assert.ok(
         state.events.indexOf('restore_cron') > state.events.indexOf('assert_zero_residue'),
         `${failAt}: cron was not restored last`,
+      )
+    }
+    if (state.events.includes('prove_quiescent') && failAt !== 'prove_quiescent') {
+      assert.ok(
+        state.events.includes('cleanup_verifier_account'),
+        `${failAt}: verifier account cleanup not attempted`,
       )
     }
     if (state.events.includes('begin_latch') && failAt !== 'begin_latch') {
@@ -324,7 +338,7 @@ test('tick failure is never retried and cleanup still releases the latch', async
   assert.deepEqual(state.cron, ORIGINAL_CRON)
 })
 
-test('source is import-safe and contains no retry, poll, or legacy-verifier fallback', async () => {
+test('source is import-safe and contains no paid retry, poll, or legacy-verifier fallback', async () => {
   const source = await readFile(new URL('./verify-scoring-freshness.ts', import.meta.url), 'utf8')
   assert.doesNotMatch(source, /setInterval\s*\(/)
   assert.doesNotMatch(source, /setTimeout\s*\(/)
@@ -332,8 +346,10 @@ test('source is import-safe and contains no retry, poll, or legacy-verifier fall
   assert.doesNotMatch(source, /for\s*\([^)]*(?:attempt|retry)/i)
   assert.doesNotMatch(source, /while\s*\(/)
   assert.match(source, /pathToFileURL/)
-  assert.match(source, /SCORING_VERIFIER_EMAIL/)
-  assert.match(source, /SCORING_VERIFIER_PASSWORD/)
+  assert.match(source, /scoring-verifier\+\$\{env\.SUPABASE_PROJECT_REF\}@example\.com/)
+  assert.doesNotMatch(source, /SCORING_VERIFIER_EMAIL|SCORING_VERIFIER_PASSWORD/)
+  assert.match(source, /await delay\(125_000\)/)
+  assert.match(source, /admin\.auth\.admin\.deleteUser\(targetUserId\)/)
   assert.doesNotMatch(source, /USER1_EMAIL|SEED_PASSWORD_1/)
   assert.match(
     source,

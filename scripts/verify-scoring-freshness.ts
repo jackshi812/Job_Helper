@@ -1,4 +1,5 @@
 import { pathToFileURL } from 'node:url'
+import { setTimeout as delay } from 'node:timers/promises'
 import { createClient } from '../web/node_modules/@supabase/supabase-js/dist/index.mjs'
 
 const SCORE_CRON_NAME = 'score-tick-every-minute'
@@ -17,11 +18,11 @@ const CRON_FIELDS = [
 ] as const
 
 export const FAILURE_INJECTION_STAGES = Object.freeze([
-  'validate_environment',
   'snapshot_cron',
   'pause_cron',
   'read_paused_cron',
   'prove_quiescent',
+  'validate_environment',
   'preseed_current_pairs',
   'snapshot_data',
   'create_fixtures',
@@ -41,6 +42,7 @@ export const FAILURE_INJECTION_STAGES = Object.freeze([
   'restore_data',
   'delete_tracked_fixtures',
   'assert_zero_residue',
+  'cleanup_verifier_account',
   'restore_cron',
   'read_restored_cron',
 ])
@@ -97,6 +99,7 @@ interface FreshnessAdapters {
   restoreData(snapshot: unknown): Promise<void>
   deleteTrackedFixtures(seedIds: readonly string[], fixtureIds: readonly string[]): Promise<void>
   assertZeroResidue(): Promise<void>
+  cleanupVerifierAccount(): Promise<void>
   restoreCron(snapshot: CronSnapshot): Promise<void>
   readRestoredCron(): Promise<CronSnapshot>
 }
@@ -200,6 +203,7 @@ export async function runFreshnessVerification(
 ): Promise<FreshnessResult> {
   let cronSnapshot: CronSnapshot | null = null
   let cronRestoreRequired = false
+  let verifierCleanupRequired = false
   let dataSnapshot: unknown = null
   let runId: string | null = null
   let latchEndRequired = false
@@ -209,12 +213,13 @@ export async function runFreshnessVerification(
   let result: FreshnessResult | null = null
 
   try {
-    await adapters.validateEnvironment()
     cronSnapshot = await adapters.snapshotCron()
     cronRestoreRequired = true
     await adapters.pauseCron(cronSnapshot)
     assertCronPaused(await adapters.readCron(), cronSnapshot)
     await adapters.proveQuiescent()
+    verifierCleanupRequired = true
+    await adapters.validateEnvironment()
 
     seedIds = await adapters.preseedCurrentPairs()
     dataSnapshot = await adapters.snapshotData()
@@ -296,6 +301,13 @@ export async function runFreshnessVerification(
   } catch (error) {
     cleanupErrors.push(error)
   }
+  if (verifierCleanupRequired) {
+    try {
+      await adapters.cleanupVerifierAccount()
+    } catch (error) {
+      cleanupErrors.push(error)
+    }
+  }
   if (cronRestoreRequired && cronSnapshot) {
     try {
       await adapters.restoreCron(cronSnapshot)
@@ -321,8 +333,6 @@ const REQUIRED_ENVIRONMENT = [
   'SUPABASE_ACCESS_TOKEN',
   'SUPABASE_PROJECT_REF',
   'CRON_SECRET',
-  'SCORING_VERIFIER_EMAIL',
-  'SCORING_VERIFIER_PASSWORD',
 ] as const
 
 type RequiredEnvironmentName = (typeof REQUIRED_ENVIRONMENT)[number]
@@ -395,6 +405,7 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   })
   let targetUserId: string | null = null
+  const verifierEmail = `scoring-verifier+${env.SUPABASE_PROJECT_REF}@example.com`
   let trackedJobIds: string[] = []
   let trackedUserJobIds: string[] = []
   let trackedRunId: string | null = null
@@ -427,6 +438,17 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
     return cronFromRow(rows[0])
   }
 
+  async function recentClaimCount() {
+    const rows = await managementSql(
+      `select count(*)::integer as in_flight from public.user_jobs
+       where claimed_at is not null and claimed_at >= now() - interval '5 minutes'`,
+    )
+    if (rows.length !== 1 || typeof rows[0].in_flight !== 'number') {
+      throw new Error('score work quiescence is unprovable')
+    }
+    return rows[0].in_flight
+  }
+
   async function restoreRows(rows: Record<string, unknown>[]) {
     for (const row of rows) {
       if (!targetUserId || row.user_id !== targetUserId) {
@@ -442,13 +464,63 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
     makeRunId: () => crypto.randomUUID(),
     makeMismatchedRunId: () => crypto.randomUUID(),
     async validateEnvironment() {
+      const { data: listed, error: listError } = await admin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1_000,
+      })
+      if (listError) throw new Error('Dedicated verifier account inventory failed')
+      if (listed.users.some((candidate) => candidate.email?.toLowerCase() === verifierEmail.toLowerCase())) {
+        throw new Error('Dedicated verifier account already exists')
+      }
+
+      const password = `${crypto.randomUUID()}-${crypto.randomUUID()}Aa1!`
+      const { data: created, error: createError } = await admin.auth.admin.createUser({
+        email: verifierEmail,
+        password,
+        email_confirm: true,
+        app_metadata: { scoring_verifier: true },
+      })
+      if (createError || !created.user) throw new Error('Dedicated verifier account creation failed')
+      targetUserId = created.user.id
+
       const { data, error } = await user.auth.signInWithPassword({
-        email: env.SCORING_VERIFIER_EMAIL,
-        password: env.SCORING_VERIFIER_PASSWORD,
+        email: verifierEmail,
+        password,
       })
       if (error || !data.user) throw new Error('Target user authentication failed')
-      assertDedicatedVerifierUser(data.user, env.SCORING_VERIFIER_EMAIL)
-      targetUserId = data.user.id
+      assertDedicatedVerifierUser(data.user, verifierEmail)
+      if (data.user.id !== targetUserId) throw new Error('Dedicated verifier account identity mismatch')
+
+      const { error: preferenceError } = await admin.from('preferences').insert({
+        user_id: targetUserId,
+        titles: ['__scoring_verifier_disabled__'],
+        locations: [],
+        include_keywords: [],
+        exclude_keywords: [],
+      })
+      if (preferenceError) throw new Error('Dedicated verifier safety preference failed')
+
+      const { data: resume, error: resumeError } = await admin.from('resumes').insert({
+        user_id: targetUserId,
+        filename: 'scoring-verifier-fixture.docx',
+        display_name: 'Scoring verifier fixture',
+        storage_path: `${targetUserId}/scoring-verifier-fixture.docx`,
+        size_bytes: 0,
+      }).select('id').single()
+      if (resumeError || !resume) throw new Error('Dedicated verifier resume creation failed')
+
+      const { error: extractInsertError } = await admin.from('resume_extracts').insert({
+        resume_id: resume.id,
+        user_id: targetUserId,
+        text_content: 'Synthetic verification resume for equity research scoring freshness checks.',
+        keywords: ['equity research', 'financial modeling', 'valuation'],
+        status: 'ready',
+        attempts: 0,
+        model: 'synthetic-verifier-fixture-v1',
+        extracted_at: new Date().toISOString(),
+      })
+      if (extractInsertError) throw new Error('Dedicated verifier extract creation failed')
+
       const { count, error: extractError } = await admin
         .from('resume_extracts')
         .select('resume_id', { count: 'exact', head: true })
@@ -463,11 +535,12 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
     },
     readCron: readUniqueCron,
     async proveQuiescent() {
-      const rows = await managementSql(
-        `select count(*)::integer as in_flight from public.user_jobs
-         where claimed_at is not null and claimed_at >= now() - interval '5 minutes'`,
-      )
-      if (rows.length !== 1 || rows[0].in_flight !== 0) {
+      if (await recentClaimCount() === 0) return
+      // The cron is already paused. Give the one previously dispatched worker
+      // longer than its 120-second pg_net timeout to finish, then check once.
+      // This is a fixed drain, not a verifier/tick retry or polling loop.
+      await delay(125_000)
+      if (await recentClaimCount() !== 0) {
         throw new Error('score work quiescence is unprovable')
       }
     },
@@ -761,6 +834,23 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
       }
       const results = await Promise.all(checks)
       if (results.some((item) => item.error || item.count !== 0)) throw new Error('verification residue remains')
+    },
+    async cleanupVerifierAccount() {
+      if (!targetUserId) return
+      const { data: listed, error: listError } = await admin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1_000,
+      })
+      if (listError) throw new Error('Dedicated verifier cleanup inventory failed')
+      const verifier = listed.users.find((candidate) => candidate.id === targetUserId)
+      if (!verifier) {
+        targetUserId = null
+        return
+      }
+      assertDedicatedVerifierUser(verifier, verifierEmail)
+      const { error } = await admin.auth.admin.deleteUser(targetUserId)
+      if (error) throw new Error('Dedicated verifier account cleanup failed')
+      targetUserId = null
     },
     async restoreCron(snapshot) {
       const rows = await managementSql(buildCronActiveSql(snapshot.jobid, snapshot.active))
