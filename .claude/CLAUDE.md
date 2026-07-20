@@ -6,16 +6,16 @@
 
 An invite-only web app (browser-based, no install) for two users that discovers relevant job postings within 5–15 minutes of publication, speeds up applications with AI-tailored resumes, and assists with approved outreach. Users open a URL, log in, and get a dashboard of scored job matches, a resume tailoring workflow, and a manual application tracker.
 
-**Core Value:** Discover relevant jobs fast (5–15 minutes from posting) and notify the user immediately — if job discovery and notification don't work reliably, nothing else matters.
+**Core Value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed — if discovery and scoring are unreliable, nothing else matters.
 
 ### Constraints
 
-- **Budget**: Near-zero cost for v1 — free tiers everywhere (Cloudflare Pages, Supabase Free, free-tier email like Resend, free web push); AI calls budget-capped, cheap model, invoked only after cheap filtering
+- **Budget**: Near-zero cost for v1 — Cloudflare Pages and Supabase Free; AI calls budget-capped, cheap model, invoked only after cheap filtering
 - **Tech stack**: Cloudflare Pages frontend, Supabase Free backend (auth, Postgres, resume storage, scheduled functions) — chosen for free-tier fit
 - **Compliance**: No scraping logged-in LinkedIn pages, no Easy Apply automation, no auto-sent LinkedIn messages — platform policy
 - **Security**: Resumes in encrypted private cloud storage with user-controlled deletion; strict per-user data separation
 - **Integrity**: Resume tailoring must remain truthful and always require user review before download
-- **Performance**: Job discovery-to-notification target 5–15 minutes
+- **Performance**: Job discovery-to-feed target 5–15 minutes
 
 <!-- GSD:project-end -->
 
@@ -32,11 +32,9 @@ An invite-only web app (browser-based, no install) for two users that discovers 
 | React + Vite (SPA) | React 19.x, Vite 7.x | Frontend dashboard on Cloudflare Pages | A pure SPA compiles to static assets and deploys to Pages with zero server config. No SEO requirement (invite-only, 2 users) → SSR buys nothing. Next.js on CF Pages is second-class vs Vercel; a Vite SPA is the friction-free path. Confidence: HIGH |
 | TypeScript | 5.x | Language everywhere (frontend + edge functions) | Supabase Edge Functions are Deno/TypeScript; one language across the whole codebase. Confidence: HIGH |
 | Supabase (Free plan) | supabase-js ^2 | Auth, Postgres, Storage, Edge Functions, cron | Already decided; validated as viable — limits (below) comfortably fit 2 users. Confidence: HIGH |
-| Supabase Edge Functions (Deno) | Deno runtime, current | All backend logic: pollers, scoring, notifications, DOCX processing | Only compute surface on the free plan; scheduled via pg_cron + pg_net at 1-minute granularity — comfortably meets the 5–15 min discovery goal. Confidence: HIGH (pattern verified on official docs) |
+| Supabase Edge Functions (Deno) | Deno runtime, current | Backend pollers, scoring, and DOCX processing | Only compute surface on the free plan; scheduled via pg_cron + pg_net at 1-minute granularity — comfortably meets the 5–15 min discovery goal. Confidence: HIGH (pattern verified on official docs) |
 | pg_cron + pg_net | Supabase-managed extensions | Scheduling the monitoring pipeline | Official Supabase pattern: `cron.schedule('*/5 * * * *', net.http_post(<edge fn URL>))` with the auth token in Supabase Vault. No external scheduler needed. Confidence: HIGH |
 | Gemini 2.5 Flash-Lite | API model `gemini-2.5-flash-lite` | AI job scoring + resume keyword tailoring | Cheapest capable tier that also has a **free tier**: $0.10/$0.40 per 1M tokens paid (verified on ai.google.dev pricing). For ~50 scored jobs/day at ~2K tokens each, paid cost is <$1/month — effectively zero. Structured JSON output supported for scoring. Confidence: HIGH on pricing; MEDIUM on "best" (GPT-5 nano is marginally cheaper but has no free tier) |
-| Web Push via `@negrel/webpush` | latest (JSR) | Desktop push notifications from edge functions | Deno-native RFC 8291/8292 implementation on JSR — runs in Supabase Edge Functions where Node's `web-push` does not cleanly. Ships a VAPID keygen script. Store `PushSubscription` JSON per user in Postgres. Confidence: MEDIUM (library exists and targets exactly this runtime; JSR page returned 403 so latest version unverified — check at install) |
-| Resend | REST API / resend-node ^4 | Email notification backup | Free tier verified: **100 emails/day, 3,000/month, 1 verified domain**. Call via plain `fetch` from edge functions (no SDK needed in Deno). Confidence: HIGH |
 
 ### Job Data Sources
 
@@ -60,7 +58,6 @@ An invite-only web app (browser-based, no install) for two users that discovers 
 | `jszip` | ^3.10 | Unzip/rezip DOCX; edit `word/document.xml` text runs directly | Resume tailoring edits — preserves the user's original formatting (see note below) |
 | `fast-xml-parser` or DOM `DOMParser` | latest | Parse/serialize `document.xml` for run-level text edits | With jszip in the tailoring step |
 | Supabase Vault | built-in | Store service-role key + API keys for pg_cron HTTP calls | Cron → edge function auth |
-| Service Worker (vanilla) | n/a | Receive push events with tab closed | Required for web push; no library needed |
 
 ### Development Tools
 
@@ -79,8 +76,6 @@ An invite-only web app (browser-based, no install) for two users that discovers 
 
 # Edge functions: imports via JSR/npm specifiers in Deno, no npm install
 
-# e.g. import * as webpush from "jsr:@negrel/webpush";
-
 #      import { createClient } from "npm:@supabase/supabase-js@2";
 
 # Supabase CLI
@@ -98,7 +93,6 @@ An invite-only web app (browser-based, no install) for two users that discovers 
 | Supabase Edge Functions | Wall-clock cap per invocation (~150 s on free — MEDIUM confidence, verify) | Shard the 100-company watchlist across ticks rather than one long run |
 | Cloudflare Pages Free | 500 builds/mo, 20K files, 25 MiB/asset, unlimited bandwidth | No practical constraint |
 | Cloudflare Workers Free (if Pages Functions used) | 100K requests/day | Not needed — all backend lives in Supabase |
-| Resend Free | **100/day, 3,000/mo**, 1 domain | Daily cap is the binding one; batch job matches into digest emails rather than 1 email per job |
 | Adzuna Free | ~25 req/min, 250 req/day | Discovery sweeps only (watchlist uses free ATS endpoints) |
 | Gemini API Free tier | Exists with rate limits; **free-tier content may be used to improve Google products** | For job-description scoring: free tier fine. For anything containing the user's resume text: **use the paid tier** (still <$1/mo) to avoid sending personal data under free-tier data terms |
 | CloudConvert Free | ~25 conversion-min/day | Dozens of DOCX→PDF conversions/day — ample |
@@ -120,22 +114,18 @@ An invite-only web app (browser-based, no install) for two users that discovers 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
 | Next.js on Cloudflare Pages | Partial support, server-feature friction; SSR is pointless for a 2-user private dashboard | React + Vite SPA |
-| Node `web-push` package | Node-API assumptions; doesn't target Deno edge runtime | `@negrel/webpush` (JSR) |
 | docxtemplater / docx-templates for tailoring | Require `{tags}` embedded in the source doc — users upload arbitrary resumes | jszip + `document.xml` run-level edits |
 | mammoth as the edit/save path | DOCX→HTML→DOCX round-trip destroys formatting | mammoth for preview only |
 | Self-hosted Gotenberg / LibreOffice | Needs an always-on container host — no genuinely free option | CloudConvert free tier or browser print CSS |
 | Puppeteer/Chromium inside Supabase Edge Functions | Chromium doesn't run in the Deno edge sandbox | Browser-side print, or CloudConvert |
 | JSearch (RapidAPI) as the aggregator | Free quota too small for continuous polling | Adzuna (250 req/day free) |
 | LinkedIn scraping of any logged-in surface | Policy violation; explicitly out of scope | ATS endpoints + Adzuna |
-| Per-job notification emails | Blows the 100/day Resend cap during job-posting bursts | Push per match; email as batched digest/backup |
 | Gemini **free tier** for resume-content calls | Free-tier inputs may be used to improve Google products — resumes are personal data | Gemini paid tier (cost is negligible) |
 
 ## Stack Patterns by Variant
 
 - Shard polling round-robin across minutes (pg_cron every 1 min, each tick polls a slice) instead of one 5-min tick polling everything
 - Because edge functions have a per-invocation wall-clock cap and you want per-company failures isolated.
-- Lean on the email path with a tighter digest cadence (e.g., every 15 min when new matches exist)
-- Because desktop push only meets the 5–15 min goal while the browser/OS is awake; email is the safety net by design.
 - Two-stage: Flash-Lite for pass/fail triage, then Gemini 2.5 Flash (or Haiku 4.5) only on the top handful
 - Because survivors after cheap filters are already few; a pricier model on 5 jobs/day is still ~free.
 
@@ -145,7 +135,6 @@ An invite-only web app (browser-based, no install) for two users that discovers 
 |-----------|-----------------|-------|
 | `@supabase/supabase-js@2` | Deno edge functions | Import as `npm:@supabase/supabase-js@2` in edge code; same API as browser |
 | Tailwind 4 | Vite 7 | Uses the first-party `@tailwindcss/vite` plugin — no PostCSS config needed |
-| `@negrel/webpush` | Deno / Supabase Edge | JSR import; not for the browser side (browser uses native `PushManager`) |
 | jszip 3.x | Browser + Deno | Works in both; you can run tailoring edits client-side or in an edge function |
 | pg_cron | Supabase hosted Postgres | Enable via Dashboard → Integrations; pair with pg_net + Vault for authed HTTP calls |
 | React 19 | react-router 7, TanStack Query 5 | All current-major; pin at install time |
@@ -156,11 +145,9 @@ An invite-only web app (browser-based, no install) for two users that discovers 
 - [Supabase Pricing](https://supabase.com/pricing) — Free plan limits: 500MB DB, 1GB storage, 500K invocations, 5GB egress, 1-week pause (official, verified)
 - [Cloudflare Pages Limits](https://developers.cloudflare.com/pages/platform/limits/) — 500 builds/mo, 20K files, Functions on free plan (official, verified)
 - [Gemini API Pricing](https://ai.google.dev/gemini-api/docs/pricing) — Flash-Lite $0.10/$0.40, free tier exists (official, verified)
-- [Resend — quotas](https://resend.com/docs/knowledge-base/account-quotas-and-limits) + pricing/blog — 100/day, 3,000/mo free (official via search, MEDIUM-HIGH)
 - claude-api skill (bundled, cached 2026-06) — Claude Haiku 4.5 $1/$5 per MTok (HIGH)
 - [Adzuna developer portal](https://developer.adzuna.com/) + directory sources — free tier ~250 req/day (MEDIUM)
 - ATS endpoint survey — [Cavuno](https://cavuno.com/blog/ats-platforms-public-job-posting-apis) / [fantastic.jobs](https://fantastic.jobs/article/ats-with-api): Greenhouse/Lever/Ashby public JSON shapes (MEDIUM — cross-checked across two sources; verify one live call per ATS in phase 1)
-- [@negrel/webpush](https://github.com/negrel/webpush) — Deno web push, RFC 8291/8292 (MEDIUM; JSR page 403'd, confirm latest version at install)
 - [CloudConvert pricing](https://cloudconvert.com/pricing) — ~25 free conversion-min/day (MEDIUM)
 - npm-compare + library READMEs — mammoth/docxtemplater/docx/jszip roles (MEDIUM)
 

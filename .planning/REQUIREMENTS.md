@@ -1,7 +1,7 @@
 # Requirements: Job Application Copilot
 
 **Defined:** 2026-07-15
-**Core Value:** Discover relevant jobs fast (5–15 minutes from posting) and notify the user immediately — if job discovery and notification don't work reliably, nothing else matters.
+**Core Value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed — if discovery and scoring are unreliable, nothing else matters.
 
 ## v1 Requirements
 
@@ -24,7 +24,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Discovery & Monitoring
 
-- [x] **DISC-01**: System polls watchlist ATS endpoints on a schedule that keeps discovery-to-notification within 5–15 minutes
+- [x] **DISC-01**: System polls watchlist ATS endpoints on a schedule that keeps discovery-to-feed within 5–15 minutes
 - [x] **DISC-02**: System discovers jobs outside the watchlist via one aggregator API (breadth source, latency not guaranteed)
 - [x] **DISC-03**: System deduplicates postings across sources (stable ATS IDs + fuzzy company/title/location match) so a job is never surfaced twice
 - [x] **DISC-04**: System captures a job-description snapshot at first sight (postings vanish; snapshot feeds tailoring)
@@ -41,13 +41,6 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **SCOR-03**: Each scored job shows plain-language match reasons ("why this matched")
 - [x] **SCOR-04**: User can view a dashboard feed of new matches with score, match reasons, posted-time, and direct link to the employer's apply page
 - [x] **SCOR-05**: User can view job detail with full JD snapshot and keyword-gap panel (categorized gaps vs their resume, advisory only)
-
-### Notifications
-
-- [ ] **NOTF-01**: User receives a browser web push notification for strong matches (works with tab closed while browser runs)
-- [ ] **NOTF-02**: User receives email for strong matches as backup (digest-aware to stay within free-tier 100/day cap)
-- [ ] **NOTF-03**: User can tune alerts: per-user score threshold and quiet hours
-- [ ] **NOTF-04**: Notifications fire only on deduplicated, scored jobs above the user's threshold (no raw-feed spam)
 
 ### Resume Tailoring
 
@@ -78,7 +71,6 @@ Deferred to future release. Tracked but not in current roadmap.
 
 - **ENHC-01**: Save-to-tracker from arbitrary URL (paste a LinkedIn link, parse basics)
 - **ENHC-02**: Companion browser extension for form autofill on employer application pages
-- **ENHC-03**: Mobile push notifications
 
 ## Out of Scope
 
@@ -93,6 +85,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | Native mobile/desktop app | Web app covers the need for 2 users |
 | Multi-tenant/public signup | Invite-only, two users, by design |
 | Interview prep / salary tools / analytics | Teal-style feature sprawl; stay narrow |
+| Browser push, email alerts, alert tuning, and notification ledger (NOTF-01..04) | Removed by owner on 2026-07-19; the product is feed-only |
 
 ## Traceability
 
@@ -123,10 +116,6 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCOR-03 | Phase 3 | Pending |
 | SCOR-04 | Phase 3 | Complete |
 | SCOR-05 | Phase 3 | Complete |
-| NOTF-01 | Phase 3 | Pending |
-| NOTF-02 | Phase 3 | Pending |
-| NOTF-03 | Phase 3 | Pending |
-| NOTF-04 | Phase 3 | Pending |
 | RESU-01 | Phase 3 | Pending |
 | RESU-02 | Phase 4 | Pending |
 | RESU-03 | Phase 4 | Pending |
@@ -139,10 +128,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 **Coverage:**
 
-- v1 requirements: 36 total
-- Mapped to phases: 36
+- v1 requirements: 32 total
+- Mapped to phases: 32
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-15*
-*Last updated: 2026-07-17 after inserting Phase 02.1 source coverage expansion*
+*Last updated: 2026-07-19 after removing notifications from v1*

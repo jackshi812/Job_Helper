@@ -18,6 +18,33 @@ import { Watchlist } from './pages/Watchlist'
 
 const queryClient = new QueryClient()
 
+// Remove the retired notification worker and its browser-side subscription for
+// users who enabled push before the feature was removed. Permission itself is a
+// browser setting and cannot be reset programmatically.
+async function removeLegacyNotificationWorker() {
+  if (!('serviceWorker' in navigator)) return
+
+  const registrations = await navigator.serviceWorker.getRegistrations()
+  const legacyRegistrations = registrations.filter((registration) =>
+    [registration.active, registration.waiting, registration.installing].some(
+      (worker) => worker && new URL(worker.scriptURL).pathname === '/sw.js',
+    ),
+  )
+
+  await Promise.all(
+    legacyRegistrations.map(async (registration) => {
+      const subscription = await registration.pushManager.getSubscription()
+      await subscription?.unsubscribe()
+      await registration.unregister()
+    }),
+  )
+}
+
+void removeLegacyNotificationWorker().catch(() => {
+  // Hosted cleanup also deletes every server-side subscription, so a local
+  // browser cleanup failure cannot restore delivery.
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

@@ -6,8 +6,8 @@ import { createClient } from '../web/node_modules/@supabase/supabase-js/dist/ind
 //
 // Proves on the HOSTED project, with numbered probes that exit non-zero on the
 // first failure:
-//   1. RLS isolation across preferences, user_jobs, push_subscriptions,
-//      notifications with two independent publishable-key sessions (never a
+//   1. RLS isolation across preferences and user_jobs with two independent
+//      publishable-key sessions (never a
 //      privileged client for the RLS proof — the locked verify-rls.ts pattern),
 //      plus the column-limited user_jobs grant proof (seen_at update OK, score
 //      update rejected) and anon-sees-nothing.
@@ -193,7 +193,7 @@ async function verifyRlsIsolation(env: Environment) {
     assert(!bPrefsError && (bSeesAPrefs?.length ?? 0) === 0, 'probe 1: User B cannot read User A preferences')
 
     // B's unfiltered reads of the service-written per-user tables return only own rows.
-    for (const table of ['user_jobs', 'notifications'] as const) {
+    for (const table of ['user_jobs'] as const) {
       const { data: bRows, error: bError } = await clientB.from(table).select('user_id')
       const leak = (bRows ?? []).some((row: { user_id: string }) => row.user_id !== authB.user!.id)
       assert(!bError && !leak, `probe 1: User B ${table} select returns only own rows`)
@@ -232,7 +232,7 @@ async function verifyRlsIsolation(env: Environment) {
     }
 
     // Anon (signed out) sees zero rows everywhere.
-    for (const table of ['preferences', 'user_jobs', 'push_subscriptions', 'notifications'] as const) {
+    for (const table of ['preferences', 'user_jobs'] as const) {
       const { data: anonRows, error: anonError } = await anon.from(table).select('*')
       assert(
         (anonError && anonRows === null) || (anonRows?.length ?? 0) === 0,
@@ -665,7 +665,7 @@ async function verifyRefilter(env: Environment, admin: ReturnType<typeof probeCl
 // Cron/auth boundary: unauthenticated ticks are rejected.
 // ---------------------------------------------------------------------------
 async function verifyCronBoundary(env: Environment) {
-  for (const fn of ['extract-resume', 'score-tick', 'notify-tick'] as const) {
+  for (const fn of ['extract-resume', 'score-tick'] as const) {
     const noSecret = await postTick(env.url, fn)
     assert(noSecret.status === 401, `probe 0: ${fn} without x-cron-secret returns 401`)
     const wrongSecret = await postTick(env.url, fn, 'definitely-wrong-secret')

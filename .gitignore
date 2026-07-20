@@ -3,6 +3,5 @@ web/dist/
 .env
 .env.local
 scripts/.env
-scripts/vapid-keys.json
 .DS_Store
 .planning/research/.cache/

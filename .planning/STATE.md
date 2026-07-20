@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 03
-current_phase_name: scoring-feed-notifications
+current_phase_name: scoring-feed
 status: executing
-stopped_at: Phase 03 Plans 01-06 done; Plan 07 Part A local scripts done (uncommitted); Part B blocked on Resend creds + per-step hosted approvals
-last_updated: "2026-07-19T04:05:48.251Z"
+stopped_at: Phase 03 Plan 07 notification removal implemented locally; hosted cleanup and deployment await approval
+last_updated: "2026-07-19T20:30:00-05:00"
 last_activity: 2026-07-19
-last_activity_desc: Phase 03 Plan 01 completed; provider revised to GPT-5.4 nano before Plan 02
+last_activity_desc: Notification subsystem removed locally; Phase 3 narrowed to scoring and feed
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 30
-  completed_plans: 24
-  percent: 60
+  completed_plans: 29
+  percent: 97
 ---
 
 # Project State
@@ -23,17 +23,17 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-07-17)
 
-**Core value:** Discover relevant jobs fast (5–15 minutes from posting) and notify the user immediately — if job discovery and notification don't work reliably, nothing else matters.
-**Current focus:** Phase 03 — scoring-feed-notifications
+**Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
+**Current focus:** Phase 03 — scoring-feed
 
 ## Current Position
 
-Phase: 03 (scoring-feed-notifications) — EXECUTING
-Plan: 2 of 7 (Task 1 checkpoint)
-Status: Plan 01 complete; awaiting OpenAI API key/billing for Plan 02
-Last activity: 2026-07-19 — Plan 01 completed and provider revised before AI implementation
+Phase: 03 (scoring-feed) — EXECUTING
+Plan: 7 of 7 (local removal complete; hosted cleanup pending)
+Status: Notifications removed locally; verification and hosted destructive cleanup remain
+Last activity: 2026-07-19 — owner removed notifications from product scope
 
-Progress: [█░░░░░░░░░] 14% (1/7 Phase 03 plans executed)
+Progress: [█████████░] 86% (6/7 Phase 03 plans executed)
 
 ## Performance Metrics
 
@@ -144,6 +144,7 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Paginate complete hosted job snapshots because evidence reconciliation cannot be safe when the provider default silently truncates rows.
 - [Phase 02.1]: Record the offline removal hang as a real deferred gap, not a pass; the user chose to move on without running human Checks 6-8.
 - [Phase 03]: Use GPT-5.4 nano through OpenAI Responses (`store:false`, strict Structured Outputs, reasoning none) for extraction/scoring; ChatGPT Pro is separate from API billing; compare GPT-5.6 Luna only if fewer than 16/20 representative scores pass human quality review.
+- [Phase 03]: Remove browser push, email alerts, alert tuning, and notification persistence; scored matches are feed-only. — Owner decision on 2026-07-19.
 
 ### Quick Tasks Completed
 
@@ -163,7 +164,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-19T04:05:48.251Z
-Stopped at: Phase 03 Plan 01 complete; Plan 02 Task 1 awaits OpenAI API key and API billing/credits
+Last session: 2026-07-19T20:30:00-05:00
+Stopped at: Phase 03 Plan 07 local notification removal complete; hosted cleanup/deploy awaits explicit approval
 Resume file: `.planning/phases/03-scoring-feed-notifications/.continue-here.md`
-Last session (2026-07-19): Plan 03-07 Part A local scripts written + verified (VAPID generator ran clean; both TS verifiers type-strip clean); uncommitted. Part B remains, fully blocked pending Resend creds + per-step approvals.
+Last session (2026-07-19): Notification sender, client, service worker, controls, tests, verifier, VAPID tooling/key, and schema were removed locally. Hosted `notify-tick`, cron/data, secrets, and frontend remain until approval.

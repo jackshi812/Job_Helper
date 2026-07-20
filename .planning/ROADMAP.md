@@ -2,7 +2,7 @@
 
 ## Overview
 
-Four vertical phases plus an inserted source-coverage phase, each ending with something two real users can exercise end-to-end. Phase 1 stands up the deployed app with invite-only auth and airtight per-user data isolation. Phase 2 builds the core ingestion engine. Phase 02.1 broadens that engine from three public ATS APIs to representative public portals and major branded finance career sites before scoring depends on it. Phase 3 closes the promise loop with filtering, AI scoring, and notifications. Phase 4 turns matches into applications with truthful resume tailoring and a manual tracker.
+Four vertical phases plus an inserted source-coverage phase, each ending with something two real users can exercise end-to-end. Phase 1 stands up the deployed app with invite-only auth and airtight per-user data isolation. Phase 2 builds the core ingestion engine. Phase 02.1 broadens that engine from three public ATS APIs to representative public portals and major branded finance career sites before scoring depends on it. Phase 3 closes the relevance loop with filtering, AI scoring, and a focused feed. Phase 4 turns matches into applications with truthful resume tailoring and a manual tracker.
 
 ## Phases
 
@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation & Access** - Deployed app with invite-only auth for two users and RLS-enforced data isolation (completed 2026-07-16)
 - [x] **Phase 2: Watchlist Ingestion & Monitoring** - New postings from 100+ watched sites land deduplicated within 5–15 minutes, with visible pipeline health (completed 2026-07-17)
 - [ ] **Phase 02.1: Source Coverage Expansion (INSERTED)** - Prove representative ATS/portal connectors and direct ingestion from major branded finance career sites with safe degraded-source behavior (13/13 plans executed; user-deferred UAT gap)
-- [ ] **Phase 3: Scoring, Feed & Notifications** - Preferences + cheap filters + AI scoring produce a match feed, and strong matches trigger push + email alerts
+- [ ] **Phase 3: Scoring & Feed** - Preferences + cheap filters + AI scoring produce a focused match feed
 - [ ] **Phase 4: Resume Tailoring & Tracker** - Truthful DOCX-preserving tailoring to PDF with mandatory review, plus a manual application tracker
 
 ## Phase Details
@@ -151,28 +151,25 @@ Plans:
 
 - [x] 02.1-13-PLAN.md — Final human D5 UAT concluded: Checks 1-4 passed; offline removal timeout failed; Checks 6-8 deferred by user
 
-### Phase 3: Scoring, Feed & Notifications
+### Phase 3: Scoring & Feed
 
-**Goal**: User is alerted within minutes of a relevant new posting — cheap filters gate AI cost, AI scores survivors against the user's own resume and preferences, and only deduplicated matches above the user's threshold notify
+**Goal**: Relevant new postings reach a focused feed within minutes — cheap filters gate AI cost and AI scores survivors against the user's own resume and preferences
 **Mode:** mvp
 **Depends on**: Phase 02.1
-**Requirements**: PREF-01, RESU-01, SCOR-01, SCOR-02, SCOR-03, SCOR-04, SCOR-05, NOTF-01, NOTF-02, NOTF-03, NOTF-04
+**Requirements**: PREF-01, RESU-01, SCOR-01, SCOR-02, SCOR-03, SCOR-04, SCOR-05
 **Success Criteria** (what must be TRUE):
 
   1. User can set target titles, locations, and include/exclude keywords, and obviously irrelevant postings are discarded by cheap filters before any AI call is made
   2. User can upload and manage multiple DOCX base resumes in private encrypted storage, and surviving postings receive AI scores with plain-language match reasons grounded in that resume and the user's preferences
   3. User can view a dashboard feed of new matches showing score, match reasons, posted-time, and a direct link to the employer's apply page, plus a job detail view with the full JD snapshot and an advisory keyword-gap panel
-  4. A strong match triggers a browser web push (with the tab closed while the browser runs) and a backup email that respects the free-tier digest cap — and notifications fire only for deduplicated, scored jobs above the user's threshold
-  5. User can tune their own score threshold and quiet hours, and alerts respect both
-
-**Plans**: 4/7 plans executed
+**Plans**: 6/7 plans executed
 
 - [x] 03-01-PLAN.md
 - [x] 03-02-PLAN.md
 - [x] 03-03-PLAN.md
 - [x] 03-04-PLAN.md
-- [ ] 03-05-PLAN.md
-- [ ] 03-06-PLAN.md
+- [x] 03-05-PLAN.md — notification backend (superseded and removed by Plan 07)
+- [x] 03-06-PLAN.md — notification UI (superseded and removed by Plan 07)
 - [ ] 03-07-PLAN.md
 
 **UI hint**: yes
@@ -204,12 +201,12 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
 | 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
 | 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
 | 02.1 Source Coverage Expansion | 13/13 | Gaps found (deferred) |  |
-| 3. Scoring, Feed & Notifications | 4/7 | In Progress|  |
+| 3. Scoring & Feed | 6/7 | In Progress|  |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
 
-All 36 v1 requirements mapped to exactly one phase:
+All 32 v1 requirements mapped to exactly one phase:
 
 | Category | Requirements | Phase |
 |----------|--------------|-------|
@@ -220,7 +217,6 @@ All 36 v1 requirements mapped to exactly one phase:
 | Discovery & Monitoring | DISC-01..06 | Phase 2 |
 | Discovery & Monitoring | DISC-07..09 | Phase 02.1 |
 | Scoring & Feed | SCOR-01..05 | Phase 3 |
-| Notifications | NOTF-01..04 | Phase 3 |
 | Resume Tailoring | RESU-01 | Phase 3 |
 | Resume Tailoring | RESU-02..05 | Phase 4 |
 | Tracker | TRAK-01..04 | Phase 4 |
@@ -232,4 +228,4 @@ Notes:
 
 ---
 *Roadmap created: 2026-07-15*
-*Granularity: coarse (research's 6 suggested phases compressed to 4 along the dependency chain: auth/RLS → ingestion+dedupe → filtering/scoring+notifications → tailoring+tracker)*
+*Granularity: coarse (research's 6 suggested phases compressed to 4 along the dependency chain: auth/RLS → ingestion+dedupe → filtering/scoring/feed → tailoring+tracker)*

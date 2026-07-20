@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 
 export const PREFERENCE_COLUMNS =
-  'user_id, titles, locations, include_keywords, exclude_keywords, notify_threshold, quiet_start, quiet_end, digest_time, timezone, updated_at'
+  'user_id, titles, locations, include_keywords, exclude_keywords, updated_at'
 
 export interface PreferencesRecord {
   user_id: string
@@ -9,11 +9,6 @@ export interface PreferencesRecord {
   locations: string[]
   include_keywords: string[]
   exclude_keywords: string[]
-  notify_threshold: number
-  quiet_start: string | null
-  quiet_end: string | null
-  digest_time: string
-  timezone: string
   updated_at: string
 }
 
@@ -22,11 +17,6 @@ export interface SavePreferencesInput {
   locations: string[]
   include_keywords: string[]
   exclude_keywords: string[]
-  notify_threshold?: number
-  quiet_start?: string | null
-  quiet_end?: string | null
-  digest_time?: string
-  timezone?: string
 }
 
 // Split a raw text input into normalized chips: comma-separated, trimmed,
