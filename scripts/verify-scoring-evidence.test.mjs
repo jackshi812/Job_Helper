@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { validateEvidenceText } from './verify-scoring-evidence.mjs'
+import {
+  validateEvidenceArguments,
+  validateEvidenceText,
+} from './verify-scoring-evidence.mjs'
 
 const SHA = 'a'.repeat(40)
 const ASSET_SHA = 'b'.repeat(64)
@@ -132,4 +135,26 @@ test('paid mode rejects release mismatch and proof contradictions', () => {
     () => validateEvidenceText('paid', evidenceText(paid({ cron_restored_exactly: 'false' }))),
     /cron_restored_exactly must equal true/,
   )
+})
+
+test('paid CLI contract accepts rollout and proof paths in documented order', async () => {
+  const loaded = []
+  const documents = new Map([
+    ['rollout.md', evidenceText(rollout())],
+    ['proof.md', evidenceText(paid())],
+  ])
+
+  const result = await validateEvidenceArguments(
+    ['--paid', 'rollout.md', 'proof.md'],
+    async (mode, filePath) => {
+      loaded.push([mode, filePath])
+      return validateEvidenceText(mode, documents.get(filePath))
+    },
+  )
+
+  assert.equal(result.mode, 'paid')
+  assert.deepEqual(loaded, [
+    ['rollout', 'rollout.md'],
+    ['paid', 'proof.md'],
+  ])
 })

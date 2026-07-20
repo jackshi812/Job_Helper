@@ -5,6 +5,7 @@ import { test } from 'node:test'
 import {
   FAILURE_INJECTION_STAGES,
   claimForLatch,
+  collectPaginatedRows,
   runFreshnessVerification,
 } from './verify-scoring-freshness.ts'
 
@@ -261,6 +262,29 @@ test('expired latch admits neither ordinary nor matching verification claims', (
   assert.deepEqual(claimForLatch(latch, RUN_ID, 101), [])
   assert.deepEqual(claimForLatch(latch, MISMATCHED_RUN_ID, 99), [])
   assert.deepEqual(claimForLatch(latch, RUN_ID, 99), FIXTURE_IDS)
+})
+
+test('snapshot pagination reads all rows beyond one hosted response page', async () => {
+  const hostedRows = Array.from({ length: 2_992 }, (_, index) => ({
+    id: `row-${String(index).padStart(4, '0')}`,
+  }))
+  const ranges = []
+
+  const rows = await collectPaginatedRows(async (from, to) => {
+    ranges.push([from, to])
+    return {
+      rows: hostedRows.slice(from, to + 1),
+      count: hostedRows.length,
+    }
+  })
+
+  assert.equal(rows.length, 2_992)
+  assert.deepEqual(rows, hostedRows)
+  assert.deepEqual(ranges, [
+    [0, 999],
+    [1_000, 1_999],
+    [2_000, 2_991],
+  ])
 })
 
 test('tick failure is never retried and cleanup still releases the latch', async () => {
