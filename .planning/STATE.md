@@ -2,44 +2,44 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 03
-current_phase_name: scoring-feed-notifications
-status: verification_gaps
-stopped_at: Phase 03 verification found four blockers
-last_updated: "2026-07-20T20:02:35Z"
+current_phase: 4
+current_phase_name: Resume Tailoring & Tracker
+status: ready_to_plan
+stopped_at: Phase 3 complete; ready to plan Phase 4
+last_updated: "2026-07-20T21:18:08.220Z"
 last_activity: 2026-07-20
-last_activity_desc: Completed 11/11 plans and recorded Phase 03 verification gaps
+last_activity_desc: Phase 3 complete, transitioned to Phase 4
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 34
   completed_plans: 34
-  percent: 100
+  percent: 80
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-17)
+See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 03 verification gap closure
+**Current focus:** Phase 4 — Resume Tailoring & Tracker
 
 ## Current Position
 
-Phase: 03 (scoring-feed-notifications) — VERIFICATION GAPS
-Plan: 11 of 11
-Status: Four verification blockers require gap-closure planning
-Last activity: 2026-07-20 — Completed 11/11 plans; verifier scored 13/17 must-haves
+Phase: 4 — Resume Tailoring & Tracker
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-07-20 — Phase 3 complete, transitioned to Phase 4
 
-Progress: [██████████] 100% (11/11 Phase 03 plans executed; phase not verified)
+Progress: [████████████████████] 34/34 planned plans complete; milestone 4/5 phases complete (80%)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 14
+- Total plans completed: 34
 - Average duration: 45m
 - Total execution time: 627m
 
@@ -50,11 +50,12 @@ Progress: [██████████] 100% (11/11 Phase 03 plans executed; 
 | Phase 01 | 3 | 342m | 114m |
 | Phase 02 | 7 | 251m | 36m |
 | Phase 02.1 | 4 | 34m | 9m |
+| 3 | 11 | - | - |
 
 **Recent Trend:**
 
 - Last 3 plans: 8m, 10m, 8m
-- Trend: Compact source-coverage plans now include lifecycle safety, registry authority, catalog UI, and two bounded public connectors
+- Trend: Phase 3 closed 11/11 plans, 17/17 verification truths, 52/52 security threats, and 8/8 human UAT
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
@@ -151,12 +152,15 @@ Recent decisions affecting current work:
 - [Phase 03]: Authorize score reuse only when the complete server-computed semantic input hash matches; use desired revisions solely as CAS publication fences.
 - [Phase 03]: While the short-lived scoring-verification latch is active, suppress ordinary and mismatched claims before seeding and permit only its two registered existing fixture rows.
 - [Phase 03]: Keep scoring provider-agnostic after dedup; every claimed job passes the same cheap filter before routing, hashing, or paid AI work.
-- [Phase 03]: Require scored, score >=50, nondismissed, needs_refilter=false, and open job state for focused-feed visibility. — Prevents stale, closed, weak, failed, filtered, or pending rows from appearing as current matches while preserving All jobs diagnostics.
+- [Phase 03]: Require preference-pass and open job state for All jobs; additionally require scored, score >=50, nondismissed, and needs_refilter=false for Focused. — Weak preference failures stay out of both views while every confirmed preference pass remains inspectable regardless of score.
 - [Phase 03]: Prefer normalized companies.name, then bounded source_company_name, and withhold identity-less feed rows. — Every displayed provider row has truthful nonblank identity without fabricated labels.
 - [Phase 03]: Cancel and remove feed cache only after preference upsert plus revision signal succeed, then invalidate feed and preferences. — A success message cannot coexist with stale focused rows, while failures retain cache and editable chips for retry.
 - [Phase 03]: Apply migration 0025 from a checksum-matched isolated project containing no migration 0026; 0026 remains pending remotely. — This made the approved production schema mutation structurally incapable of applying the later local migration.
 - [Phase 03]: Deploy only score-tick with verify_jwt=false so its existing x-cron-secret handler boundary remains authoritative. — The scheduled caller uses a dedicated shared-secret boundary rather than a user JWT.
 - [Phase 03]: Bind the frontend release through the exact GitHub check-run SHA, Cloudflare deployment metadata, deployment URL, and immutable asset SHA-256. — Cross-provider identity and immutable content evidence prevent acceptance of a stale mutable production URL.
+- [Phase 03]: Apply trustworthy ZIP metadata preflight before Mammoth or any other DOCX-expanding parser. — Hostile archives fail before expansion.
+- [Phase 03]: Count paid scoring capacity per physical request by combining atomic reservation with `maxAttempts: 1`. — The authorized daily ceiling cannot multiply through retries.
+- [Phase 03]: Use a disposable verifier account only inside the paused/drained interval and bind paid proof plus UAT to one immutable release. — Production proof cannot overwrite real-user state or validate a stale release.
 
 ### Pending Todos
 
@@ -174,10 +178,6 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- [Phase 3 verification]: DOCX archive bounds run after Mammoth starts expanding untrusted content.
-- [Phase 3 verification]: The 499 logical-score reservation ceiling can permit up to 1,497 physical OpenAI attempts through retries.
-- [Phase 3 verification]: The production verifier can overwrite concurrent real-user preference or reroute changes during unconditional cleanup.
-- [Phase 3 verification]: Paid proof and final 7/7 UAT are bound to different immutable releases; the final asset hash is not recorded.
 - [Phase 2 verification]: cron-job.org failure email delivery and HTTP 200 recovery were observed, but recovery-email receipt was user-waived and remains unverified; do not record it as passed.
 - [Phase 02.1 UAT]: offline Watchlist removal can remain indefinitely at `Removing…` with both actions disabled and no modal error. Curi Capital remained after recovery. The user accepted deferring the fix and Checks 6-8; do not record the behavior as passed.
 - [Phase 4]: Highest-uncertainty area (DOCX XML run-splitting, truthful-edit prompting, CloudConvert fidelity + PII posture) — research flagged for deeper research during planning
@@ -188,7 +188,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-20T16:26:45.887Z
-Stopped at: Completed 03-10-PLAN.md
+Last session: 2026-07-20T21:18:08.220Z
+Stopped at: Phase 3 complete; ready to plan Phase 4
 Resume file: None
-Last session (2026-07-20): Plan 03-10 deployed only migration 0025, score-tick v3, and exact SHA c15ad867 to Cloudflare production with validated release evidence and zero verifier/manual-tick/maintenance/OpenAI effects. Plan 03-11 requires separate paid-run approval.
+Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

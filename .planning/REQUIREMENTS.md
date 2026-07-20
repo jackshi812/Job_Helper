@@ -44,7 +44,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Resume Tailoring
 
-- [ ] **RESU-01**: User can upload and manage multiple base resumes as DOCX files, stored in private encrypted storage
+- [x] **RESU-01**: User can upload and manage multiple base resumes as DOCX files, stored in private encrypted storage
 - [ ] **RESU-02**: User can pick a base resume for a job and receive AI-suggested keyword edits that preserve the DOCX formatting
 - [ ] **RESU-03**: AI edits are truthful-only: rephrase/reorder/emphasize existing facts, never invent skills or experience; new-term diff against source resume enforced programmatically
 - [ ] **RESU-04**: User reviews edits in a word-level diff view and must approve before any edit lands
@@ -116,7 +116,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCOR-03 | Phase 3 | Complete |
 | SCOR-04 | Phase 3 | Complete |
 | SCOR-05 | Phase 3 | Complete |
-| RESU-01 | Phase 3 | Pending |
+| RESU-01 | Phase 3 | Complete |
 | RESU-02 | Phase 4 | Pending |
 | RESU-03 | Phase 4 | Pending |
 | RESU-04 | Phase 4 | Pending |
@@ -134,4 +134,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-07-15*
-*Last updated: 2026-07-19 after removing notifications from v1*
+*Last updated: 2026-07-20 after Phase 3 completion*
