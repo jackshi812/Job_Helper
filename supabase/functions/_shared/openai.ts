@@ -37,6 +37,9 @@ export interface GenerateStructuredOptions {
   schemaName: string
   responseSchema: object
   apiKey: string
+  // Callers with a separately reserved physical-request budget must set this
+  // to 1. Other callers retain the bounded three-attempt transient retry policy.
+  maxAttempts?: number
 }
 
 interface ResponsesContentItem {
@@ -99,6 +102,11 @@ function mapUsage(body: ResponsesBody): OpenAIUsage {
 export async function generateStructured(
   opts: GenerateStructuredOptions,
 ): Promise<{ result: unknown; usage: OpenAIUsage }> {
+  const maxAttempts = opts.maxAttempts ?? RETRY_BACKOFF_MS.length + 1
+  if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > RETRY_BACKOFF_MS.length + 1) {
+    throw new Error('openai_invalid_attempt_limit')
+  }
+
   const requestBody = {
     model: opts.model,
     store: false,
@@ -120,7 +128,7 @@ export async function generateStructured(
   }
 
   let lastRetryableStatus = 0
-  for (let attempt = 0; attempt <= RETRY_BACKOFF_MS.length; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const response = await fetch(OPENAI_RESPONSES_URL, {
       method: 'POST',
       headers: {
@@ -134,7 +142,7 @@ export async function generateStructured(
       // Drain the body so the connection can be reused; never inspect/log it.
       await response.text().catch(() => undefined)
       const status = response.status
-      if ((status === 429 || status >= 500) && attempt < RETRY_BACKOFF_MS.length) {
+      if ((status === 429 || status >= 500) && attempt + 1 < maxAttempts) {
         lastRetryableStatus = status
         await sleep(RETRY_BACKOFF_MS[attempt])
         continue

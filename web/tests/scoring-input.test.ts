@@ -326,6 +326,7 @@ describe('score-tick isolation and survivor ordering contract', () => {
     expect(ai).toBeGreaterThan(reserve)
     expect(worker.slice(handler, claim)).not.toContain(".from('ai_usage')")
     expect(worker).toContain("return 'budget_deferred'")
+    expect(worker).toMatch(/generateStructured\(\{[\s\S]*?maxAttempts:\s*1[\s\S]*?\}\)/)
   })
 
   it('serializes exact-cap reservations and defers only paid rows until UTC rollover', () => {

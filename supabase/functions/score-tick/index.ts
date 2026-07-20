@@ -361,6 +361,9 @@ async function processRow(
     schemaName: 'job_score',
     responseSchema: SCORE_SCHEMA,
     apiKey: openaiKey,
+    // One atomic reservation must equal one physical provider request. Retrying
+    // here would let a logical-score ceiling undercount real paid attempts.
+    maxAttempts: 1,
   })
 
   // Never trust model arithmetic: clamp score, re-derive tier via tierFor.
