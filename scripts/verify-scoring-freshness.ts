@@ -360,6 +360,15 @@ export function assertDedicatedVerifierUser(
   }
 }
 
+export function buildVerifierPassword() {
+  const password = `${crypto.randomUUID()}Aa1!`
+  const byteLength = new TextEncoder().encode(password).byteLength
+  if (byteLength < 12 || byteLength > 72) {
+    throw new Error('Dedicated verifier password length is invalid')
+  }
+  return password
+}
+
 function assertUuid(value: string, label: string) {
   if (!UUID_PATTERN.test(value)) throw new Error(`${label} is not a UUID`)
 }
@@ -474,7 +483,7 @@ export function createProductionAdapters(env: ProductionEnvironment): FreshnessA
         throw new Error('Dedicated verifier account already exists')
       }
 
-      const password = `${crypto.randomUUID()}-${crypto.randomUUID()}Aa1!`
+      const password = buildVerifierPassword()
       const { data: created, error: createError } = await admin.auth.admin.createUser({
         email: verifierEmail,
         password,

@@ -83,3 +83,30 @@ no account, fixture, latch, verifier tick, or paid request was created.
 The next local correction uses a short per-run email nonce so a deleted identity
 is never reused. The account remains service-tagged, is still created only after
 cron pause/drain, and is still deleted before cron restoration.
+
+## Zero-paid auth preflight on `96c58db`
+
+status: failed_before_account_creation
+approval_signal: approve
+git_sha: 96c58db
+account_created: false
+resume_created: false
+score_tick_invocations: 0
+openai_calls_by_preflight: 0
+verifier_auth_residue_count: 0
+maintenance_residue_count: 0
+cron_restored_active: true
+global_request_ledger_at_audit: 359
+failure: bcrypt password length exceeds 72 bytes
+
+The one approved zero-paid auth preflight used a unique service-tagged identity
+and no resume, but Supabase Auth rejected it before insertion. A narrow read-only
+Auth log query identified the exact server panic: the generated password was 77
+bytes and exceeded bcrypt's 72-byte maximum. The healthy `handle_new_user`
+trigger, profile constraints, two real auth users, and zero verifier users ruled
+out the earlier deleted-email hypothesis. The global ledger moved once while the
+ordinary cron remained active; the preflight could not cause an OpenAI call
+because no auth user or resume was created.
+
+The local correction now generates a 40-byte password and enforces a 12–72 byte
+invariant in a dedicated regression test.

@@ -5,6 +5,7 @@ import { test } from 'node:test'
 import {
   FAILURE_INJECTION_STAGES,
   assertDedicatedVerifierUser,
+  buildVerifierPassword,
   buildCronActiveSql,
   claimForLatch,
   collectPaginatedRows,
@@ -328,6 +329,16 @@ test('production verification accepts only the configured service-tagged verifie
     () => assertDedicatedVerifierUser(verifier, 'real-user@example.com'),
     /email mismatch/,
   )
+})
+
+test('disposable verifier password stays within the bcrypt byte limit', () => {
+  const password = buildVerifierPassword()
+  assert.ok(Buffer.byteLength(password, 'utf8') >= 12)
+  assert.ok(Buffer.byteLength(password, 'utf8') <= 72)
+  assert.match(password, /[A-Z]/)
+  assert.match(password, /[a-z]/)
+  assert.match(password, /\d/)
+  assert.match(password, /[^A-Za-z0-9]/)
 })
 
 test('tick failure is never retried and cleanup still releases the latch', async () => {
