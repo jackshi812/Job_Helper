@@ -38,6 +38,10 @@ const KNOWN_ERROR_CODES = new Set([
   'docx_too_many_entries',
   'docx_uncompressed_too_large',
   'docx_xml_too_large',
+  'docx_zip64_unsupported',
+  'docx_encrypted_unsupported',
+  'docx_compression_unsupported',
+  'docx_size_mismatch',
   'storage_download_failed',
   'timeout',
 ])
