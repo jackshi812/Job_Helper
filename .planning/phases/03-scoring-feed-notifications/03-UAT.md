@@ -9,13 +9,17 @@ source:
   - 03-07-PLAN.md
   - 03-11-PLAN.md
   - 03-11-PAID-PROOF.md
+  - 03-FINAL-ROLLOUT-EVIDENCE.md
+  - 03-FINAL-PAID-PROOF.md
 started: 2026-07-20T03:53:29Z
-updated: 2026-07-20T19:42:27Z
-git_sha: 1eb7525fa02b6641543e147ac36caf21cfe7c646
+updated: 2026-07-20T21:12:01Z
+git_sha: 020295200ff3e48db4d685f5382c10f406ca7967
 migration: 0027
-score_tick_version: 5
+score_tick_version: 6
 score_tick_deployment: ae6c147f-c3a8-417e-8057-d4105ac9aed5
-cloudflare_deployment: 3173f84e-07e6-4432-b950-2b6adea187a4
+extract_resume_version: 3
+extract_resume_deployment: 9358db1a-95fc-49bc-a684-b98fb8eceff9
+cloudflare_deployment: 877499ee-f1ad-4067-b8f2-b5c152954141
 asset_path: /assets/index-lyvShdhx.js
 asset_sha256: a6f11edc4d18ed264233d5d17e2fd2005e9064036ec09409cf95761498013d66
 ---
@@ -68,10 +72,16 @@ expected: Settings contains no push, email, digest, quiet-hours, alert-threshold
 result: pass
 reported: "all tests pass"
 
+### 8. Final-release dashboard binding
+expected: Refresh the production Dashboard on release 0202952. Matches load, All jobs contains only preference-passing jobs regardless of score, and Focused contains only jobs scoring 50 or higher.
+result: pass
+reported: "pass"
+notes: "This final confirmation binds human UAT to the same git, migration, Edge Function, Cloudflare deployment, immutable asset SHA-256, and paid-proof identities recorded in this file. The frontend asset is byte-identical to the earlier seven-test UAT release."
+
 ## Summary
 
-total: 7
-passed: 7
+total: 8
+passed: 8
 issues: 0
 pending: 0
 skipped: 0
