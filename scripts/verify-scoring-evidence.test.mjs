@@ -64,12 +64,14 @@ function paid(overrides = {}) {
     negative_fixture_outcome: 'filtered',
     owned_global_usage_delta: '1',
     other_global_usage_delta: '0',
+    maintenance_runs_started: '1',
     rows_restored_exactly: 'true',
     preferences_restored_exactly: 'true',
     latch_released_or_expired: 'true',
     cron_restored_exactly: 'true',
     residue_count: '0',
-    openai_calls_by_plan_03_10: '1',
+    openai_calls_by_plan_03_10: '0',
+    openai_calls_by_plan_03_11: '1',
     ...overrides,
   }
 }

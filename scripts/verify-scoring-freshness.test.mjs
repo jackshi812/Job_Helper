@@ -40,6 +40,7 @@ function fakeAdapters({ failAt = null, expireBeforeTick = false } = {}) {
     restoredData: false,
     restoredPreferences: false,
     usageSnapshot: null,
+    lateEvents: { job: false, preference: false, reroute: false },
   }
 
   function step(name, result) {
@@ -102,13 +103,20 @@ function fakeAdapters({ failAt = null, expireBeforeTick = false } = {}) {
       return step('protect_nonfixtures')
     },
     async injectLateJob() {
-      return step('inject_late_job', () => state.residue.add('late-job'))
+      return step('inject_late_job', () => {
+        state.lateEvents.job = true
+        state.residue.add('late-job')
+      })
     },
     async injectLatePreferenceSignal() {
-      return step('inject_late_preference')
+      return step('inject_late_preference', () => {
+        state.lateEvents.preference = true
+      })
     },
     async injectLateReroute() {
-      return step('inject_late_reroute')
+      return step('inject_late_reroute', () => {
+        state.lateEvents.reroute = true
+      })
     },
     async proveAuthenticatedWritesDenied() {
       return step('prove_authenticated_write_denial')
@@ -183,13 +191,26 @@ function before(events, first, second) {
 
 test('success uses latch isolation and the sole matching claim is the one tick adapter call', async () => {
   const { adapters, state } = fakeAdapters()
-  const result = await runFreshnessVerification(adapters)
+  const originalFetch = globalThis.fetch
+  let networkCalls = 0
+  globalThis.fetch = async () => {
+    networkCalls += 1
+    throw new Error('real network is forbidden in unit tests')
+  }
+  let result
+  try {
+    result = await runFreshnessVerification(adapters)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 
+  assert.equal(networkCalls, 0)
   assert.deepEqual(result.fixtureUserJobIds, FIXTURE_IDS)
   assert.equal(state.fixtureIds.length, 2)
   assert.equal(state.tickCalls, 1)
   assert.equal(state.matchingDirectClaims, 0)
   assert.deepEqual(state.directClaims, [null, MISMATCHED_RUN_ID])
+  assert.deepEqual(state.lateEvents, { job: true, preference: true, reroute: true })
   before(state.events, 'pause_cron', 'preseed_current_pairs')
   before(state.events, 'read_paused_cron', 'preseed_current_pairs')
   before(state.events, 'prove_quiescent', 'preseed_current_pairs')
@@ -214,6 +235,10 @@ test('all declared setup/runtime failures continue nested cleanup and restore cr
     const pauseIndex = state.events.indexOf('pause_cron')
     const mutationIndex = state.events.indexOf('preseed_current_pairs')
     if (mutationIndex >= 0) assert.ok(pauseIndex >= 0 && pauseIndex < mutationIndex, failAt)
+    if (mutationIndex >= 0) {
+      assert.ok(state.events.indexOf('read_paused_cron') < mutationIndex, failAt)
+      assert.ok(state.events.indexOf('prove_quiescent') < mutationIndex, failAt)
+    }
     if (pauseIndex >= 0 && failAt !== 'pause_cron') {
       assert.ok(state.events.includes('restore_cron'), `${failAt}: cron restore not attempted`)
       assert.ok(
@@ -223,6 +248,9 @@ test('all declared setup/runtime failures continue nested cleanup and restore cr
     }
     if (state.events.includes('begin_latch') && failAt !== 'begin_latch') {
       assert.ok(state.events.includes('end_latch'), `${failAt}: latch end not attempted`)
+    }
+    if (state.events.includes('snapshot_data') && failAt !== 'snapshot_data') {
+      assert.ok(state.events.includes('restore_data'), `${failAt}: data restore not attempted`)
     }
   }
 })
