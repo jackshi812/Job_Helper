@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteResume, uploadResume } from './resumes'
+import { defaultDisplayName, deleteResume, resumeLabel, uploadResume } from './resumes'
 import { supabase } from './supabase'
 
 vi.mock('./supabase', () => ({
@@ -39,6 +39,7 @@ describe('uploadResume', () => {
     const row = {
       id: '33333333-3333-4333-8333-333333333333',
       filename: 'Jack Resume.pdf',
+      display_name: null,
       storage_path: `${user.id}/${uuid}.pdf`,
       size_bytes: 3,
       created_at: '2026-07-16T00:00:00.000Z',
@@ -56,6 +57,7 @@ describe('uploadResume', () => {
     )
     expect(insert).toHaveBeenCalledWith({
       filename: row.filename,
+      display_name: null,
       storage_path: `${user.id}/${uuid}.pdf`,
       size_bytes: 3,
     })
@@ -76,6 +78,85 @@ describe('uploadResume', () => {
 
     await expect(uploadResume(new File(['docx'], 'resume.docx'))).rejects.toThrow('insert failed')
     expect(remove).toHaveBeenCalledWith([`${user.id}/44444444-4444-4444-8444-444444444444.docx`])
+  })
+
+  describe('display name', () => {
+    // Returns the `insert` spy so each case can assert on the persisted payload.
+    function mockSuccessfulUpload() {
+      vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('55555555-5555-4555-8555-555555555555')
+      vi.mocked(supabase.auth.getUser).mockResolvedValue({ data: { user }, error: null } as never)
+      vi.mocked(supabase.storage.from).mockReturnValue({
+        upload: vi.fn().mockResolvedValue({ data: {}, error: null }),
+        remove: vi.fn(),
+      } as never)
+      const single = vi.fn().mockResolvedValue({ data: {}, error: null })
+      const insert = vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single }) })
+      vi.mocked(supabase.from).mockReturnValue({ insert } as never)
+      return insert
+    }
+
+    it('stores null when no display name is supplied', async () => {
+      const insert = mockSuccessfulUpload()
+
+      await uploadResume(new File(['pdf'], 'resume.pdf'))
+
+      expect(insert).toHaveBeenCalledWith(expect.objectContaining({ display_name: null }))
+    })
+
+    it('trims a supplied display name before storing it', async () => {
+      const insert = mockSuccessfulUpload()
+
+      await uploadResume(new File(['pdf'], 'resume.pdf'), '  Backend CV  ')
+
+      expect(insert).toHaveBeenCalledWith(expect.objectContaining({ display_name: 'Backend CV' }))
+    })
+
+    it('collapses a whitespace-only display name to null', async () => {
+      const insert = mockSuccessfulUpload()
+
+      await uploadResume(new File(['pdf'], 'resume.pdf'), '   ')
+
+      expect(insert).toHaveBeenCalledWith(expect.objectContaining({ display_name: null }))
+    })
+
+    it('validates the file extension, never the display name', async () => {
+      const file = new File(['plain text'], 'resume.txt', { type: 'text/plain' })
+
+      // A display name ending in an allowed extension must not smuggle the file past
+      // validation — allowedExtension reads file.name only (T-WUI-02).
+      await expect(uploadResume(file, 'Anything.pdf')).rejects.toThrow('Only DOCX and PDF files are allowed')
+      expect(supabase.auth.getUser).not.toHaveBeenCalled()
+      expect(supabase.storage.from).not.toHaveBeenCalled()
+      expect(supabase.from).not.toHaveBeenCalled()
+    })
+  })
+})
+
+describe('resumeLabel', () => {
+  it('prefers the display name when one is set', () => {
+    expect(resumeLabel({ display_name: 'Backend CV', filename: 'r.pdf' })).toBe('Backend CV')
+  })
+
+  it('falls back to the filename when the display name is null', () => {
+    expect(resumeLabel({ display_name: null, filename: 'r.pdf' })).toBe('r.pdf')
+  })
+})
+
+describe('defaultDisplayName', () => {
+  it('strips the final extension', () => {
+    expect(defaultDisplayName('Jack Resume.pdf')).toBe('Jack Resume')
+  })
+
+  it('strips only the last dot-suffix', () => {
+    expect(defaultDisplayName('my.resume.v2.docx')).toBe('my.resume.v2')
+  })
+
+  it('returns a name with no dot unchanged', () => {
+    expect(defaultDisplayName('resume')).toBe('resume')
+  })
+
+  it('leaves dotfile-style names intact', () => {
+    expect(defaultDisplayName('.resume')).toBe('.resume')
   })
 })
 
