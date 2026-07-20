@@ -158,6 +158,12 @@ Recent decisions affecting current work:
 - [Phase 03]: Deploy only score-tick with verify_jwt=false so its existing x-cron-secret handler boundary remains authoritative. — The scheduled caller uses a dedicated shared-secret boundary rather than a user JWT.
 - [Phase 03]: Bind the frontend release through the exact GitHub check-run SHA, Cloudflare deployment metadata, deployment URL, and immutable asset SHA-256. — Cross-provider identity and immutable content evidence prevent acceptance of a stale mutable production URL.
 
+### Pending Todos
+
+- 2 pending — see `.planning/todos/pending/`
+- Pilot Workday polling for 10 companies
+- Add entry-level-only job preference filter
+
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
