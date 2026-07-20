@@ -153,7 +153,7 @@ Plans:
 
 ### Phase 3: Scoring & Feed
 
-**Goal**: Relevant new postings reach a focused feed within minutes — cheap filters gate AI cost and AI scores survivors against the user's own resume and preferences
+**Goal:** As a new grad seeking an entry-level job, I want to review relevant jobs scored against my preferences and resume in a web dashboard, so that I can quickly focus on the strongest opportunities that best fit me.
 **Mode:** mvp
 **Depends on**: Phase 02.1
 **Requirements**: PREF-01, RESU-01, SCOR-01, SCOR-02, SCOR-03, SCOR-04, SCOR-05
@@ -162,7 +162,7 @@ Plans:
   1. User can set target titles, locations, and include/exclude keywords, and obviously irrelevant postings are discarded by cheap filters before any AI call is made
   2. User can upload and manage multiple DOCX base resumes in private encrypted storage, and surviving postings receive AI scores with plain-language match reasons grounded in that resume and the user's preferences
   3. User can view a dashboard feed of new matches showing score, match reasons, posted-time, and a direct link to the employer's apply page, plus a job detail view with the full JD snapshot and an advisory keyword-gap panel
-**Plans**: 6/7 plans executed
+**Plans**: 7/11 plans executed
 
 - [x] 03-01-PLAN.md
 - [x] 03-02-PLAN.md
@@ -170,7 +170,30 @@ Plans:
 - [x] 03-04-PLAN.md
 - [x] 03-05-PLAN.md — notification backend (superseded and removed by Plan 07)
 - [x] 03-06-PLAN.md — notification UI (superseded and removed by Plan 07)
-- [ ] 03-07-PLAN.md
+- [x] 03-07-PLAN.md — feed-only implementation and hosted cleanup complete; UAT title-filter gap transferred to Plans 08-11
+
+**Gap Closure Wave 1** *(blocked on Plan 07 completion)*
+
+- [ ] 03-08-PLAN.md — provider-agnostic title relevance, score freshness/CAS, truthful company persistence, and verifier latch
+
+**Gap Closure Wave 2** *(blocked on Gap Closure Wave 1)*
+
+- [ ] 03-09-PLAN.md — current-preference focused feed, truthful company display, and save-time cache invalidation
+
+**Gap Closure Wave 3** *(blocked on Gap Closure Wave 2)*
+
+- [ ] 03-10-PLAN.md — fail-closed verifier, rollout-only approval, deployment, and release evidence
+
+**Gap Closure Wave 4** *(blocked on Gap Closure Wave 3)*
+
+- [ ] 03-11-PLAN.md — separately approved one-shot paid proof and sequential human UAT
+
+**Cross-cutting constraints:**
+
+- All Adzuna, Greenhouse, and Ashby jobs use the same preference/title filter; no source-specific relevance bypass.
+- Company names must come from normalized provider/company data and are never fabricated.
+- Notifications remain absent from runtime, schema, secrets, client, and UI.
+- Production verification is one-shot, two-fixture scoped, exact-release bound, and separately approved from rollout.
 
 **UI hint**: yes
 
