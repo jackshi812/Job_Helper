@@ -258,7 +258,7 @@ export function deriveHealth(company: CompanyRecord, now = new Date()): HealthSt
 export function activationPresentation(row: WatchlistRow): ActivationPresentation {
   const capitalOneFilterNote = row.company_id
     && row.source_key === 'workday:wd12:capitalone:Capital_One'
-    ? ['Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; entry-level (senior titles and roles requiring 3+ years excluded).']
+    ? ['Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; required experience below 3 years (job title does not exclude a role).']
     : null
 
   if (row.activation_state === 'active') {

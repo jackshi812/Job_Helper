@@ -143,11 +143,11 @@ describe('Capital One Workday identity contract', () => {
       site_token: 'Capital_One',
       source_key: sourceKey,
       activation_state: 'active',
-    }, new Set())).resolves.toMatchObject({
+    }, new Set(['R123456']))).resolves.toMatchObject({
       completeness: 'complete',
       credibleForClosure: true,
       allowMissingClosure: false,
-      jobs: [],
+      jobs: [{ externalId: 'R123456', snapshotPartial: true }],
     })
     expect(providerFetch).toHaveBeenCalledTimes(1)
 
@@ -418,12 +418,18 @@ describe('recent Capital One Analysis and Finance import', () => {
     }
   }
 
-  it('details only recent non-senior category rows and retains U.S. roles requiring under three years', async () => {
-    const senior = {
+  it('uses required experience rather than seniority words in the title', async () => {
+    const titleOnlyCandidates = [
+      ['Senior Data Scientist', 'R100002'],
+      ['Principal Data Scientist', 'R100007'],
+      ['Data Science Manager', 'R100008'],
+      ['Lead Data Scientist', 'R100009'],
+      ['Director, Data Science', 'R100010'],
+    ].map(([title, id]) => ({
       ...recentPosting,
-      title: 'Senior Data Scientist',
-      externalPath: '/job/McLean-VA/Senior-Data-Scientist_R100002-1',
-    }
+      title,
+      externalPath: `/job/McLean-VA/${title.replaceAll(' ', '-')}_${id}-1`,
+    }))
     const old = {
       ...recentPosting,
       title: 'Data Analyst',
@@ -441,7 +447,7 @@ describe('recent Capital One Analysis and Finance import', () => {
       title: 'Business Analyst',
       externalPath: '/job/McLean-VA/Business-Analyst_R100005-1',
     }
-    const postings = [recentPosting, senior, old, uk, experienced]
+    const postings = [recentPosting, ...titleOnlyCandidates, old, uk, experienced]
     const providerFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input)
       if (url === listUrl) {
@@ -456,9 +462,15 @@ describe('recent Capital One Analysis and Finance import', () => {
           offset: 0,
           searchText: '',
         })
-        return jsonResponse({ total: postings.length, jobPostings: postings, facets: categoryFacets(4, 1) })
+        return jsonResponse({
+          total: postings.length,
+          jobPostings: postings,
+          facets: categoryFacets(postings.length - 1, 1),
+        })
       }
       if (url.endsWith(recentPosting.externalPath)) return jsonResponse(recentDetail(recentPosting, 'US', 1))
+      const titleOnlyCandidate = titleOnlyCandidates.find((posting) => url.endsWith(posting.externalPath))
+      if (titleOnlyCandidate) return jsonResponse(recentDetail(titleOnlyCandidate, 'US', 2))
       if (url.endsWith(uk.externalPath)) return jsonResponse(recentDetail(uk, 'GB', 1))
       if (url.endsWith(experienced.externalPath)) return jsonResponse(recentDetail(experienced, 'US', 3))
       throw new Error(`unexpected detail request: ${url}`)
@@ -466,19 +478,27 @@ describe('recent Capital One Analysis and Finance import', () => {
 
     const observation = await pollCapitalOneRecent(providerFetch, { nowMs })
 
-    expect(providerFetch).toHaveBeenCalledTimes(4)
+    expect(providerFetch).toHaveBeenCalledTimes(9)
     expect(observation).toMatchObject({
       completeness: 'complete',
       credibleForClosure: true,
       allowMissingClosure: false,
-      expectedCount: 1,
+      expectedCount: 6,
       warnings: [],
-      jobs: [{
-        externalId: 'R100001',
-        title: 'Data Science Internship',
-        location: 'McLean, VA',
-        snapshotPartial: false,
-      }],
+      jobs: [
+        {
+          externalId: 'R100001',
+          title: 'Data Science Internship',
+          location: 'McLean, VA',
+          snapshotPartial: false,
+        },
+        ...titleOnlyCandidates.map((posting) => ({
+          externalId: posting.externalPath.match(/_(R\d+)/)?.[1],
+          title: posting.title,
+          location: 'McLean, VA',
+          snapshotPartial: false,
+        })),
+      ],
     })
   })
 

@@ -315,13 +315,13 @@ describe('finance coverage presentation', () => {
     expect(activationPresentation(experimental)).toEqual({
       label: 'Experimental',
       details: [
-        'Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; entry-level (senior titles and roles requiring 3+ years excluded).',
+        'Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; required experience below 3 years (job title does not exclude a role).',
       ],
     })
     expect(activationPresentation({ ...experimental, activation_state: 'active' })).toEqual({
       label: 'Active',
       details: [
-        'Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; entry-level (senior titles and roles requiring 3+ years excluded).',
+        'Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; required experience below 3 years (job title does not exclude a role).',
       ],
     })
     expect(healthPresentation(experimental)).toEqual({
@@ -369,7 +369,7 @@ describe('finance coverage presentation', () => {
     expect(activationPresentation(experimental)).toEqual({
       label: 'Experimental',
       details: [
-        'Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; entry-level (senior titles and roles requiring 3+ years excluded).',
+        'Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; required experience below 3 years (job title does not exclude a role).',
       ],
     })
     expect(healthPresentation(experimental)).toEqual({

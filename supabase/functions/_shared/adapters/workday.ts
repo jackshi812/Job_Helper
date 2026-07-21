@@ -66,7 +66,6 @@ const DEFAULT_RECENT_DAYS = 7
 const DEFAULT_RECENT_MAX_PAGES = 30
 const DEFAULT_RECENT_MAX_LISTINGS = 600
 const DEFAULT_RECENT_MAX_DETAILS = 60
-const SENIOR_TITLE = /\b(?:senior|sr\.?|staff|principal|lead|director|vp|vice president|head of|chief|manager|mgr|executive|ii|iii|iv)\b/i
 const CAPITAL_ONE_CATEGORY_FACETS = Object.freeze({
   Analysis: 'a12c70bf789e105802e9caf800542991',
   Finance: 'a12c70bf789e105802e9de2c3b5f29a3',
@@ -115,7 +114,6 @@ function requiredExperienceMinimums(descriptionHtml: string) {
 }
 
 export function isEntryLevelWorkdayDetail(detail: WorkdayDetail) {
-  if (SENIOR_TITLE.test(detail.jobPostingInfo.title)) return false
   return requiredExperienceMinimums(detail.jobPostingInfo.jobDescription)
     .every((minimum) => minimum < 3)
 }
@@ -504,9 +502,9 @@ function mapRecentDetail(
 
 /**
  * Intentionally selective Capital One importer. It scans only the newest
- * Analysis and Finance listing window, performs expensive detail requests only
- * for recent non-senior candidates, keeps U.S. roles requiring under three
- * years of experience, and never
+ * Analysis and Finance listing window, performs detail requests for recent
+ * candidates, keeps U.S. roles whose stated required experience is under three
+ * years regardless of title, and never
  * treats absence from this selection as proof that a provider job closed.
  */
 export async function pollCapitalOneRecent(
@@ -608,10 +606,7 @@ export async function pollCapitalOneRecent(
       }
       seenPaths.add(posting.externalPath)
       const age = postedAgeDays(posting.postedOn)
-      if (
-        (age === null || age <= recentDays)
-        && !SENIOR_TITLE.test(posting.title)
-      ) candidates.push(posting)
+      if (age === null || age <= recentDays) candidates.push(posting)
     }
 
     reachedOlderPage = postings.length > 0
