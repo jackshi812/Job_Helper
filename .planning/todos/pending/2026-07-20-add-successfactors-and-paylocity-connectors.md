@@ -10,6 +10,11 @@ files:
   - supabase/migrations/
 ---
 
+> **Scope reset, 2026-07-20 (owner decision):** Both Paylocity and SAP SuccessFactors are
+> planned in Phase 03.1. New Workday expansion is deferred. SuccessFactors remains bounded
+> to exact employer-specific proof: a tenant without a safe, repeatable public contract is
+> recorded as `unsupported_with_reason`, never generalized into an HTML scraper.
+
 ## Problem
 
 Job Copilot cannot yet consistently verify, ingest, and monitor employers hosted on SAP SuccessFactors or Paylocity Recruiting. The user wants both ATS families added before Phase 4 so those companies can participate in the same truthful, deduplicated job pipeline as existing providers.

@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 03.1
-current_phase_name: Workday & ATS Connector Expansion
-status: ready_to_plan
-stopped_at: Phase 3 complete; ready to plan Phase 03.1
-last_updated: "2026-07-20T22:00:33.067Z"
+current_phase_name: SuccessFactors & Paylocity Connector Expansion
+status: executing
+stopped_at: Phase 03.1 replanned and verified; ready to execute Plan 01
+last_updated: "2026-07-21T02:05:20.604Z"
 last_activity: 2026-07-20
-last_activity_desc: Inserted connector and dashboard-precision phases; ready to plan Phase 03.1
+last_activity_desc: Replanned Phase 03.1 as five verified SuccessFactors/Paylocity plans with Workday expansion deferred
 progress:
   total_phases: 7
   completed_phases: 4
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 03.1 — Workday & ATS Connector Expansion
+**Current focus:** Phase 03.1 — SuccessFactors & Paylocity Connector Expansion
 
 ## Current Position
 
-Phase: 03.1 — Workday & ATS Connector Expansion
+Phase: 03.1 — SuccessFactors & Paylocity Connector Expansion
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-07-20 — Inserted connector and dashboard-precision phases; ready to plan Phase 03.1
+Status: Ready to execute
+Last activity: 2026-07-20 — Five-plan SuccessFactors/Paylocity execution contract verified; ready for Plan 01
 
 Progress: [████████████████████] 34/34 planned plans complete; milestone 4/5 phases complete (80%)
 
@@ -187,12 +187,12 @@ Recent decisions affecting current work:
 ### Roadmap Evolution
 
 - Phase 02.1 inserted after Phase 2: Expand representative ATS and branded finance career-site coverage with safe degraded-source behavior (URGENT)
-- Phase 03.1 inserted after Phase 3: Workday & ATS Connector Expansion (URGENT)
+- Phase 03.1 inserted after Phase 3 and rescoped on 2026-07-20: SuccessFactors & Paylocity Connector Expansion; new Workday expansion deferred (URGENT)
 - Phase 03.2 inserted after Phase 3: Dashboard Precision & Company Visibility (URGENT)
 
 ## Session Continuity
 
-Last session: 2026-07-20T21:18:08.220Z
-Stopped at: Phase 3 complete; ready to plan Phase 03.1
-Resume file: None
+Last session: 2026-07-21T02:05:20.604Z
+Stopped at: Phase 03.1 replanned and verified; ready to execute Plan 01
+Resume file: None — obsolete paused handoff removed after the owner-approved rescope
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

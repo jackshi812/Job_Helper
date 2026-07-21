@@ -91,7 +91,7 @@ Deferred to future release. Tracked but not in current roadmap.
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-A requirement may appear on more than one row when a later phase extends it rather than re-closing it. DISC-07, DISC-08, and DISC-09 were closed by Phase 02.1 and are extended by Phase 03.1, which adds the Workday tenant pilot and Paylocity Recruiting to the same discovery surface. The Phase 02.1 rows stay Complete; the Phase 03.1 rows track the extension.
+A requirement may appear on more than one row when a later phase extends it rather than re-closing it. DISC-07, DISC-08, and DISC-09 were closed by Phase 02.1 and are extended by Phase 03.1, which adds SAP SuccessFactors and Paylocity Recruiting to the same discovery surface. The Phase 02.1 rows stay Complete; the Phase 03.1 rows track the extension.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
