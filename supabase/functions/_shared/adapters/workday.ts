@@ -89,6 +89,7 @@ function htmlToSectionText(value: string) {
   return value
     .replace(/&#43;|&plus;/gi, '+')
     .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/[\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000]/g, ' ')
     .replace(/<\/?(?:p|li|ul|ol|div|br|h[1-6])\b[^>]*>/gi, '\n')
     .replace(/<[^>]*>/g, ' ')
     .replace(/[ \t]+/g, ' ')

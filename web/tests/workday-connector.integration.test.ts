@@ -447,6 +447,9 @@ describe('recent Capital One Analysis and Finance import', () => {
       title: 'Business Analyst',
       externalPath: '/job/McLean-VA/Business-Analyst_R100005-1',
     }
+    const experiencedDetail = recentDetail(experienced, 'US', 3)
+    experiencedDetail.jobPostingInfo.jobDescription = experiencedDetail.jobPostingInfo.jobDescription
+      .replace('Basic Qualifications', 'Basic\u00a0Qualifications')
     const postings = [recentPosting, ...titleOnlyCandidates, old, uk, experienced]
     const providerFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input)
@@ -472,7 +475,7 @@ describe('recent Capital One Analysis and Finance import', () => {
       const titleOnlyCandidate = titleOnlyCandidates.find((posting) => url.endsWith(posting.externalPath))
       if (titleOnlyCandidate) return jsonResponse(recentDetail(titleOnlyCandidate, 'US', 2))
       if (url.endsWith(uk.externalPath)) return jsonResponse(recentDetail(uk, 'GB', 1))
-      if (url.endsWith(experienced.externalPath)) return jsonResponse(recentDetail(experienced, 'US', 3))
+      if (url.endsWith(experienced.externalPath)) return jsonResponse(experiencedDetail)
       throw new Error(`unexpected detail request: ${url}`)
     })
 
