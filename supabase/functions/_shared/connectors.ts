@@ -5,7 +5,7 @@ import { pollRecruitee } from './adapters/recruitee.ts'
 import { pollSmartRecruiters } from './adapters/smartrecruiters.ts'
 import {
   CAPITAL_ONE_WORKDAY_SOURCE_KEY,
-  pollWorkday,
+  pollCapitalOneRecent,
   verifyWorkdayListing,
 } from './adapters/workday.ts'
 import { type PollObservation } from './adapters/types.ts'
@@ -23,7 +23,9 @@ export type SupportedDetection = Exclude<DetectResult, { ats: 'unsupported' }>
 export interface PollConnectorCompany {
   ats_type: string
   board_token: string
-  region: 'eu' | null
+  region: 'eu' | 'wd12' | null
+  site_token?: string | null
+  source_key?: string
   activation_state: string
 }
 
@@ -191,7 +193,7 @@ export const providerRegistry = {
   },
   workday: {
     verify: verifyWorkday,
-    poll: async () => pollWorkday(),
+    poll: async (_company, knownIds) => pollCapitalOneRecent(fetch, { knownIds }),
   },
 } satisfies Record<ProviderId, ProviderConnector>
 
@@ -213,7 +215,12 @@ export async function pollConnector(
     throw new Error(`unsupported_provider:${company.ats_type}`)
   }
   if (company.ats_type === 'workday') {
-    throw new Error('inactive_connector:workday_experimental_only')
+    if (
+      company.board_token !== 'capitalone'
+      || company.region !== 'wd12'
+      || company.site_token !== 'Capital_One'
+      || company.source_key !== CAPITAL_ONE_WORKDAY_SOURCE_KEY
+    ) throw new Error('inactive_connector:workday_identity_not_allowed')
   }
   return providerRegistry[company.ats_type as ProviderId].poll(company, knownIds)
 }

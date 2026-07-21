@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   CAPITAL_ONE_WORKDAY_SOURCE_KEY,
+  pollCapitalOneRecent,
   pollWorkday,
 } from '../../supabase/functions/_shared/adapters/workday.ts'
 import {
@@ -12,6 +13,7 @@ import { detectAts } from '../../supabase/functions/_shared/detect.ts'
 import { createVerifyBoardHandler } from '../../supabase/functions/verify-board/index.ts'
 import catalogSql from '../../supabase/migrations/0013_source_coverage_catalog.sql?raw'
 import migrationSql from '../../supabase/migrations/0016_workday_experimental.sql?raw'
+import activationSql from '../../supabase/migrations/0028_capital_one_recent_active.sql?raw'
 import normalizedTypesSource from '../../supabase/functions/_shared/adapters/types.ts?raw'
 
 const sourceKey = 'workday:wd12:capitalone:Capital_One'
@@ -42,6 +44,24 @@ function jsonResponse(payload: unknown, init: ResponseInit = {}) {
     headers: { 'content-type': 'application/json', ...init.headers },
     ...init,
   })
+}
+
+function categoryFacets(analysis: number, finance: number) {
+  return [{
+    facetParameter: 'jobFamilyGroup',
+    values: [
+      {
+        descriptor: 'Analysis',
+        id: 'a12c70bf789e105802e9caf800542991',
+        count: analysis,
+      },
+      {
+        descriptor: 'Finance',
+        id: 'a12c70bf789e105802e9de2c3b5f29a3',
+        count: finance,
+      },
+    ],
+  }]
 }
 
 describe('Capital One Workday identity contract', () => {
@@ -101,7 +121,7 @@ describe('Capital One Workday identity contract', () => {
     expect(providerFetch).toHaveBeenCalledTimes(2)
   })
 
-  it('registers Workday for manual verification but blocks scheduled dispatch', async () => {
+  it('dispatches only the exact active Capital One identity', async () => {
     expect(Object.keys(providerRegistry).sort()).toEqual([
       'ashby',
       'greenhouse',
@@ -110,15 +130,35 @@ describe('Capital One Workday identity contract', () => {
       'smartrecruiters',
       'workday',
     ])
-    const providerFetch = vi.fn()
+    const providerFetch = vi.fn().mockResolvedValue(jsonResponse({
+      total: 1,
+      jobPostings: [listPosting],
+      facets: categoryFacets(1, 0),
+    }))
     vi.stubGlobal('fetch', providerFetch)
     await expect(pollConnector({
       ats_type: 'workday',
       board_token: 'capitalone',
-      region: null,
+      region: 'wd12',
+      site_token: 'Capital_One',
+      source_key: sourceKey,
       activation_state: 'active',
-    }, new Set())).rejects.toThrow('inactive_connector:workday_experimental_only')
-    expect(providerFetch).not.toHaveBeenCalled()
+    }, new Set())).resolves.toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure: false,
+      jobs: [],
+    })
+    expect(providerFetch).toHaveBeenCalledTimes(1)
+
+    await expect(pollConnector({
+      ats_type: 'workday',
+      board_token: 'other',
+      region: 'wd12',
+      site_token: 'Capital_One',
+      source_key: sourceKey,
+      activation_state: 'active',
+    }, new Set())).rejects.toThrow('inactive_connector:workday_identity_not_allowed')
     vi.unstubAllGlobals()
   })
 
@@ -345,5 +385,151 @@ describe('bounded Capital One Workday observation', () => {
       jobs: [],
       warnings: ['job_cap_exceeded'],
     })
+  })
+})
+
+describe('recent Capital One Analysis and Finance import', () => {
+  const nowMs = Date.parse('2026-07-20T12:00:00.000Z')
+  const recentPosting = {
+    title: 'Data Science Internship',
+    externalPath: '/job/McLean-VA/Data-Science-Internship_R100001-1',
+    locationsText: 'McLean, VA',
+    postedOn: 'Posted Today',
+  }
+
+  function recentDetail(
+    posting: typeof recentPosting,
+    country: string,
+    requiredYears: number,
+  ) {
+    return {
+      jobPostingInfo: {
+        id: `opaque-${posting.externalPath}`,
+        jobReqId: posting.externalPath.match(/_(R\d+)/)?.[1],
+        title: posting.title,
+        jobDescription: `<p>Basic Qualifications</p><p>At least ${requiredYears} years of experience</p><p>Preferred Qualifications</p><p>5 years preferred</p>`,
+        location: posting.locationsText,
+        postedOn: posting.postedOn,
+        startDate: '2026-07-20',
+        jobRequisitionLocation: {
+          country: { descriptor: country === 'US' ? 'United States of America' : 'United Kingdom', alpha2Code: country },
+        },
+      },
+    }
+  }
+
+  it('details only recent non-senior category rows and retains U.S. roles requiring under three years', async () => {
+    const senior = {
+      ...recentPosting,
+      title: 'Senior Data Scientist',
+      externalPath: '/job/McLean-VA/Senior-Data-Scientist_R100002-1',
+    }
+    const old = {
+      ...recentPosting,
+      title: 'Data Analyst',
+      externalPath: '/job/McLean-VA/Data-Analyst_R100003-1',
+      postedOn: 'Posted 8 Days Ago',
+    }
+    const uk = {
+      ...recentPosting,
+      title: 'Finance Analyst',
+      externalPath: '/job/Nottingham-Eng/Finance-Analyst_R100004-1',
+      locationsText: 'Nottingham, Eng',
+    }
+    const experienced = {
+      ...recentPosting,
+      title: 'Business Analyst',
+      externalPath: '/job/McLean-VA/Business-Analyst_R100005-1',
+    }
+    const postings = [recentPosting, senior, old, uk, experienced]
+    const providerFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url === listUrl) {
+        expect(JSON.parse(String(init?.body))).toEqual({
+          appliedFacets: {
+            jobFamilyGroup: [
+              'a12c70bf789e105802e9caf800542991',
+              'a12c70bf789e105802e9de2c3b5f29a3',
+            ],
+          },
+          limit: 20,
+          offset: 0,
+          searchText: '',
+        })
+        return jsonResponse({ total: postings.length, jobPostings: postings, facets: categoryFacets(4, 1) })
+      }
+      if (url.endsWith(recentPosting.externalPath)) return jsonResponse(recentDetail(recentPosting, 'US', 1))
+      if (url.endsWith(uk.externalPath)) return jsonResponse(recentDetail(uk, 'GB', 1))
+      if (url.endsWith(experienced.externalPath)) return jsonResponse(recentDetail(experienced, 'US', 3))
+      throw new Error(`unexpected detail request: ${url}`)
+    })
+
+    const observation = await pollCapitalOneRecent(providerFetch, { nowMs })
+
+    expect(providerFetch).toHaveBeenCalledTimes(4)
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure: false,
+      expectedCount: 1,
+      warnings: [],
+      jobs: [{
+        externalId: 'R100001',
+        title: 'Data Science Internship',
+        location: 'McLean, VA',
+        snapshotPartial: false,
+      }],
+    })
+  })
+
+  it('fails closed when the category facet response cannot prove the filter applied', async () => {
+    const observation = await pollCapitalOneRecent(
+      vi.fn().mockResolvedValue(jsonResponse({
+        total: 1,
+        jobPostings: [recentPosting],
+        facets: [],
+      })),
+      { nowMs },
+    )
+    expect(observation).toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: ['category_filter_unverified'],
+    })
+  })
+
+  it('includes the full seventh UTC calendar day in the requested window', async () => {
+    const boundaryPosting = {
+      ...recentPosting,
+      externalPath: '/job/McLean-VA/Data-Science-Internship_R100006-1',
+      postedOn: 'Posted 7 Days Ago',
+    }
+    const boundaryDetail = recentDetail(boundaryPosting, 'US', 1)
+    boundaryDetail.jobPostingInfo.startDate = '2026-07-13'
+    const providerFetch = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        total: 1,
+        jobPostings: [boundaryPosting],
+        facets: categoryFacets(1, 0),
+      }))
+      .mockResolvedValueOnce(jsonResponse(boundaryDetail))
+
+    await expect(pollCapitalOneRecent(providerFetch, { nowMs })).resolves.toMatchObject({
+      completeness: 'complete',
+      jobs: [{ externalId: 'R100006' }],
+    })
+  })
+
+  it('activates and claims only the exact evidence-backed Capital One identity', () => {
+    expect(activationSql).toContain("source_key = 'workday:wd12:capitalone:Capital_One'")
+    expect(activationSql).toMatch(/activation_state in \('experimental', 'active'\)/i)
+    expect(activationSql).toMatch(/select count\(\*\)[\s\S]*connector_observations[\s\S]*= 3/i)
+    expect(activationSql).toMatch(/after insert on public\.connector_observations/i)
+    expect(activationSql).toMatch(/where activation_state = 'active'[\s\S]*ats_type = 'workday'[\s\S]*source_key = 'workday:wd12:capitalone:Capital_One'/i)
+    expect(activationSql).toMatch(/last_polled_at < now\(\) - interval '9 minutes'/i)
+    expect(activationSql).toMatch(/for update skip locked/i)
+    expect(activationSql).not.toMatch(/ats_type\s+in\s*\([^)]*'workday'/i)
+    expect(activationSql).toContain('Capital One activation requires zero pre-existing Workday jobs')
   })
 })

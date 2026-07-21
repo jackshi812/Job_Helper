@@ -314,7 +314,15 @@ describe('finance coverage presentation', () => {
 
     expect(activationPresentation(experimental)).toEqual({
       label: 'Experimental',
-      details: ['2 of 3 checks passed', 'Scheduled polling off'],
+      details: [
+        'Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; entry-level (senior titles and roles requiring 3+ years excluded).',
+      ],
+    })
+    expect(activationPresentation({ ...experimental, activation_state: 'active' })).toEqual({
+      label: 'Active',
+      details: [
+        'Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; entry-level (senior titles and roles requiring 3+ years excluded).',
+      ],
     })
     expect(healthPresentation(experimental)).toEqual({
       label: 'Degraded',
@@ -360,7 +368,9 @@ describe('finance coverage presentation', () => {
     })
     expect(activationPresentation(experimental)).toEqual({
       label: 'Experimental',
-      details: ['3 of 3 checks passed', 'Scheduled polling off'],
+      details: [
+        'Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; entry-level (senior titles and roles requiring 3+ years excluded).',
+      ],
     })
     expect(healthPresentation(experimental)).toEqual({
       label: 'OK',

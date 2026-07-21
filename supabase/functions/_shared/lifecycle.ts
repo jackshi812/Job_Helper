@@ -111,7 +111,9 @@ export function planCompanySync(
 
   const seenIds = new Set([...seenOpenIds, ...reopenIds])
   const cutoff = Date.parse(nowIso) - graceMs
-  const closeIds = returned.length === 0 || !isCredibleCompleteObservation(observation)
+  const closeIds = returned.length === 0
+    || observation.allowMissingClosure === false
+    || !isCredibleCompleteObservation(observation)
     ? []
     : existing
       .filter((job) => (

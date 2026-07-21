@@ -170,6 +170,21 @@ describe('planCompanySync', () => {
     expect(planCompanySync([missing], observation(), nowIso).closeIds).toEqual([])
   })
 
+  it('never closes from a healthy but intentionally selective observation', () => {
+    const missing = existingJob({
+      external_id: 'missing',
+      last_seen_at: '2026-07-17T16:00:00.000Z',
+    })
+    const selective = observation({ allowMissingClosure: false })
+
+    expect(planCompanySync([missing], selective, nowIso).closeIds).toEqual([])
+    expect(observationHealthUpdate(selective, null, 0, nowIso)).toEqual({
+      last_success_at: nowIso,
+      consecutive_failures: 0,
+      last_error: null,
+    })
+  })
+
   it('closes nothing after an empty poll', () => {
     const missing = existingJob({ last_seen_at: '2026-07-17T16:00:00.000Z' })
 

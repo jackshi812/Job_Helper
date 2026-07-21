@@ -256,11 +256,19 @@ export function deriveHealth(company: CompanyRecord, now = new Date()): HealthSt
 }
 
 export function activationPresentation(row: WatchlistRow): ActivationPresentation {
-  if (row.activation_state === 'active') return { label: 'Active', details: [] }
+  const capitalOneFilterNote = row.company_id
+    && row.source_key === 'workday:wd12:capitalone:Capital_One'
+    ? ['Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; entry-level (senior titles and roles requiring 3+ years excluded).']
+    : null
+
+  if (row.activation_state === 'active') {
+    return { label: 'Active', details: capitalOneFilterNote ?? [] }
+  }
   if (row.activation_state === 'experimental') {
     return {
       label: 'Experimental',
-      details: [`${row.activation_successes} of 3 checks passed`, 'Scheduled polling off'],
+      details: capitalOneFilterNote
+        ?? [`${row.activation_successes} of 3 checks passed`, 'Scheduled polling off'],
     }
   }
   return { label: 'Disabled', details: ['Scheduled polling off'] }

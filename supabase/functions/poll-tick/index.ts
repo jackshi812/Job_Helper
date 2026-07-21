@@ -15,7 +15,9 @@ interface Company {
   name: string
   ats_type: string
   board_token: string
-  region: 'eu' | null
+  region: 'eu' | 'wd12' | null
+  site_token: string | null
+  source_key: string
   activation_state: string
   consecutive_failures: number
   last_success_at: string | null
