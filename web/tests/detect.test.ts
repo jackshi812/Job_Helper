@@ -8,6 +8,16 @@ import {
   type SupportedDetection,
   verifyConnector,
 } from '../../supabase/functions/_shared/connectors'
+import {
+  PAYLOCITY_BOARD_UUID,
+  PAYLOCITY_SOURCE_KEY,
+  resolvePaylocityIdentity,
+} from '../../supabase/functions/_shared/provider-identities'
+
+const paylocityBoardUuid = 'd6628b21-949b-4400-a3d0-c9082bbf3eb1'
+const paylocityFeedKey = 'f3f28b00-201d-4fba-a7dd-532a9e558191'
+const paylocityBoardUrl =
+  `https://recruiting.paylocity.com/recruiting/jobs/All/${paylocityBoardUuid}/The-Only-Facial`
 
 describe('detectAts', () => {
   it.each([
@@ -134,6 +144,50 @@ describe('buildEndpoint', () => {
 
   it('rejects unsupported results', () => {
     expect(() => buildEndpoint({ ats: 'unsupported' })).toThrow(UNSUPPORTED_URL_MESSAGE)
+  })
+})
+
+describe('allowlisted Paylocity identity', () => {
+  it('keeps public board identity separate from the server-owned feed key', () => {
+    expect(PAYLOCITY_BOARD_UUID).toBe(paylocityBoardUuid)
+    expect(PAYLOCITY_SOURCE_KEY).toBe(`paylocity:global:${paylocityBoardUuid}`)
+    expect(resolvePaylocityIdentity(paylocityBoardUuid)).toMatchObject({
+      boardUuid: paylocityBoardUuid,
+      feedKey: paylocityFeedKey,
+      displayName: 'The Only Facial',
+      canonicalUrl: paylocityBoardUrl,
+    })
+    expect(resolvePaylocityIdentity(paylocityFeedKey)).toBeNull()
+  })
+
+  it('detects only the exact reviewed public board URL', () => {
+    expect(detectAts(paylocityBoardUrl)).toEqual({
+      ats: 'paylocity',
+      slug: paylocityBoardUuid,
+    })
+    expect(buildEndpoint(detectAts(paylocityBoardUrl))).toBe(
+      `https://recruiting.paylocity.com/recruiting/v2/api/feed/jobs/${paylocityFeedKey}`,
+    )
+  })
+
+  it.each([
+    `https://recruiting.paylocity.com/recruiting/jobs/All/${paylocityFeedKey}/The-Only-Facial`,
+    'https://recruiting.paylocity.com/recruiting/jobs/All/11111111-1111-4111-8111-111111111111/The-Only-Facial',
+    `https://recruiting.paylocity.com/recruiting/jobs/All/${paylocityBoardUuid}/Other-Slug`,
+    `https://recruiting.paylocity.com/Recruiting/jobs/All/${paylocityBoardUuid}/The-Only-Facial`,
+    `https://recruiting.paylocity.com/recruiting/jobs/all/${paylocityBoardUuid}/The-Only-Facial`,
+    `https://recruiting.paylocity.com/recruiting/jobs/All/${paylocityBoardUuid}/the-only-facial`,
+    `${paylocityBoardUrl}/extra`,
+    `${paylocityBoardUrl}?q=finance`,
+    `${paylocityBoardUrl}#jobs`,
+    paylocityBoardUrl.replace('https:', 'http:'),
+    paylocityBoardUrl.replace('https://', 'https://user:password@'),
+    paylocityBoardUrl.replace('.com/', '.com:444/'),
+    paylocityBoardUrl.replace('recruiting.paylocity.com', 'recruiting.paylocity.com.evil.example'),
+    `https://recruiting.paylocity.com/recruiting/jobs/All/${paylocityBoardUuid}/The-Only-Facial%2Fextra`,
+    `https://recruiting.paylocity.com/recruiting/jobs/All/${paylocityBoardUuid}%2FThe-Only-Facial`,
+  ])('rejects unreviewed Paylocity identity %s', (url) => {
+    expect(detectAts(url)).toEqual({ ats: 'unsupported' })
   })
 })
 
