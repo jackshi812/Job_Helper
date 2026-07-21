@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-21T02:43:02.013Z",
+  "phase": "03.1",
+  "phase_name": "SuccessFactors & Paylocity Connector Expansion",
+  "phase_dir": ".planning/phases/03.1-workday-ats-connector-expansion",
+  "plan": 2,
+  "task": 4,
+  "total_tasks": 11,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": 1, "name": "Define and implement exact two-token Paylocity identity", "status": "done", "commit": "68fa536"},
+    {"id": 2, "name": "Define and implement bounded Paylocity whole-snapshot adapter", "status": "done", "commit": "05a3c08"},
+    {"id": 3, "name": "Record exact SuccessFactors unsupported evidence and close Plan 01", "status": "done", "commit": "4269edd"}
+  ],
+  "remaining_tasks": [
+    {"id": 4, "name": "Run the interrupted independent Wave 1 post-merge build/test gate", "status": "not_started"},
+    {"id": 5, "name": "Execute Plan 02 registry, staged verification, lifecycle, and dispatch integration", "status": "not_started"},
+    {"id": 6, "name": "Execute Plan 03 migration 0029 and Capital One regression proof", "status": "not_started"},
+    {"id": 7, "name": "Build and validate the resumable hosted Paylocity verifier", "status": "not_started"},
+    {"id": 8, "name": "Present Plan 04 production mutation inventory and obtain explicit owner decision", "status": "not_started"},
+    {"id": 9, "name": "Apply approved migration and Edge deployments", "status": "not_started"},
+    {"id": 10, "name": "Collect three activation windows and recurring polling evidence", "status": "not_started"},
+    {"id": 11, "name": "Prove common scoring/dashboard delivery and clean temporary verifier state", "status": "not_started"}
+  ],
+  "blockers": [],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {
+      "action": "Approve or decline the exact production schema, Edge deployment, activation, and one-paid-call proof envelope in Plan 04.",
+      "context": "Required only after Plans 02 and 03 plus all local verification pass; no production mutation is authorized before that checkpoint.",
+      "blocking": false
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Paylocity uses an exact server-owned mapping from the public board UUID to a distinct reviewed Job Feed V2 key.",
+      "rationale": "Direct negative controls showed that treating a normal board UUID as the feed key returns deceptive HTTP 200 empty placeholders.",
+      "phase": "03.1"
+    },
+    {
+      "decision": "SuccessFactors remains evidence-only and unsupported_with_reason.",
+      "rationale": "W. L. Gore and Statsforvalteren expose description-free JSON lists but require prohibited HTML/session/detail parsing for scoring-quality descriptions.",
+      "phase": "03.1"
+    },
+    {
+      "decision": "New Workday expansion is removed; the shipped exact Capital One connector remains untouched and regression-protected.",
+      "rationale": "Owner explicitly deferred Workday expansion and Capital One is already independently deployed and polling.",
+      "phase": "03.1"
+    }
+  ],
+  "uncommitted_files": [
+    ".DS_Store (pre-existing unrelated user change)",
+    "scripts/agent-dashboard.mjs (pre-existing unrelated untracked file)",
+    "scripts/agent-dashboard.test.mjs (pre-existing unrelated untracked file)"
+  ],
+  "next_action": "Run the independent Wave 1 post-merge build/test gate, spot-check 03.1-01-SUMMARY.md and its three created files, then execute Plan 03.1-02.",
+  "context_notes": "The five-plan rescope passed the plan checker and was committed as 5e6f77b. Plan 01 completed in six minutes with 451/451 tests, focused 140/140 tests, build, and lint passing; its implementation and summary commits are fe3d2ef through 4269edd. The orchestrator was interrupted immediately before its separate post-wave gate, so do not skip that gate on resume. No production mutation, deployment, paid scoring call, server, watcher, or async external job is active from this execution session."
+}
