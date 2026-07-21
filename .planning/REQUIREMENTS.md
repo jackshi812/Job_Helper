@@ -111,11 +111,11 @@ A requirement may appear on more than one row when a later phase extends it rath
 | DISC-05 | Phase 2 | Complete |
 | DISC-06 | Phase 2 | Complete |
 | DISC-07 | Phase 02.1 | Complete |
-| DISC-07 | Phase 03.1 | Pending |
+| DISC-07 | Phase 03.1 | Complete |
 | DISC-08 | Phase 02.1 | Complete |
-| DISC-08 | Phase 03.1 | Pending |
+| DISC-08 | Phase 03.1 | Complete |
 | DISC-09 | Phase 02.1 | Complete |
-| DISC-09 | Phase 03.1 | Pending |
+| DISC-09 | Phase 03.1 | Complete |
 | SCOR-01 | Phase 3 | Complete |
 | SCOR-02 | Phase 3 | Complete |
 | SCOR-03 | Phase 3 | Complete |

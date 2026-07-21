@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03.1
 current_phase_name: SuccessFactors & Paylocity Connector Expansion
 status: executing
-stopped_at: Phase 03.1 replanned and verified; ready to execute Plan 01
-last_updated: "2026-07-21T02:05:20.604Z"
-last_activity: 2026-07-20
-last_activity_desc: Replanned Phase 03.1 as five verified SuccessFactors/Paylocity plans with Workday expansion deferred
+stopped_at: Completed 03.1-01-PLAN.md
+last_updated: "2026-07-21T02:17:20.171Z"
+last_activity: 2026-07-21
+last_activity_desc: Phase 03.1 execution started
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 34
-  completed_plans: 34
+  total_plans: 39
+  completed_plans: 35
   percent: 57
 ---
 
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Phase: 03.1 — SuccessFactors & Paylocity Connector Expansion
-Plan: Not started
+Phase: 03.1 (SuccessFactors & Paylocity Connector Expansion) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-07-20 — Five-plan SuccessFactors/Paylocity execution contract verified; ready for Plan 01
+Last activity: 2026-07-21 — Phase 03.1 execution started
 
 Progress: [████████████████████] 34/34 planned plans complete; milestone 4/5 phases complete (80%)
 
@@ -81,6 +81,7 @@ Progress: [████████████████████] 34/34 p
 | Phase 03 P08 | 14m | 2 tasks | 10 files |
 | Phase 03 P09 | 6m | 2 tasks | 7 files |
 | Phase 03 P10 | 9m | 3 tasks | 6 files |
+| Phase 03.1 P01 | 6min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -161,6 +162,8 @@ Recent decisions affecting current work:
 - [Phase 03]: Apply trustworthy ZIP metadata preflight before Mammoth or any other DOCX-expanding parser. — Hostile archives fail before expansion.
 - [Phase 03]: Count paid scoring capacity per physical request by combining atomic reservation with `maxAttempts: 1`. — The authorized daily ceiling cannot multiply through retries.
 - [Phase 03]: Use a disposable verifier account only inside the paused/drained interval and bind paid proof plus UAT to one immutable release. — Production proof cannot overwrite real-user state or validate a stale release.
+- [Phase 03.1]: Authorize Paylocity fetches only through the exact reviewed public-board UUID to separate feed-key mapping. — Recognition must not let a caller substitute the public board UUID for the distinct provider feed key.
+- [Phase 03.1]: Keep SuccessFactors non-executable after the two exact employer proofs. — Neither public contract exposes a proven JSON detail response sufficient for scoring, and HTML fallback is prohibited.
 
 ### Pending Todos
 
@@ -192,7 +195,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-21T02:05:20.604Z
-Stopped at: Phase 03.1 replanned and verified; ready to execute Plan 01
-Resume file: None — obsolete paused handoff removed after the owner-approved rescope
+Last session: 2026-07-21T02:16:54.022Z
+Stopped at: Completed 03.1-01-PLAN.md
+Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
