@@ -1,6 +1,8 @@
+import { resolvePaylocityIdentity } from './provider-identities.ts'
+
 export type DetectResult =
   | {
-      ats: 'greenhouse' | 'lever' | 'ashby' | 'smartrecruiters' | 'recruitee'
+      ats: 'greenhouse' | 'lever' | 'ashby' | 'smartrecruiters' | 'recruitee' | 'paylocity'
       slug: string
       region?: 'eu'
     }
@@ -31,6 +33,7 @@ const supportedHosts = {
   ashby: 'jobs.ashbyhq.com',
   smartrecruiters: 'jobs.smartrecruiters.com',
   recruiteeSuffix: '.recruitee.com',
+  paylocity: 'recruiting.paylocity.com',
   capitalOneWorkday: 'capitalone.wd12.myworkdayjobs.com',
 }
 
@@ -76,6 +79,23 @@ export function detectAts(href: string): DetectResult {
             region: 'wd12',
             site: 'Capital_One',
           }
+        : unsupported
+    }
+
+    if (rawHost === supportedHosts.paylocity) {
+      if (url.search) return unsupported
+
+      const segments = url.pathname.split('/').filter(Boolean)
+      if (
+        segments.length !== 5
+        || segments[0] !== 'recruiting'
+        || segments[1] !== 'jobs'
+        || segments[2] !== 'All'
+      ) return unsupported
+
+      const identity = resolvePaylocityIdentity(segments[3])
+      return identity && segments[4] === identity.reviewedSlug
+        ? { ats: 'paylocity', slug: identity.boardUuid }
         : unsupported
     }
 
@@ -154,6 +174,11 @@ export function buildEndpoint(detected: DetectResult): string {
   }
   if (detected.ats === 'smartrecruiters') {
     return `https://api.smartrecruiters.com/v1/companies/${slug}/postings`
+  }
+  if (detected.ats === 'paylocity') {
+    const identity = resolvePaylocityIdentity(detected.slug)
+    if (!identity) throw new Error(UNSUPPORTED_URL_MESSAGE)
+    return `https://recruiting.paylocity.com/recruiting/v2/api/feed/jobs/${identity.feedKey}`
   }
   if (detected.ats === 'workday') {
     return 'https://capitalone.wd12.myworkdayjobs.com/wday/cxs/capitalone/Capital_One/jobs'
