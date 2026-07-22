@@ -252,7 +252,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 03.2-01-PLAN.md — Add persisted required-experience preference and provider-neutral filter contract
+- [x] 03.2-01-PLAN.md — Add persisted required-experience preference and provider-neutral filter contract
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
