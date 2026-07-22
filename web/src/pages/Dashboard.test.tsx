@@ -5,6 +5,18 @@ import type { FeedRow } from '../lib/feed'
 import dashboardSource from './Dashboard.tsx?raw'
 import jobDetailSource from './JobDetail.tsx?raw'
 import resizeHandleSource from '../components/ColumnResizeHandle.tsx?raw'
+import {
+  keyboardResizeWidth,
+  settleColumnResize,
+} from '../components/ColumnResizeHandle'
+import {
+  DASHBOARD_COLUMN_STORAGE_KEY,
+  DASHBOARD_COLUMNS,
+  defaultDashboardColumnWidths,
+  hydrateDashboardColumnWidths,
+  persistDashboardColumnWidths,
+  type DashboardColumnStorage,
+} from '../lib/dashboardColumns'
 import { Dashboard } from './Dashboard'
 
 const row: FeedRow = {
@@ -135,11 +147,56 @@ describe('Dashboard precision controls', () => {
     expect(resizeHandleSource).toContain('releasePointerCapture')
     expect(resizeHandleSource).toContain('if (!event.isPrimary || activeDrag.current) return')
     expect(resizeHandleSource).toContain('onPointerCancel')
-    expect(resizeHandleSource).toContain('else onWidthChange(drag.startWidth)')
+    expect(resizeHandleSource).toContain('settleColumnResize(drag.startWidth, drag.latestWidth, commit)')
+    expect(resizeHandleSource).toContain('activeDrag.current !== null')
     expect(resizeHandleSource).toContain("document.body.style.userSelect = 'none'")
     expect(resizeHandleSource).toContain('document.body.style.userSelect = drag.previousUserSelect')
     expect(resizeHandleSource).toContain('document.body.style.cursor = drag.previousCursor')
     expect(resizeHandleSource).toContain("['ArrowLeft', 'ArrowRight', 'Home', 'End']")
     expect(resizeHandleSource).toContain('[@media(pointer:coarse)]:w-11')
+  })
+
+  it('keeps rendered and persisted widths aligned when a dragged handle receives a resize key then cancels', () => {
+    const storage: DashboardColumnStorage & { value: string | null } = {
+      value: null,
+      getItem(key) {
+        expect(key).toBe(DASHBOARD_COLUMN_STORAGE_KEY)
+        return this.value
+      },
+      setItem(key, value) {
+        expect(key).toBe(DASHBOARD_COLUMN_STORAGE_KEY)
+        this.value = value
+      },
+    }
+    const jobColumn = DASHBOARD_COLUMNS.find((column) => column.id === 'job')!
+    const widths = defaultDashboardColumnWidths()
+    persistDashboardColumnWidths(widths, storage)
+
+    const pointerStartWidth = widths.job
+    const pointerLatestWidth = 340
+    let renderedWidth = pointerLatestWidth
+    const keyboardWidth = keyboardResizeWidth(
+      jobColumn,
+      renderedWidth,
+      'ArrowRight',
+      false,
+      true,
+    )
+    if (keyboardWidth !== null) {
+      renderedWidth = keyboardWidth
+      widths.job = keyboardWidth
+      persistDashboardColumnWidths(widths, storage)
+    }
+
+    const cancelled = settleColumnResize(pointerStartWidth, pointerLatestWidth, false)
+    renderedWidth = cancelled.width
+    if (cancelled.persist) {
+      widths.job = cancelled.width
+      persistDashboardColumnWidths(widths, storage)
+    }
+
+    expect(keyboardWidth).toBeNull()
+    expect(cancelled).toEqual({ width: pointerStartWidth, persist: false })
+    expect(renderedWidth).toBe(hydrateDashboardColumnWidths(storage).job)
   })
 })

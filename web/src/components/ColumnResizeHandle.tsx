@@ -21,6 +21,27 @@ interface ActiveDrag {
   previousUserSelect: string
 }
 
+export function keyboardResizeWidth(
+  column: DashboardColumn,
+  width: number,
+  key: string,
+  shiftKey: boolean,
+  pointerDragActive: boolean,
+): number | null {
+  if (pointerDragActive || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return null
+  return reduceDashboardColumnWidth(column.id, width, key, shiftKey)
+}
+
+export function settleColumnResize(
+  startWidth: number,
+  latestWidth: number,
+  commit: boolean,
+): { width: number; persist: boolean } {
+  return commit
+    ? { width: latestWidth, persist: true }
+    : { width: startWidth, persist: false }
+}
+
 export function ColumnResizeHandle({
   column,
   width,
@@ -44,8 +65,9 @@ export function ColumnResizeHandle({
     if (handle?.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId)
     restoreDocumentStyles()
     activeDrag.current = null
-    if (commit) onWidthCommit(drag.latestWidth)
-    else onWidthChange(drag.startWidth)
+    const settlement = settleColumnResize(drag.startWidth, drag.latestWidth, commit)
+    if (settlement.persist) onWidthCommit(settlement.width)
+    else onWidthChange(settlement.width)
   }
 
   useEffect(() => () => {
@@ -88,10 +110,14 @@ export function ColumnResizeHandle({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const nextWidth = reduceDashboardColumnWidth(column.id, width, event.key, event.shiftKey)
-    if (nextWidth === width && !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
-      return
-    }
+    const nextWidth = keyboardResizeWidth(
+      column,
+      width,
+      event.key,
+      event.shiftKey,
+      activeDrag.current !== null,
+    )
+    if (nextWidth === null) return
     event.preventDefault()
     event.stopPropagation()
     onWidthChange(nextWidth)
