@@ -26,10 +26,14 @@ export interface FilterPreferences {
   maxRequiredExperience?: number | null
 }
 
-const OPTIONAL_EXPERIENCE_SIGNAL = /\b(?:preferred|desired|bonus|optional|nice\s+to\s+have)\b|\b(?:is|would\s+be|considered)\s+(?:an?\s+)?plus\b/i
+const OPTIONAL_EXPERIENCE_SIGNAL = /\b(?:preferred|preferably|desired|bonus|optional|nice(?:[\s-]+)to(?:[\s-]+)have)\b|\b(?:is|would\s+be|considered)\s+(?:an?\s+)?plus\b/i
 const REQUIRED_EXPERIENCE_SIGNAL = /\b(?:requires?|required|requirement|minimum(?:\s+of)?|at\s+least|must\s+have|need(?:ed)?|basic\s+qualifications?|minimum\s+qualifications?)\b/i
-const EXPERIENCE_TERM = /\b(?:professional|relevant|related|industry|work)?\s*experience\b/i
 const EXPERIENCE_YEARS = /\b(\d{1,2})\s*(?:(?:-|to)\s*(\d{1,2})\s*)?(\+|plus)?\s*years?\b/gi
+const LEADING_EXPERIENCE_TERM = /^\s*(?:of\s+)?(?:(?:professional|relevant|related|industry|work)\s+)?experience\b/i
+const LEADING_EXPERIENCE_DOMAIN = /^\s+in\s+(?!total\b|duration\b)[a-z][a-z0-9&/+.-]*(?:\s+[a-z][a-z0-9&/+.-]*){0,2}\b/i
+const LEADING_OPTIONAL_SIGNAL = /^\s*(?::|,|-)?\s*(?:is\s+)?(?:preferred|preferably|desired|a\s+bonus|optional|nice(?:[\s-]+)to(?:[\s-]+)have|would\s+be\s+(?:an?\s+)?plus|considered\s+(?:an?\s+)?plus)\b/i
+const LEADING_REQUIRED_SIGNAL = /^\s*(?::|,|-)?\s*(?:is\s+)?(?:required|a\s+requirement|minimum|at\s+least|must\s+have|needed)\b/i
+const EXPERIENCE_CONTEXT_RADIUS = 96
 
 function experienceClauses(text: string): string[] {
   return text
@@ -38,19 +42,43 @@ function experienceClauses(text: string): string[] {
     .filter(Boolean)
 }
 
-function parseMandatoryExperienceMinima(clause: string): number[] {
-  if (OPTIONAL_EXPERIENCE_SIGNAL.test(clause)) return []
+function lastSignalIndex(text: string, signal: RegExp): number {
+  const matches = text.matchAll(new RegExp(signal.source, `${signal.flags.replace('g', '')}g`))
+  let lastIndex = -1
+  for (const match of matches) lastIndex = match.index
+  return lastIndex
+}
 
-  const hasRequiredSignal = REQUIRED_EXPERIENCE_SIGNAL.test(clause)
-  const hasExperienceTerm = EXPERIENCE_TERM.test(clause)
+function parseMandatoryExperienceMinima(clause: string): number[] {
   const minima: number[] = []
 
   for (const match of clause.matchAll(EXPERIENCE_YEARS)) {
     const lowerBound = Number(match[1])
-    const hasExplicitBound = match[2] !== undefined || match[3] !== undefined
-    if (Number.isFinite(lowerBound) && (hasRequiredSignal || hasExperienceTerm || hasExplicitBound)) {
-      minima.push(lowerBound)
-    }
+    if (!Number.isFinite(lowerBound) || match.index === undefined) continue
+
+    const prefix = clause.slice(
+      Math.max(0, match.index - EXPERIENCE_CONTEXT_RADIUS),
+      match.index,
+    )
+    const suffix = clause.slice(
+      match.index + match[0].length,
+      match.index + match[0].length + EXPERIENCE_CONTEXT_RADIUS,
+    )
+    const requiredBefore = lastSignalIndex(prefix, REQUIRED_EXPERIENCE_SIGNAL)
+    const optionalBefore = lastSignalIndex(prefix, OPTIONAL_EXPERIENCE_SIGNAL)
+    const experienceTerm = suffix.match(LEADING_EXPERIENCE_TERM)
+    const experienceDomain = suffix.match(LEADING_EXPERIENCE_DOMAIN)
+    const suffixAfterExperience = experienceTerm ? suffix.slice(experienceTerm[0].length) : suffix
+    const requiredAfter = LEADING_REQUIRED_SIGNAL.test(suffixAfterExperience)
+    const optionalAfter = LEADING_OPTIONAL_SIGNAL.test(suffixAfterExperience)
+    const hasRequiredBefore = requiredBefore >= 0 && requiredBefore > optionalBefore
+    const hasOptionalBefore = optionalBefore >= 0 && optionalBefore > requiredBefore
+    const isExperienceCandidate = Boolean(
+      hasRequiredBefore || requiredAfter || experienceTerm || experienceDomain,
+    )
+    const isOptionalCandidate = optionalAfter || (hasOptionalBefore && !requiredAfter)
+
+    if (isExperienceCandidate && !isOptionalCandidate) minima.push(lowerBound)
   }
 
   return minima

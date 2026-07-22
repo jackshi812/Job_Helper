@@ -18,6 +18,11 @@ describe('required experience parsing', () => {
     ['Preferred 5-7 years', null],
     ['5 years preferred', null],
     ['Benefits vest after 5 years', null],
+    ['Requires 5 years of experience with Python preferred', 5],
+    ['Benefits vest after 5-7 years', null],
+    ['Our office lease runs 10+ years', null],
+    ['Nice-to-have: 8 years experience', null],
+    ['Preferably 5+ years experience', null],
     ['Requires 3 years SQL and 5 years industry experience', 5],
     ['Senior analyst role', null],
     ['Experience required', null],
@@ -29,6 +34,18 @@ describe('required experience parsing', () => {
     expect(cheapFilter(job({ descriptionText: 'Requires 3 years.' }), prefs({ maxRequiredExperience: 3 })).pass).toBe(true)
     expect(cheapFilter(job({ descriptionText: 'Requires 4 years.' }), prefs({ maxRequiredExperience: 3 }))).toMatchObject({ pass: false, reason: 'experience_above_max' })
     expect(cheapFilter(job({ title: 'Senior Analyst', descriptionText: '' }), prefs({ maxRequiredExperience: 3 })).pass).toBe(true)
+  })
+
+  it.each([
+    ['Requires 5 years of experience with Python preferred', false, 'experience_above_max'],
+    ['Benefits vest after 5-7 years', true, undefined],
+    ['Our office lease runs 10+ years', true, undefined],
+    ['Nice-to-have: 8 years experience', true, undefined],
+    ['Preferably 5+ years experience', true, undefined],
+  ])('applies candidate-local semantics to %s', (descriptionText, pass, reason) => {
+    const result = cheapFilter(job({ descriptionText }), prefs({ maxRequiredExperience: 3 }))
+    expect(result.pass).toBe(pass)
+    if (!result.pass) expect(result.reason).toBe(reason)
   })
 })
 
