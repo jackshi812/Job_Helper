@@ -35,7 +35,7 @@ const LEADING_OPTIONAL_SIGNAL = /^\s*[(:,\-]*\s*(?:is\s+)?(?:preferred|preferabl
 const LEADING_REQUIRED_SIGNAL = /^\s*[(:,\-]*\s*(?:is\s+)?(?:required|a\s+requirement|minimum|at\s+least|must\s+have|needed)\b/i
 const LEADING_REQUIREMENT_CONTEXT = /^\s*(?:(?:[-*]|\d+[.)])\s*)?(?:(?:requires?|required|requirement|minimum(?:\s+of)?|at\s+least|must\s+have|need(?:ed)?|basic\s+qualifications?|minimum\s+qualifications?)\b|(?:we|this\s+(?:role|position)|the\s+(?:role|position))\s+(?:requires?|needs?)\b)/i
 const APPLICANT_CONTEXT = /\b(?:candidates?|applicants?|you|your|qualifications?|requirements?)\b/i
-const LEADING_NEW_EXPERIENCE_CANDIDATE = /^\s*(?:(?:minimum(?:\s+of)?|at\s+least)\s+)?\d{1,2}\s*(?:(?:-|to)\s*\d{1,2}\s*)?(?:\+|plus)?\s*years?\b/i
+const LEADING_NEW_EXPERIENCE_CANDIDATE = /^\s*(?:qualifications?\s*)?[(:,\-]*\s*(?:(?:minimum(?:\s+of)?|at\s+least)\s+)?\d{1,2}\s*(?:(?:-|to)\s*\d{1,2}\s*)?(?:\+|plus)?\s*years?\b/i
 const EXPERIENCE_CONTEXT_RADIUS = 96
 const STANDALONE_QUALIFICATION_PREFIX = /^\s*(?:(?:[-*]|\d+[.)])\s*)?$/
 
@@ -72,7 +72,6 @@ function parseMandatoryExperienceMinima(clause: string): number[] {
     )
     const punctuationBoundary = Math.max(
       prefix.lastIndexOf(','),
-      prefix.lastIndexOf(':'),
       prefix.lastIndexOf('('),
     )
     const localPrefix = prefix.slice(punctuationBoundary + 1)
