@@ -13,7 +13,7 @@ import { detectAts } from '../../supabase/functions/_shared/detect.ts'
 import { createVerifyBoardHandler } from '../../supabase/functions/verify-board/index.ts'
 import catalogSql from '../../supabase/migrations/0013_source_coverage_catalog.sql?raw'
 import migrationSql from '../../supabase/migrations/0016_workday_experimental.sql?raw'
-import activationSql from '../../supabase/migrations/0028_capital_one_recent_active.sql?raw'
+import activationSql from '../../supabase/migrations/0029_paylocity_connector.sql?raw'
 import normalizedTypesSource from '../../supabase/functions/_shared/adapters/types.ts?raw'
 
 const sourceKey = 'workday:wd12:capitalone:Capital_One'
@@ -164,9 +164,9 @@ describe('Capital One Workday identity contract', () => {
   })
 
   it('keeps final database and source unions closed with Adzuna as jobs-only exception', () => {
-    const companyCheck = migrationSql.match(/companies_ats_type_check check \(([\s\S]*?)\n  \)/)?.[1] ?? ''
-    const jobCheck = migrationSql.match(/jobs_source_check check \(([\s\S]*?)\n  \)/)?.[1] ?? ''
-    const direct = ['greenhouse', 'lever', 'ashby', 'smartrecruiters', 'recruitee', 'workday']
+    const companyCheck = activationSql.match(/companies_ats_type_check check \(([\s\S]*?)\n  \)/)?.[1] ?? ''
+    const jobCheck = activationSql.match(/jobs_source_check check \(([\s\S]*?)\n  \)/)?.[1] ?? ''
+    const direct = ['greenhouse', 'lever', 'ashby', 'smartrecruiters', 'recruitee', 'workday', 'paylocity']
     for (const provider of direct) {
       expect(normalizedTypesSource).toContain(`| '${provider}'`)
       expect(companyCheck).toContain(`'${provider}'`)
@@ -179,11 +179,8 @@ describe('Capital One Workday identity contract', () => {
       expect(companyCheck.toLowerCase()).not.toContain(`'${unsupported}'`)
       expect(jobCheck.toLowerCase()).not.toContain(`'${unsupported}'`)
     }
-    expect(migrationSql).toContain("activation_state = 'experimental'")
-    expect(migrationSql).toMatch(/ats_type in \('greenhouse', 'lever', 'ashby', 'smartrecruiters', 'recruitee'\)/)
-    expect(migrationSql).toContain('Only Plan 07 real-user verify-board may create/reconcile')
-    expect(migrationSql).toContain('expects zero Workday job rows')
-    expect(migrationSql).not.toMatch(/insert into public\.companies/i)
+    expect(activationSql).toMatch(/ats_type in \('greenhouse', 'lever', 'ashby', 'smartrecruiters', 'recruitee', 'paylocity'\)/)
+    expect(activationSql).not.toMatch(/insert into public\.companies/i)
   })
 
   it('records Workday drift against the exact existing source key', async () => {
@@ -554,6 +551,7 @@ describe('recent Capital One Analysis and Finance import', () => {
     expect(activationSql).toMatch(/last_polled_at < now\(\) - interval '9 minutes'/i)
     expect(activationSql).toMatch(/for update skip locked/i)
     expect(activationSql).not.toMatch(/ats_type\s+in\s*\([^)]*'workday'/i)
-    expect(activationSql).toContain('Capital One activation requires zero pre-existing Workday jobs')
+    expect(activationSql).toMatch(/ats_type\s*=\s*'workday'\s+and source_key\s*=\s*'workday:wd12:capitalone:Capital_One'\s+and board_token\s*=\s*'capitalone'\s+and region\s*=\s*'wd12'\s+and site_token\s*=\s*'Capital_One'/i)
+    expect(activationSql.match(/workday:wd12:capitalone:Capital_One/g)?.length).toBeGreaterThanOrEqual(2)
   })
 })

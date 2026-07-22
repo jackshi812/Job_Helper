@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createVerifyBoardHandler } from '../../supabase/functions/verify-board/index.ts'
 import verifyBoardSource from '../../supabase/functions/verify-board/index.ts?raw'
-import migrationSql from '../../supabase/migrations/0015_activation_windows.sql?raw'
+import migrationSql from '../../supabase/migrations/0029_paylocity_connector.sql?raw'
 import {
   PAYLOCITY_BOARD_UUID,
   PAYLOCITY_SOURCE_KEY,
@@ -135,15 +135,11 @@ describe('local structural proof for record_connector_observation SQL', () => {
     expect(migrationSql).toMatch(/grant execute on function public\.record_connector_observation[\s\S]*to service_role/i)
   })
 
-  it('stores bounded accepted evidence with replay and same-window constraints', () => {
-    expect(migrationSql).toMatch(/create table public\.connector_observations/i)
-    expect(migrationSql).toMatch(/observation_id\s+uuid\s+(?:primary key|not null)/i)
-    expect(migrationSql).toMatch(/observed_at\s+timestamptz\s+not null\s+default\s+clock_timestamp\(\)/i)
-    expect(migrationSql).toMatch(/unique\s*\(\s*company_id\s*,\s*eligibility_window_start\s*\)/i)
-    expect(migrationSql).toMatch(/unique\s*\(\s*observation_id\s*\)|observation_id\s+uuid\s+primary key/i)
-    expect(migrationSql).toMatch(/warning_count\s+integer/i)
-    expect(migrationSql).toMatch(/evidence_digest\s+text/i)
+  it('retains a closed accepted-evidence provider set with Paylocity and no SuccessFactors', () => {
+    expect(migrationSql).toMatch(/alter table public\.connector_observations/i)
+    expect(migrationSql).toMatch(/connector_observations_provider_check[\s\S]*provider\s+in\s*\(\s*'smartrecruiters'\s*,\s*'recruitee'\s*,\s*'workday'\s*,\s*'paylocity'\s*\)/i)
     expect(migrationSql).toMatch(/revoke all on table public\.connector_observations from public, anon, authenticated/i)
+    expect(migrationSql.toLowerCase()).not.toContain('successfactors')
   })
 
   it('uses bounded contention and locks only after validating inputs', () => {
@@ -163,7 +159,7 @@ describe('local structural proof for record_connector_observation SQL', () => {
     const insert = sqlIndex(/insert into public\.connector_observations/i)
     expect(progressGuard).toBeLessThan(insert)
     expect(migrationSql).toMatch(/progress_complete/i)
-    expect(migrationSql).toMatch(/(?:provider\s+in|v_provider\s+not in)\s*\(\s*'smartrecruiters'\s*,\s*'recruitee'\s*,\s*'workday'\s*\)/i)
+    expect(migrationSql).toMatch(/(?:provider\s+in|v_provider\s+not in)\s*\(\s*'smartrecruiters'\s*,\s*'recruitee'\s*,\s*'workday'\s*,\s*'paylocity'\s*\)/i)
   })
 
   it('returns persisted progress plus server window boundaries and promotes only stable public providers', () => {
@@ -171,8 +167,22 @@ describe('local structural proof for record_connector_observation SQL', () => {
     expect(migrationSql).toMatch(/activation_successes\s*=\s*v_progress/i)
     expect(migrationSql).toMatch(/last_verified_at\s*=/i)
     expect(migrationSql).toMatch(/last_observation_count\s*=/i)
-    expect(migrationSql).toMatch(/ats_type\s+in\s*\(\s*'smartrecruiters'\s*,\s*'recruitee'\s*\)/i)
+    expect(migrationSql).toMatch(/ats_type\s+in\s*\(\s*'smartrecruiters'\s*,\s*'recruitee'\s*,\s*'paylocity'\s*\)/i)
     expect(migrationSql).not.toMatch(/ats_type\s+in\s*\([^)]*'workday'[^)]*\)[\s\S]{0,160}activation_state\s*=\s*'active'/i)
+  })
+
+  it('admits only the exact server-owned Paylocity company identity', () => {
+    expect(migrationSql).toMatch(/companies_paylocity_identity_check check\s*\([\s\S]*ats_type\s*<>\s*'paylocity'[\s\S]*board_token\s*=\s*'d6628b21-949b-4400-a3d0-c9082bbf3eb1'[\s\S]*region\s+is\s+null[\s\S]*site_token\s+is\s+null[\s\S]*source_key\s*=\s*'paylocity:global:d6628b21-949b-4400-a3d0-c9082bbf3eb1'[\s\S]*activation_state\s+in\s*\(\s*'experimental'\s*,\s*'active'\s*\)/i)
+    expect(migrationSql).not.toMatch(/ats_type\s*=\s*'paylocity'[\s\S]{0,220}board_token\s*=\s*source_key/i)
+  })
+
+  it('preserves every shipped source while adding Paylocity to the stable claim branch', () => {
+    expect(migrationSql).toMatch(/companies_ats_type_check check\s*\([\s\S]*ats_type\s+in\s*\(\s*'greenhouse'\s*,\s*'lever'\s*,\s*'ashby'\s*,\s*'smartrecruiters'\s*,\s*'recruitee'\s*,\s*'workday'\s*,\s*'paylocity'\s*\)/i)
+    expect(migrationSql).toMatch(/jobs_source_check check\s*\([\s\S]*source\s+in\s*\(\s*'greenhouse'\s*,\s*'lever'\s*,\s*'ashby'\s*,\s*'smartrecruiters'\s*,\s*'recruitee'\s*,\s*'adzuna'\s*,\s*'workday'\s*,\s*'paylocity'\s*\)/i)
+    expect(migrationSql).toMatch(/where activation_state\s*=\s*'active'[\s\S]*ats_type\s+in\s*\(\s*'greenhouse'\s*,\s*'lever'\s*,\s*'ashby'\s*,\s*'smartrecruiters'\s*,\s*'recruitee'\s*,\s*'paylocity'\s*\)/i)
+    expect(migrationSql).toMatch(/last_polled_at\s*<\s*now\(\)\s*-\s*interval\s*'9 minutes'/i)
+    expect(migrationSql).toMatch(/for update skip locked/i)
+    expect(migrationSql).toMatch(/grant execute on function public\.claim_due_companies\(integer\) to service_role/i)
   })
 })
 
