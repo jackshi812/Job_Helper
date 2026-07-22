@@ -34,6 +34,12 @@ describe('required experience parsing', () => {
     ['5+ years in analytics - preferred', null],
     ['5 years in finance, required', 5],
     ['5 years in finance (required)', 5],
+    ['Required 5 years of experience, preferred 7 years of experience', 5],
+    ['Preferred 5 years of experience, required 3 years of experience', 3],
+    ['Candidates must have 5 years of experience', 5],
+    ['Applicants need 4 years of relevant experience', 4],
+    ["5 years' experience required", 5],
+    ['5 years’ experience required', 5],
     ['Requires 3 years SQL and 5 years industry experience', 5],
     ['Senior analyst role', null],
     ['Experience required', null],
@@ -61,6 +67,10 @@ describe('required experience parsing', () => {
     ['Employees are required to wait 5 years for benefits', true, undefined],
     ['5+ years in analytics, is a plus', true, undefined],
     ['5+ years in analytics - preferred', true, undefined],
+    ['Required 5 years of experience, preferred 7 years of experience', false, 'experience_above_max'],
+    ['Preferred 5 years of experience, required 3 years of experience', true, undefined],
+    ['Candidates must have 5 years of experience', false, 'experience_above_max'],
+    ["5 years' experience required", false, 'experience_above_max'],
   ])('applies candidate-local semantics to %s', (descriptionText, pass, reason) => {
     const result = cheapFilter(job({ descriptionText }), prefs({ maxRequiredExperience: 3 }))
     expect(result.pass).toBe(pass)

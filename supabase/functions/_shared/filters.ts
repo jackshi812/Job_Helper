@@ -29,12 +29,13 @@ export interface FilterPreferences {
 const OPTIONAL_EXPERIENCE_SIGNAL = /\b(?:preferred|preferably|desired|bonus|optional|nice(?:[\s-]+)to(?:[\s-]+)have)\b|\b(?:is|would\s+be|considered)\s+(?:an?\s+)?plus\b/i
 const REQUIRED_EXPERIENCE_SIGNAL = /\b(?:requires?|required|requirement|minimum(?:\s+of)?|at\s+least|must\s+have|need(?:ed)?|basic\s+qualifications?|minimum\s+qualifications?)\b/i
 const EXPERIENCE_YEARS = /\b(\d{1,2})\s*(?:(?:-|to)\s*(\d{1,2})\s*)?(\+|plus)?\s*years?\b/gi
-const LEADING_EXPERIENCE_TERM = /^\s*(?:of\s+)?(?:(?:professional|relevant|related|industry|work)\s+)?experience\b/i
-const LEADING_EXPERIENCE_DOMAIN = /^\s+in\s+(?!(?:total|duration|required|preferred|preferably|desired|optional)\b)[a-z][a-z0-9&/+.-]*(?:\s+(?!(?:is|would|considered|required|preferred|preferably|desired|optional)\b)[a-z][a-z0-9&/+.-]*){0,2}\b/i
-const LEADING_OPTIONAL_SIGNAL = /^\s*[(:,\-]*\s*(?:is\s+)?(?:preferred|preferably|desired|a\s+bonus|optional|nice(?:[\s-]+)to(?:[\s-]+)have|would\s+be\s+(?:an?\s+)?plus|considered\s+(?:an?\s+)?plus)\b/i
+const LEADING_EXPERIENCE_TERM = /^\s*(?:(?:of|['’])\s+)?(?:(?:professional|relevant|related|industry|work)\s+)?experience\b/i
+const LEADING_EXPERIENCE_DOMAIN = /^\s+in\s+(?!(?:total|duration|required|preferred|preferably|desired|optional|nice|bonus|a)\b)[a-z][a-z0-9&/+.-]*(?:\s+(?!(?:is|would|considered|required|preferred|preferably|desired|optional|nice|bonus|a)\b)[a-z][a-z0-9&/+.-]*){0,2}\b/i
+const LEADING_OPTIONAL_SIGNAL = /^\s*[(:,\-]*\s*(?:is\s+)?(?:preferred|preferably|desired|a\s+bonus|optional|nice(?:[\s-]+)to(?:[\s-]+)have|(?:an?\s+)?plus|would\s+be\s+(?:an?\s+)?plus|considered\s+(?:an?\s+)?plus)\b/i
 const LEADING_REQUIRED_SIGNAL = /^\s*[(:,\-]*\s*(?:is\s+)?(?:required|a\s+requirement|minimum|at\s+least|must\s+have|needed)\b/i
 const LEADING_REQUIREMENT_CONTEXT = /^\s*(?:(?:[-*]|\d+[.)])\s*)?(?:(?:requires?|required|requirement|minimum(?:\s+of)?|at\s+least|must\s+have|need(?:ed)?|basic\s+qualifications?|minimum\s+qualifications?)\b|(?:we|this\s+(?:role|position)|the\s+(?:role|position))\s+(?:requires?|needs?)\b)/i
-const APPLICANT_CONTEXT = /\b(?:candidate|applicant|you|your|qualifications?|requirements?)\b/i
+const APPLICANT_CONTEXT = /\b(?:candidates?|applicants?|you|your|qualifications?|requirements?)\b/i
+const LEADING_NEW_EXPERIENCE_CANDIDATE = /^\s*(?:(?:minimum(?:\s+of)?|at\s+least)\s+)?\d{1,2}\s*(?:(?:-|to)\s*\d{1,2}\s*)?(?:\+|plus)?\s*years?\b/i
 const EXPERIENCE_CONTEXT_RADIUS = 96
 const STANDALONE_QUALIFICATION_PREFIX = /^\s*(?:(?:[-*]|\d+[.)])\s*)?$/
 
@@ -50,6 +51,12 @@ function lastSignalIndex(text: string, signal: RegExp): number {
   let lastIndex = -1
   for (const match of matches) lastIndex = match.index
   return lastIndex
+}
+
+function leadingSignalAppliesToCurrentCandidate(text: string, signal: RegExp): boolean {
+  const match = text.match(signal)
+  if (!match) return false
+  return !LEADING_NEW_EXPERIENCE_CANDIDATE.test(text.slice(match[0].length))
 }
 
 function parseMandatoryExperienceMinima(clause: string): number[] {
@@ -81,9 +88,13 @@ function parseMandatoryExperienceMinima(clause: string): number[] {
     const suffixAfterCandidate = candidateSuffix
       ? suffix.slice(candidateSuffix[0].length)
       : suffix
-    const requiredAfter = LEADING_REQUIRED_SIGNAL.test(suffixAfterCandidate)
-    const optionalAfter = LEADING_OPTIONAL_SIGNAL.test(suffixAfterCandidate) || Boolean(
-      experienceDomain && OPTIONAL_EXPERIENCE_SIGNAL.test(suffix),
+    const requiredAfter = leadingSignalAppliesToCurrentCandidate(
+      suffixAfterCandidate,
+      LEADING_REQUIRED_SIGNAL,
+    )
+    const optionalAfter = leadingSignalAppliesToCurrentCandidate(
+      suffixAfterCandidate,
+      LEADING_OPTIONAL_SIGNAL,
     )
     const hasOptionalBefore = optionalBefore >= 0 && optionalBefore > requiredBefore
     const hasRequiredBefore = !hasOptionalBefore && Boolean(
