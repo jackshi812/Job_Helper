@@ -820,10 +820,10 @@ function createProductionAdapters(environment: ResumeEnvironment): PaylocityVeri
         })
         if (extract.error) throw new Error('disposable resume extract creation failed')
         const userJobs = await admin.from('user_jobs').insert([
-          { id: userJobIds[0], user_id: userId, job_id: jobs[0].id },
-          { id: userJobIds[1], user_id: userId, job_id: jobs[1].id, attempts: 5 },
+          { id: userJobIds[0], user_id: userId, job_id: jobs[0].id, status: 'pending', attempts: 0, needs_refilter: false },
+          { id: userJobIds[1], user_id: userId, job_id: jobs[1].id, status: 'pending', attempts: 5, needs_refilter: false },
         ])
-        if (userJobs.error) throw new Error('disposable user_jobs creation failed')
+        if (userJobs.error) throw new Error(`disposable user_jobs creation failed: ${userJobs.error.message}`)
         return owned
       } catch (error) {
         const cleanupErrors: unknown[] = []
