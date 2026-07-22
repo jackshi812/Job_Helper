@@ -205,7 +205,7 @@ Plans:
 **Depends on:** Phase 3
 **Context:** `.planning/phases/03.1-workday-ats-connector-expansion/03.1-CONTEXT.md`
 **Research:** `.planning/phases/03.1-workday-ats-connector-expansion/03.1-RESEARCH.md`
-**Plans:** 3/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -222,11 +222,11 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 03.1-04-PLAN.md — [BLOCKING] Owner approval for production schema, Edge, activation, and paid proof
+- [x] 03.1-04-PLAN.md — [BLOCKING] Owner approval for production schema, Edge, activation, and paid proof
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 03.1-05-PLAN.md — Approved deployment, three-window activation, polling, and dashboard evidence
+- [x] 03.1-05-PLAN.md — Approved deployment, three-window activation, polling, and dashboard evidence
 
 **Success Criteria** (what must be TRUE):
 

@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03.1
 current_phase_name: SuccessFactors & Paylocity Connector Expansion
 status: executing
-stopped_at: Completed 03.1-03-PLAN.md
-last_updated: "2026-07-22T04:04:05.084Z"
+stopped_at: Completed 03.1-05-PLAN.md
+last_updated: "2026-07-22T04:39:35.472Z"
 last_activity: 2026-07-21
 last_activity_desc: Phase 03.1 execution started
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 39
-  completed_plans: 37
-  percent: 57
+  completed_plans: 39
+  percent: 71
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 03.1 (SuccessFactors & Paylocity Connector Expansion) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-07-21 — Phase 03.1 execution started
 
@@ -84,6 +84,7 @@ Progress: [████████████████████] 34/34 p
 | Phase 03.1 P01 | 6min | 3 tasks | 7 files |
 | Phase 03.1 P02 | 4min | 2 tasks | 6 files |
 | Phase 03.1 P03 | 20min | 2 tasks | 5 files |
+| Phase 03.1 P05 | 35min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -170,6 +171,9 @@ Recent decisions affecting current work:
 - [Phase 03.1]: Reject empty Paylocity observations at the SQL activation boundary even when observed and expected counts are both zero. — Count equality without positive evidence cannot prove that a public board is reachable or complete.
 - [Phase 03.1]: Preserve existing Workday constraint and promotion objects, proving Capital One parity transactionally instead of recreating them. — Migration 0029 must add Paylocity without widening or rolling back the exceptional Capital One authorization.
 - [Phase 03.1]: Use one disposable verifier account, exactly one paid score call, complete snapshots, and compare-and-swap scheduler restoration for hosted proof. — Production verification must bound cost and mutation ownership while remaining safely resumable after failures.
+- [Phase 03.1]: Map the live Paylocity feed schema strictly through title/displayUrl/jobLocation.name aliases while retaining reviewed identity and URL checks. — The public provider payload differs from local fixtures; strict aliases preserve live ingestion without weakening identity or content validation.
+- [Phase 03.1]: Pause and restore the score cron by comparing the complete row but changing only active, because hosted pg_cron rejects username mutation and forbids row locks for the management role. — The hosted permission boundary prevents a row-lock CAS and username rewrite; exact preconditions, active-only mutation, and postconditions preserve safe restoration.
+- [Phase 03.1]: Seed every non-null disposable user_jobs field explicitly so bulk JSON cannot turn omitted attempts into NULL. — PostgREST bulk inserts normalize omitted fields across rows; explicit verifier-owned defaults keep fixture creation deterministic.
 
 ### Pending Todos
 
@@ -201,7 +205,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-22T04:04:05.078Z
-Stopped at: Completed 03.1-03-PLAN.md
+Last session: 2026-07-22T04:39:35.466Z
+Stopped at: Completed 03.1-05-PLAN.md
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
