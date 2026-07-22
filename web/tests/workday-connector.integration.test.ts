@@ -543,12 +543,13 @@ describe('recent Capital One Analysis and Finance import', () => {
   })
 
   it('activates and claims only the exact evidence-backed Capital One identity', () => {
+    const claimSql = activationSql.match(/create or replace function public\.claim_due_companies[\s\S]*?as \$\$([\s\S]*?)\$\$;/i)?.[1] ?? ''
     expect(activationSql).toContain("source_key = 'workday:wd12:capitalone:Capital_One'")
-    expect(activationSql).toMatch(/where activation_state = 'active'[\s\S]*ats_type = 'workday'[\s\S]*source_key = 'workday:wd12:capitalone:Capital_One'/i)
-    expect(activationSql).toMatch(/last_polled_at < now\(\) - interval '9 minutes'/i)
-    expect(activationSql).toMatch(/for update skip locked/i)
-    expect(activationSql).not.toMatch(/ats_type\s+in\s*\([^)]*'workday'/i)
-    expect(activationSql).toMatch(/ats_type\s*=\s*'workday'\s+and source_key\s*=\s*'workday:wd12:capitalone:Capital_One'\s+and board_token\s*=\s*'capitalone'\s+and region\s*=\s*'wd12'\s+and site_token\s*=\s*'Capital_One'/i)
+    expect(claimSql).toMatch(/where activation_state = 'active'[\s\S]*ats_type = 'workday'[\s\S]*source_key = 'workday:wd12:capitalone:Capital_One'/i)
+    expect(claimSql).toMatch(/last_polled_at < now\(\) - interval '9 minutes'/i)
+    expect(claimSql).toMatch(/for update skip locked/i)
+    expect(claimSql).not.toMatch(/ats_type\s+in\s*\([^)]*'workday'/i)
+    expect(claimSql).toMatch(/ats_type\s*=\s*'workday'\s+and source_key\s*=\s*'workday:wd12:capitalone:Capital_One'\s+and board_token\s*=\s*'capitalone'\s+and region\s*=\s*'wd12'\s+and site_token\s*=\s*'Capital_One'/i)
     expect(activationSql.match(/workday:wd12:capitalone:Capital_One/g)?.length).toBeGreaterThanOrEqual(2)
     expect(activationSql).toContain("c.conname = 'companies_workday_identity_check'")
     expect(activationSql).toContain("p.proname = 'promote_capital_one_after_observation'")

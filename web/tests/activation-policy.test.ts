@@ -76,6 +76,7 @@ function mirrorObservation(state: MirrorState, evidence: MirrorEvidence): Mirror
     && evidence.jobCount !== undefined
     && evidence.expectedCount !== undefined
     && evidence.jobCount === evidence.expectedCount
+    && (evidence.provider !== 'paylocity' || evidence.jobCount > 0)
   if (!eligible) return result('ineligible')
 
   snapshot.observationIds.add(evidence.observationId)
