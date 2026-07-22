@@ -2,8 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { createVerifyBoardHandler } from '../../supabase/functions/verify-board/index.ts'
 import verifyBoardSource from '../../supabase/functions/verify-board/index.ts?raw'
 import migrationSql from '../../supabase/migrations/0015_activation_windows.sql?raw'
+import {
+  PAYLOCITY_BOARD_UUID,
+  PAYLOCITY_SOURCE_KEY,
+} from '../../supabase/functions/_shared/provider-identities.ts'
 
-type Provider = 'smartrecruiters' | 'recruitee' | 'workday'
+type Provider = 'smartrecruiters' | 'recruitee' | 'paylocity' | 'workday'
 
 interface MirrorState {
   progress: number
@@ -79,7 +83,11 @@ function mirrorObservation(state: MirrorState, evidence: MirrorEvidence): Mirror
   snapshot.progress += 1
   if (
     snapshot.progress === 3
-    && (evidence.provider === 'smartrecruiters' || evidence.provider === 'recruitee')
+    && (
+      evidence.provider === 'smartrecruiters'
+      || evidence.provider === 'recruitee'
+      || evidence.provider === 'paylocity'
+    )
   ) {
     snapshot.activationState = 'active'
   }
@@ -207,7 +215,7 @@ describe('local pure-contract mirror for activation windows', () => {
     expect(result.windowStarts.size).toBe(0)
   })
 
-  it.each(['smartrecruiters', 'recruitee'] as const)(
+  it.each(['smartrecruiters', 'recruitee', 'paylocity'] as const)(
     'promotes %s only after three separate eligible windows',
     (provider) => {
       const one = mirrorObservation(emptyState(), eligibleEvidence(provider, 'obs-1', 0))
@@ -276,6 +284,29 @@ const publicCompany = {
   created_at: '2026-07-18T01:00:00.000Z',
 }
 
+const paylocityBoardUrl =
+  `https://recruiting.paylocity.com/recruiting/jobs/All/${PAYLOCITY_BOARD_UUID}/The-Only-Facial`
+const paylocityJob = {
+  jobId: 301,
+  jobTitle: 'Client Experience Analyst',
+  companyName: 'The Only Facial',
+  location: 'Chicago, IL',
+  description: '<p>Analyze client experience.</p>',
+  requirements: '<p>SQL and communication.</p>',
+  jobUrl: 'https://recruiting.paylocity.com/recruiting/jobs/Details/301',
+  applyUrl: 'https://recruiting.paylocity.com/recruiting/jobs/Apply/301',
+  listUrl: paylocityBoardUrl,
+  publishedDate: '2026-07-21T12:00:00Z',
+}
+const paylocityCompany = {
+  ...publicCompany,
+  name: 'The Only Facial',
+  ats_type: 'paylocity',
+  board_token: PAYLOCITY_BOARD_UUID,
+  careers_url: paylocityBoardUrl,
+  source_key: PAYLOCITY_SOURCE_KEY,
+}
+
 function verifyRequest(
   token = 'real-user-token',
   extraBody: Record<string, unknown> = {},
@@ -297,20 +328,22 @@ function activationHarness(options: {
   duplicate?: boolean
   rpcRow?: Partial<ActivationResult>
   providerFetch?: ReturnType<typeof vi.fn>
+  provider?: 'smartrecruiters' | 'paylocity'
 } = {}) {
   const getUser = vi.fn().mockResolvedValue({
     data: { user: { id: 'user-1', role: 'authenticated' } },
     error: null,
   })
   const createAuthClient = vi.fn(() => ({ auth: { getUser } }))
+  const baseCompany = options.provider === 'paylocity' ? paylocityCompany : publicCompany
   const persistedCompany = {
-    ...publicCompany,
+    ...baseCompany,
     activation_successes: options.rpcRow?.progress ?? 1,
     activation_state: options.rpcRow?.result_activation_state ?? 'experimental',
   }
   const single = vi.fn().mockResolvedValue(options.duplicate
     ? { data: null, error: { code: '23505' } }
-    : { data: { ...publicCompany, activation_successes: 0 }, error: null })
+    : { data: { ...baseCompany, activation_successes: 0 }, error: null })
   const insertSelect = vi.fn(() => ({ single }))
   const insert = vi.fn(() => ({ select: insertSelect }))
   const maybeSingle = vi.fn().mockResolvedValue({ data: persistedCompany, error: null })
@@ -330,10 +363,12 @@ function activationHarness(options: {
   }
   const rpc = vi.fn().mockResolvedValue({ data: [rpcRow], error: null })
   const createServiceClient = vi.fn(() => ({ from, rpc }))
-  const providerFetch = options.providerFetch ?? vi.fn().mockResolvedValue(Response.json({
-    totalFound: 1,
-    content: [smartPosting],
-  }, { headers: { 'content-type': 'application/json' } }))
+  const providerFetch = options.providerFetch ?? vi.fn().mockResolvedValue(Response.json(
+    options.provider === 'paylocity'
+      ? { displayName: 'The Only Facial', jobs: [paylocityJob] }
+      : { totalFound: 1, content: [smartPosting] },
+    { headers: { 'content-type': 'application/json' } },
+  ))
   const handler = createVerifyBoardHandler({
     createAuthClient,
     createServiceClient,
@@ -471,5 +506,87 @@ describe('verify-board real-user activation boundary', () => {
     expect(getUser).toBeLessThan(role)
     expect(role).toBeLessThan(service)
     expect(verifyBoardSource).toContain("service.rpc('record_connector_observation'")
+  })
+
+  it('stages exact Paylocity identity and records only server-derived evidence', async () => {
+    const h = activationHarness({ provider: 'paylocity' })
+    const response = await h.handler(verifyRequest('real-user-token', {
+      url: paylocityBoardUrl,
+      board_token: 'forged-board',
+      source_key: 'paylocity:global:forged',
+      provider_key: 'forged-feed-key',
+      observed_at: '2099-01-01T00:00:00Z',
+      activation_target: 'active',
+    }))
+
+    expect(response.status).toBe(200)
+    expect(h.insert).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'The Only Facial',
+      ats_type: 'paylocity',
+      board_token: PAYLOCITY_BOARD_UUID,
+      region: null,
+      careers_url: paylocityBoardUrl,
+      source_key: PAYLOCITY_SOURCE_KEY,
+      site_token: null,
+      activation_state: 'experimental',
+    }))
+    expect(h.rpc).toHaveBeenCalledWith('record_connector_observation', {
+      p_company_id: paylocityCompany.id,
+      p_observation_id: '22222222-2222-4222-8222-222222222222',
+      p_completeness: 'complete',
+      p_credible_for_closure: true,
+      p_job_count: 1,
+      p_expected_count: 1,
+      p_warning_count: 0,
+      p_evidence_digest: 'a'.repeat(64),
+    })
+    const rpcArgs = h.rpc.mock.calls[0]?.[1]
+    expect(rpcArgs).not.toHaveProperty('provider_key')
+    expect(rpcArgs).not.toHaveProperty('observed_at')
+    expect(rpcArgs).not.toHaveProperty('activation_target')
+  })
+
+  it('resumes duplicate Paylocity evidence on its exact existing company row', async () => {
+    const h = activationHarness({ provider: 'paylocity', duplicate: true })
+    const response = await h.handler(verifyRequest('real-user-token', { url: paylocityBoardUrl }))
+
+    expect(h.select).toHaveBeenCalled()
+    expect(h.rpc).toHaveBeenCalledTimes(1)
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      already_watched: true,
+      company: { source_key: PAYLOCITY_SOURCE_KEY },
+      activation: { accepted: true, progress: 1 },
+    })
+  })
+
+  it('records bounded Paylocity drift without activation or cross-identity mutation', async () => {
+    const providerFetch = vi.fn().mockResolvedValue(Response.json({
+      displayName: 'Other Employer',
+      jobs: [paylocityJob],
+    }, { headers: { 'content-type': 'application/json' } }))
+    const h = activationHarness({ provider: 'paylocity', providerFetch })
+    const response = await h.handler(verifyRequest('real-user-token', { url: paylocityBoardUrl }))
+
+    expect(response.status).toBe(200)
+    expect(h.update).toHaveBeenCalledWith({
+      last_error: 'Manual verification failed.',
+      last_error_code: 'identity_drift',
+    })
+    expect(h.updateEq).toHaveBeenCalledWith('source_key', PAYLOCITY_SOURCE_KEY)
+    expect(h.rpc).not.toHaveBeenCalled()
+    await expect(response.json()).resolves.toMatchObject({ ok: false, reason: 'error' })
+  })
+
+  it('rejects Paylocity auth before provider, service client, or activation work', async () => {
+    const h = activationHarness({ provider: 'paylocity' })
+    h.getUser.mockResolvedValue({ data: { user: null }, error: { message: 'not a user' } } as never)
+
+    const response = await h.handler(verifyRequest('untrusted-token', { url: paylocityBoardUrl }))
+
+    expect(response.status).toBe(401)
+    expect(h.providerFetch).not.toHaveBeenCalled()
+    expect(h.createServiceClient).not.toHaveBeenCalled()
+    expect(h.rpc).not.toHaveBeenCalled()
   })
 })
