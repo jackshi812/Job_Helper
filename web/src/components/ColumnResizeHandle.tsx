@@ -1,13 +1,18 @@
 import { useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import {
+  claimColumnResize,
   clampDashboardColumnWidth,
-  reduceDashboardColumnWidth,
+  keyboardResizeWidth,
+  releaseColumnResize,
+  settleColumnResize,
+  type ColumnResizeCoordinator,
   type DashboardColumn,
 } from '../lib/dashboardColumns'
 
 interface ColumnResizeHandleProps {
   column: DashboardColumn
   width: number
+  coordinator: ColumnResizeCoordinator
   onWidthChange: (width: number) => void
   onWidthCommit: (width: number) => void
 }
@@ -21,30 +26,10 @@ interface ActiveDrag {
   previousUserSelect: string
 }
 
-export function keyboardResizeWidth(
-  column: DashboardColumn,
-  width: number,
-  key: string,
-  shiftKey: boolean,
-  pointerDragActive: boolean,
-): number | null {
-  if (pointerDragActive || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return null
-  return reduceDashboardColumnWidth(column.id, width, key, shiftKey)
-}
-
-export function settleColumnResize(
-  startWidth: number,
-  latestWidth: number,
-  commit: boolean,
-): { width: number; persist: boolean } {
-  return commit
-    ? { width: latestWidth, persist: true }
-    : { width: startWidth, persist: false }
-}
-
 export function ColumnResizeHandle({
   column,
   width,
+  coordinator,
   onWidthChange,
   onWidthCommit,
 }: ColumnResizeHandleProps) {
@@ -65,6 +50,7 @@ export function ColumnResizeHandle({
     if (handle?.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId)
     restoreDocumentStyles()
     activeDrag.current = null
+    releaseColumnResize(coordinator, column.id)
     const settlement = settleColumnResize(drag.startWidth, drag.latestWidth, commit)
     if (settlement.persist) onWidthCommit(settlement.width)
     else onWidthChange(settlement.width)
@@ -75,10 +61,14 @@ export function ColumnResizeHandle({
     if (!drag) return
     restoreDocumentStyles()
     activeDrag.current = null
-  }, [])
+    releaseColumnResize(coordinator, column.id)
+  }, [column.id, coordinator])
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (!event.isPrimary || activeDrag.current) return
+    if (
+      activeDrag.current ||
+      !claimColumnResize(coordinator, column.id, event.isPrimary, event.button)
+    ) return
     event.preventDefault()
     event.stopPropagation()
     const previousCursor = document.body.style.cursor

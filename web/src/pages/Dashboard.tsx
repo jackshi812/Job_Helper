@@ -32,6 +32,7 @@ import {
   dashboardTableWidth,
   loadDashboardColumnWidths,
   persistDashboardColumnWidths,
+  type ColumnResizeCoordinator,
   type DashboardColumn,
   type DashboardColumnId,
   type DashboardColumnWidths,
@@ -103,6 +104,7 @@ const filterActive =
 interface DashboardHeaderCellProps {
   column: DashboardColumn
   widths: DashboardColumnWidths
+  resizeCoordinator: ColumnResizeCoordinator
   onWidthChange: (columnId: DashboardColumnId, width: number) => void
   onWidthCommit: (columnId: DashboardColumnId, width: number) => void
   children: ReactNode
@@ -114,6 +116,7 @@ interface DashboardHeaderCellProps {
 function DashboardHeaderCell({
   column,
   widths,
+  resizeCoordinator,
   onWidthChange,
   onWidthCommit,
   children,
@@ -132,6 +135,7 @@ function DashboardHeaderCell({
         <ColumnResizeHandle
           column={column}
           width={widths[column.id]}
+          coordinator={resizeCoordinator}
           onWidthChange={(width) => onWidthChange(column.id, width)}
           onWidthCommit={(width) => onWidthCommit(column.id, width)}
         />
@@ -153,6 +157,7 @@ export function Dashboard() {
   const [selectedTiers, setSelectedTiers] = useState(() => new Set(ALL_SCORE_TIERS))
   const [columnWidths, setColumnWidths] = useState(loadDashboardColumnWidths)
   const columnWidthsRef = useRef(columnWidths)
+  const resizeCoordinator = useRef<ColumnResizeCoordinator>({ activeColumnId: null })
   const companyTriggerRef = useRef<HTMLButtonElement>(null)
 
   const feedQuery = useQuery({
@@ -493,6 +498,7 @@ export function Dashboard() {
                     key={column.id}
                     column={column}
                     widths={columnWidths}
+                    resizeCoordinator={resizeCoordinator.current}
                     onWidthChange={updateColumnWidth}
                     onWidthCommit={commitColumnWidth}
                   >
@@ -502,6 +508,7 @@ export function Dashboard() {
                 <DashboardHeaderCell
                   column={DASHBOARD_COLUMNS[4]}
                   widths={columnWidths}
+                  resizeCoordinator={resizeCoordinator.current}
                   onWidthChange={updateColumnWidth}
                   onWidthCommit={commitColumnWidth}
                   ariaSort={scoreAriaSort}
@@ -522,6 +529,7 @@ export function Dashboard() {
                     key={column.id}
                     column={column}
                     widths={columnWidths}
+                    resizeCoordinator={resizeCoordinator.current}
                     onWidthChange={updateColumnWidth}
                     onWidthCommit={commitColumnWidth}
                   >
@@ -531,6 +539,7 @@ export function Dashboard() {
                 <DashboardHeaderCell
                   column={DASHBOARD_COLUMNS[8]}
                   widths={columnWidths}
+                  resizeCoordinator={resizeCoordinator.current}
                   onWidthChange={updateColumnWidth}
                   onWidthCommit={commitColumnWidth}
                   isLast

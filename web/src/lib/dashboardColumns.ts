@@ -16,6 +16,10 @@ export type DashboardColumnId = (typeof DASHBOARD_COLUMNS)[number]['id']
 export type DashboardColumn = (typeof DASHBOARD_COLUMNS)[number]
 export type DashboardColumnWidths = Record<DashboardColumnId, number>
 
+export interface ColumnResizeCoordinator {
+  activeColumnId: DashboardColumnId | null
+}
+
 export interface DashboardColumnStorage {
   getItem(key: string): string | null
   setItem(key: string, value: string): void
@@ -125,6 +129,45 @@ export function reduceDashboardColumnWidth(
   const step = shiftKey ? 24 : 8
   const delta = key === 'ArrowLeft' ? -step : step
   return clampDashboardColumnWidth(columnId, currentWidth + delta)
+}
+
+export function keyboardResizeWidth(
+  column: DashboardColumn,
+  width: number,
+  key: string,
+  shiftKey: boolean,
+  pointerDragActive: boolean,
+): number | null {
+  if (pointerDragActive || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return null
+  return reduceDashboardColumnWidth(column.id, width, key, shiftKey)
+}
+
+export function settleColumnResize(
+  startWidth: number,
+  latestWidth: number,
+  commit: boolean,
+): { width: number; persist: boolean } {
+  return commit
+    ? { width: latestWidth, persist: true }
+    : { width: startWidth, persist: false }
+}
+
+export function claimColumnResize(
+  coordinator: ColumnResizeCoordinator,
+  columnId: DashboardColumnId,
+  isPrimary: boolean,
+  button: number,
+): boolean {
+  if (!isPrimary || button !== 0 || coordinator.activeColumnId !== null) return false
+  coordinator.activeColumnId = columnId
+  return true
+}
+
+export function releaseColumnResize(
+  coordinator: ColumnResizeCoordinator,
+  columnId: DashboardColumnId,
+) {
+  if (coordinator.activeColumnId === columnId) coordinator.activeColumnId = null
 }
 
 export function dashboardTableWidth(widths: DashboardColumnWidths): number {

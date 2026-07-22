@@ -6,15 +6,16 @@ import dashboardSource from './Dashboard.tsx?raw'
 import jobDetailSource from './JobDetail.tsx?raw'
 import resizeHandleSource from '../components/ColumnResizeHandle.tsx?raw'
 import {
-  keyboardResizeWidth,
-  settleColumnResize,
-} from '../components/ColumnResizeHandle'
-import {
   DASHBOARD_COLUMN_STORAGE_KEY,
   DASHBOARD_COLUMNS,
+  claimColumnResize,
   defaultDashboardColumnWidths,
   hydrateDashboardColumnWidths,
+  keyboardResizeWidth,
   persistDashboardColumnWidths,
+  releaseColumnResize,
+  settleColumnResize,
+  type ColumnResizeCoordinator,
   type DashboardColumnStorage,
 } from '../lib/dashboardColumns'
 import { Dashboard } from './Dashboard'
@@ -145,15 +146,31 @@ describe('Dashboard precision controls', () => {
   it('pins pointer capture, cancellation cleanup, keyboard resize, and coarse hit areas', () => {
     expect(resizeHandleSource).toContain('setPointerCapture')
     expect(resizeHandleSource).toContain('releasePointerCapture')
-    expect(resizeHandleSource).toContain('if (!event.isPrimary || activeDrag.current) return')
+    expect(resizeHandleSource).toContain('event.button')
+    expect(resizeHandleSource).toContain('claimColumnResize(coordinator, column.id')
     expect(resizeHandleSource).toContain('onPointerCancel')
     expect(resizeHandleSource).toContain('settleColumnResize(drag.startWidth, drag.latestWidth, commit)')
     expect(resizeHandleSource).toContain('activeDrag.current !== null')
     expect(resizeHandleSource).toContain("document.body.style.userSelect = 'none'")
     expect(resizeHandleSource).toContain('document.body.style.userSelect = drag.previousUserSelect')
     expect(resizeHandleSource).toContain('document.body.style.cursor = drag.previousCursor')
-    expect(resizeHandleSource).toContain("['ArrowLeft', 'ArrowRight', 'Home', 'End']")
     expect(resizeHandleSource).toContain('[@media(pointer:coarse)]:w-11')
+  })
+
+  it('rejects right-click and coordinates one pointer drag across all column handles', () => {
+    const coordinator: ColumnResizeCoordinator = { activeColumnId: null }
+
+    expect(claimColumnResize(coordinator, 'job', true, 2)).toBe(false)
+    expect(coordinator.activeColumnId).toBeNull()
+    expect(claimColumnResize(coordinator, 'job', true, 0)).toBe(true)
+    expect(claimColumnResize(coordinator, 'company', true, 0)).toBe(false)
+    expect(coordinator.activeColumnId).toBe('job')
+
+    releaseColumnResize(coordinator, 'company')
+    expect(coordinator.activeColumnId).toBe('job')
+    releaseColumnResize(coordinator, 'job')
+    expect(coordinator.activeColumnId).toBeNull()
+    expect(claimColumnResize(coordinator, 'company', true, 0)).toBe(true)
   })
 
   it('keeps rendered and persisted widths aligned when a dragged handle receives a resize key then cancels', () => {
