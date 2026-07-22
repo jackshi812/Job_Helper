@@ -31,14 +31,16 @@ const REQUIRED_EXPERIENCE_SIGNAL = /\b(?:requires?|required|requirement|minimum(
 const EXPERIENCE_YEARS = /\b(\d{1,2})\s*(?:(?:-|to)\s*(\d{1,2})\s*)?(\+|plus)?\s*years?\b/gi
 const LEADING_EXPERIENCE_TERM = /^\s*(?:of\s+)?(?:(?:professional|relevant|related|industry|work)\s+)?experience\b/i
 const LEADING_EXPERIENCE_DOMAIN = /^\s+in\s+(?!(?:total|duration|required|preferred|preferably|desired|optional)\b)[a-z][a-z0-9&/+.-]*(?:\s+(?!(?:is|would|considered|required|preferred|preferably|desired|optional)\b)[a-z][a-z0-9&/+.-]*){0,2}\b/i
-const LEADING_OPTIONAL_SIGNAL = /^\s*(?::|,|-)?\s*(?:is\s+)?(?:preferred|preferably|desired|a\s+bonus|optional|nice(?:[\s-]+)to(?:[\s-]+)have|would\s+be\s+(?:an?\s+)?plus|considered\s+(?:an?\s+)?plus)\b/i
-const LEADING_REQUIRED_SIGNAL = /^\s*(?::|,|-)?\s*(?:is\s+)?(?:required|a\s+requirement|minimum|at\s+least|must\s+have|needed)\b/i
+const LEADING_OPTIONAL_SIGNAL = /^\s*[(:,\-]*\s*(?:is\s+)?(?:preferred|preferably|desired|a\s+bonus|optional|nice(?:[\s-]+)to(?:[\s-]+)have|would\s+be\s+(?:an?\s+)?plus|considered\s+(?:an?\s+)?plus)\b/i
+const LEADING_REQUIRED_SIGNAL = /^\s*[(:,\-]*\s*(?:is\s+)?(?:required|a\s+requirement|minimum|at\s+least|must\s+have|needed)\b/i
+const LEADING_REQUIREMENT_CONTEXT = /^\s*(?:(?:[-*]|\d+[.)])\s*)?(?:(?:requires?|required|requirement|minimum(?:\s+of)?|at\s+least|must\s+have|need(?:ed)?|basic\s+qualifications?|minimum\s+qualifications?)\b|(?:we|this\s+(?:role|position)|the\s+(?:role|position))\s+(?:requires?|needs?)\b)/i
+const APPLICANT_CONTEXT = /\b(?:candidate|applicant|you|your|qualifications?|requirements?)\b/i
 const EXPERIENCE_CONTEXT_RADIUS = 96
 const STANDALONE_QUALIFICATION_PREFIX = /^\s*(?:(?:[-*]|\d+[.)])\s*)?$/
 
 function experienceClauses(text: string): string[] {
   return text
-    .split(/(?:[.!?;\n\r•●▪]+|,\s+|\s+(?:and|or)\s+)/i)
+    .split(/(?:[.!?;\n\r•●▪]+|\s+(?:and|or)\s+)/i)
     .map((clause) => clause.trim())
     .filter(Boolean)
 }
@@ -61,6 +63,12 @@ function parseMandatoryExperienceMinima(clause: string): number[] {
       Math.max(0, match.index - EXPERIENCE_CONTEXT_RADIUS),
       match.index,
     )
+    const punctuationBoundary = Math.max(
+      prefix.lastIndexOf(','),
+      prefix.lastIndexOf(':'),
+      prefix.lastIndexOf('('),
+    )
+    const localPrefix = prefix.slice(punctuationBoundary + 1)
     const suffix = clause.slice(
       match.index + match[0].length,
       match.index + match[0].length + EXPERIENCE_CONTEXT_RADIUS,
@@ -77,13 +85,20 @@ function parseMandatoryExperienceMinima(clause: string): number[] {
     const optionalAfter = LEADING_OPTIONAL_SIGNAL.test(suffixAfterCandidate) || Boolean(
       experienceDomain && OPTIONAL_EXPERIENCE_SIGNAL.test(suffix),
     )
-    const hasRequiredBefore = requiredBefore >= 0 && requiredBefore > optionalBefore
     const hasOptionalBefore = optionalBefore >= 0 && optionalBefore > requiredBefore
+    const hasRequiredBefore = !hasOptionalBefore && Boolean(
+      LEADING_REQUIREMENT_CONTEXT.test(localPrefix) ||
+      (APPLICANT_CONTEXT.test(prefix) && requiredBefore >= 0),
+    )
+    const isStandaloneCandidate = STANDALONE_QUALIFICATION_PREFIX.test(localPrefix)
     const isStandalonePlusDomain = Boolean(
-      match[3] && experienceDomain && STANDALONE_QUALIFICATION_PREFIX.test(prefix),
+      match[3] && experienceDomain && isStandaloneCandidate,
     )
     const isExperienceCandidate = Boolean(
-      hasRequiredBefore || requiredAfter || experienceTerm || isStandalonePlusDomain,
+      hasRequiredBefore ||
+      (requiredAfter && (candidateSuffix || isStandaloneCandidate)) ||
+      (experienceTerm && isStandaloneCandidate) ||
+      isStandalonePlusDomain,
     )
     const isOptionalCandidate = optionalAfter || (hasOptionalBefore && !requiredAfter)
 
