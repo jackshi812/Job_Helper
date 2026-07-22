@@ -15,6 +15,10 @@ describe('required experience parsing', () => {
     ['3+ years in analytics', 3],
     ['3–5 years required', 3],
     ['Preferred: 8 years experience', null],
+    ['Preferred 5-7 years', null],
+    ['5 years preferred', null],
+    ['Benefits vest after 5 years', null],
+    ['Requires 3 years SQL and 5 years industry experience', 5],
     ['Senior analyst role', null],
     ['Experience required', null],
   ])('%s => %s', (description, expected) => {

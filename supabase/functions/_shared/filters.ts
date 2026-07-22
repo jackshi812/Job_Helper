@@ -26,17 +26,40 @@ export interface FilterPreferences {
   maxRequiredExperience?: number | null
 }
 
+const OPTIONAL_EXPERIENCE_SIGNAL = /\b(?:preferred|desired|bonus|optional|nice\s+to\s+have)\b|\b(?:is|would\s+be|considered)\s+(?:an?\s+)?plus\b/i
+const REQUIRED_EXPERIENCE_SIGNAL = /\b(?:requires?|required|requirement|minimum(?:\s+of)?|at\s+least|must\s+have|need(?:ed)?|basic\s+qualifications?|minimum\s+qualifications?)\b/i
+const EXPERIENCE_TERM = /\b(?:professional|relevant|related|industry|work)?\s*experience\b/i
+const EXPERIENCE_YEARS = /\b(\d{1,2})\s*(?:(?:-|to)\s*(\d{1,2})\s*)?(\+|plus)?\s*years?\b/gi
+
+function experienceClauses(text: string): string[] {
+  return text
+    .split(/(?:[.!?;\n\r•●▪]+|,\s+|\s+(?:and|or)\s+)/i)
+    .map((clause) => clause.trim())
+    .filter(Boolean)
+}
+
+function parseMandatoryExperienceMinima(clause: string): number[] {
+  if (OPTIONAL_EXPERIENCE_SIGNAL.test(clause)) return []
+
+  const hasRequiredSignal = REQUIRED_EXPERIENCE_SIGNAL.test(clause)
+  const hasExperienceTerm = EXPERIENCE_TERM.test(clause)
+  const minima: number[] = []
+
+  for (const match of clause.matchAll(EXPERIENCE_YEARS)) {
+    const lowerBound = Number(match[1])
+    const hasExplicitBound = match[2] !== undefined || match[3] !== undefined
+    if (Number.isFinite(lowerBound) && (hasRequiredSignal || hasExperienceTerm || hasExplicitBound)) {
+      minima.push(lowerBound)
+    }
+  }
+
+  return minima
+}
+
 export function experienceMinimumRequired(description: string): number | null {
   const text = description.normalize('NFKC').replace(/[–—−]/g, '-').replace(/\u00a0/g, ' ')
-  const range = text.match(/\b(\d+)\s*-\s*(\d+)\s*years?\b/i)
-  if (range) return Number(range[1])
-  const optional = /(?:preferred|desired|bonus|nice\s*to\s*have|optional)/i
-  const matches = [...text.matchAll(/(?:at\s+least|minimum(?:\s+of)?|requires?\s+(?:a\s+)?minimum\s+of)?\s*(\d+)\s*\+?\s*years?/gi)]
-  const required = matches.filter((match) => {
-    const before = text.slice(Math.max(0, (match.index ?? 0) - 45), match.index ?? 0)
-    return !optional.test(before)
-  }).map((match) => Number(match[1])).filter(Number.isFinite)
-  return required.length > 0 ? Math.min(...required) : null
+  const mandatoryMinima = experienceClauses(text).flatMap(parseMandatoryExperienceMinima)
+  return mandatoryMinima.length > 0 ? Math.max(...mandatoryMinima) : null
 }
 
 // D-01 named pairs plus a few Claude-discretion extensions. Keys are canonical
