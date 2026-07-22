@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03.1
 current_phase_name: SuccessFactors & Paylocity Connector Expansion
 status: executing
-stopped_at: Completed 03.1-01-PLAN.md
-last_updated: "2026-07-21T02:17:20.171Z"
+stopped_at: Completed 03.1-02-PLAN.md
+last_updated: "2026-07-22T03:31:28.502Z"
 last_activity: 2026-07-21
 last_activity_desc: Phase 03.1 execution started
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 39
-  completed_plans: 35
+  completed_plans: 36
   percent: 57
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 03.1 (SuccessFactors & Paylocity Connector Expansion) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-07-21 — Phase 03.1 execution started
 
@@ -82,6 +82,7 @@ Progress: [████████████████████] 34/34 p
 | Phase 03 P09 | 6m | 2 tasks | 7 files |
 | Phase 03 P10 | 9m | 3 tasks | 6 files |
 | Phase 03.1 P01 | 6min | 3 tasks | 7 files |
+| Phase 03.1 P02 | 4min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -164,6 +165,7 @@ Recent decisions affecting current work:
 - [Phase 03]: Use a disposable verifier account only inside the paused/drained interval and bind paid proof plus UAT to one immutable release. — Production proof cannot overwrite real-user state or validate a stale release.
 - [Phase 03.1]: Authorize Paylocity fetches only through the exact reviewed public-board UUID to separate feed-key mapping. — Recognition must not let a caller substitute the public board UUID for the distinct provider feed key.
 - [Phase 03.1]: Keep SuccessFactors non-executable after the two exact employer proofs. — Neither public contract exposes a proven JSON detail response sufficient for scoring, and HTML fallback is prohibited.
+- [Phase 03.1]: Require Paylocity verification and scheduled dispatch to re-resolve the exact server-owned identity, and reuse only the existing database-timed activation and provider-neutral lifecycle paths. — This keeps recognition separate from authorization, blocks persisted identity drift before network access, and prevents provider-specific persistence, scheduler, scoring, or frontend bypasses.
 
 ### Pending Todos
 
@@ -195,7 +197,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-21T02:16:54.022Z
-Stopped at: Completed 03.1-01-PLAN.md
+Last session: 2026-07-22T03:30:20.723Z
+Stopped at: Completed 03.1-02-PLAN.md
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
