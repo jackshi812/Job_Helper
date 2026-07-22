@@ -75,7 +75,12 @@ interface ActivationResult {
   result_activation_state: string | null
 }
 
-const stagedActivationProviders = new Set(['smartrecruiters', 'recruitee', 'workday'])
+const stagedActivationProviders = new Set([
+  'smartrecruiters',
+  'recruitee',
+  'paylocity',
+  'workday',
+])
 
 function diagnosticHeaders(stage: string, fetchCount: number) {
   return {
