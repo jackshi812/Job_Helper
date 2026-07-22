@@ -573,6 +573,11 @@ describe('verify-board real-user activation boundary', () => {
     expect(rpcArgs).not.toHaveProperty('activation_target')
   })
 
+  it('keeps Paylocity verification failures on the reviewed UUID source key', () => {
+    expect(verifyBoardSource).toMatch(/resolvePaylocityIdentity\(detected\.slug\)/)
+    expect(verifyBoardSource).toMatch(/return resolvePaylocityIdentity\(detected\.slug\)\?\.sourceKey/)
+  })
+
   it('resumes duplicate Paylocity evidence on its exact existing company row', async () => {
     const h = activationHarness({ provider: 'paylocity', duplicate: true })
     const response = await h.handler(verifyRequest('real-user-token', { url: paylocityBoardUrl }))

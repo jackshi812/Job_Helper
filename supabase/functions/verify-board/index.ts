@@ -3,6 +3,7 @@ import {
   verifyConnector,
 } from '../_shared/connectors.ts'
 import { CAPITAL_ONE_WORKDAY_SOURCE_KEY } from '../_shared/adapters/workday.ts'
+import { resolvePaylocityIdentity } from '../_shared/provider-identities.ts'
 
 const VERIFICATION_FAILED_MESSAGE =
   "We couldn't verify this board — it may not exist or the URL may be misspelled. Check the address and try again."
@@ -109,6 +110,9 @@ function duplicateMessage(companyName: string) {
 
 function sourceKeyForDetection(detected: Exclude<ReturnType<typeof detectAts>, { ats: 'unsupported' }>) {
   if (detected.ats === 'workday') return CAPITAL_ONE_WORKDAY_SOURCE_KEY
+  if (detected.ats === 'paylocity') {
+    return resolvePaylocityIdentity(detected.slug)?.sourceKey ?? `${detected.ats}:${detected.region ?? 'global'}:${detected.slug}`
+  }
   return `${detected.ats}:${detected.region ?? 'global'}:${detected.slug}`
 }
 
