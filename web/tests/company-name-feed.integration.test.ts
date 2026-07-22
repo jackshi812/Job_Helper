@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   companyName,
-  defaultVisible,
   listFeed,
   preferenceVisible,
   type FeedRow,
@@ -80,7 +79,7 @@ describe('truthful company feed gap', () => {
       ['Ashby Equity Research', 'Ashby Partners'],
       ['Adzuna Equity Research', 'Source Capital'],
     ])
-    expect(ranked.every(defaultVisible)).toBe(true)
+    expect(ranked.every(preferenceVisible)).toBe(true)
     expect(ranked.some((entry) => companyName(entry) === 'Unknown')).toBe(false)
     expect(mocks.select).toHaveBeenCalledWith(expect.stringContaining('source_company_name'))
   })
@@ -98,18 +97,17 @@ describe('truthful company feed gap', () => {
     pendingScore.tier = null
     pendingScore.needs_refilter = true
     pendingScore.score_deferred_until = '2026-07-21T00:00:00.000Z'
-    const focused = providerRow('Focused match', 84, { name: 'Focused Co' }, null)
+    const strong = providerRow('Strong match', 84, { name: 'Strong Co' }, null)
 
-    mocks.limit.mockResolvedValue({ data: [filtered, weak, pendingScore, focused], error: null })
+    mocks.limit.mockResolvedValue({ data: [filtered, weak, pendingScore, strong], error: null })
 
     const returned = await listFeed()
 
     expect(returned.filter(preferenceVisible).map((row) => row.id)).toEqual([
       weak.id,
       pendingScore.id,
-      focused.id,
+      strong.id,
     ])
-    expect(returned.filter(defaultVisible).map((row) => row.id)).toEqual([weak.id, focused.id])
     expect(mocks.or).toHaveBeenCalledWith(
       'status.eq.scored,status.eq.failed,score_deferred_until.not.is.null',
     )

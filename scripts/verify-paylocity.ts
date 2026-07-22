@@ -872,7 +872,7 @@ function createProductionAdapters(environment: ResumeEnvironment): PaylocityVeri
         .eq('id', owned.userJobIds[0])
         .single()
       if (error || data.status !== 'scored' || data.needs_refilter || data.jobs?.status !== 'open') {
-        throw new Error('actual Paylocity job did not reach the existing All-jobs predicate')
+        throw new Error('actual Paylocity job did not reach the one current preference-pass Dashboard scope')
       }
       if (data.jobs?.source !== 'paylocity' || data.jobs?.companies?.name !== PAYLOCITY_COMPANY_NAME
         || data.jobs?.companies?.source_key !== PAYLOCITY_SOURCE_KEY) {
@@ -884,8 +884,6 @@ function createProductionAdapters(environment: ResumeEnvironment): PaylocityVeri
       if (delta.length !== 1 || delta[0].user_id !== owned.userId) {
         throw new Error('paid usage delta was not exactly one verifier-owned request')
       }
-      const focusedVisible = Number(data.score ?? 0) >= 50
-      if (typeof focusedVisible !== 'boolean') throw new Error('Focused predicate was not evaluated')
     },
     async endScoringLatch(runId) {
       const { data, error } = await admin.rpc('end_scoring_verification', { p_run_id: runId })
@@ -955,9 +953,9 @@ async function dryRun() {
     && scoreTick.includes('x-scoring-verification-run-id'),
   'dry-run: scoring path is latch-isolated and physically single-attempt')
   check(feed.includes('preferenceVisible')
-    && feed.includes('defaultVisible')
+    && feed.includes('tierPresentation')
     && feed.includes('companyName'),
-  'dry-run: dashboard proof uses existing All, Focused, and truthful-company predicates')
+  'dry-run: dashboard proof uses one preference-pass scope with tier-owned boundaries and truthful company identity')
   if (failures.length) throw new Error(`${failures.length} Paylocity dry-run check(s) failed: ${failures.join(', ')}`)
   console.log('COMPLETE mode=dry-run network_calls=0 database_calls=0 auth_calls=0 paid_calls=0')
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cheapFilter } from '../../supabase/functions/_shared/filters'
-import { defaultVisible, scoreFreshnessLabel, type FeedRow } from '../src/lib/feed'
+import { preferenceVisible, scoreFreshnessLabel, type FeedRow } from '../src/lib/feed'
 
 function row(title: string, overrides: Partial<FeedRow> = {}): FeedRow {
   return {
@@ -52,9 +52,9 @@ describe('preference refilter feed gap', () => {
     })
 
     expect(dailyScoreUsage).toBe(dailyScoreCap)
-    expect(defaultVisible(stale)).toBe(true)
+    expect(preferenceVisible(stale)).toBe(true)
     expect(scoreFreshnessLabel(stale)).toBe('Updating')
-    expect(defaultVisible(newlyEligible)).toBe(false)
+    expect(preferenceVisible(newlyEligible)).toBe(true)
     expect(scoreFreshnessLabel(newlyEligible)).toBeNull()
 
     const preferences = {
@@ -92,7 +92,7 @@ describe('preference refilter feed gap', () => {
       }),
       current,
     ]
-    expect(converged.filter(defaultVisible).map((entry) => entry.jobs?.title)).toEqual([
+    expect(converged.filter(preferenceVisible).map((entry) => entry.jobs?.title)).toEqual([
       'Equity Research Analyst',
     ])
   })

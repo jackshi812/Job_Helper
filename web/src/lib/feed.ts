@@ -115,25 +115,14 @@ export function filteredReasonLabel(
   return base
 }
 
-// Dashboard focused base: scored rows for open jobs that are not dismissed.
-// Score-tier visibility is owned by the Dashboard's explicit Strong/Good/Weak
-// controls so Weak rows are not discarded before that filter can run. A
-// previously scored row awaiting refilter remains
-// useful but must be rendered with scoreFreshnessLabel so it is never presented
-// as current. Pending rows without an existing score remain hidden.
-export function defaultVisible(row: FeedRow): boolean {
-  return row.status === 'scored'
-    && row.score !== null
-    && row.dismissed_at === null
-    && (!row.needs_refilter || row.score_deferred_until !== null)
-    && row.jobs?.status === 'open'
-}
-
-// All jobs is the current preference-pass pool, independent of AI score. A
+// The Dashboard's single base scope is the current preference-pass pool,
+// independent of AI score. A
 // completed score or post-filter failure proves the cheap preference filter
 // passed for the current revision. A deferred row is also confirmed because
 // deferral occurs only after cheapFilter passes. Unknown pending work and stale
-// rows awaiting a new free-filter decision remain hidden.
+// rows awaiting a new free-filter decision remain hidden. Dismissal stays a
+// separate Dashboard state filter; explicit Strong/Good/Weak selection owns the
+// score boundary after this eligibility check.
 export function preferenceVisible(row: FeedRow): boolean {
   if (row.jobs?.status !== 'open') return false
   if (row.needs_refilter) return row.score_deferred_until !== null

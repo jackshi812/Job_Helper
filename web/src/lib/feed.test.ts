@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   companyName,
-  defaultVisible,
   filteredReasonLabel,
+  preferenceVisible,
   relativePostedTime,
   safeApplyUrl,
   scoreFreshnessLabel,
@@ -97,66 +97,52 @@ describe('filteredReasonLabel', () => {
   })
 })
 
-describe('defaultVisible', () => {
-  it('shows scored rows with score >= 50 that are not dismissed', () => {
-    expect(defaultVisible(feedRow({ status: 'scored', score: 50 }))).toBe(true)
-    expect(defaultVisible(feedRow({ status: 'scored', score: 82 }))).toBe(true)
-  })
+describe('preferenceVisible', () => {
+  it('keeps every current open preference pass in the single feed scope', () => {
+    expect(preferenceVisible(feedRow({ status: 'scored', score: 82 }))).toBe(true)
+    expect(preferenceVisible(feedRow({ status: 'scored', score: 49, tier: 'Weak' }))).toBe(true)
+    expect(preferenceVisible(feedRow({ status: 'failed', score: null, tier: null }))).toBe(true)
 
-  it('keeps Weak scored rows available for the Dashboard tier filter', () => {
-    expect(defaultVisible(feedRow({ status: 'scored', score: 49, tier: 'Weak' }))).toBe(true)
-  })
-
-  it('hides filtered rows', () => {
-    expect(
-      defaultVisible(feedRow({ status: 'filtered', score: null, filter_reason: 'excluded_keyword' })),
-    ).toBe(false)
-  })
-
-  it('hides dismissed rows even when they scored well', () => {
-    expect(
-      defaultVisible(feedRow({ status: 'scored', score: 90, dismissed_at: '2026-07-19T00:00:00.000Z' })),
-    ).toBe(false)
-  })
-})
-
-describe('focused feed freshness gap', () => {
-  it('shows only previously scored strong/good stale rows with an updating label', () => {
-    expect(defaultVisible(feedRow({ status: 'scored', score: 50 }))).toBe(true)
-    expect(defaultVisible(feedRow({ status: 'scored', score: 100 }))).toBe(true)
-
-    expect(defaultVisible(feedRow({ status: 'pending', score: null }))).toBe(false)
-    expect(defaultVisible(feedRow({ status: 'failed', score: null }))).toBe(false)
-    expect(defaultVisible(feedRow({ status: 'filtered', score: null }))).toBe(false)
-    expect(defaultVisible(feedRow({ status: 'scored', score: 49, tier: 'Weak' }))).toBe(true)
     const staleScored = feedRow({
       status: 'scored',
       score: 75,
       needs_refilter: true,
       score_deferred_until: '2026-07-21T00:00:00.000Z',
     })
-    expect(defaultVisible(staleScored)).toBe(true)
-    expect(scoreFreshnessLabel(staleScored)).toBe('Updating')
-    expect(defaultVisible(feedRow({ status: 'scored', score: 75, needs_refilter: true })))
-      .toBe(false)
-    expect(scoreFreshnessLabel(feedRow({
+    const deferredScoreless = feedRow({
       status: 'pending',
       score: null,
+      tier: null,
       needs_refilter: true,
       score_deferred_until: '2026-07-21T00:00:00.000Z',
-    })))
-      .toBeNull()
-    expect(
-      defaultVisible(feedRow({
-        status: 'scored',
-        score: 75,
-        dismissed_at: '2026-07-20T00:00:00.000Z',
-      })),
-    ).toBe(false)
-    expect(defaultVisible(feedRow({
+    })
+    expect(preferenceVisible(staleScored)).toBe(true)
+    expect(preferenceVisible(deferredScoreless)).toBe(true)
+    expect(scoreFreshnessLabel(staleScored)).toBe('Updating')
+    expect(scoreFreshnessLabel(deferredScoreless)).toBeNull()
+  })
+
+  it('excludes unknown, filtered, closed, stale-current-revision, and jobless rows', () => {
+    expect(preferenceVisible(feedRow({ status: 'pending', score: null }))).toBe(false)
+    expect(preferenceVisible(feedRow({
+      status: 'filtered',
+      score: null,
+      filter_reason: 'excluded_keyword',
+    }))).toBe(false)
+    expect(preferenceVisible(feedRow({ status: 'scored', score: 75, needs_refilter: true })))
+      .toBe(false)
+    expect(preferenceVisible(feedRow({
       jobs: { ...feedRow().jobs!, status: 'closed' },
     }))).toBe(false)
-    expect(defaultVisible(feedRow({ jobs: null }))).toBe(false)
+    expect(preferenceVisible(feedRow({ jobs: null }))).toBe(false)
+  })
+
+  it('leaves dismissal as a separate Dashboard state dimension', () => {
+    expect(preferenceVisible(feedRow({
+      status: 'scored',
+      score: 75,
+      dismissed_at: '2026-07-20T00:00:00.000Z',
+    }))).toBe(true)
   })
 })
 

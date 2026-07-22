@@ -1,6 +1,5 @@
 import {
   companyName,
-  defaultVisible,
   preferenceVisible,
   tierPresentation,
   type FeedRow,
@@ -15,7 +14,6 @@ export interface CompanyOption {
 }
 
 export interface DashboardFilterState {
-  viewAll: boolean
   showDismissed: boolean
   appliedHiddenKeys: ReadonlySet<string>
   selectedTiers: ReadonlySet<Tier>
@@ -75,12 +73,11 @@ export function toggleScoreTier(selected: ReadonlySet<Tier>, tier: Tier): Set<Ti
 
 export function baseDashboardVisible(
   row: FeedRow,
-  viewAll: boolean,
   showDismissed: boolean,
 ): boolean {
   if (showDismissed) return row.dismissed_at !== null
   if (row.dismissed_at !== null) return false
-  return viewAll ? preferenceVisible(row) : defaultVisible(row)
+  return preferenceVisible(row)
 }
 
 export function filterDashboardRows(
@@ -88,7 +85,7 @@ export function filterDashboardRows(
   state: DashboardFilterState,
 ): FeedRow[] {
   return rows.filter((row) => {
-    if (!baseDashboardVisible(row, state.viewAll, state.showDismissed)) return false
+    if (!baseDashboardVisible(row, state.showDismissed)) return false
     const name = companyName(row)
     if (!name || state.appliedHiddenKeys.has(normalizedCompanyKey(name))) return false
     return state.selectedTiers.has(tierPresentation(row.score).label)

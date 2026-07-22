@@ -109,7 +109,6 @@ describe('Dashboard staged filters', () => {
   it('shows a newly refreshed company by default because only hidden keys are stored', () => {
     const hidden = new Set([normalizedCompanyKey('Acme')])
     const rows = filterDashboardRows([feedRow('Acme', 80), feedRow('NewCo', 60)], {
-      viewAll: false,
       showDismissed: false,
       appliedHiddenKeys: hidden,
       selectedTiers: allTiers,
@@ -117,21 +116,86 @@ describe('Dashboard staged filters', () => {
     expect(rows.map((row) => row.jobs?.companies?.name)).toEqual(['NewCo'])
   })
 
-  it('keeps Weak visible by default and composes company and tier filters with AND', () => {
-    const rows = [feedRow('Acme', 85), feedRow('Acme', 40), feedRow('Walmart', 60)]
+  it('uses one preference-pass scope and composes company and tier filters with AND', () => {
+    const failedScoreless = feedRow('Deferred Co', 0, {
+      id: 'failed-scoreless',
+      status: 'failed',
+      score: null,
+      tier: null,
+    })
+    const deferredScoreless = feedRow('Deferred Co', 0, {
+      id: 'deferred-scoreless',
+      status: 'pending',
+      score: null,
+      tier: null,
+      needs_refilter: true,
+      score_deferred_until: '2026-07-22T01:00:00.000Z',
+    })
+    const rows = [
+      feedRow('Acme', 85),
+      feedRow('Acme', 40),
+      feedRow('Walmart', 60),
+      failedScoreless,
+      deferredScoreless,
+    ]
     expect(filterDashboardRows(rows, {
-      viewAll: false,
       showDismissed: false,
       appliedHiddenKeys: new Set(),
       selectedTiers: allTiers,
-    })).toHaveLength(3)
+    }).map((row) => row.id)).toEqual([
+      'Acme-85',
+      'Acme-40',
+      'Walmart-60',
+      'failed-scoreless',
+      'deferred-scoreless',
+    ])
 
     expect(filterDashboardRows(rows, {
-      viewAll: false,
       showDismissed: false,
       appliedHiddenKeys: new Set(['acme']),
       selectedTiers: new Set<Tier>(['Good']),
     }).map((row) => row.id)).toEqual(['Walmart-60'])
+
+    expect(filterDashboardRows(rows, {
+      showDismissed: false,
+      appliedHiddenKeys: new Set(),
+      selectedTiers: new Set<Tier>(['Strong', 'Good']),
+    }).map((row) => row.id)).toEqual(['Acme-85', 'Walmart-60'])
+  })
+
+  it('excludes rows outside the authorized current preference-pass feed contract', () => {
+    const rows = [
+      feedRow('Acme', 80, { id: 'unknown', status: 'pending', score: null, tier: null }),
+      feedRow('Acme', 80, { id: 'filtered', status: 'filtered', score: null, tier: null }),
+      feedRow('Acme', 80, {
+        id: 'closed',
+        jobs: { ...feedRow('Acme', 80).jobs!, status: 'closed' },
+      }),
+      feedRow('Acme', 80, { id: 'stale', needs_refilter: true }),
+      feedRow('Acme', 80, { id: 'identityless', jobs: null }),
+    ]
+    expect(filterDashboardRows(rows, {
+      showDismissed: false,
+      appliedHiddenKeys: new Set(),
+      selectedTiers: allTiers,
+    })).toEqual([])
+  })
+
+  it('keeps dismissed state separate while preserving company and tier filters', () => {
+    const dismissedWeak = feedRow('Acme', 40, {
+      id: 'dismissed-weak',
+      dismissed_at: '2026-07-22T02:00:00.000Z',
+    })
+    expect(filterDashboardRows([dismissedWeak, feedRow('Walmart', 80)], {
+      showDismissed: true,
+      appliedHiddenKeys: new Set(),
+      selectedTiers: allTiers,
+    }).map((row) => row.id)).toEqual(['dismissed-weak'])
+    expect(filterDashboardRows([dismissedWeak], {
+      showDismissed: true,
+      appliedHiddenKeys: new Set(['acme']),
+      selectedTiers: allTiers,
+    })).toEqual([])
   })
 
   it('allows zero selected tiers and toggles without mutating the input', () => {
@@ -140,7 +204,6 @@ describe('Dashboard staged filters', () => {
     expect([...selected]).toEqual(['Weak'])
     expect(empty.size).toBe(0)
     expect(filterDashboardRows([feedRow('Acme', 40)], {
-      viewAll: false,
       showDismissed: false,
       appliedHiddenKeys: new Set(),
       selectedTiers: empty,
