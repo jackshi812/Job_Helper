@@ -247,7 +247,7 @@ Plans:
 **Goal:** Users can tune the current dashboard feed by company, score tier, and explicit required-experience cap while retaining truthful future ingestion and gaining a full-width, accessible, resizable results table.
 **Requirements**: PREF-01, SCOR-01, SCOR-03, SCOR-04
 **Depends on:** Phase 03.1
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -260,7 +260,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03.2-03-PLAN.md — Add accessible persistent column resizing and final UAT/release checkpoint
+- [x] 03.2-03-PLAN.md — Add accessible persistent column resizing and final UAT/release checkpoint
 
 ### Phase 4: Resume Tailoring & Tracker
 
