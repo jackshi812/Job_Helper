@@ -162,6 +162,12 @@ describe('local structural proof for record_connector_observation SQL', () => {
     expect(migrationSql).toMatch(/(?:provider\s+in|v_provider\s+not in)\s*\(\s*'smartrecruiters'\s*,\s*'recruitee'\s*,\s*'workday'\s*,\s*'paylocity'\s*\)/i)
   })
 
+  it('rejects an empty Paylocity observation before every ledger insert', () => {
+    const emptyGuard = sqlIndex(/v_provider\s*=\s*'paylocity'[\s\S]{0,120}p_job_count\s*<=\s*0/i)
+    const insert = sqlIndex(/insert into public\.connector_observations/i)
+    expect(emptyGuard).toBeLessThan(insert)
+  })
+
   it('returns persisted progress plus server window boundaries and promotes only stable public providers', () => {
     expect(migrationSql).toMatch(/returns table\s*\([\s\S]*progress\s+integer[\s\S]*window_start\s+timestamptz[\s\S]*next_eligible_at\s+timestamptz/i)
     expect(migrationSql).toMatch(/activation_successes\s*=\s*v_progress/i)
@@ -236,6 +242,16 @@ describe('local pure-contract mirror for activation windows', () => {
       expect(three).toMatchObject({ accepted: true, progress: 3, activationState: 'active' })
     },
   )
+
+  it('does not let an empty Paylocity snapshot earn activation progress', () => {
+    const result = mirrorObservation(emptyState(), {
+      ...eligibleEvidence('paylocity', 'obs-empty', 0),
+      jobCount: 0,
+      expectedCount: 0,
+    })
+
+    expect(result).toMatchObject({ accepted: false, reason: 'ineligible', progress: 0 })
+  })
 
   it('lets Workday reach exactly three thirty-minute windows but rejects the fourth with no mutation', () => {
     const one = mirrorObservation(emptyState(), eligibleEvidence('workday', 'obs-1', 0))
