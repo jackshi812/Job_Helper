@@ -24,6 +24,7 @@ describe('required experience parsing', () => {
     ['Nice-to-have: 8 years experience', null],
     ['Preferably 5+ years experience', null],
     ['5 years in finance preferred', null],
+    ['5 years in finance required', 5],
     ['5+ years in analytics is a plus', null],
     ['Our company has operated 10 years in healthcare', null],
     ['Benefits vest after 5 years in the company', null],
