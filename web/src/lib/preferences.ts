@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 
 export const PREFERENCE_COLUMNS =
-  'user_id, titles, locations, include_keywords, exclude_keywords, updated_at'
+  'user_id, titles, locations, include_keywords, exclude_keywords, max_required_experience, updated_at'
 
 export interface PreferencesRecord {
   user_id: string
@@ -9,6 +9,7 @@ export interface PreferencesRecord {
   locations: string[]
   include_keywords: string[]
   exclude_keywords: string[]
+  max_required_experience: number | null
   updated_at: string
 }
 
@@ -17,6 +18,7 @@ export interface SavePreferencesInput {
   locations: string[]
   include_keywords: string[]
   exclude_keywords: string[]
+  max_required_experience: number | null
 }
 
 // Split a raw text input into normalized chips: comma-separated, trimmed,

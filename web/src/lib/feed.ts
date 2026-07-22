@@ -29,7 +29,7 @@ export const FEED_DETAIL_COLUMNS =
   'source_company_name, description_html, description_text, companies ( name ) )'
 
 export type FeedStatus = 'pending' | 'filtered' | 'scored' | 'failed'
-export type FilterReason = 'excluded_keyword' | 'wrong_location' | 'title_non_overlap'
+export type FilterReason = 'excluded_keyword' | 'wrong_location' | 'title_non_overlap' | 'experience_above_max'
 export type Tier = 'Strong' | 'Good' | 'Weak'
 
 export interface FeedCompany {
@@ -99,6 +99,7 @@ const FILTER_REASON_LABELS: Record<FilterReason, string> = {
   excluded_keyword: 'excluded keyword',
   wrong_location: 'location mismatch',
   title_non_overlap: 'title mismatch',
+  experience_above_max: 'required experience above maximum',
 }
 
 // D-04 filtered-reason copy (UI-SPEC): excluded keyword carries its detail term;

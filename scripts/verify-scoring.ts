@@ -36,7 +36,7 @@ const required = [
 ] as const
 
 const D07_TIERS = new Set(['Strong', 'Good', 'Weak'])
-const VALID_FILTER_REASONS = new Set(['excluded_keyword', 'wrong_location', 'title_non_overlap'])
+const VALID_FILTER_REASONS = new Set(['excluded_keyword', 'wrong_location', 'title_non_overlap', 'experience_above_max'])
 const AI_USAGE_CONTENT_COLUMNS = ['text_content', 'content', 'prompt', 'response', 'text', 'body']
 
 const DRAIN_ATTEMPTS = 25

@@ -97,6 +97,8 @@ export function Preferences() {
   const [locations, setLocations] = useState<string[]>([])
   const [includeKeywords, setIncludeKeywords] = useState<string[]>([])
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([])
+  const [maxRequiredExperience, setMaxRequiredExperience] = useState('')
+  const [experienceError, setExperienceError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -112,6 +114,7 @@ export function Preferences() {
     setLocations(data.locations ?? [])
     setIncludeKeywords(data.include_keywords ?? [])
     setExcludeKeywords(data.exclude_keywords ?? [])
+    setMaxRequiredExperience(data.max_required_experience == null ? '' : String(data.max_required_experience))
   }, [preferencesQuery.data])
 
   const saveMutation = useMutation({
@@ -121,6 +124,7 @@ export function Preferences() {
         locations,
         include_keywords: includeKeywords,
         exclude_keywords: excludeKeywords,
+        max_required_experience: maxRequiredExperience === '' ? null : Number(maxRequiredExperience),
       }),
     onSuccess: async () => {
       setError(null)
@@ -140,6 +144,12 @@ export function Preferences() {
     event.preventDefault()
     setMessage(null)
     setError(null)
+    const value = maxRequiredExperience === '' ? null : Number(maxRequiredExperience)
+    if (value !== null && (!Number.isInteger(value) || value < 0 || value > 20)) {
+      setExperienceError('Enter a whole number from 0 to 20, or leave blank for no cap.')
+      return
+    }
+    setExperienceError(null)
     saveMutation.mutate()
   }
 
@@ -163,6 +173,12 @@ export function Preferences() {
             onChange={setTitles}
             disabled={pending}
           />
+          <div className="grid gap-1.5">
+            <label htmlFor="pref-max-experience" className="text-sm font-medium">Maximum required experience (years)</label>
+            <p className="text-xs text-zinc-500">Only explicit required years above this cap are excluded. Seniority words and preferred years do not exclude.</p>
+            <input id="pref-max-experience" type="number" min="0" max="20" step="1" value={maxRequiredExperience} disabled={pending} onChange={(event) => setMaxRequiredExperience(event.target.value)} className={`${INPUT_CLASSES} ${FOCUS_RING}`} />
+            {experienceError ? <p className="text-sm text-red-700 dark:text-red-400">{experienceError}</p> : null}
+          </div>
           <ChipInput
             id="pref-locations"
             label="Locations"
