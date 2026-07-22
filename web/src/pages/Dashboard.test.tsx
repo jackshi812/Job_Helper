@@ -150,7 +150,7 @@ describe('Dashboard precision controls', () => {
     expect(resizeHandleSource).toContain('claimColumnResize(coordinator, column.id')
     expect(resizeHandleSource).toContain('onPointerCancel')
     expect(resizeHandleSource).toContain('settleColumnResize(drag.startWidth, drag.latestWidth, commit)')
-    expect(resizeHandleSource).toContain('activeDrag.current !== null')
+    expect(resizeHandleSource).toContain('coordinator.activeColumnId !== null')
     expect(resizeHandleSource).toContain("document.body.style.userSelect = 'none'")
     expect(resizeHandleSource).toContain('document.body.style.userSelect = drag.previousUserSelect')
     expect(resizeHandleSource).toContain('document.body.style.cursor = drag.previousCursor')
@@ -165,6 +165,16 @@ describe('Dashboard precision controls', () => {
     expect(claimColumnResize(coordinator, 'job', true, 0)).toBe(true)
     expect(claimColumnResize(coordinator, 'company', true, 0)).toBe(false)
     expect(coordinator.activeColumnId).toBe('job')
+    const companyColumn = DASHBOARD_COLUMNS.find((column) => column.id === 'company')!
+    expect(
+      keyboardResizeWidth(
+        companyColumn,
+        companyColumn.defaultWidth,
+        'ArrowRight',
+        false,
+        coordinator.activeColumnId !== null,
+      ),
+    ).toBeNull()
 
     releaseColumnResize(coordinator, 'company')
     expect(coordinator.activeColumnId).toBe('job')

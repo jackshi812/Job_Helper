@@ -105,7 +105,7 @@ export function ColumnResizeHandle({
       width,
       event.key,
       event.shiftKey,
-      activeDrag.current !== null,
+      coordinator.activeColumnId !== null,
     )
     if (nextWidth === null) return
     event.preventDefault()
