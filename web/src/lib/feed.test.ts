@@ -103,8 +103,8 @@ describe('defaultVisible', () => {
     expect(defaultVisible(feedRow({ status: 'scored', score: 82 }))).toBe(true)
   })
 
-  it('hides Weak scored rows below 50', () => {
-    expect(defaultVisible(feedRow({ status: 'scored', score: 49, tier: 'Weak' }))).toBe(false)
+  it('keeps Weak scored rows available for the Dashboard tier filter', () => {
+    expect(defaultVisible(feedRow({ status: 'scored', score: 49, tier: 'Weak' }))).toBe(true)
   })
 
   it('hides filtered rows', () => {
@@ -128,7 +128,7 @@ describe('focused feed freshness gap', () => {
     expect(defaultVisible(feedRow({ status: 'pending', score: null }))).toBe(false)
     expect(defaultVisible(feedRow({ status: 'failed', score: null }))).toBe(false)
     expect(defaultVisible(feedRow({ status: 'filtered', score: null }))).toBe(false)
-    expect(defaultVisible(feedRow({ status: 'scored', score: 49, tier: 'Weak' }))).toBe(false)
+    expect(defaultVisible(feedRow({ status: 'scored', score: 49, tier: 'Weak' }))).toBe(true)
     const staleScored = feedRow({
       status: 'scored',
       score: 75,

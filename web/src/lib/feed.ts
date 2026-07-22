@@ -115,13 +115,15 @@ export function filteredReasonLabel(
   return base
 }
 
-// D-15/D-16 default view: scored rows for open jobs scoring >=50 (Strong+Good)
-// that are not dismissed. A previously scored row awaiting refilter remains
+// Dashboard focused base: scored rows for open jobs that are not dismissed.
+// Score-tier visibility is owned by the Dashboard's explicit Strong/Good/Weak
+// controls so Weak rows are not discarded before that filter can run. A
+// previously scored row awaiting refilter remains
 // useful but must be rendered with scoreFreshnessLabel so it is never presented
 // as current. Pending rows without an existing score remain hidden.
 export function defaultVisible(row: FeedRow): boolean {
   return row.status === 'scored'
-    && (row.score ?? 0) >= 50
+    && row.score !== null
     && row.dismissed_at === null
     && (!row.needs_refilter || row.score_deferred_until !== null)
     && row.jobs?.status === 'open'
