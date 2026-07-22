@@ -146,7 +146,6 @@ function DashboardHeaderCell({
 
 export function Dashboard() {
   const queryClient = useQueryClient()
-  const [viewAll, setViewAll] = useState(false)
   const [showDismissed, setShowDismissed] = useState(false)
   const [sortByScore, setSortByScore] = useState(false)
   const [scoreAscending, setScoreAscending] = useState(false)
@@ -220,7 +219,6 @@ export function Dashboard() {
   const rows = useMemo(() => {
     const all = feedQuery.data ?? []
     const filtered = filterDashboardRows(all, {
-      viewAll,
       showDismissed,
       appliedHiddenKeys,
       selectedTiers,
@@ -240,7 +238,6 @@ export function Dashboard() {
   }, [
     feedQuery.data,
     showDismissed,
-    viewAll,
     appliedHiddenKeys,
     selectedTiers,
     sortByScore,
@@ -310,14 +307,6 @@ export function Dashboard() {
       </p>
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <button
-          type="button"
-          aria-pressed={viewAll}
-          onClick={() => setViewAll((value) => !value)}
-          className={`${filterButtonBase} ${viewAll ? filterActive : filterInactive}`}
-        >
-          All jobs
-        </button>
         <button
           type="button"
           aria-pressed={showDismissed}

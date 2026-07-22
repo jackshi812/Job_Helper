@@ -79,6 +79,7 @@ describe('Dashboard precision controls', () => {
   it('shows every score tier selected and keeps Weak rows reachable on first render', () => {
     const markup = renderToStaticMarkup(<Dashboard />)
 
+    expect(markup).not.toContain('All jobs')
     expect(markup).toContain('aria-expanded="false"')
     expect(markup).toContain('>Companies</button>')
     expect(markup).toMatch(/aria-pressed="true"[^>]*>Strong<\/button>/)
@@ -86,6 +87,13 @@ describe('Dashboard precision controls', () => {
     expect(markup).toMatch(/aria-pressed="true"[^>]*>Weak<\/button>/)
     expect(markup).toContain('1 jobs shown')
     expect(markup).toContain('Analyst')
+  })
+
+  it('passes only dismissed, company, and tier state into the one-scope row filter', () => {
+    expect(dashboardSource).not.toContain('viewAll')
+    expect(dashboardSource).not.toContain('setViewAll')
+    expect(dashboardSource).toMatch(/filterDashboardRows\(all, \{\s*showDismissed,\s*appliedHiddenKeys,\s*selectedTiers,\s*\}\)/)
+    expect(dashboardSource).not.toMatch(/\[\s*feedQuery\.data,\s*showDismissed,\s*viewAll,/)
   })
 
   it('renders Location in the list and preserves Match reasons only on detail', () => {

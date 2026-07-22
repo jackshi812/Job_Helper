@@ -158,7 +158,7 @@ Recent decisions affecting current work:
 - [Phase 03]: Authorize score reuse only when the complete server-computed semantic input hash matches; use desired revisions solely as CAS publication fences.
 - [Phase 03]: While the short-lived scoring-verification latch is active, suppress ordinary and mismatched claims before seeding and permit only its two registered existing fixture rows.
 - [Phase 03]: Keep scoring provider-agnostic after dedup; every claimed job passes the same cheap filter before routing, hashing, or paid AI work.
-- [Phase 03]: Require preference-pass and open job state for All jobs; additionally require scored, score >=50, nondismissed, and needs_refilter=false for Focused. — Weak preference failures stay out of both views while every confirmed preference pass remains inspectable regardless of score.
+- [Phase 03]: Require preference-pass and open job state for All jobs; additionally require scored, score >=50, nondismissed, and needs_refilter=false for Focused. — Historical Phase 3 contract, superseded for Dashboard presentation by Phase 03.2; Weak preference failures stayed out of both views while every confirmed preference pass remained inspectable regardless of score.
 - [Phase 03]: Prefer normalized companies.name, then bounded source_company_name, and withhold identity-less feed rows. — Every displayed provider row has truthful nonblank identity without fabricated labels.
 - [Phase 03]: Cancel and remove feed cache only after preference upsert plus revision signal succeed, then invalidate feed and preferences. — A success message cannot coexist with stale focused rows, while failures retain cache and editable chips for retry.
 - [Phase 03]: Apply migration 0025 from a checksum-matched isolated project containing no migration 0026; 0026 remains pending remotely. — This made the approved production schema mutation structurally incapable of applying the later local migration.
@@ -180,6 +180,7 @@ Recent decisions affecting current work:
 - [Phase 03.2]: Let explicit Dashboard tier selection own the score boundary so Weak rows remain reachable.
 - [Phase 03.2]: Use the exact index pathname to widen only Dashboard content while preserving centered shared chrome.
 - [Phase 03.2]: Persist only validated versioned Dashboard column widths; keep company and tier filters session-only, and leave authenticated interaction UAT pending until a human browser session can verify it. — This preserves the owner's persistence boundary and prevents deployment evidence from being misrepresented as signed-in interaction approval.
+- [Phase 03.2]: Use one current preference-pass Dashboard scope; Strong, Good, and Weak all start selected, and explicit tier selection is the only score-boundary control. — Removes the observationally redundant All jobs mode while keeping every confirmed current preference pass inspectable.
 
 ### Pending Todos
 

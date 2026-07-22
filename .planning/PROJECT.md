@@ -18,7 +18,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 - ✓ Scheduled direct-ATS ingestion plus quota-capped Adzuna discovery, exact-once deduplication, immutable first-sight snapshots, safe close/reopen behavior, and public heartbeat health — Phase 2 (15/15 verification truths passed)
 - ✓ Per-user job preferences for target titles, locations, and include/exclude keywords — Phase 3 (8/8 UAT; own-row RLS)
 - ✓ Cheap preference filters followed by resume-grounded AI scoring with plain-language reasons — Phase 3 (17/17 verification truths; paid final-release proof)
-- ✓ Unified dashboard and job detail: All jobs contains preference passes, Focused contains scores at least 50, and job descriptions/apply links render safely — Phase 3 (8/8 UAT)
+- ✓ Unified dashboard and job detail: one current preference-pass scope stays inspectable, explicit Strong/Good/Weak selection owns score boundaries, and job descriptions/apply links render safely — Phase 3 and Phase 03.2
 
 ### Active
 
@@ -68,7 +68,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 | DOCX as base resume format | Preserves user's own formatting; app edits text and converts to PDF | ✓ Good — Phase 3 private upload/extraction works; Phase 4 will preserve formatting during tailoring |
 | Cheap filters before AI scoring | Keeps AI cost near zero; AI only scores plausible candidates | ✓ Good — Phase 3 filters before routing/AI, atomically caps paid calls, and passed final proof |
 | Feed-only match delivery | Owner does not want notifications; scored matches remain in the dashboard | ✓ Chosen — notifications removed 2026-07-19 |
-| All vs Focused feed semantics | Weak jobs should not appear unless they pass preferences; high-quality focus begins at 50 | ✓ Phase 3 UAT — All jobs is preference-pass regardless of score; Focused is score ≥50 |
+| Dashboard feed scope and score tiers | Every confirmed preference pass should remain inspectable without a redundant mode; explicit tiers should own score boundaries | ✓ Phase 03.2 — one current preference-pass scope with Strong, Good, and Weak selected by default |
 | Disposable-account production verification | Proof must not overwrite real-user preferences/resume/reroute state | ✓ Phase 3 — verifier account exists only inside the paused/drained interval and is deleted before cron restoration |
 | Physical scoring-attempt accounting | The daily ceiling applies to actual paid attempts, not logical jobs | ✓ Phase 3 — atomic reservation plus `maxAttempts: 1` for scoring |
 | Heuristic contact discovery (when outreach builds in v2) | Paid APIs conflict with near-zero cost constraint | — Pending |
@@ -92,4 +92,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-20 after Phase 3 completion*
+*Last updated: 2026-07-22 during Phase 03.2 gap closure*
