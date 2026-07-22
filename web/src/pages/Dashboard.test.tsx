@@ -133,6 +133,7 @@ describe('Dashboard precision controls', () => {
   it('pins pointer capture, cancellation cleanup, keyboard resize, and coarse hit areas', () => {
     expect(resizeHandleSource).toContain('setPointerCapture')
     expect(resizeHandleSource).toContain('releasePointerCapture')
+    expect(resizeHandleSource).toContain('if (!event.isPrimary || activeDrag.current) return')
     expect(resizeHandleSource).toContain('onPointerCancel')
     expect(resizeHandleSource).toContain('else onWidthChange(drag.startWidth)')
     expect(resizeHandleSource).toContain("document.body.style.userSelect = 'none'")

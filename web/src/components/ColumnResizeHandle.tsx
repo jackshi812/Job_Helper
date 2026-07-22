@@ -56,6 +56,7 @@ export function ColumnResizeHandle({
   }, [])
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (!event.isPrimary || activeDrag.current) return
     event.preventDefault()
     event.stopPropagation()
     const previousCursor = document.body.style.cursor
