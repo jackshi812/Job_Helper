@@ -45,6 +45,7 @@ export function ColumnResizeHandle({
     restoreDocumentStyles()
     activeDrag.current = null
     if (commit) onWidthCommit(drag.latestWidth)
+    else onWidthChange(drag.startWidth)
   }
 
   useEffect(() => () => {

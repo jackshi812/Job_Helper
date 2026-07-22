@@ -134,6 +134,7 @@ describe('Dashboard precision controls', () => {
     expect(resizeHandleSource).toContain('setPointerCapture')
     expect(resizeHandleSource).toContain('releasePointerCapture')
     expect(resizeHandleSource).toContain('onPointerCancel')
+    expect(resizeHandleSource).toContain('else onWidthChange(drag.startWidth)')
     expect(resizeHandleSource).toContain("document.body.style.userSelect = 'none'")
     expect(resizeHandleSource).toContain('document.body.style.userSelect = drag.previousUserSelect')
     expect(resizeHandleSource).toContain('document.body.style.cursor = drag.previousCursor')
