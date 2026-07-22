@@ -205,7 +205,7 @@ Plans:
 **Depends on:** Phase 3
 **Context:** `.planning/phases/03.1-workday-ats-connector-expansion/03.1-CONTEXT.md`
 **Research:** `.planning/phases/03.1-workday-ats-connector-expansion/03.1-RESEARCH.md`
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 
 Plans:
 **Wave 1**
@@ -218,7 +218,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03.1-03-PLAN.md — Migration 0029, Capital One regression, and resumable hosted verifier
+- [x] 03.1-03-PLAN.md — Migration 0029, Capital One regression, and resumable hosted verifier
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
