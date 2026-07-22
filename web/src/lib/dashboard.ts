@@ -22,7 +22,7 @@ export interface DashboardFilterState {
 }
 
 export function normalizedCompanyKey(name: string): string {
-  return name.normalize('NFKC').trim().toLocaleLowerCase()
+  return name.normalize('NFKC').trim().toLowerCase()
 }
 
 export function dashboardCompanyOptions(rows: readonly FeedRow[]): CompanyOption[] {
@@ -43,7 +43,7 @@ export function searchCompanyOptions(
   options: readonly CompanyOption[],
   query: string,
 ): CompanyOption[] {
-  const needle = query.normalize('NFKC').trim().toLocaleLowerCase()
+  const needle = query.normalize('NFKC').trim().toLowerCase()
   if (!needle) return [...options]
   return options.filter((option) => option.key.includes(needle))
 }

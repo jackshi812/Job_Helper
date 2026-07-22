@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import dashboardSource from './dashboard.ts?raw'
 import type { FeedRow, Tier } from './feed'
 import {
   ALL_SCORE_TIERS,
@@ -73,9 +74,18 @@ describe('Dashboard company options', () => {
   })
 
   it('searches options case-insensitively without creating arbitrary companies', () => {
-    const options = dashboardCompanyOptions([feedRow('RADaR Analytics', 80), feedRow('PwC', 60)])
+    const options = dashboardCompanyOptions([
+      feedRow('RADaR Analytics', 80),
+      feedRow('PwC', 60),
+      feedRow('IKEA', 70),
+    ])
     expect(searchCompanyOptions(options, 'radar')).toEqual([
       { key: 'radar analytics', label: 'RADaR Analytics' },
+    ])
+    expect(normalizedCompanyKey('IKEA')).toBe('ikea')
+    expect(dashboardSource).not.toContain('toLocaleLowerCase')
+    expect(searchCompanyOptions(options, 'ikea')).toEqual([
+      { key: 'ikea', label: 'IKEA' },
     ])
     expect(searchCompanyOptions(options, 'New company')).toEqual([])
   })
