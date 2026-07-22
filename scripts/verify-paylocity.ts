@@ -402,7 +402,10 @@ function createProductionAdapters(environment: ResumeEnvironment): PaylocityVeri
         body: JSON.stringify({ query }),
       },
     )
-    if (!response.ok) throw new Error(`Management SQL returned HTTP ${response.status}`)
+    if (!response.ok) {
+      const detail = (await response.text()).replaceAll(/authorization|token|secret|password/gi, '[REDACTED]')
+      throw new Error(`Management SQL returned HTTP ${response.status}: ${detail.slice(0, 320)}`)
+    }
     const rows = await response.json()
     if (!Array.isArray(rows)) throw new Error('Management SQL response is malformed')
     return rows as Array<Record<string, unknown>>
@@ -431,8 +434,7 @@ function createProductionAdapters(environment: ResumeEnvironment): PaylocityVeri
         current_job cron.job%rowtype;
       begin
         select * into current_job from cron.job
-        where jobid = ${snapshot.jobid}
-        for update;
+        where jobid = ${snapshot.jobid};
         if not found
           or current_job.jobname is distinct from ${sqlText(snapshot.jobname)}
           or current_job.schedule is distinct from ${sqlText(snapshot.schedule)}
