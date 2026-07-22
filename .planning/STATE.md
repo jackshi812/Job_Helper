@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03.2
 current_phase_name: Dashboard Precision & Company Visibility
 status: executing
-stopped_at: Phase 03.2 Plan 03.2-01 complete; ready for Wave 2
-last_updated: "2026-07-22T21:00:00.000Z"
+stopped_at: Completed 03.2-02-PLAN.md
+last_updated: "2026-07-22T20:44:08.656Z"
 last_activity: 2026-07-22
 last_activity_desc: Phase 03.2 Plan 03.2-01 completed
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 42
-  completed_plans: 40
+  completed_plans: 41
   percent: 71
 ---
 
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 03.2 (Dashboard Precision & Company Visibility) — EXECUTING
-Plan: 1 of 3 (complete)
-Status: Executing Phase 03.2 — ready for Wave 2
+Plan: 2 of 3 (complete)
+Status: Ready to execute
 Last activity: 2026-07-22 — Phase 03.2 Plan 03.2-01 completed
 
 Progress: [████████████████████] 34/34 planned plans complete; milestone 4/5 phases complete (80%)
@@ -85,6 +85,7 @@ Progress: [████████████████████] 34/34 p
 | Phase 03.1 P02 | 4min | 2 tasks | 6 files |
 | Phase 03.1 P03 | 20min | 2 tasks | 5 files |
 | Phase 03.1 P05 | 35min | 3 tasks | 1 files |
+| Phase 03.2 P02 | 5min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -174,6 +175,9 @@ Recent decisions affecting current work:
 - [Phase 03.1]: Map the live Paylocity feed schema strictly through title/displayUrl/jobLocation.name aliases while retaining reviewed identity and URL checks. — The public provider payload differs from local fixtures; strict aliases preserve live ingestion without weakening identity or content validation.
 - [Phase 03.1]: Pause and restore the score cron by comparing the complete row but changing only active, because hosted pg_cron rejects username mutation and forbids row locks for the management role. — The hosted permission boundary prevents a row-lock CAS and username rewrite; exact preconditions, active-only mutation, and postconditions preserve safe restoration.
 - [Phase 03.1]: Seed every non-null disposable user_jobs field explicitly so bulk JSON cannot turn omitted attempts into NULL. — PostgREST bulk inserts normalize omitted fields across rows; explicit verifier-owned defaults keep fixture creation deterministic.
+- [Phase 03.2]: Store only hidden normalized company keys so newly refreshed truthful companies remain visible by default.
+- [Phase 03.2]: Let explicit Dashboard tier selection own the score boundary so Weak rows remain reachable.
+- [Phase 03.2]: Use the exact index pathname to widen only Dashboard content while preserving centered shared chrome.
 
 ### Pending Todos
 
@@ -205,7 +209,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-22T20:26:24.565Z
-Stopped at: Phase 03.2 planned; ready to execute
-Resume file: .planning/phases/03.2-dashboard-precision-company-visibility/03.2-01-PLAN.md
+Last session: 2026-07-22T20:43:39.483Z
+Stopped at: Completed 03.2-02-PLAN.md
+Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
