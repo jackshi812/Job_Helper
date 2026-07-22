@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { NavLink, Outlet, useNavigate } from 'react-router'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { deriveHeartbeatBanner, fetchHeartbeat } from '../lib/pipeline'
 import { supabase } from '../lib/supabase'
 
@@ -13,8 +13,15 @@ const navigation = [
   { label: 'Settings', to: '/settings' },
 ]
 
+function shellMainClass(pathname: string): string {
+  return pathname === '/'
+    ? 'w-full px-4 py-8 sm:px-6'
+    : 'mx-auto max-w-6xl px-4 py-8 sm:px-6'
+}
+
 export function Shell() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState('')
   const heartbeatQuery = useQuery({
@@ -87,7 +94,7 @@ export function Shell() {
           </p>
         </div>
       ) : null}
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <main className={shellMainClass(location.pathname)}>
         <Outlet />
       </main>
     </div>
