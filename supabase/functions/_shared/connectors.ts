@@ -1,6 +1,7 @@
 import { pollAshby } from './adapters/ashby.ts'
 import { pollGreenhouse } from './adapters/greenhouse.ts'
 import { pollLever } from './adapters/lever.ts'
+import { pollPaylocity } from './adapters/paylocity.ts'
 import { pollRecruitee } from './adapters/recruitee.ts'
 import { pollSmartRecruiters } from './adapters/smartrecruiters.ts'
 import {
@@ -10,11 +11,13 @@ import {
 } from './adapters/workday.ts'
 import { type PollObservation } from './adapters/types.ts'
 import { buildEndpoint, type DetectResult } from './detect.ts'
+import { resolvePaylocityIdentity } from './provider-identities.ts'
 
 export type ProviderId =
   | 'greenhouse'
   | 'lever'
   | 'ashby'
+  | 'paylocity'
   | 'smartrecruiters'
   | 'recruitee'
   | 'workday'
@@ -58,6 +61,11 @@ function canonicalCareersUrl(detected: SupportedDetection) {
   if (detected.ats === 'smartrecruiters') {
     return `https://jobs.smartrecruiters.com/${slug}`
   }
+  if (detected.ats === 'paylocity') {
+    const identity = resolvePaylocityIdentity(detected.slug)
+    if (!identity) throw new Error('invalid_identity')
+    return identity.canonicalUrl
+  }
   if (detected.ats === 'workday') {
     return 'https://capitalone.wd12.myworkdayjobs.com/Capital_One'
   }
@@ -66,6 +74,11 @@ function canonicalCareersUrl(detected: SupportedDetection) {
 
 function deterministicSourceKey(detected: SupportedDetection) {
   if (detected.ats === 'workday') return CAPITAL_ONE_WORKDAY_SOURCE_KEY
+  if (detected.ats === 'paylocity') {
+    const identity = resolvePaylocityIdentity(detected.slug)
+    if (!identity) throw new Error('invalid_identity')
+    return identity.sourceKey
+  }
   return `${detected.ats}:${detected.region ?? 'global'}:${detected.slug}`
 }
 
@@ -141,6 +154,26 @@ async function verifyRecruitee(
   return verification(detected, detected.slug, observation.jobs.length)
 }
 
+async function verifyPaylocity(
+  detected: SupportedDetection,
+  fetchImpl: FetchLike,
+) {
+  if (detected.ats !== 'paylocity') throw new Error('invalid_identity')
+  const identity = resolvePaylocityIdentity(detected.slug)
+  if (!identity) throw new Error('invalid_identity')
+  const observation = await pollPaylocity(identity.boardUuid, fetchImpl)
+  if (
+    observation.completeness !== 'complete'
+    || !observation.credibleForClosure
+    || observation.warnings.length !== 0
+    || observation.jobs.length === 0
+    || observation.expectedCount !== observation.jobs.length
+  ) {
+    throw new Error(observation.warnings[0] ?? 'provider_observation_failed')
+  }
+  return verification(detected, identity.displayName, observation.jobs.length)
+}
+
 async function verifyWorkday(
   detected: SupportedDetection,
   fetchImpl: FetchLike,
@@ -183,6 +216,10 @@ export const providerRegistry = {
     verify: verifyAshby,
     poll: async (company) => complete(await pollAshby(company.board_token)),
   },
+  paylocity: {
+    verify: verifyPaylocity,
+    poll: async (company) => pollPaylocity(company.board_token),
+  },
   smartrecruiters: {
     verify: verifySmartRecruiters,
     poll: async (company) => pollSmartRecruiters(company.board_token),
@@ -221,6 +258,15 @@ export async function pollConnector(
       || company.site_token !== 'Capital_One'
       || company.source_key !== CAPITAL_ONE_WORKDAY_SOURCE_KEY
     ) throw new Error('inactive_connector:workday_identity_not_allowed')
+  }
+  if (company.ats_type === 'paylocity') {
+    const identity = resolvePaylocityIdentity(company.board_token)
+    if (
+      !identity
+      || company.source_key !== identity.sourceKey
+      || company.region !== null
+      || company.site_token !== null
+    ) throw new Error('inactive_connector:paylocity_identity_not_allowed')
   }
   return providerRegistry[company.ats_type as ProviderId].poll(company, knownIds)
 }

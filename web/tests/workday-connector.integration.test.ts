@@ -126,6 +126,7 @@ describe('Capital One Workday identity contract', () => {
       'ashby',
       'greenhouse',
       'lever',
+      'paylocity',
       'recruitee',
       'smartrecruiters',
       'workday',
