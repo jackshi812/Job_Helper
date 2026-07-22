@@ -247,7 +247,7 @@ Plans:
 **Goal:** Users can tune the current dashboard feed by company, score tier, and explicit required-experience cap while retaining truthful future ingestion and gaining a full-width, accessible, resizable results table.
 **Requirements**: PREF-01, SCOR-01, SCOR-03, SCOR-04
 **Depends on:** Phase 03.1
-**Plans:** 3/3 plans complete
+**Plans:** 4 plans (3 complete, 1 gap-closure plan pending)
 
 Plans:
 **Wave 1**
@@ -261,6 +261,10 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 03.2-03-PLAN.md — Add accessible persistent column resizing and final UAT/release checkpoint
+
+**Gap Closure Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 03.2-04-PLAN.md — Remove the redundant All jobs mode, preserve tier-owned complete preference-pass visibility, and run exact-release UAT
 
 ### Phase 4: Resume Tailoring & Tracker
 
