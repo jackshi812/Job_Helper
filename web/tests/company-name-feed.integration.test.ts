@@ -85,7 +85,7 @@ describe('truthful company feed gap', () => {
     expect(mocks.select).toHaveBeenCalledWith(expect.stringContaining('source_company_name'))
   })
 
-  it('returns only current preference-pass candidates while focused mode keeps score 50+', async () => {
+  it('returns only current preference-pass candidates while Dashboard tiers own score visibility', async () => {
     const filtered = providerRow('Filtered mismatch', 0, { name: 'Filtered Co' }, null)
     filtered.status = 'filtered'
     filtered.score = null
@@ -109,7 +109,7 @@ describe('truthful company feed gap', () => {
       pendingScore.id,
       focused.id,
     ])
-    expect(returned.filter(defaultVisible).map((row) => row.id)).toEqual([focused.id])
+    expect(returned.filter(defaultVisible).map((row) => row.id)).toEqual([weak.id, focused.id])
     expect(mocks.or).toHaveBeenCalledWith(
       'status.eq.scored,status.eq.failed,score_deferred_until.not.is.null',
     )

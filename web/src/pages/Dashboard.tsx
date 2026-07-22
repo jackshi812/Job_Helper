@@ -1,13 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import {
   companyName,
-  defaultVisible,
   dismissJob,
   filteredReasonLabel,
   listFeed,
-  preferenceVisible,
   relativePostedTime,
   safeApplyUrl,
   scoreFreshnessLabel,
@@ -15,6 +13,16 @@ import {
   undismissJob,
   type FeedRow,
 } from '../lib/feed'
+import {
+  ALL_SCORE_TIERS,
+  copyHiddenCompanyKeys,
+  dashboardCompanyOptions,
+  filterDashboardRows,
+  resetHiddenCompanyKeys,
+  searchCompanyOptions,
+  toggleHiddenCompanyKey,
+  toggleScoreTier,
+} from '../lib/dashboard'
 import { listResumes, resumeLabel } from '../lib/resumes'
 import { loadPreferences } from '../lib/preferences'
 
@@ -87,6 +95,12 @@ export function Dashboard() {
   const [showDismissed, setShowDismissed] = useState(false)
   const [sortByScore, setSortByScore] = useState(false)
   const [scoreAscending, setScoreAscending] = useState(false)
+  const [companyPanelOpen, setCompanyPanelOpen] = useState(false)
+  const [companySearch, setCompanySearch] = useState('')
+  const [appliedHiddenKeys, setAppliedHiddenKeys] = useState<Set<string>>(() => new Set())
+  const [draftHiddenKeys, setDraftHiddenKeys] = useState<Set<string>>(() => new Set())
+  const [selectedTiers, setSelectedTiers] = useState(() => new Set(ALL_SCORE_TIERS))
+  const companyTriggerRef = useRef<HTMLButtonElement>(null)
 
   const feedQuery = useQuery({
     queryKey: ['feed'],
@@ -136,13 +150,22 @@ export function Dashboard() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
   })
 
+  const companyOptions = useMemo(
+    () => dashboardCompanyOptions(feedQuery.data ?? []),
+    [feedQuery.data],
+  )
+  const searchedCompanyOptions = useMemo(
+    () => searchCompanyOptions(companyOptions, companySearch),
+    [companyOptions, companySearch],
+  )
+
   const rows = useMemo(() => {
     const all = feedQuery.data ?? []
-    const filtered = all.filter((row) => {
-      if (showDismissed) return row.dismissed_at !== null
-      if (row.dismissed_at !== null) return false
-      if (viewAll) return preferenceVisible(row)
-      return defaultVisible(row)
+    const filtered = filterDashboardRows(all, {
+      viewAll,
+      showDismissed,
+      appliedHiddenKeys,
+      selectedTiers,
     })
     const sorted = [...filtered]
     sorted.sort((a, b) => {
@@ -156,7 +179,38 @@ export function Dashboard() {
       return (tb ? Date.parse(tb) : 0) - (ta ? Date.parse(ta) : 0)
     })
     return sorted
-  }, [feedQuery.data, showDismissed, viewAll, sortByScore, scoreAscending])
+  }, [
+    feedQuery.data,
+    showDismissed,
+    viewAll,
+    appliedHiddenKeys,
+    selectedTiers,
+    sortByScore,
+    scoreAscending,
+  ])
+
+  function openCompanyPanel() {
+    setDraftHiddenKeys(copyHiddenCompanyKeys(appliedHiddenKeys))
+    setCompanySearch('')
+    setCompanyPanelOpen(true)
+  }
+
+  function closeCompanyPanel() {
+    setCompanyPanelOpen(false)
+    setCompanySearch('')
+    queueMicrotask(() => companyTriggerRef.current?.focus())
+  }
+
+  function applyCompanyDraft() {
+    setAppliedHiddenKeys(copyHiddenCompanyKeys(draftHiddenKeys))
+    closeCompanyPanel()
+  }
+
+  const visibleCompanyCount = companyOptions.filter(
+    (option) => !appliedHiddenKeys.has(option.key),
+  ).length
+  const companyFilterNarrowed = appliedHiddenKeys.size > 0
+  const filtersNarrowed = companyFilterNarrowed || selectedTiers.size < ALL_SCORE_TIERS.length
 
   function toggleScoreSort() {
     if (!sortByScore) {
@@ -196,6 +250,107 @@ export function Dashboard() {
         </button>
       </div>
 
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          ref={companyTriggerRef}
+          type="button"
+          aria-expanded={companyPanelOpen}
+          aria-controls="dashboard-company-panel"
+          onClick={() => (companyPanelOpen ? closeCompanyPanel() : openCompanyPanel())}
+          className={`${filterButtonBase} ${filterInactive}`}
+        >
+          {companyFilterNarrowed ? `Companies (${visibleCompanyCount} selected)` : 'Companies'}
+        </button>
+        {ALL_SCORE_TIERS.map((tier) => {
+          const selected = selectedTiers.has(tier)
+          return (
+            <button
+              key={tier}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setSelectedTiers((current) => toggleScoreTier(current, tier))}
+              className={`${filterButtonBase} ${selected ? filterActive : filterInactive}`}
+            >
+              {tier}
+            </button>
+          )
+        })}
+      </div>
+
+      {companyPanelOpen ? (
+        <section
+          id="dashboard-company-panel"
+          aria-labelledby="dashboard-company-heading"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault()
+              closeCompanyPanel()
+            }
+          }}
+          className="mt-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+        >
+          <h2 id="dashboard-company-heading" className="text-base font-semibold">
+            Filter companies
+          </h2>
+          <label htmlFor="dashboard-company-search" className="mt-4 block text-sm font-medium">
+            Search companies
+          </label>
+          <input
+            id="dashboard-company-search"
+            type="search"
+            value={companySearch}
+            onChange={(event) => setCompanySearch(event.target.value)}
+            placeholder="Search current companies"
+            className="mt-2 min-h-11 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 dark:border-zinc-700 dark:bg-zinc-950"
+          />
+          <fieldset className="mt-3 max-h-80 overflow-y-auto" aria-label="Current companies">
+            {searchedCompanyOptions.length === 0 ? (
+              <p className="py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                No current companies match your search.
+              </p>
+            ) : (
+              searchedCompanyOptions.map((option) => (
+                <label
+                  key={option.key}
+                  className="flex min-h-11 cursor-pointer items-center gap-3 border-b border-zinc-100 py-2 text-sm last:border-b-0 dark:border-zinc-800"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!draftHiddenKeys.has(option.key)}
+                    onChange={() => setDraftHiddenKeys((current) =>
+                      toggleHiddenCompanyKey(current, option.key))}
+                    className="size-6 rounded border-zinc-400"
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))
+            )}
+          </fieldset>
+          <div className="sticky bottom-0 mt-4 flex justify-end gap-3 border-t border-zinc-200 bg-white pt-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <button
+              type="button"
+              onClick={() => setDraftHiddenKeys(resetHiddenCompanyKeys())}
+              className={`${filterButtonBase} ${filterInactive}`}
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={applyCompanyDraft}
+              className={`${filterButtonBase} ${filterActive}`}
+            >
+              Show results
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {!feedQuery.isPending && !feedQuery.error ? (
+        <p role="status" aria-live="polite" className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
+          {rows.length} jobs shown
+        </p>
+      ) : null}
+
       <div
         role="region"
         aria-label="Job matches; scroll horizontally to view all columns"
@@ -219,23 +374,34 @@ export function Dashboard() {
           </div>
         ) : rows.length === 0 ? (
           <div className="p-4">
-            <h2 className="text-base font-semibold">No matches yet</h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              New postings are scored against your resumes and preferences within minutes of
-              discovery. Set your preferences to start matching.
-              {!hasPreferences ? (
-                <>
-                  {' '}
-                  <Link
-                    to="/preferences"
-                    className="text-zinc-900 underline decoration-1 underline-offset-4 hover:decoration-2 dark:text-zinc-100"
-                  >
-                    Set your preferences
-                  </Link>
-                  .
-                </>
-              ) : null}
-            </p>
+            {filtersNarrowed ? (
+              <>
+                <h2 className="text-base font-semibold">No jobs match these filters</h2>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                  Select more companies or score tiers, or reset the company filter.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-base font-semibold">No matches yet</h2>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                  New postings are scored against your resumes and preferences within minutes of
+                  discovery. Set your preferences to start matching.
+                  {!hasPreferences ? (
+                    <>
+                      {' '}
+                      <Link
+                        to="/preferences"
+                        className="text-zinc-900 underline decoration-1 underline-offset-4 hover:decoration-2 dark:text-zinc-100"
+                      >
+                        Set your preferences
+                      </Link>
+                      .
+                    </>
+                  ) : null}
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <table className="w-full min-w-[72rem] border-collapse text-left text-sm">
@@ -244,6 +410,7 @@ export function Dashboard() {
                 <th scope="col" className="px-4 py-2.5">New</th>
                 <th scope="col" className="px-4 py-2.5">Job</th>
                 <th scope="col" className="px-4 py-2.5">Company</th>
+                <th scope="col" className="px-4 py-2.5">Location</th>
                 <th scope="col" className="px-4 py-2.5" aria-sort={scoreAriaSort}>
                   <button
                     type="button"
@@ -256,7 +423,6 @@ export function Dashboard() {
                     </span>
                   </button>
                 </th>
-                <th scope="col" className="px-4 py-2.5">Match reason</th>
                 <th scope="col" className="px-4 py-2.5">Best fit</th>
                 <th scope="col" className="px-4 py-2.5">Posted</th>
                 <th scope="col" className="px-4 py-2.5">Apply</th>
@@ -273,7 +439,6 @@ export function Dashboard() {
                 const runnerUp = row.runner_up_resume_id
                   ? resumeNames.get(row.runner_up_resume_id)
                   : undefined
-                const firstReason = row.reasons?.[0]
                 const filteredLabel = filteredReasonLabel(row)
                 const freshnessLabel = scoreFreshnessLabel(row)
                 return (
@@ -299,6 +464,9 @@ export function Dashboard() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{company ?? '—'}</td>
+                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                      {row.jobs?.location ?? '—'}
+                    </td>
                     <td className="px-4 py-3">
                       {isFiltered ? (
                         <span className="text-xs">{filteredLabel ?? '—'}</span>
@@ -315,19 +483,6 @@ export function Dashboard() {
                             </span>
                           ) : null}
                         </div>
-                      ) : (
-                        <span className="text-zinc-500">—</span>
-                      )}
-                    </td>
-                    <td className="max-w-72 px-4 py-3">
-                      {isFiltered ? (
-                        <span className="text-xs">{filteredLabel ?? '—'}</span>
-                      ) : freshnessLabel ? (
-                        <span className="text-xs text-amber-800 dark:text-amber-300">
-                          Updating match details…
-                        </span>
-                      ) : firstReason ? (
-                        <span className="line-clamp-2 text-xs">{firstReason}</span>
                       ) : (
                         <span className="text-zinc-500">—</span>
                       )}
