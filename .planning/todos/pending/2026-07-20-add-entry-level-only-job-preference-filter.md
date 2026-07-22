@@ -1,6 +1,6 @@
 ---
 created: 2026-07-20T20:04:31.233Z
-title: Add entry-level-only job preference filter
+title: Replace experience cap with title exclusions
 area: ui
 files:
   - web/src/pages/Preferences.tsx
@@ -12,10 +12,15 @@ files:
 
 ## Problem
 
-The Focused dashboard can show preference-relevant but senior roles such as Director, Analytics, Data Engineering. The user is seeking entry-level work and wants Focused to contain only entry-level jobs whose explicit required-experience minimum is less than three years. Title matching alone does not reliably capture required experience stated inside the job description.
+Phase 03.2 added a maximum required-experience preference and description parser. The user no longer wants experience years configured in Preferences. They want a simpler user-managed filter that excludes jobs when configured keywords occur in the job title.
 
 ## Solution
 
-Add an explicit `Entry level only` preference and make it control Focused visibility. Reject unambiguously senior titles such as Director, VP, Head, Principal, Staff, Senior, Lead, and Manager, with carefully tested exceptions where needed. Parse required-experience language separately from preferred/nice-to-have language and reject Focused candidates whose explicit required minimum is three or more years. Do not reject solely for preferred, desired, or nice-to-have experience. Treat ambiguous ranges and conflicting requirements conservatively and expose a specific reason instead of silently guessing.
+Remove the maximum required-experience control from Preferences and stop using that setting to filter jobs. Replace it with a persisted list of excluded job-title keywords, initially seeded with:
 
-Keep the existing All jobs contract unchanged unless the owner later decides otherwise: it remains the set of preference-passing jobs regardless of score. Persist the entry-level decision inputs, invalidate affected rows when the preference changes, and cover senior-title, required-years, preferred-years, ranges, missing-years, and provider-neutral fixtures. Acceptance requires zero clearly senior or 3+-years-required roles in Focused after refiltering.
+- `president`
+- `PhD`
+
+Match case-insensitively against job titles only, with clear token/phrase boundaries so short keywords do not match inside unrelated words. Let the user add and remove keywords later; the seed values are defaults, not a hard-coded permanent list. Preference changes should reuse the existing refilter lifecycle and expose a specific bounded reason for title-keyword exclusions.
+
+Plan the transition of the existing `max_required_experience` field and `experience_above_max` outcome deliberately: remove them from active UI/scoring behavior without losing deployment safety, and decide whether a later migration should delete or retain the dormant column. Cover default seeding, case-insensitive title matching, whole-word/phrase boundaries, user edits, refiltering, and provider-neutral behavior.

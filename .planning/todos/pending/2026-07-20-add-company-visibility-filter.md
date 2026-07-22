@@ -1,6 +1,6 @@
 ---
 created: 2026-07-20T21:25:34.579Z
-title: Add company visibility filter
+title: Refine company visibility controls
 area: ui
 files:
   - web/src/pages/Dashboard.tsx
@@ -10,10 +10,15 @@ files:
 
 ## Problem
 
-The unified dashboard mixes jobs from many employers without a quick way to reveal or hide selected companies. The user wants checkbox controls that can be clicked and unclicked to change which companies are visible without changing matching, scoring, or source ingestion.
+Phase 03.2 added a staged, session-only company checklist for the current feed. Its footer currently exposes Reset, which is not the bulk-selection model the user wants.
 
 ## Solution
 
-Add a company filter derived from the truthful company names present in the current preference-passing feed. Each company has a checkbox: checked reveals its jobs and unchecked hides them. Default to all companies selected, keep Focused versus All jobs semantics unchanged, and apply company visibility after authorization/preference eligibility so unchecked companies are hidden rather than discarded or rescored. Define predictable behavior for newly arriving companies and an empty selection, and include accessible labels plus convenient select-all/clear-all controls if the list becomes long.
+Keep the truthful current-feed company checklist and its session-only, staged Show results behavior. Replace Reset with two explicit bulk actions inside the company panel:
 
-Acceptance requires checkbox changes to update the visible rows immediately, preserve the choice across Dashboard navigation/refresh for the same user, never expose identity-less or preference-failing rows, and compose correctly with Focused, All jobs, score sorting, dismissal, and Show dismissed.
+- `Clear all` unchecks every currently listed company in the draft.
+- `Select all` checks every currently listed company in the draft.
+
+Both actions affect only the draft until Show results is pressed. Newly refreshed companies remain selected by default, and no company control changes ingestion, matching, scoring, or future employer discovery.
+
+Acceptance requires accessible bulk-action labels, correct disabled states when everything is already clear/selected, predictable empty-result messaging after applying Clear all, and correct composition with score-tier filters, sorting, dismissal, and Show dismissed.

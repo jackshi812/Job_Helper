@@ -183,11 +183,12 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- 4 pending — see `.planning/todos/pending/`
+- 5 pending — see `.planning/todos/pending/`
 - Pilot Workday polling for 10 companies
-- Add entry-level-only job preference filter
+- Replace experience cap with title exclusions
 - Add SuccessFactors and Paylocity connectors
-- Add company visibility filter
+- Refine company visibility controls
+- Consolidate score tier controls
 
 ### Quick Tasks Completed
 
