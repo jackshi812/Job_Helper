@@ -371,6 +371,33 @@ describe('Paylocity whole-snapshot adapter', () => {
     })
   })
 
+  it('accepts the live Paylocity feed field names', async () => {
+    const liveJob = {
+      jobId: 3865991,
+      title: 'Evansville Licensed Esthetician',
+      companyName: 'The Only Facial',
+      applyUrl: 'https://recruiting.paylocity.com/recruiting/jobs/Apply/3865991/The-Only-Facial/Evansville-Licensed-Esthetician',
+      createdUtc: '2026-01-24T02:36:35.833Z',
+      publishedDate: '2026-07-15T18:42:59Z',
+      description: '<p>Esthetician</p>',
+      displayUrl: 'https://recruiting.paylocity.com/recruiting/jobs/Details/3865991/The-Only-Facial/Evansville-Licensed-Esthetician',
+      jobLocation: { name: 'Evansville, IN' },
+      listUrl: paylocityBoardUrl,
+      requirements: '<p>Licensed</p>',
+    }
+    const observation = await pollPaylocity(
+      paylocityBoardUuid,
+      async () => paylocityResponse([liveJob]),
+    )
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      expectedCount: 1,
+      warnings: [],
+      jobs: [{ externalId: '3865991', title: 'Evansville Licensed Esthetician', location: 'Evansville, IN' }],
+    })
+  })
+
   it.each([
     ['network failure', async () => { throw new Error('private body') }, 'network_error'],
     ['non-JSON content', async () => new Response('<html>challenge</html>', { headers: { 'content-type': 'text/html' } }), 'invalid_content_type'],

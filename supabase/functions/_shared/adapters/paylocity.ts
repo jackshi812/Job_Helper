@@ -88,6 +88,13 @@ function parseJob(value: unknown, identity: PaylocityIdentity): ParsedJob {
     return { ok: false, code: 'provider_schema_invalid' }
   }
   const job = value as Record<string, unknown>
+  const jobTitle = job.jobTitle ?? job.title
+  const location = job.location ?? (
+    job.jobLocation && typeof job.jobLocation === 'object'
+      ? (job.jobLocation as Record<string, unknown>).name
+      : undefined
+  )
+  const jobUrlValue = job.jobUrl ?? job.displayUrl
   if (
     (job.companyName !== undefined
       && job.companyName !== null
@@ -99,15 +106,15 @@ function parseJob(value: unknown, identity: PaylocityIdentity): ParsedJob {
   const id = decimalId(job.jobId)
   const publishedDate = parseDate(job.publishedDate)
   const createdUtc = parseDate(job.createdUtc)
-  const jobUrl = safePaylocityUrl(job.jobUrl)
+  const jobUrl = safePaylocityUrl(jobUrlValue)
   const applyUrl = job.applyUrl === undefined || job.applyUrl === null
     ? null
     : safePaylocityUrl(job.applyUrl)
   if (
     !id
-    || !boundedString(job.jobTitle, MAX_TEXT)
-    || (job.location !== undefined && job.location !== null
-      && !boundedString(job.location, MAX_TEXT, true))
+    || !boundedString(jobTitle, MAX_TEXT)
+    || (location !== undefined && location !== null
+      && !boundedString(location, MAX_TEXT, true))
     || !boundedString(job.description, MAX_HTML)
     || (job.requirements !== undefined && job.requirements !== null
       && !boundedString(job.requirements, MAX_HTML, true))
@@ -122,9 +129,9 @@ function parseJob(value: unknown, identity: PaylocityIdentity): ParsedJob {
     ok: true,
     job: {
       jobId: id,
-      jobTitle: job.jobTitle as string,
+      jobTitle: jobTitle as string,
       companyName: job.companyName as string | null | undefined,
-      location: job.location as string | null | undefined,
+      location: location as string | null | undefined,
       description: job.description as string,
       requirements: job.requirements as string | null | undefined,
       jobUrl,
