@@ -244,14 +244,23 @@ Plans:
 
 ### Phase 03.2: Dashboard Precision & Company Visibility (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Users can tune the current dashboard feed by company, score tier, and explicit required-experience cap while retaining truthful future ingestion and gaining a full-width, accessible, resizable results table.
+**Requirements**: PREF-01, SCOR-01, SCOR-03, SCOR-04
 **Depends on:** Phase 03.1
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
+**Wave 1**
 
-- [ ] TBD (run /gsd-plan-phase 03.2 to break down)
+- [ ] 03.2-01-PLAN.md — Add persisted required-experience preference and provider-neutral filter contract
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03.2-02-PLAN.md — Add session-only Dashboard company/tier precision controls and full-width table
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03.2-03-PLAN.md — Add accessible persistent column resizing and final UAT/release checkpoint
 
 ### Phase 4: Resume Tailoring & Tracker
 
