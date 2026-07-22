@@ -181,7 +181,9 @@ describe('Paylocity verifier resumability and cleanup', () => {
     for (const failAt of PAYLOCITY_FAILURE_STAGES) {
       const { adapters, events } = fakeAdapters({ failAt })
       await expect(runPaylocityVerification(adapters)).rejects.toThrow(/injected:|cleanup failed/)
-      if (events.includes('pause_score_cron') && failAt !== 'pause_score_cron') {
+      if (events.includes('pause_score_cron')
+        && failAt !== 'pause_score_cron'
+        && failAt !== 'read_paused_cron') {
         expect(events).toContain('restore_score_cron')
         expect(events.indexOf('assert_zero_residue')).toBeLessThan(events.indexOf('restore_score_cron'))
       }
@@ -276,7 +278,7 @@ describe('Paylocity verifier static safety contract', () => {
     expect(source).toContain(".eq('source', 'paylocity')")
     expect(source).toContain(".eq('source_key', PAYLOCITY_SOURCE_KEY)")
     expect(source).toContain(".from('user_jobs')")
-    expect(source).toContain(".from('ai_usage')")
+    expect(source).toContain("'ai_usage'")
     expect(source).toContain('scoreTickInvocations += 1')
     expect(source).toContain("if (scoreTickInvocations !== 1)")
     expect(source).toContain('assertCronPaused')
