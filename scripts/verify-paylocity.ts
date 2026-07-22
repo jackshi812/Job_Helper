@@ -447,6 +447,10 @@ function createProductionAdapters(environment: ResumeEnvironment): PaylocityVeri
         end if;
         perform cron.alter_job(
           job_id := ${snapshot.jobid},
+          schedule := ${sqlText(snapshot.schedule)},
+          command := ${sqlText(snapshot.command)},
+          database := ${sqlText(snapshot.database)},
+          username := ${sqlText(snapshot.username)},
           active := ${targetActive ? 'true' : 'false'}
         );
       end;
