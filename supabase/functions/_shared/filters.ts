@@ -34,6 +34,7 @@ const LEADING_EXPERIENCE_DOMAIN = /^\s+in\s+(?!total\b|duration\b)[a-z][a-z0-9&/
 const LEADING_OPTIONAL_SIGNAL = /^\s*(?::|,|-)?\s*(?:is\s+)?(?:preferred|preferably|desired|a\s+bonus|optional|nice(?:[\s-]+)to(?:[\s-]+)have|would\s+be\s+(?:an?\s+)?plus|considered\s+(?:an?\s+)?plus)\b/i
 const LEADING_REQUIRED_SIGNAL = /^\s*(?::|,|-)?\s*(?:is\s+)?(?:required|a\s+requirement|minimum|at\s+least|must\s+have|needed)\b/i
 const EXPERIENCE_CONTEXT_RADIUS = 96
+const STANDALONE_QUALIFICATION_PREFIX = /^\s*(?:(?:[-*]|\d+[.)])\s*)?$/
 
 function experienceClauses(text: string): string[] {
   return text
@@ -68,13 +69,21 @@ function parseMandatoryExperienceMinima(clause: string): number[] {
     const optionalBefore = lastSignalIndex(prefix, OPTIONAL_EXPERIENCE_SIGNAL)
     const experienceTerm = suffix.match(LEADING_EXPERIENCE_TERM)
     const experienceDomain = suffix.match(LEADING_EXPERIENCE_DOMAIN)
-    const suffixAfterExperience = experienceTerm ? suffix.slice(experienceTerm[0].length) : suffix
-    const requiredAfter = LEADING_REQUIRED_SIGNAL.test(suffixAfterExperience)
-    const optionalAfter = LEADING_OPTIONAL_SIGNAL.test(suffixAfterExperience)
+    const candidateSuffix = experienceTerm ?? experienceDomain
+    const suffixAfterCandidate = candidateSuffix
+      ? suffix.slice(candidateSuffix[0].length)
+      : suffix
+    const requiredAfter = LEADING_REQUIRED_SIGNAL.test(suffixAfterCandidate)
+    const optionalAfter = LEADING_OPTIONAL_SIGNAL.test(suffixAfterCandidate) || Boolean(
+      experienceDomain && OPTIONAL_EXPERIENCE_SIGNAL.test(suffix),
+    )
     const hasRequiredBefore = requiredBefore >= 0 && requiredBefore > optionalBefore
     const hasOptionalBefore = optionalBefore >= 0 && optionalBefore > requiredBefore
+    const isStandalonePlusDomain = Boolean(
+      match[3] && experienceDomain && STANDALONE_QUALIFICATION_PREFIX.test(prefix),
+    )
     const isExperienceCandidate = Boolean(
-      hasRequiredBefore || requiredAfter || experienceTerm || experienceDomain,
+      hasRequiredBefore || requiredAfter || experienceTerm || isStandalonePlusDomain,
     )
     const isOptionalCandidate = optionalAfter || (hasOptionalBefore && !requiredAfter)
 

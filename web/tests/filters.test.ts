@@ -23,6 +23,10 @@ describe('required experience parsing', () => {
     ['Our office lease runs 10+ years', null],
     ['Nice-to-have: 8 years experience', null],
     ['Preferably 5+ years experience', null],
+    ['5 years in finance preferred', null],
+    ['5+ years in analytics is a plus', null],
+    ['Our company has operated 10 years in healthcare', null],
+    ['Benefits vest after 5 years in the company', null],
     ['Requires 3 years SQL and 5 years industry experience', 5],
     ['Senior analyst role', null],
     ['Experience required', null],
@@ -42,6 +46,10 @@ describe('required experience parsing', () => {
     ['Our office lease runs 10+ years', true, undefined],
     ['Nice-to-have: 8 years experience', true, undefined],
     ['Preferably 5+ years experience', true, undefined],
+    ['5 years in finance preferred', true, undefined],
+    ['5+ years in analytics is a plus', true, undefined],
+    ['Our company has operated 10 years in healthcare', true, undefined],
+    ['Benefits vest after 5 years in the company', true, undefined],
   ])('applies candidate-local semantics to %s', (descriptionText, pass, reason) => {
     const result = cheapFilter(job({ descriptionText }), prefs({ maxRequiredExperience: 3 }))
     expect(result.pass).toBe(pass)
