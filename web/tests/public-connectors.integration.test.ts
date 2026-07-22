@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   pollConnector,
   providerRegistry,
+  verifyConnector,
 } from '../../supabase/functions/_shared/connectors.ts'
 import { detectAts } from '../../supabase/functions/_shared/detect.ts'
 import {
@@ -12,6 +13,26 @@ import {
 } from '../../supabase/functions/_shared/adapters/recruitee.ts'
 import migrationSql from '../../supabase/migrations/0014_public_connectors.sql?raw'
 import normalizedTypesSource from '../../supabase/functions/_shared/adapters/types.ts?raw'
+import {
+  PAYLOCITY_BOARD_UUID,
+  PAYLOCITY_SOURCE_KEY,
+} from '../../supabase/functions/_shared/provider-identities.ts'
+
+const paylocityFeedKey = 'f3f28b00-201d-4fba-a7dd-532a9e558191'
+const paylocityBoardUrl =
+  `https://recruiting.paylocity.com/recruiting/jobs/All/${PAYLOCITY_BOARD_UUID}/The-Only-Facial`
+const paylocityJob = {
+  jobId: 301,
+  jobTitle: 'Client Experience Analyst',
+  companyName: 'The Only Facial',
+  location: 'Chicago, IL',
+  description: '<p>Analyze client experience.</p>',
+  requirements: '<p>SQL and communication.</p>',
+  jobUrl: 'https://recruiting.paylocity.com/recruiting/jobs/Details/301',
+  applyUrl: 'https://recruiting.paylocity.com/recruiting/jobs/Apply/301',
+  listUrl: paylocityBoardUrl,
+  publishedDate: '2026-07-21T12:00:00Z',
+}
 
 const smartPosting = {
   id: 'sr-101',
@@ -204,10 +225,98 @@ describe('closed registry dispatch for public connectors', () => {
       'ashby',
       'greenhouse',
       'lever',
+      'paylocity',
       'recruitee',
       'smartrecruiters',
       'workday',
     ])
+  })
+
+  it('verifies only a positive reconciled Paylocity snapshot with server-owned identity', async () => {
+    const detected = detectAts(paylocityBoardUrl)
+    if (detected.ats === 'unsupported') throw new Error('expected Paylocity detection')
+    const providerFetch = vi.fn().mockResolvedValue(jsonResponse({
+      displayName: 'The Only Facial',
+      jobs: [paylocityJob],
+    }))
+
+    await expect(verifyConnector(detected, providerFetch)).resolves.toEqual({
+      ats: 'paylocity',
+      boardToken: PAYLOCITY_BOARD_UUID,
+      region: null,
+      siteToken: null,
+      companyName: 'The Only Facial',
+      jobCount: 1,
+      careersUrl: paylocityBoardUrl,
+      sourceKey: PAYLOCITY_SOURCE_KEY,
+    })
+    expect(providerFetch).toHaveBeenCalledWith(
+      `https://recruiting.paylocity.com/recruiting/v2/api/feed/jobs/${paylocityFeedKey}`,
+      expect.objectContaining({
+        redirect: 'error',
+        headers: { accept: 'application/json' },
+      }),
+    )
+  })
+
+  it.each([
+    [{ displayName: 'The Only Facial', jobs: [] }, 'implausible_empty'],
+    [{
+      displayName: 'The Only Facial',
+      jobs: [paylocityJob, { ...paylocityJob, jobId: 302, listUrl: 'https://recruiting.paylocity.com/recruiting/jobs/All/00000000-0000-4000-8000-000000000000/Other' }],
+    }, 'identity_drift'],
+  ])('rejects Paylocity evidence that cannot authorize activation', async (payload, error) => {
+    const detected = detectAts(paylocityBoardUrl)
+    if (detected.ats === 'unsupported') throw new Error('expected Paylocity detection')
+    await expect(verifyConnector(detected, vi.fn().mockResolvedValue(jsonResponse(payload))))
+      .rejects.toThrow(error)
+  })
+
+  it('dispatches only the exact active Paylocity identity through the mapped feed key', async () => {
+    const providerFetch = vi.fn().mockResolvedValue(jsonResponse({
+      displayName: 'The Only Facial',
+      jobs: [paylocityJob],
+    }))
+    vi.stubGlobal('fetch', providerFetch)
+
+    await expect(pollConnector({
+      ats_type: 'paylocity',
+      board_token: PAYLOCITY_BOARD_UUID,
+      region: null,
+      site_token: null,
+      source_key: PAYLOCITY_SOURCE_KEY,
+      activation_state: 'active',
+    }, new Set())).resolves.toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      jobs: [{ source: 'paylocity', externalId: '301' }],
+    })
+    expect(providerFetch).toHaveBeenCalledTimes(1)
+    expect(String(providerFetch.mock.calls[0][0])).toContain(paylocityFeedKey)
+  })
+
+  it.each([
+    ['wrong board', '00000000-0000-4000-8000-000000000000', null, null, PAYLOCITY_SOURCE_KEY],
+    ['wrong source key', PAYLOCITY_BOARD_UUID, null, null, 'paylocity:global:wrong'],
+    ['wrong region', PAYLOCITY_BOARD_UUID, 'eu', null, PAYLOCITY_SOURCE_KEY],
+    ['wrong site', PAYLOCITY_BOARD_UUID, null, 'forged', PAYLOCITY_SOURCE_KEY],
+  ] as const)('rejects Paylocity %s before network access', async (_name, board_token, region, site_token, source_key) => {
+    const providerFetch = vi.fn()
+    vi.stubGlobal('fetch', providerFetch)
+    await expect(pollConnector({
+      ats_type: 'paylocity',
+      board_token,
+      region,
+      site_token,
+      source_key,
+      activation_state: 'active',
+    }, new Set())).rejects.toThrow('inactive_connector:paylocity_identity_not_allowed')
+    expect(providerFetch).not.toHaveBeenCalled()
+  })
+
+  it('keeps SuccessFactors absent from every executable application surface', () => {
+    expect(Object.keys(providerRegistry)).not.toContain('successfactors')
+    expect(normalizedTypesSource.toLowerCase()).not.toContain("'successfactors'")
   })
 
   it('keeps normalized sources and database constraints in parity', () => {
