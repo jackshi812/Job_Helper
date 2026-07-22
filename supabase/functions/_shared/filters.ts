@@ -8,7 +8,7 @@ export type FilterOutcome =
   | { pass: true; matchedIncludeKeywords: string[] }
   | {
       pass: false
-      reason: 'excluded_keyword' | 'wrong_location' | 'title_non_overlap'
+      reason: 'excluded_keyword' | 'wrong_location' | 'title_non_overlap' | 'experience_above_max'
       detail: string
     }
 
@@ -23,6 +23,20 @@ export interface FilterPreferences {
   locations: string[]
   includeKeywords: string[]
   excludeKeywords: string[]
+  maxRequiredExperience?: number | null
+}
+
+export function experienceMinimumRequired(description: string): number | null {
+  const text = description.normalize('NFKC').replace(/[–—−]/g, '-').replace(/\u00a0/g, ' ')
+  const range = text.match(/\b(\d+)\s*-\s*(\d+)\s*years?\b/i)
+  if (range) return Number(range[1])
+  const optional = /(?:preferred|desired|bonus|nice\s*to\s*have|optional)/i
+  const matches = [...text.matchAll(/(?:at\s+least|minimum(?:\s+of)?|requires?\s+(?:a\s+)?minimum\s+of)?\s*(\d+)\s*\+?\s*years?/gi)]
+  const required = matches.filter((match) => {
+    const before = text.slice(Math.max(0, (match.index ?? 0) - 45), match.index ?? 0)
+    return !optional.test(before)
+  }).map((match) => Number(match[1])).filter(Number.isFinite)
+  return required.length > 0 ? Math.min(...required) : null
 }
 
 // D-01 named pairs plus a few Claude-discretion extensions. Keys are canonical
@@ -156,6 +170,13 @@ export function cheapFilter(job: FilterJobInput, prefs: FilterPreferences): Filt
   const titleTokens = tokenize(job.title)
   const locationTokens = tokenize(job.location ?? '')
   const descriptionTokens = tokenize(job.descriptionText)
+
+  if (prefs.maxRequiredExperience != null) {
+    const minimum = experienceMinimumRequired(job.descriptionText)
+    if (minimum !== null && minimum > prefs.maxRequiredExperience) {
+      return { pass: false, reason: 'experience_above_max', detail: String(minimum) }
+    }
+  }
 
   // 1. Exclude keywords (hard discard, checked first) — literal, never synonym-expanded.
   const excludeHaystack = [...titleTokens, ...descriptionTokens]

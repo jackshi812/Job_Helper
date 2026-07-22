@@ -62,6 +62,7 @@ describe('preference refilter feed gap', () => {
       locations: [],
       includeKeywords: [],
       excludeKeywords: [],
+      maxRequiredExperience: null,
     }
     const staleOutcome = cheapFilter(
       { title: stale.jobs!.title, location: stale.jobs!.location, descriptionText: '' },

@@ -1,10 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import {
   cheapFilter,
+  experienceMinimumRequired,
   SYNONYMS,
   type FilterJobInput,
   type FilterPreferences,
 } from '../../supabase/functions/_shared/filters'
+
+describe('required experience parsing', () => {
+  it.each([
+    ['Requires 3 years of experience', 3],
+    ['At least 4 years experience', 4],
+    ['Minimum of 5 years', 5],
+    ['3+ years in analytics', 3],
+    ['3–5 years required', 3],
+    ['Preferred: 8 years experience', null],
+    ['Senior analyst role', null],
+    ['Experience required', null],
+  ])('%s => %s', (description, expected) => {
+    expect(experienceMinimumRequired(description)).toBe(expected)
+  })
+
+  it('rejects only explicit minimums above the cap', () => {
+    expect(cheapFilter(job({ descriptionText: 'Requires 3 years.' }), prefs({ maxRequiredExperience: 3 })).pass).toBe(true)
+    expect(cheapFilter(job({ descriptionText: 'Requires 4 years.' }), prefs({ maxRequiredExperience: 3 }))).toMatchObject({ pass: false, reason: 'experience_above_max' })
+    expect(cheapFilter(job({ title: 'Senior Analyst', descriptionText: '' }), prefs({ maxRequiredExperience: 3 })).pass).toBe(true)
+  })
+})
 
 function job(overrides: Partial<FilterJobInput> = {}): FilterJobInput {
   return {
@@ -21,6 +43,7 @@ function prefs(overrides: Partial<FilterPreferences> = {}): FilterPreferences {
     locations: [],
     includeKeywords: [],
     excludeKeywords: [],
+    maxRequiredExperience: null,
     ...overrides,
   }
 }

@@ -19,6 +19,7 @@ const input = {
   locations: ['Chicago'],
   include_keywords: ['valuation'],
   exclude_keywords: ['senior'],
+  max_required_experience: null,
 }
 
 beforeEach(() => {

@@ -26,6 +26,7 @@ function semanticInput() {
       locations: ['Chicago'],
       includeKeywords: ['Valuation'],
       excludeKeywords: ['Senior'],
+      maxRequiredExperience: null,
     },
     job: {
       title: 'Equity Research Analyst',
