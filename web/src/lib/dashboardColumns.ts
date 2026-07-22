@@ -13,6 +13,7 @@ export const DASHBOARD_COLUMNS = [
 ] as const
 
 export type DashboardColumnId = (typeof DASHBOARD_COLUMNS)[number]['id']
+export type DashboardColumn = (typeof DASHBOARD_COLUMNS)[number]
 export type DashboardColumnWidths = Record<DashboardColumnId, number>
 
 export interface DashboardColumnStorage {

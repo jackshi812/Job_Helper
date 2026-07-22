@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { FeedRow } from '../lib/feed'
 import dashboardSource from './Dashboard.tsx?raw'
 import jobDetailSource from './JobDetail.tsx?raw'
+import resizeHandleSource from '../components/ColumnResizeHandle.tsx?raw'
 import { Dashboard } from './Dashboard'
 
 const row: FeedRow = {
@@ -78,7 +79,7 @@ describe('Dashboard precision controls', () => {
     const markup = renderToStaticMarkup(<Dashboard />)
     const table = markup.match(/<table[\s\S]*<\/table>/)?.[0] ?? ''
 
-    expect(table).toContain('>Location</th>')
+    expect(table).toContain('>Location<div role="separator"')
     expect(table).toContain('Chicago, IL')
     expect(table).not.toContain('Match reason')
     expect(jobDetailSource).toContain('Match reasons')
@@ -94,5 +95,49 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('No current companies match your search.')
     expect(dashboardSource).not.toContain('localStorage')
     expect(dashboardSource).not.toContain('savePreferences')
+  })
+
+  it('renders fixed colgroup widths and accessible separators except after Action', () => {
+    const markup = renderToStaticMarkup(<Dashboard />)
+    const separators = markup.match(/role="separator"/g) ?? []
+
+    expect(markup).toContain('<col style="width:80px"/>')
+    expect(markup).toContain('<col style="width:280px"/>')
+    expect(markup).toContain('<col style="width:120px"/>')
+    expect(markup).toContain('style="min-width:1508px"')
+    expect(separators).toHaveLength(8)
+    expect(markup).toContain('aria-label="Resize New column"')
+    expect(markup).toContain('aria-label="Resize Score column"')
+    expect(markup).not.toContain('aria-label="Resize Action column"')
+    expect(markup).toContain('aria-orientation="vertical"')
+    expect(markup).toContain('aria-valuemin="150"')
+    expect(markup).toContain('aria-valuemax="260"')
+    expect(markup).toContain('aria-valuenow="180"')
+    expect(dashboardSource).toContain('useState(loadDashboardColumnWidths)')
+    expect(dashboardSource).not.toContain('resetDashboardColumn')
+  })
+
+  it('keeps Score sorting separate from resizing and preserves responsive scrolling', () => {
+    const markup = renderToStaticMarkup(<Dashboard />)
+    const scoreHeader = markup.match(/<th[^>]*aria-sort="none"[\s\S]*?<\/th>/)?.[0] ?? ''
+
+    expect(scoreHeader).toContain('<button type="button"')
+    expect(scoreHeader).toContain('Score')
+    expect(scoreHeader).toContain('aria-label="Resize Score column"')
+    expect(markup).toContain('overflow-x-auto')
+    expect(markup).toContain('tabindex="0"')
+    expect(markup).toContain('Job matches; scroll horizontally to view all columns')
+    expect(resizeHandleSource).toContain('event.stopPropagation()')
+  })
+
+  it('pins pointer capture, cancellation cleanup, keyboard resize, and coarse hit areas', () => {
+    expect(resizeHandleSource).toContain('setPointerCapture')
+    expect(resizeHandleSource).toContain('releasePointerCapture')
+    expect(resizeHandleSource).toContain('onPointerCancel')
+    expect(resizeHandleSource).toContain("document.body.style.userSelect = 'none'")
+    expect(resizeHandleSource).toContain('document.body.style.userSelect = drag.previousUserSelect')
+    expect(resizeHandleSource).toContain('document.body.style.cursor = drag.previousCursor')
+    expect(resizeHandleSource).toContain("['ArrowLeft', 'ArrowRight', 'Home', 'End']")
+    expect(resizeHandleSource).toContain('[@media(pointer:coarse)]:w-11')
   })
 })

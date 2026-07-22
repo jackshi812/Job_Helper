@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import {
@@ -25,6 +25,17 @@ import {
 } from '../lib/dashboard'
 import { listResumes, resumeLabel } from '../lib/resumes'
 import { loadPreferences } from '../lib/preferences'
+import { ColumnResizeHandle } from '../components/ColumnResizeHandle'
+import {
+  DASHBOARD_COLUMNS,
+  clampDashboardColumnWidth,
+  dashboardTableWidth,
+  loadDashboardColumnWidths,
+  persistDashboardColumnWidths,
+  type DashboardColumn,
+  type DashboardColumnId,
+  type DashboardColumnWidths,
+} from '../lib/dashboardColumns'
 
 const fullDateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
@@ -89,6 +100,46 @@ const filterInactive =
 const filterActive =
   'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900'
 
+interface DashboardHeaderCellProps {
+  column: DashboardColumn
+  widths: DashboardColumnWidths
+  onWidthChange: (columnId: DashboardColumnId, width: number) => void
+  onWidthCommit: (columnId: DashboardColumnId, width: number) => void
+  children: ReactNode
+  ariaSort?: 'ascending' | 'descending' | 'none'
+  isLast?: boolean
+  alignRight?: boolean
+}
+
+function DashboardHeaderCell({
+  column,
+  widths,
+  onWidthChange,
+  onWidthCommit,
+  children,
+  ariaSort,
+  isLast = false,
+  alignRight = false,
+}: DashboardHeaderCellProps) {
+  return (
+    <th
+      scope="col"
+      aria-sort={ariaSort}
+      className={`relative px-4 py-2.5 ${alignRight ? 'text-right' : ''}`}
+    >
+      {children}
+      {!isLast ? (
+        <ColumnResizeHandle
+          column={column}
+          width={widths[column.id]}
+          onWidthChange={(width) => onWidthChange(column.id, width)}
+          onWidthCommit={(width) => onWidthCommit(column.id, width)}
+        />
+      ) : null}
+    </th>
+  )
+}
+
 export function Dashboard() {
   const queryClient = useQueryClient()
   const [viewAll, setViewAll] = useState(false)
@@ -100,6 +151,8 @@ export function Dashboard() {
   const [appliedHiddenKeys, setAppliedHiddenKeys] = useState<Set<string>>(() => new Set())
   const [draftHiddenKeys, setDraftHiddenKeys] = useState<Set<string>>(() => new Set())
   const [selectedTiers, setSelectedTiers] = useState(() => new Set(ALL_SCORE_TIERS))
+  const [columnWidths, setColumnWidths] = useState(loadDashboardColumnWidths)
+  const columnWidthsRef = useRef(columnWidths)
   const companyTriggerRef = useRef<HTMLButtonElement>(null)
 
   const feedQuery = useQuery({
@@ -223,6 +276,26 @@ export function Dashboard() {
 
   const scoreAriaSort = sortByScore ? (scoreAscending ? 'ascending' : 'descending') : 'none'
   const hasPreferences = preferencesQuery.data !== null && preferencesQuery.data !== undefined
+  const tableWidth = dashboardTableWidth(columnWidths)
+
+  function updateColumnWidth(columnId: DashboardColumnId, width: number) {
+    const next = {
+      ...columnWidthsRef.current,
+      [columnId]: clampDashboardColumnWidth(columnId, width),
+    }
+    columnWidthsRef.current = next
+    setColumnWidths(next)
+  }
+
+  function commitColumnWidth(columnId: DashboardColumnId, width: number) {
+    const next = {
+      ...columnWidthsRef.current,
+      [columnId]: clampDashboardColumnWidth(columnId, width),
+    }
+    columnWidthsRef.current = next
+    setColumnWidths(next)
+    persistDashboardColumnWidths(next)
+  }
 
   return (
     <section>
@@ -404,14 +477,35 @@ export function Dashboard() {
             )}
           </div>
         ) : (
-          <table className="w-full min-w-[72rem] border-collapse text-left text-sm">
+          <table
+            className="w-full table-fixed border-collapse text-left text-sm"
+            style={{ minWidth: `${tableWidth}px` }}
+          >
+            <colgroup>
+              {DASHBOARD_COLUMNS.map((column) => (
+                <col key={column.id} style={{ width: `${columnWidths[column.id]}px` }} />
+              ))}
+            </colgroup>
             <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-semibold tracking-wide text-zinc-600 uppercase dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
               <tr>
-                <th scope="col" className="px-4 py-2.5">New</th>
-                <th scope="col" className="px-4 py-2.5">Job</th>
-                <th scope="col" className="px-4 py-2.5">Company</th>
-                <th scope="col" className="px-4 py-2.5">Location</th>
-                <th scope="col" className="px-4 py-2.5" aria-sort={scoreAriaSort}>
+                {DASHBOARD_COLUMNS.slice(0, 4).map((column) => (
+                  <DashboardHeaderCell
+                    key={column.id}
+                    column={column}
+                    widths={columnWidths}
+                    onWidthChange={updateColumnWidth}
+                    onWidthCommit={commitColumnWidth}
+                  >
+                    {column.label}
+                  </DashboardHeaderCell>
+                ))}
+                <DashboardHeaderCell
+                  column={DASHBOARD_COLUMNS[4]}
+                  widths={columnWidths}
+                  onWidthChange={updateColumnWidth}
+                  onWidthCommit={commitColumnWidth}
+                  ariaSort={scoreAriaSort}
+                >
                   <button
                     type="button"
                     onClick={toggleScoreSort}
@@ -422,11 +516,28 @@ export function Dashboard() {
                       {sortByScore ? (scoreAscending ? '↑' : '↓') : '↕'}
                     </span>
                   </button>
-                </th>
-                <th scope="col" className="px-4 py-2.5">Best fit</th>
-                <th scope="col" className="px-4 py-2.5">Posted</th>
-                <th scope="col" className="px-4 py-2.5">Apply</th>
-                <th scope="col" className="px-4 py-2.5 text-right">Action</th>
+                </DashboardHeaderCell>
+                {DASHBOARD_COLUMNS.slice(5, 8).map((column) => (
+                  <DashboardHeaderCell
+                    key={column.id}
+                    column={column}
+                    widths={columnWidths}
+                    onWidthChange={updateColumnWidth}
+                    onWidthCommit={commitColumnWidth}
+                  >
+                    {column.label}
+                  </DashboardHeaderCell>
+                ))}
+                <DashboardHeaderCell
+                  column={DASHBOARD_COLUMNS[8]}
+                  widths={columnWidths}
+                  onWidthChange={updateColumnWidth}
+                  onWidthCommit={commitColumnWidth}
+                  isLast
+                  alignRight
+                >
+                  Action
+                </DashboardHeaderCell>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -455,16 +566,25 @@ export function Dashboard() {
                         </span>
                       ) : null}
                     </td>
-                    <td className="max-w-64 px-4 py-3">
+                    <td className="px-4 py-3">
                       <Link
                         to={`/jobs/${row.id}`}
-                        className="text-zinc-900 underline decoration-1 underline-offset-4 hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:text-zinc-100 dark:focus-visible:outline-zinc-100"
+                        title={jobTitle}
+                        className="line-clamp-2 text-zinc-900 underline decoration-1 underline-offset-4 hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:text-zinc-100 dark:focus-visible:outline-zinc-100"
                       >
                         {jobTitle}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{company ?? '—'}</td>
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                    <td
+                      title={company ?? undefined}
+                      className="truncate px-4 py-3 whitespace-nowrap text-zinc-600 dark:text-zinc-400"
+                    >
+                      {company ?? '—'}
+                    </td>
+                    <td
+                      title={row.jobs?.location ?? undefined}
+                      className="truncate px-4 py-3 whitespace-nowrap text-zinc-600 dark:text-zinc-400"
+                    >
                       {row.jobs?.location ?? '—'}
                     </td>
                     <td className="px-4 py-3">
