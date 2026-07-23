@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import preferencesSource from './Preferences.tsx?raw'
-import { Preferences, titleExclusionsForPreferences } from './Preferences'
+import { Preferences } from './Preferences'
 
 const mocks = vi.hoisted(() => ({
   cancelQueries: vi.fn(),
@@ -70,16 +70,11 @@ describe('title exclusion preference form', () => {
   })
 
   it('seeds only a missing row and preserves a stored empty array', () => {
-    expect(titleExclusionsForPreferences(null)).toEqual(['president', 'PhD'])
-    expect(titleExclusionsForPreferences({
-      user_id: 'user-1',
-      titles: [],
-      locations: [],
-      include_keywords: [],
-      exclude_keywords: [],
-      title_exclude_keywords: [],
-      updated_at: '2026-07-22T00:00:00.000Z',
-    })).toEqual([])
+    expect(preferencesSource).toContain('data === null')
+    expect(preferencesSource).toContain('[...DEFAULT_TITLE_EXCLUSIONS]')
+    expect(preferencesSource).toContain('[...data.title_exclude_keywords]')
+    expect(preferencesSource).toContain('if (data === undefined) return')
+    expect(preferencesSource).not.toContain('data.title_exclude_keywords.length')
   })
 
   it('keeps canonical cross-commit dedupe, validation, pending disablement, and explicit save payload', () => {

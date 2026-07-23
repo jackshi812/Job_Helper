@@ -1,6 +1,14 @@
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { loadPreferences, parseChips, savePreferences } from '../lib/preferences'
+import {
+  DEFAULT_TITLE_EXCLUSIONS,
+  chipComparisonKey,
+  loadPreferences,
+  parseChips,
+  savePreferences,
+  validateTitleExclusions,
+  type PreferencesRecord,
+} from '../lib/preferences'
 
 const FOCUS_RING =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100'
@@ -30,8 +38,12 @@ function ChipInput({ id, label, helper, values, onChange, disabled }: ChipInputP
       return
     }
     const next = [...values]
+    const seen = new Set(next.map((value) => chipComparisonKey(value)))
     for (const addition of additions) {
-      if (!next.includes(addition)) next.push(addition)
+      const comparisonKey = chipComparisonKey(addition)
+      if (seen.has(comparisonKey)) continue
+      seen.add(comparisonKey)
+      next.push(addition)
     }
     onChange(next)
     setDraft('')
@@ -91,14 +103,19 @@ function ChipInput({ id, label, helper, values, onChange, disabled }: ChipInputP
   )
 }
 
+function titleExclusionsForPreferences(data: PreferencesRecord | null): string[] {
+  return data === null
+    ? [...DEFAULT_TITLE_EXCLUSIONS]
+    : [...data.title_exclude_keywords]
+}
+
 export function Preferences() {
   const queryClient = useQueryClient()
   const [titles, setTitles] = useState<string[]>([])
   const [locations, setLocations] = useState<string[]>([])
   const [includeKeywords, setIncludeKeywords] = useState<string[]>([])
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([])
-  const [maxRequiredExperience, setMaxRequiredExperience] = useState('')
-  const [experienceError, setExperienceError] = useState<string | null>(null)
+  const [titleExcludeKeywords, setTitleExcludeKeywords] = useState<string[]>([])
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -109,12 +126,12 @@ export function Preferences() {
 
   useEffect(() => {
     const data = preferencesQuery.data
-    if (!data) return
-    setTitles(data.titles ?? [])
-    setLocations(data.locations ?? [])
-    setIncludeKeywords(data.include_keywords ?? [])
-    setExcludeKeywords(data.exclude_keywords ?? [])
-    setMaxRequiredExperience(data.max_required_experience == null ? '' : String(data.max_required_experience))
+    if (data === undefined) return
+    setTitles(data?.titles ?? [])
+    setLocations(data?.locations ?? [])
+    setIncludeKeywords(data?.include_keywords ?? [])
+    setExcludeKeywords(data?.exclude_keywords ?? [])
+    setTitleExcludeKeywords(titleExclusionsForPreferences(data))
   }, [preferencesQuery.data])
 
   const saveMutation = useMutation({
@@ -124,7 +141,7 @@ export function Preferences() {
         locations,
         include_keywords: includeKeywords,
         exclude_keywords: excludeKeywords,
-        max_required_experience: maxRequiredExperience === '' ? null : Number(maxRequiredExperience),
+        title_exclude_keywords: titleExcludeKeywords,
       }),
     onSuccess: async () => {
       setError(null)
@@ -144,12 +161,12 @@ export function Preferences() {
     event.preventDefault()
     setMessage(null)
     setError(null)
-    const value = maxRequiredExperience === '' ? null : Number(maxRequiredExperience)
-    if (value !== null && (!Number.isInteger(value) || value < 0 || value > 20)) {
-      setExperienceError('Enter a whole number from 0 to 20, or leave blank for no cap.')
+    try {
+      validateTitleExclusions(titleExcludeKeywords)
+    } catch {
+      setError("Couldn't save preferences. Your changes are still in the form — retry.")
       return
     }
-    setExperienceError(null)
     saveMutation.mutate()
   }
 
@@ -173,12 +190,14 @@ export function Preferences() {
             onChange={setTitles}
             disabled={pending}
           />
-          <div className="grid gap-1.5">
-            <label htmlFor="pref-max-experience" className="text-sm font-medium">Maximum required experience (years)</label>
-            <p className="text-xs text-zinc-500">Only explicit required years above this cap are excluded. Seniority words and preferred years do not exclude.</p>
-            <input id="pref-max-experience" type="number" min="0" max="20" step="1" value={maxRequiredExperience} disabled={pending} onChange={(event) => setMaxRequiredExperience(event.target.value)} className={`${INPUT_CLASSES} ${FOCUS_RING}`} />
-            {experienceError ? <p className="text-sm text-red-700 dark:text-red-400">{experienceError}</p> : null}
-          </div>
+          <ChipInput
+            id="pref-title-exclude"
+            label="Exclude title keywords"
+            helper="Jobs are excluded when their title contains one of these words or phrases. PhD also matches Ph.D. and Ph D."
+            values={titleExcludeKeywords}
+            onChange={setTitleExcludeKeywords}
+            disabled={pending}
+          />
           <ChipInput
             id="pref-locations"
             label="Locations"
