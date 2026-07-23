@@ -19,6 +19,8 @@ const EXTRACT_RESUME_SHA = 'f'.repeat(64)
 const EXTRACT_RESUME_BUNDLE_SHA = '1'.repeat(64)
 const COST_BASELINE_SHA = '2'.repeat(64)
 const ASSET_SHA = '3'.repeat(64)
+const VERIFIER_SHA = '4'.repeat(64)
+const VERIFIER_TEST_SHA = '5'.repeat(64)
 const MIGRATIONS = Array.from(
   { length: 32 },
   (_, index) => String(index + 1).padStart(4, '0'),
@@ -45,6 +47,17 @@ function preflight(overrides = {}) {
     extract_resume_verify_jwt: 'false',
     extract_resume_index_sha256: EXTRACT_RESUME_SHA,
     extract_resume_bundle_manifest_sha256: EXTRACT_RESUME_BUNDLE_SHA,
+    verifier_sha256: VERIFIER_SHA,
+    verifier_test_sha256: VERIFIER_TEST_SHA,
+    web_asset_path: '/assets/index-deterministic.js',
+    web_asset_sha256: ASSET_SHA,
+    initializer_owner: 'postgres',
+    initializer_security_definer: 'true',
+    initializer_search_path: 'empty',
+    initializer_execute_roles: 'postgres,service_role',
+    initializer_max_batch: '25',
+    initializer_initial_unique: 'true',
+    initializer_ordinary_queue: 'true',
     real_user_count: '2',
     open_job_count: '17',
     eligible_owner_count: '2',
@@ -157,6 +170,21 @@ function preflightProbes(overrides = {}) {
       indexSha256: EXTRACT_RESUME_SHA,
       bundleManifestSha256: EXTRACT_RESUME_BUNDLE_SHA,
     },
+    verifierSha256: VERIFIER_SHA,
+    verifierTestSha256: VERIFIER_TEST_SHA,
+    webAsset: {
+      path: '/assets/index-deterministic.js',
+      sha256: ASSET_SHA,
+    },
+    initializer: {
+      owner: 'postgres',
+      securityDefiner: true,
+      searchPath: '',
+      executeRoles: ['postgres', 'service_role'],
+      maxBatch: 25,
+      initialUnique: true,
+      ordinaryQueue: true,
+    },
     counts: {
       realUsers: 2,
       openJobs: 17,
@@ -207,6 +235,14 @@ function postReleaseProbes(overrides = {}) {
       visibleMissingDeterministic: 0,
       visibleMixedRevision: 0,
       nonterminalOpenItems: 0,
+    },
+    costAfter: {
+      usageRows: 9,
+      promptTokens: 120,
+      outputTokens: 48,
+      budgetDate: '2026-07-23',
+      requestsToday: 9,
+      updatedAt: '2026-07-23T04:00:00.000Z',
     },
     cloudflare: {
       id: 'deployment-deterministic',
