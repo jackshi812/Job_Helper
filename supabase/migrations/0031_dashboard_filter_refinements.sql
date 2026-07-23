@@ -2,7 +2,9 @@
 alter table public.preferences
   add column title_exclude_keywords text[] not null
     default array['president', 'PhD']::text[]
-    check (cardinality(title_exclude_keywords) <= 50);
+    check (cardinality(title_exclude_keywords) <= 50)
+    check (octet_length(array_to_json(title_exclude_keywords)::text) <= 4096)
+    check (array_position(title_exclude_keywords, null) is null);
 
 alter table public.user_jobs
   drop constraint if exists user_jobs_filter_reason_check;

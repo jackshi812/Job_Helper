@@ -83,8 +83,24 @@ function containsTokenSequence(haystack: string[], needle: string[]): boolean {
 }
 
 const MAX_JOB_TITLE_LENGTH = 1_024
-const MAX_TITLE_EXCLUSION_LENGTH = 256
-const MAX_FILTER_DETAIL_LENGTH = 160
+export const TITLE_EXCLUSION_MAX_ENTRIES = 50
+export const TITLE_EXCLUSION_MAX_BYTES = 4_096
+export const TITLE_EXCLUSION_DETAIL_MAX_CODE_POINTS = 160
+
+export function validateTitleExclusions(value: unknown): asserts value is string[] {
+  if (
+    !Array.isArray(value) ||
+    value.length > TITLE_EXCLUSION_MAX_ENTRIES ||
+    !value.every((entry) => typeof entry === 'string')
+  ) {
+    throw new Error('invalid_title_exclusions')
+  }
+
+  const encoded = new TextEncoder().encode(JSON.stringify(value))
+  if (encoded.byteLength > TITLE_EXCLUSION_MAX_BYTES) {
+    throw new Error('invalid_title_exclusions')
+  }
+}
 
 function literalTitleTokens(value: string, maxLength: number): string[] {
   const normalized = value
@@ -101,10 +117,9 @@ function literalTitleTokens(value: string, maxLength: number): string[] {
 function excludedTitleKeyword(title: string, keywords: readonly string[]): string | null {
   const titleTokens = literalTitleTokens(title, MAX_JOB_TITLE_LENGTH)
   for (const keyword of keywords) {
-    if (keyword.length > MAX_TITLE_EXCLUSION_LENGTH) continue
-    const needle = literalTitleTokens(keyword, MAX_TITLE_EXCLUSION_LENGTH)
+    const needle = literalTitleTokens(keyword, TITLE_EXCLUSION_MAX_BYTES)
     if (containsTokenSequence(titleTokens, needle)) {
-      return needle.join(' ').slice(0, MAX_FILTER_DETAIL_LENGTH)
+      return [...needle.join(' ')].slice(0, TITLE_EXCLUSION_DETAIL_MAX_CODE_POINTS).join('')
     }
   }
   return null
@@ -182,6 +197,7 @@ function expandedJobTitleConcepts(value: string): Set<string> {
 }
 
 export function cheapFilter(job: FilterJobInput, prefs: FilterPreferences): FilterOutcome {
+  validateTitleExclusions(prefs.titleExcludeKeywords)
   const titleExclusion = excludedTitleKeyword(job.title, prefs.titleExcludeKeywords)
   if (titleExclusion !== null) {
     return { pass: false, reason: 'excluded_title_keyword', detail: titleExclusion }

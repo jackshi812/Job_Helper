@@ -120,6 +120,7 @@ interface ScoreReservation {
 }
 
 const KNOWN_ERROR_CODES = new Set([
+  'invalid_title_exclusions',
   'no_resume_extract',
   'openai_refusal',
   'openai_incomplete',
