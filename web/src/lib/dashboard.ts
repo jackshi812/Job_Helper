@@ -54,6 +54,28 @@ export function resetHiddenCompanyKeys(): Set<string> {
   return new Set()
 }
 
+export function clearAllCompanies(options: readonly CompanyOption[]): Set<string> {
+  return new Set(options.map((option) => option.key))
+}
+
+export function selectAllCompanies(): Set<string> {
+  return new Set()
+}
+
+export function areAllCurrentCompaniesCleared(
+  options: readonly CompanyOption[],
+  hiddenKeys: ReadonlySet<string>,
+): boolean {
+  return options.every((option) => hiddenKeys.has(option.key))
+}
+
+export function areAllCurrentCompaniesSelected(
+  options: readonly CompanyOption[],
+  hiddenKeys: ReadonlySet<string>,
+): boolean {
+  return options.every((option) => !hiddenKeys.has(option.key))
+}
+
 export function toggleHiddenCompanyKey(
   hiddenKeys: ReadonlySet<string>,
   key: string,
@@ -69,6 +91,15 @@ export function toggleScoreTier(selected: ReadonlySet<Tier>, tier: Tier): Set<Ti
   if (next.has(tier)) next.delete(tier)
   else next.add(tier)
   return next
+}
+
+export function scoreTierSummary(selected: ReadonlySet<Tier>): string {
+  if (
+    selected.size === ALL_SCORE_TIERS.length
+    && ALL_SCORE_TIERS.every((tier) => selected.has(tier))
+  ) return 'Score tiers: All'
+  if (selected.size === 0) return 'Score tiers: None'
+  return `Score tiers: ${selected.size} selected`
 }
 
 export function baseDashboardVisible(
