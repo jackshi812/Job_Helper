@@ -3,6 +3,7 @@ import { test } from 'node:test'
 
 import {
   assertInitializerAuthority,
+  inspectWorkerLivenessSource,
   runApprovedBackfill,
   summarizeActiveCoverageRows,
   validateEvidenceText,
@@ -59,6 +60,12 @@ function preflight(overrides = {}) {
     initializer_max_batch: '25',
     initializer_initial_unique: 'true',
     initializer_ordinary_queue: 'true',
+    worker_claim_batch_size: '25',
+    worker_max_concurrency: '25',
+    worker_max_items_per_invocation: '5000',
+    worker_max_invocation_ms: '45000',
+    worker_scheduler_interval_ms: '60000',
+    worker_drain_before_maintenance: 'true',
     real_user_count: '2',
     open_job_count: '17',
     eligible_owner_count: '2',
@@ -76,6 +83,7 @@ function preflight(overrides = {}) {
     controlled_failure_transition: 'pass',
     pending_new_job_transition: 'pass',
     recency_expiry_transition: 'pass',
+    worker_liveness_transition: 'pass',
     retry_transition: 'pass',
     atomic_preference_transition: 'pass',
     full_tests: 'pass',
@@ -101,6 +109,12 @@ function postRelease(overrides = {}) {
     score_tick_verify_jwt: 'false',
     score_tick_index_sha256: SCORE_TICK_SHA,
     score_tick_bundle_manifest_sha256: SCORE_TICK_BUNDLE_SHA,
+    worker_claim_batch_size: '25',
+    worker_max_concurrency: '25',
+    worker_max_items_per_invocation: '5000',
+    worker_max_invocation_ms: '45000',
+    worker_scheduler_interval_ms: '60000',
+    worker_drain_before_maintenance: 'true',
     real_user_count: '2',
     open_job_count: '17',
     eligible_owner_count: '2',
@@ -186,6 +200,14 @@ function preflightProbes(overrides = {}) {
       initialUnique: true,
       ordinaryQueue: true,
     },
+    worker: {
+      claimBatchSize: 25,
+      maxConcurrency: 25,
+      maxItemsPerInvocation: 5_000,
+      maxInvocationMs: 45_000,
+      schedulerIntervalMs: 60_000,
+      drainBeforeMaintenance: true,
+    },
     counts: {
       realUsers: 2,
       openJobs: 17,
@@ -224,6 +246,14 @@ function postReleaseProbes(overrides = {}) {
       verifyJwt: false,
       indexSha256: SCORE_TICK_SHA,
       bundleManifestSha256: SCORE_TICK_BUNDLE_SHA,
+    },
+    worker: {
+      claimBatchSize: 25,
+      maxConcurrency: 25,
+      maxItemsPerInvocation: 5_000,
+      maxInvocationMs: 45_000,
+      schedulerIntervalMs: 60_000,
+      drainBeforeMaintenance: true,
     },
     counts: {
       realUsers: 2,
@@ -354,6 +384,65 @@ test('initializer authority must be postgres-owned, definer, closed, and service
   ]) {
     assert.throws(() => assertInitializerAuthority({ ...authority, ...drift }))
   }
+})
+
+test('worker liveness source is bounded below scheduler cadence and drains before maintenance', () => {
+  const source = `
+    const CLAIM_BATCH_SIZE = 25
+    const MAX_CONCURRENCY = 25
+    const MAX_ITEMS_PER_INVOCATION = 5_000
+    const MAX_INVOCATION_MS = 45_000
+    let rows = await claimWork(admin)
+    if (rows.length === 0) {
+      await runMaintenance(admin)
+      rows = await claimWork(admin)
+    }
+    while (rows.length > 0) {
+      rows = await claimWork(admin)
+    }
+  `
+  assert.deepEqual(
+    inspectWorkerLivenessSource(source, {
+      count: 1,
+      expression: '* * * * *',
+      active: true,
+      intervalMs: 60_000,
+    }),
+    {
+      claimBatchSize: 25,
+      maxConcurrency: 25,
+      maxItemsPerInvocation: 5_000,
+      maxInvocationMs: 45_000,
+      schedulerIntervalMs: 60_000,
+      drainBeforeMaintenance: true,
+    },
+  )
+  assert.throws(
+    () => inspectWorkerLivenessSource(
+      source.replace(
+        'let rows = await claimWork(admin)',
+        'await runMaintenance(admin)\nlet rows = await claimWork(admin)',
+      ),
+      {
+        count: 1,
+        expression: '* * * * *',
+        active: true,
+        intervalMs: 60_000,
+      },
+    ),
+    /drain existing work before bounded maintenance/,
+  )
+})
+
+test('preflight rejects a live owner/job universe above the hard worker item bound', () => {
+  const fields = preflight({ open_job_count: '3000' })
+  const probes = preflightProbes({
+    counts: { ...preflightProbes().counts, openJobs: 3_000 },
+  })
+  assert.throws(
+    () => verifyPreflightEvidence(fields, probes),
+    /worker item bound does not cover the approved owner\/job universe/,
+  )
 })
 
 test('initializer rejects missing approval and exact SHA or inventory drift before RPC', async () => {

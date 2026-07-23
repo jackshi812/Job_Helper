@@ -11,9 +11,11 @@ import {
 // Free deterministic ranking worker. The every-minute scheduler and its
 // x-cron-secret boundary remain unchanged, but this source has no provider,
 // request-budget, or score-purpose accounting capability.
-const CLAIM_BATCH_SIZE = 12
-const MAX_CONCURRENCY = 4
+const CLAIM_BATCH_SIZE = 25
+const MAX_CONCURRENCY = 25
 const MAINTENANCE_BATCH_SIZE = 25
+const MAX_ITEMS_PER_INVOCATION = 5_000
+const MAX_INVOCATION_MS = 45_000
 
 interface ClaimedRankingRow {
   item_id: string
@@ -85,6 +87,17 @@ async function runMaintenance(admin: SupabaseClient): Promise<void> {
     })
     if (error) throw error
   }
+}
+
+async function claimWork(
+  admin: SupabaseClient,
+): Promise<ClaimedRankingRow[]> {
+  const { data, error } = await admin.rpc(
+    'claim_deterministic_ranking_work',
+    { batch_size: CLAIM_BATCH_SIZE },
+  )
+  if (error) throw error
+  return (data ?? []) as ClaimedRankingRow[]
 }
 
 async function stageFailure(
@@ -199,10 +212,13 @@ async function loadJobs(
 async function loadResumeExtracts(
   admin: SupabaseClient,
   rows: ClaimedRankingRow[],
-): Promise<Map<string, ResumeExtractInput[]>> {
-  const ownerIds = [...new Set(rows.map((row) => row.user_id))]
-  const byUser = new Map<string, ResumeExtractInput[]>()
-  if (ownerIds.length === 0) return byUser
+  byUser: Map<string, ResumeExtractInput[]>,
+  loadedOwnerIds: Set<string>,
+): Promise<void> {
+  const ownerIds = [...new Set(
+    rows.map((row) => row.user_id).filter((id) => !loadedOwnerIds.has(id)),
+  )]
+  if (ownerIds.length === 0) return
 
   const { data: extractData, error: extractError } = await admin
     .from('resume_extracts')
@@ -211,7 +227,8 @@ async function loadResumeExtracts(
     .eq('status', 'ready')
   if (extractError) throw extractError
   const extracts = (extractData ?? []) as ResumeExtractRow[]
-  if (extracts.length === 0) return byUser
+  for (const ownerId of ownerIds) loadedOwnerIds.add(ownerId)
+  if (extracts.length === 0) return
 
   const { data: resumeData, error: resumeError } = await admin
     .from('resumes')
@@ -236,7 +253,50 @@ async function loadResumeExtracts(
     })
     byUser.set(extract.user_id, ownerExtracts)
   }
-  return byUser
+}
+
+async function processBatch(
+  admin: SupabaseClient,
+  rows: ClaimedRankingRow[],
+  extractsByUser: Map<string, ResumeExtractInput[]>,
+  loadedExtractOwnerIds: Set<string>,
+): Promise<number> {
+  const jobs = await loadJobs(admin, rows)
+  await loadResumeExtracts(
+    admin,
+    rows,
+    extractsByUser,
+    loadedExtractOwnerIds,
+  )
+  const results: PromiseSettledResult<boolean>[] = []
+  for (let offset = 0; offset < rows.length; offset += MAX_CONCURRENCY) {
+    const chunk = rows.slice(offset, offset + MAX_CONCURRENCY)
+    results.push(
+      ...await Promise.allSettled(
+        chunk.map((row) => processRow(admin, row, jobs, extractsByUser)),
+      ),
+    )
+  }
+  return results.filter(
+    (result) => result.status === 'fulfilled' && result.value,
+  ).length
+}
+
+async function finalizeRuns(
+  admin: SupabaseClient,
+  runIds: Set<string>,
+): Promise<number> {
+  let finalized = 0
+  for (const runId of runIds) {
+    const { data, error } = await admin.rpc(
+      'finalize_deterministic_ranking_run',
+      { p_run_id: runId },
+    )
+    if (error) throw error
+    const result = Array.isArray(data) ? data[0] : data
+    if (result?.published === true) finalized += 1
+  }
+  return finalized
 }
 
 Deno.serve(async (request) => {
@@ -262,47 +322,57 @@ Deno.serve(async (request) => {
       },
     )
 
-    await runMaintenance(admin)
-
-    const { data, error: claimError } = await admin.rpc(
-      'claim_deterministic_ranking_work',
-      { batch_size: CLAIM_BATCH_SIZE },
-    )
-    if (claimError) throw claimError
-    const rows = (data ?? []) as ClaimedRankingRow[]
-    const jobs = await loadJobs(admin, rows)
-    const extractsByUser = await loadResumeExtracts(admin, rows)
-
-    const results: PromiseSettledResult<boolean>[] = []
-    for (let offset = 0; offset < rows.length; offset += MAX_CONCURRENCY) {
-      const chunk = rows.slice(offset, offset + MAX_CONCURRENCY)
-      results.push(
-        ...await Promise.allSettled(
-          chunk.map((row) => processRow(admin, row, jobs, extractsByUser)),
-        ),
-      )
+    const startedAt = performance.now()
+    let maintenanceRan = false
+    let rows = await claimWork(admin)
+    // Existing work always drains first. In particular, an owner that becomes
+    // idle cannot start another full recency snapshot while an older owner run
+    // is still pending. Maintenance is attempted only once after an empty
+    // initial claim and is never repeated mid-drain.
+    if (rows.length === 0) {
+      await runMaintenance(admin)
+      maintenanceRan = true
+      rows = await claimWork(admin)
     }
 
-    const runIds = [...new Set(rows.map((row) => row.run_id))]
-    let finalized = 0
-    for (const runId of runIds) {
-      const { data: finalizeData, error: finalizeError } = await admin.rpc(
-        'finalize_deterministic_ranking_run',
-        { p_run_id: runId },
+    let claimed = 0
+    let completed = 0
+    let batches = 0
+    const touchedRunIds = new Set<string>()
+    const extractsByUser = new Map<string, ResumeExtractInput[]>()
+    const loadedExtractOwnerIds = new Set<string>()
+    while (rows.length > 0) {
+      for (const row of rows) touchedRunIds.add(row.run_id)
+      claimed += rows.length
+      completed += await processBatch(
+        admin,
+        rows,
+        extractsByUser,
+        loadedExtractOwnerIds,
       )
-      if (finalizeError) throw finalizeError
-      const result = Array.isArray(finalizeData) ? finalizeData[0] : finalizeData
-      if (result?.published === true) finalized += 1
+      batches += 1
+
+      if (
+        claimed >= MAX_ITEMS_PER_INVOCATION ||
+        performance.now() - startedAt >= MAX_INVOCATION_MS
+      ) break
+      rows = await claimWork(admin)
     }
 
-    const completed = results.filter(
-      (result) => result.status === 'fulfilled' && result.value,
-    ).length
+    // Publication remains an all-or-nothing database operation. Finalizing
+    // only after this invocation's terminal staging also avoids one finalizer
+    // round-trip per 25-item batch.
+    const finalized = await finalizeRuns(admin, touchedRunIds)
+    const saturated = claimed >= MAX_ITEMS_PER_INVOCATION ||
+      performance.now() - startedAt >= MAX_INVOCATION_MS
     return Response.json({
-      claimed: rows.length,
+      claimed,
       completed,
-      failed: rows.length - completed,
+      failed: claimed - completed,
       finalized,
+      batches,
+      maintenance_ran: maintenanceRan,
+      saturated,
       automatic_ai_scoring: false,
     })
   } catch (error) {

@@ -20,6 +20,7 @@ const SCORE_TICK_ID = 'ae6c147f-c3a8-417e-8057-d4105ac9aed5'
 const EXTRACT_RESUME_ID = '9358db1a-95fc-49bc-a684-b98fb8eceff9'
 const MAX_INITIALIZER_BATCH = 25
 const MAX_WORKER_TICKS = 2_000
+const WORKER_SCHEDULER_INTERVAL_MS = 60_000
 
 const PREFLIGHT_SCHEMA = Object.freeze({
   evidence_mode: 'preflight',
@@ -52,6 +53,12 @@ const PREFLIGHT_SCHEMA = Object.freeze({
   initializer_max_batch: /^25$/,
   initializer_initial_unique: /^true$/,
   initializer_ordinary_queue: /^true$/,
+  worker_claim_batch_size: /^25$/,
+  worker_max_concurrency: /^25$/,
+  worker_max_items_per_invocation: /^5000$/,
+  worker_max_invocation_ms: /^45000$/,
+  worker_scheduler_interval_ms: /^60000$/,
+  worker_drain_before_maintenance: /^true$/,
   real_user_count: NONNEGATIVE_INTEGER,
   open_job_count: NONNEGATIVE_INTEGER,
   eligible_owner_count: NONNEGATIVE_INTEGER,
@@ -69,6 +76,7 @@ const PREFLIGHT_SCHEMA = Object.freeze({
   controlled_failure_transition: 'pass',
   pending_new_job_transition: 'pass',
   recency_expiry_transition: 'pass',
+  worker_liveness_transition: 'pass',
   retry_transition: 'pass',
   atomic_preference_transition: 'pass',
   full_tests: 'pass',
@@ -91,6 +99,12 @@ const POST_RELEASE_SCHEMA = Object.freeze({
   score_tick_verify_jwt: /^false$/,
   score_tick_index_sha256: SHA256,
   score_tick_bundle_manifest_sha256: SHA256,
+  worker_claim_batch_size: /^25$/,
+  worker_max_concurrency: /^25$/,
+  worker_max_items_per_invocation: /^5000$/,
+  worker_max_invocation_ms: /^45000$/,
+  worker_scheduler_interval_ms: /^60000$/,
+  worker_drain_before_maintenance: /^true$/,
   real_user_count: NONNEGATIVE_INTEGER,
   open_job_count: NONNEGATIVE_INTEGER,
   eligible_owner_count: NONNEGATIVE_INTEGER,
@@ -241,6 +255,69 @@ function verifyFunction(fields, prefix, probe) {
   )
 }
 
+function numericSourceConstant(source, name) {
+  const match = new RegExp(`const\\s+${name}\\s*=\\s*([0-9][0-9_]*)`).exec(source)
+  if (!match) throw new Error(`score-tick ${name} is missing`)
+  const value = Number(match[1].replaceAll('_', ''))
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`score-tick ${name} is malformed`)
+  }
+  return value
+}
+
+export function inspectWorkerLivenessSource(source, schedule = {}) {
+  const initialClaim = source.indexOf('let rows = await claimWork(admin)')
+  const maintenance = source.indexOf('await runMaintenance(admin)')
+  const drainLoop = source.indexOf('while (rows.length > 0)')
+  const claimCalls = source.match(/claimWork\(admin\)/g)?.length ?? 0
+  const maintenanceCalls = source.match(/await runMaintenance\(admin\)/g)?.length ?? 0
+  if (initialClaim < 0 || maintenance < 0 || drainLoop < 0 ||
+      initialClaim > maintenance || maintenance > drainLoop ||
+      claimCalls !== 3 || maintenanceCalls !== 1) {
+    throw new Error('score-tick does not drain existing work before bounded maintenance')
+  }
+
+  const result = {
+    claimBatchSize: numericSourceConstant(source, 'CLAIM_BATCH_SIZE'),
+    maxConcurrency: numericSourceConstant(source, 'MAX_CONCURRENCY'),
+    maxItemsPerInvocation: numericSourceConstant(source, 'MAX_ITEMS_PER_INVOCATION'),
+    maxInvocationMs: numericSourceConstant(source, 'MAX_INVOCATION_MS'),
+    schedulerIntervalMs: Number(schedule.intervalMs),
+    drainBeforeMaintenance: true,
+  }
+  if (result.claimBatchSize !== 25 ||
+      result.maxConcurrency !== 25 ||
+      result.maxItemsPerInvocation !== 5_000 ||
+      result.maxInvocationMs !== 45_000) {
+    throw new Error('score-tick liveness bounds drifted')
+  }
+  if (schedule.count !== 1 || schedule.active !== true ||
+      schedule.expression !== '* * * * *' ||
+      result.schedulerIntervalMs !== WORKER_SCHEDULER_INTERVAL_MS) {
+    throw new Error('score-tick scheduler liveness contract drifted')
+  }
+  if (result.maxInvocationMs >= result.schedulerIntervalMs) {
+    throw new Error('score-tick invocation bound overlaps the ordinary scheduler cadence')
+  }
+  return Object.freeze(result)
+}
+
+function verifyWorkerLiveness(fields, worker, counts) {
+  for (const [probeKey, fieldKey, label] of [
+    ['claimBatchSize', 'worker_claim_batch_size', 'worker claim batch size'],
+    ['maxConcurrency', 'worker_max_concurrency', 'worker maximum concurrency'],
+    ['maxItemsPerInvocation', 'worker_max_items_per_invocation', 'worker item bound'],
+    ['maxInvocationMs', 'worker_max_invocation_ms', 'worker time bound'],
+    ['schedulerIntervalMs', 'worker_scheduler_interval_ms', 'worker scheduler interval'],
+    ['drainBeforeMaintenance', 'worker_drain_before_maintenance', 'worker drain ordering'],
+  ]) exact(worker[probeKey], fields[fieldKey], label)
+  const completeUniverse = Number(counts.realUsers) * Number(counts.openJobs)
+  if (!Number.isSafeInteger(completeUniverse) ||
+      worker.maxItemsPerInvocation < completeUniverse) {
+    throw new Error('worker item bound does not cover the approved owner/job universe')
+  }
+}
+
 export function verifyPreflightEvidence(fields, probes) {
   requireSchema(fields, PREFLIGHT_SCHEMA)
   exact(probes.projectRef, fields.project_ref, 'project reference')
@@ -285,6 +362,7 @@ export function verifyPreflightEvidence(fields, probes) {
     fields.initializer_ordinary_queue,
     'initializer ordinary queue evidence',
   )
+  verifyWorkerLiveness(fields, probes.worker, probes.counts)
 
   exact(probes.counts.realUsers, fields.real_user_count, 'real user count')
   exact(probes.counts.openJobs, fields.open_job_count, 'open job count')
@@ -315,6 +393,7 @@ export function verifyPreflightEvidence(fields, probes) {
     'controlled_failure_transition',
     'pending_new_job_transition',
     'recency_expiry_transition',
+    'worker_liveness_transition',
     'retry_transition',
     'atomic_preference_transition',
     'full_tests',
@@ -354,6 +433,7 @@ export function verifyPostReleaseEvidence(fields, probes) {
   exact(probes.projectRef, fields.project_ref, 'project reference')
   verifyMigrationInventory(fields, probes)
   verifyFunction(fields, 'score_tick', probes.scoreTick)
+  verifyWorkerLiveness(fields, probes.worker, probes.counts)
   exact(probes.costAfter.usageRows, fields.score_usage_row_count_after, 'live score usage row count')
   exact(
     probes.costAfter.promptTokens,
@@ -873,6 +953,26 @@ async function migration32Probe() {
   return { name: String(row.name), statementCount: rowInteger(row, 'statement_count') }
 }
 
+async function scoreTickScheduleProbe() {
+  const rows = await managementSql(`
+    select schedule, active
+    from cron.job
+    where jobname = 'score-tick-every-minute'
+  `)
+  if (rows.length !== 1 || typeof rows[0]?.schedule !== 'string' ||
+      typeof rows[0]?.active !== 'boolean') {
+    throw new Error('score-tick scheduler identity is missing or non-unique')
+  }
+  return {
+    count: rows.length,
+    expression: rows[0].schedule,
+    active: rows[0].active,
+    intervalMs: rows[0].schedule === '* * * * *'
+      ? WORKER_SCHEDULER_INTERVAL_MS
+      : 0,
+  }
+}
+
 function functionProbe(functions, slug, local) {
   const found = functions.filter((entry) => entry.slug === slug)
   if (found.length !== 1) throw new Error(`${slug} function metadata is not unique`)
@@ -921,12 +1021,24 @@ export async function collectLocalInventory(root) {
 
 export async function collectLivePreflightProbes(root) {
   const local = await collectLocalInventory(root)
-  const [remoteMigrations, functions, migration32, countCost, initializer] = await Promise.all([
+  const scoreTickSource = await readFile(
+    join(root, 'supabase/functions/score-tick/index.ts'),
+    'utf8',
+  )
+  const [
+    remoteMigrations,
+    functions,
+    migration32,
+    countCost,
+    initializer,
+    schedule,
+  ] = await Promise.all([
     remoteMigrationInventory(),
     functionInventory(),
     migration32Probe(),
     liveCountAndCostProbe(),
     initializerAuthorityProbe(),
+    scoreTickScheduleProbe(),
   ])
   const localMigrations = await localMigrationInventory(root)
   return {
@@ -948,6 +1060,7 @@ export async function collectLivePreflightProbes(root) {
     verifierTestSha256: local.verifierTestSha256,
     webAsset: { path: local.webAssetPath, sha256: local.webAssetSha256 },
     initializer,
+    worker: inspectWorkerLivenessSource(scoreTickSource, schedule),
     ...countCost,
     inventorySha256: local.inventorySha256,
     gitSha: local.gitSha,
@@ -1043,6 +1156,10 @@ async function liveAssetProbe(root, fields) {
 
 export async function collectLivePostReleaseProbes(root, fields) {
   const local = await collectLocalInventory(root)
+  const scoreTickSource = await readFile(
+    join(root, 'supabase/functions/score-tick/index.ts'),
+    'utf8',
+  )
   const [
     remoteMigrations,
     functions,
@@ -1051,6 +1168,7 @@ export async function collectLivePostReleaseProbes(root, fields) {
     cloudflare,
     asset,
     originGitSha,
+    schedule,
   ] = await Promise.all([
     remoteMigrationInventory(),
     functionInventory(),
@@ -1059,6 +1177,7 @@ export async function collectLivePostReleaseProbes(root, fields) {
     liveCloudflareProbe(root, fields),
     liveAssetProbe(root, fields),
     command(root, 'git', ['rev-parse', 'origin/main']),
+    scoreTickScheduleProbe(),
   ])
   return {
     localGitSha: local.gitSha,
@@ -1072,6 +1191,7 @@ export async function collectLivePostReleaseProbes(root, fields) {
       indexSha256: local.scoreTickIndexSha256,
       bundleManifestSha256: local.scoreTickBundleManifestSha256,
     }),
+    worker: inspectWorkerLivenessSource(scoreTickSource, schedule),
     counts: {
       realUsers: countCost.counts.realUsers,
       openJobs: countCost.counts.openJobs,
@@ -1162,7 +1282,7 @@ async function restRpc(name, body) {
   return response.json()
 }
 
-async function liveQueueState() {
+export async function collectLiveQueueState() {
   const row = oneRow(await managementSql(`
     select
       count(*) filter (where status = 'pending')::integer as pending,
@@ -1421,7 +1541,7 @@ async function liveBackfillAdapters(root) {
       }
       return body[0]
     },
-    queueState: liveQueueState,
+    queueState: collectLiveQueueState,
     tick: invokeWorker,
     async costBaseline() {
       return (await liveCountAndCostProbe()).cost.sha256

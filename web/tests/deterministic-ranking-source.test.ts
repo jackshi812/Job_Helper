@@ -48,7 +48,7 @@ describe('score-tick deterministic worker source contract', () => {
     }
   })
 
-  it('runs bounded maintenance, claims once, stages every terminal item, and finalizes touched runs', () => {
+  it('drains bounded full-capacity batches before running maintenance once', () => {
     const worker = read(scoreTickPath)
 
     expect(worker).toContain("'enqueue_deterministic_new_jobs'")
@@ -58,8 +58,19 @@ describe('score-tick deterministic worker source contract', () => {
     expect(worker).toContain("'stage_deterministic_ranking_result'")
     expect(worker).toContain("'finalize_deterministic_ranking_run'")
     expect(worker.match(/claim_deterministic_ranking_work/g)).toHaveLength(1)
-    expect(worker).toMatch(/CLAIM_BATCH_SIZE\s*=\s*12/)
-    expect(worker).toMatch(/MAX_CONCURRENCY\s*=\s*4/)
+    expect(worker).toMatch(/CLAIM_BATCH_SIZE\s*=\s*25/)
+    expect(worker).toMatch(/MAX_CONCURRENCY\s*=\s*25/)
+    expect(worker).toMatch(/MAX_ITEMS_PER_INVOCATION\s*=\s*5_000/)
+    expect(worker).toMatch(/MAX_INVOCATION_MS\s*=\s*45_000/)
+    expect(worker).toMatch(
+      /let rows = await claimWork\(admin\)[\s\S]*if \(rows\.length === 0\) \{[\s\S]*await runMaintenance\(admin\)[\s\S]*rows = await claimWork\(admin\)/,
+    )
+    expect(worker).toMatch(
+      /while \(rows\.length > 0\)[\s\S]*rows = await claimWork\(admin\)/,
+    )
+    expect(worker.indexOf('let rows = await claimWork(admin)')).toBeLessThan(
+      worker.indexOf('await runMaintenance(admin)'),
+    )
     expect(worker).toContain('Promise.allSettled')
   })
 
