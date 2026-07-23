@@ -17,6 +17,7 @@ const user = { id: '11111111-1111-4111-8111-111111111111' }
 describe('uploadResume', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(supabase.rpc).mockReset().mockResolvedValue({ error: null } as never)
   })
 
   it('rejects a disallowed extension before making a network call', async () => {
@@ -61,9 +62,32 @@ describe('uploadResume', () => {
       storage_path: `${user.id}/${uuid}.pdf`,
       size_bytes: 3,
     })
-    expect(supabase.rpc).toHaveBeenCalledWith(
-      'request_deterministic_route_refresh',
-    )
+    expect(supabase.rpc).not.toHaveBeenCalled()
+  })
+
+  it('reports the committed upload as successful without a fallible refresh RPC', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('66666666-6666-4666-8666-666666666666')
+    vi.mocked(supabase.auth.getUser).mockResolvedValue({ data: { user }, error: null } as never)
+    vi.mocked(supabase.storage.from).mockReturnValue({
+      upload: vi.fn().mockResolvedValue({ data: {}, error: null }),
+      remove: vi.fn(),
+    } as never)
+    const row = {
+      id: '77777777-7777-4777-8777-777777777777',
+      filename: 'resume.pdf',
+      display_name: null,
+      storage_path: `${user.id}/66666666-6666-4666-8666-666666666666.pdf`,
+      size_bytes: 3,
+      created_at: '2026-07-23T00:00:00.000Z',
+    }
+    const single = vi.fn().mockResolvedValue({ data: row, error: null })
+    vi.mocked(supabase.from).mockReturnValue({
+      insert: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single }) }),
+    } as never)
+    vi.mocked(supabase.rpc).mockRejectedValue(new Error('refresh unavailable'))
+
+    await expect(uploadResume(new File(['pdf'], 'resume.pdf'))).resolves.toEqual(row)
+    expect(supabase.rpc).not.toHaveBeenCalled()
   })
 
   it('removes an uploaded object if the metadata insert fails', async () => {
@@ -166,6 +190,7 @@ describe('defaultDisplayName', () => {
 describe('deleteResume', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(supabase.rpc).mockReset().mockResolvedValue({ error: null } as never)
   })
 
   it('deletes storage before deleting the metadata row', async () => {
@@ -187,9 +212,26 @@ describe('deleteResume', () => {
     expect(calls).toEqual(['storage', 'row'])
     expect(remove).toHaveBeenCalledWith([storagePath])
     expect(eq).toHaveBeenCalledWith('id', 'resume-id')
-    expect(supabase.rpc).toHaveBeenCalledWith(
-      'request_deterministic_route_refresh',
-    )
+    expect(supabase.rpc).not.toHaveBeenCalled()
+  })
+
+  it('reports the committed deletion as successful without a fallible refresh RPC', async () => {
+    const storagePath = `${user.id}/resume.docx`
+    vi.mocked(supabase.storage.from).mockReturnValue({
+      remove: vi.fn().mockResolvedValue({
+        data: [{ name: storagePath }],
+        error: null,
+      }),
+    } as never)
+    vi.mocked(supabase.from).mockReturnValue({
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      }),
+    } as never)
+    vi.mocked(supabase.rpc).mockRejectedValue(new Error('refresh unavailable'))
+
+    await expect(deleteResume({ id: 'resume-id', storagePath })).resolves.toBeUndefined()
+    expect(supabase.rpc).not.toHaveBeenCalled()
   })
 
   it('does not delete the row when storage returns an empty success response', async () => {
