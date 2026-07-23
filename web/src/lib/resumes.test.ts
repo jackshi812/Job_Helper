@@ -61,6 +61,9 @@ describe('uploadResume', () => {
       storage_path: `${user.id}/${uuid}.pdf`,
       size_bytes: 3,
     })
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'request_deterministic_route_refresh',
+    )
   })
 
   it('removes an uploaded object if the metadata insert fails', async () => {
@@ -184,6 +187,9 @@ describe('deleteResume', () => {
     expect(calls).toEqual(['storage', 'row'])
     expect(remove).toHaveBeenCalledWith([storagePath])
     expect(eq).toHaveBeenCalledWith('id', 'resume-id')
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'request_deterministic_route_refresh',
+    )
   })
 
   it('does not delete the row when storage returns an empty success response', async () => {
