@@ -297,19 +297,39 @@ async function fetchJson(url, token) {
 }
 
 function cloudflareStatus(deployment) {
-  return deployment.stages?.deploy?.status ?? deployment.latest_stage?.status ?? deployment.status
+  return deployment.latest_stage?.status ?? deployment.stages?.deploy?.status ?? deployment.status
 }
 
-async function liveCloudflareProbe(fields) {
-  const token = requiredEnvironment('CLOUDFLARE_API_TOKEN')
+async function cloudflareAccountId(root, token, approvedGitSha) {
   const accounts = await fetchJson('https://api.cloudflare.com/client/v4/accounts', token)
-  if (!Array.isArray(accounts.result) || accounts.result.length !== 1) {
-    throw new Error('Cloudflare account inventory is not singular')
+  if (Array.isArray(accounts.result) && accounts.result.length === 1 && accounts.result[0]?.id) {
+    return accounts.result[0].id
   }
-  const accountId = accounts.result[0]?.id
-  if (!accountId) throw new Error('Cloudflare account ID is missing')
+
+  // This Pages token is project-scoped and intentionally cannot list accounts.
+  // The successful exact-SHA GitHub check contains Cloudflare's account-scoped
+  // dashboard URL; derive the ID from that read-only, commit-bound metadata.
+  const remote = await command(root, 'git', ['remote', 'get-url', 'origin'])
+  const repository = /github\.com[/:]([^/]+)\/([^/.]+)(?:\.git)?$/.exec(remote)
+  if (!repository) throw new Error('origin GitHub repository is malformed')
+  const checkOutput = await command(root, 'gh', [
+    'api', `repos/${repository[1]}/${repository[2]}/commits/${approvedGitSha}/check-runs`,
+  ])
+  const checks = JSON.parse(checkOutput).check_runs?.filter((check) => check.name === 'Cloudflare Pages')
+  if (!Array.isArray(checks) || checks.length !== 1 || checks[0].conclusion !== 'success') {
+    throw new Error('exact-SHA Cloudflare Pages check is not uniquely successful')
+  }
+  const accountId = /dash\.cloudflare\.com\/\?to=\/([0-9a-f]{32})\/pages\//
+    .exec(checks[0].details_url)?.[1]
+  if (!accountId) throw new Error('Cloudflare account ID is missing from the exact-SHA check')
+  return accountId
+}
+
+async function liveCloudflareProbe(root, fields) {
+  const token = requiredEnvironment('CLOUDFLARE_API_TOKEN')
+  const accountId = await cloudflareAccountId(root, token, fields.approved_git_sha)
   const deployments = await fetchJson(
-    `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/job-helper-qs9/deployments`,
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/job-helper/deployments`,
     token,
   )
   const match = deployments.result?.find((deployment) => deployment.id === fields.cloudflare_deployment_id)
@@ -318,8 +338,8 @@ async function liveCloudflareProbe(fields) {
     id: match.id,
     environment: match.environment,
     status: cloudflareStatus(match),
-    branch: match.source?.config?.branch,
-    gitSha: match.source?.config?.commit_hash,
+    branch: match.deployment_trigger?.metadata?.branch,
+    gitSha: match.deployment_trigger?.metadata?.commit_hash,
     url: match.url,
   }
 }
@@ -379,7 +399,7 @@ async function liveProbes(root, fields) {
     remoteMigrations: supabase.remoteMigrations,
     migration0031Sha256: sha256(migration0031),
     scoreTick: supabase.scoreTick,
-    cloudflare: await liveCloudflareProbe(fields),
+    cloudflare: await liveCloudflareProbe(root, fields),
     asset: await liveAssetProbe(root, fields),
   }
 }
