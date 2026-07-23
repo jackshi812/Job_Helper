@@ -305,7 +305,7 @@ describe('score categories, tiers, and reproducibility', () => {
       job: {
         ...input().job,
         location: null,
-        descriptionText: 'Python SQL Tableau finance risk.',
+        descriptionText: 'Python SQL Tableau finance and risk modeling.',
         postedAt: null,
         companyId: null,
       },
