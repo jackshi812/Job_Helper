@@ -1,0 +1,97 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-23T06:03:46.805Z",
+  "phase": "03.4",
+  "phase_name": "replace-automatic-ai-scoring-with-deterministic-ranking",
+  "phase_dir": ".planning/phases/03.4-replace-automatic-ai-scoring-with-deterministic-ranking",
+  "plan": 3,
+  "task": 1,
+  "total_tasks": 3,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": "03.4-01",
+      "name": "Contain automatic AI scoring and build deterministic evaluator",
+      "status": "done",
+      "commit": "9f02835"
+    },
+    {
+      "id": "03.4-02",
+      "name": "Deploy atomic deterministic ranking data plane and worker",
+      "status": "done",
+      "commit": "f166c50"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": "03.4-03.1",
+      "name": "Build the complete atomic ranking preference editor",
+      "status": "not_started"
+    },
+    {
+      "id": "03.4-03.2",
+      "name": "Switch feed and Dashboard to stored deterministic results",
+      "status": "not_started"
+    },
+    {
+      "id": "03.4-03.3",
+      "name": "Replace AI detail panels with deterministic evidence",
+      "status": "not_started"
+    },
+    {
+      "id": "03.4-04.1",
+      "name": "Assemble a fail-closed release preflight",
+      "status": "not_started"
+    },
+    {
+      "id": "03.4-04.2",
+      "name": "Approve deterministic worker, complete backfill, and exact web cutover",
+      "status": "not_started"
+    },
+    {
+      "id": "03.4-04.3",
+      "name": "Deploy, backfill, cut over, and complete UAT",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [],
+  "async_jobs": [],
+  "human_actions_pending": [],
+  "decisions": [
+    {
+      "decision": "Production automatic AI scoring is contained and replaced at the worker boundary before browser cutover.",
+      "rationale": "Stops paid background scoring while later deterministic migration and UI work proceed safely.",
+      "phase": "03.4"
+    },
+    {
+      "decision": "Migration 0032 is additive; legacy AI fields remain physically present but are inactive in deterministic ranking.",
+      "rationale": "Supports fail-closed migration evidence and avoids destructive compatibility risk.",
+      "phase": "03.4"
+    },
+    {
+      "decision": "No initial backfill, preference save, or web cutover occurs until Plan 04's exact release approval.",
+      "rationale": "Prevents mixed AI/deterministic results and partial snapshots from becoming visible.",
+      "phase": "03.4"
+    }
+  ],
+  "uncommitted_files": [
+    {
+      "path": ".DS_Store",
+      "ownership": "pre-existing user file; do not stage"
+    },
+    {
+      "path": ".planning/phases/03.3-dashboard-filter-refinements/03.3-04-ROLLOUT-EVIDENCE.md",
+      "ownership": "pre-existing Phase 03.3 evidence; do not stage"
+    },
+    {
+      "path": "scripts/agent-dashboard.mjs",
+      "ownership": "pre-existing user file; do not stage"
+    },
+    {
+      "path": "scripts/agent-dashboard.test.mjs",
+      "ownership": "pre-existing user file; do not stage"
+    }
+  ],
+  "next_action": "Run $gsd-resume-work, then resume $gsd-execute-phase 03.4; completed summaries cause execution to start at Wave 3 / Plan 03.",
+  "context_notes": "Wave 2 is fully complete and verified. Production has migration parity through 0032, extract-resume ACTIVE v4, score-tick ACTIVE v11, unchanged cron schedules, and zero deterministic states/runs/items/backfill runs. Full web tests 609/609 and build passed. Do not start backfill or deploy web before Plan 04's explicit exact-release approval."
+}
