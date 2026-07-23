@@ -1,17 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  DEFAULT_RANKING_RUBRIC,
   DEFAULT_TITLE_EXCLUSIONS,
   PREFERENCE_COLUMNS,
   chipComparisonKey,
+  getDeterministicRankingState,
   parseChips,
+  retryDeterministicRankingRun,
   savePreferences,
+  validateRankingForm,
   validateTitleExclusions,
 } from './preferences'
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   rpc: vi.fn(),
-  upsert: vi.fn(),
 }))
 
 vi.mock('./supabase', () => ({
@@ -27,13 +30,32 @@ const input = {
   include_keywords: ['valuation'],
   exclude_keywords: ['senior'],
   title_exclude_keywords: ['president', 'PhD'],
+  max_required_experience: null,
+  ranking_rubric: {
+    strictTitle: 30,
+    weakTitle: 20,
+    preferredLocation: 10,
+    recency: 10,
+    watchlist: 10,
+    experience: 20,
+    includeKeywordSteps: {
+      one: 3,
+      two: 5,
+      three: 10,
+      four: 15,
+      fivePlus: 20,
+    },
+  },
+  ranking_good_threshold: 50,
+  ranking_strong_threshold: 75,
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.from.mockReturnValue({ upsert: mocks.upsert })
-  mocks.upsert.mockResolvedValue({ error: null })
-  mocks.rpc.mockResolvedValue({ error: null })
+  mocks.rpc.mockResolvedValue({
+    data: [{ run_id: 'run-1', revision: 4, seeded_count: 12 }],
+    error: null,
+  })
 })
 
 describe('parseChips', () => {
@@ -60,12 +82,14 @@ describe('parseChips', () => {
 })
 
 describe('title exclusion contract', () => {
-  it('projects the persisted title exclusion array without the retired experience field', () => {
+  it('projects the complete deterministic preference record', () => {
     expect(PREFERENCE_COLUMNS).toBe(
-      'user_id, titles, locations, include_keywords, exclude_keywords, title_exclude_keywords, updated_at',
+      'user_id, titles, locations, include_keywords, exclude_keywords, title_exclude_keywords, max_required_experience, ranking_rubric, ranking_good_threshold, ranking_strong_threshold, updated_at',
     )
-    expect(PREFERENCE_COLUMNS).not.toContain('max_required_experience')
+    expect(PREFERENCE_COLUMNS).toContain('max_required_experience')
+    expect(PREFERENCE_COLUMNS).toContain('ranking_rubric')
     expect(DEFAULT_TITLE_EXCLUSIONS).toEqual(['president', 'PhD'])
+    expect(DEFAULT_RANKING_RUBRIC).toEqual(input.ranking_rubric)
   })
 
   it('accepts explicit empty, 50 entries, and exactly 4,096 encoded bytes', () => {
@@ -95,61 +119,192 @@ describe('title exclusion contract', () => {
   })
 })
 
-describe('savePreferences revision signal', () => {
-  it('awaits the preference upsert before requesting a refilter revision', async () => {
-    await savePreferences(input)
+describe('deterministic ranking preference validation', () => {
+  const validForm = {
+    maxRequiredExperience: '',
+    rubric: {
+      strictTitle: '30',
+      weakTitle: '20',
+      preferredLocation: '10',
+      recency: '10',
+      watchlist: '10',
+      experience: '20',
+      includeKeywordSteps: {
+        one: '3',
+        two: '5',
+        three: '10',
+        four: '15',
+        fivePlus: '20',
+      },
+    },
+    goodThreshold: '50',
+    strongThreshold: '75',
+  }
 
-    expect(mocks.from).toHaveBeenCalledWith('preferences')
-    expect(mocks.upsert).toHaveBeenCalledWith(
-      expect.objectContaining(input),
-      { onConflict: 'user_id' },
-    )
-    expect(mocks.rpc).toHaveBeenCalledWith('mark_recent_jobs_for_refilter')
-    expect(mocks.upsert.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.rpc.mock.invocationCallOrder[0],
-    )
+  it('accepts exact defaults and a blank optional maximum experience', () => {
+    expect(validateRankingForm(validForm)).toEqual({
+      valid: true,
+      fieldErrors: {},
+      firstInvalidField: null,
+      value: {
+        maxRequiredExperience: null,
+        rubric: DEFAULT_RANKING_RUBRIC,
+        goodThreshold: 50,
+        strongThreshold: 75,
+      },
+    })
   })
 
-  it('preserves an explicit empty title exclusion array through upsert and refilter', async () => {
+  it.each([
+    ['invalid maximum', { maxRequiredExperience: '2.5' }, 'pref-max-experience'],
+    ['invalid point', { rubric: { ...validForm.rubric, strictTitle: '' } }, 'ranking-strict-title'],
+    [
+      'weak over strict',
+      { rubric: { ...validForm.rubric, strictTitle: '19', weakTitle: '20' } },
+      'ranking-weak-title',
+    ],
+    [
+      'non-100 total',
+      { rubric: { ...validForm.rubric, preferredLocation: '9' } },
+      'ranking-total',
+    ],
+    [
+      'decreasing keyword steps',
+      {
+        rubric: {
+          ...validForm.rubric,
+          includeKeywordSteps: { ...validForm.rubric.includeKeywordSteps, three: '4' },
+        },
+      },
+      'ranking-keyword-steps',
+    ],
+    [
+      'keyword step over maximum',
+      {
+        rubric: {
+          ...validForm.rubric,
+          includeKeywordSteps: { ...validForm.rubric.includeKeywordSteps, one: '21' },
+        },
+      },
+      'ranking-keyword-steps',
+    ],
+    ['invalid thresholds', { goodThreshold: '75' }, 'ranking-good-threshold'],
+  ])('rejects %s and identifies the first invalid control', (_label, overrides, firstInvalidField) => {
+    const result = validateRankingForm({
+      ...validForm,
+      ...overrides,
+      rubric: 'rubric' in overrides
+        ? overrides.rubric as typeof validForm.rubric
+        : validForm.rubric,
+    })
+
+    expect(result.valid).toBe(false)
+    expect(result.firstInvalidField).toBe(firstInvalidField)
+    expect(result.value).toBeNull()
+  })
+})
+
+describe('deterministic ranking RPC contract', () => {
+  it('persists every value and starts ranking through one owner-scoped RPC', async () => {
+    await expect(savePreferences(input)).resolves.toEqual({
+      runId: 'run-1',
+      revision: 4,
+      seededCount: 12,
+    })
+
+    expect(mocks.from).not.toHaveBeenCalled()
+    expect(mocks.rpc).toHaveBeenCalledTimes(1)
+    expect(mocks.rpc).toHaveBeenCalledWith('save_preferences_and_start_ranking', {
+      p_titles: input.titles,
+      p_locations: input.locations,
+      p_include_keywords: input.include_keywords,
+      p_exclude_keywords: input.exclude_keywords,
+      p_title_exclude_keywords: input.title_exclude_keywords,
+      p_max_required_experience: null,
+      p_ranking_rubric: input.ranking_rubric,
+      p_good_threshold: 50,
+      p_strong_threshold: 75,
+    })
+  })
+
+  it('preserves an explicit empty title exclusion array through the atomic RPC', async () => {
     await savePreferences({ ...input, title_exclude_keywords: [] })
 
-    expect(mocks.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ title_exclude_keywords: [] }),
-      { onConflict: 'user_id' },
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      'save_preferences_and_start_ranking',
+      expect.objectContaining({ p_title_exclude_keywords: [] }),
     )
-    expect(mocks.rpc).toHaveBeenCalledTimes(1)
   })
 
-  it('accepts the exact byte boundary before upsert and refilter', async () => {
+  it('accepts the exact title-exclusion byte boundary before the atomic RPC', async () => {
     await savePreferences({ ...input, title_exclude_keywords: ['a'.repeat(4092)] })
 
-    expect(mocks.upsert).toHaveBeenCalledTimes(1)
     expect(mocks.rpc).toHaveBeenCalledTimes(1)
   })
 
   it.each([
     ['51 entries', Array.from({ length: 51 }, (_, index) => `term-${index}`)],
     ['4,097 bytes', ['z'.repeat(4093)]],
-  ])('rejects %s before upsert or refilter', async (_label, values) => {
+  ])('rejects %s before remote work', async (_label, values) => {
     await expect(savePreferences({ ...input, title_exclude_keywords: values })).rejects.toThrow(
       /^Title exclusions /,
     )
 
     expect(mocks.from).not.toHaveBeenCalled()
-    expect(mocks.upsert).not.toHaveBeenCalled()
     expect(mocks.rpc).not.toHaveBeenCalled()
   })
 
-  it('does not signal or resolve when the upsert fails', async () => {
-    mocks.upsert.mockResolvedValue({ error: new Error('upsert failed') })
+  it('rejects boundedly when the atomic save fails', async () => {
+    mocks.rpc.mockResolvedValue({ data: null, error: new Error('save failed') })
 
-    await expect(savePreferences(input)).rejects.toThrow('upsert failed')
-    expect(mocks.rpc).not.toHaveBeenCalled()
+    await expect(savePreferences(input)).rejects.toThrow('save failed')
+    expect(mocks.rpc).toHaveBeenCalledTimes(1)
   })
 
-  it('rejects when the refilter revision signal fails', async () => {
-    mocks.rpc.mockResolvedValue({ error: new Error('signal failed') })
+  it('loads owner-scoped ranking state and normalizes a missing row to idle', async () => {
+    mocks.rpc
+      .mockResolvedValueOnce({
+        data: [{
+          active_revision: 3,
+          desired_revision: 4,
+          status: 'building',
+          error_code: null,
+          retry_available: false,
+          updated_at: '2026-07-23T00:00:00.000Z',
+        }],
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: [], error: null })
 
-    await expect(savePreferences(input)).rejects.toThrow('signal failed')
+    await expect(getDeterministicRankingState()).resolves.toEqual({
+      activeRevision: 3,
+      desiredRevision: 4,
+      status: 'building',
+      errorCode: null,
+      retryAvailable: false,
+      updatedAt: '2026-07-23T00:00:00.000Z',
+    })
+    await expect(getDeterministicRankingState()).resolves.toEqual({
+      activeRevision: 0,
+      desiredRevision: 0,
+      status: 'idle',
+      errorCode: null,
+      retryAvailable: false,
+      updatedAt: null,
+    })
+  })
+
+  it('retries only through the server-authoritative owner RPC', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: [{ run_id: 'retry-1', revision: 4, created: true }],
+      error: null,
+    })
+
+    await expect(retryDeterministicRankingRun()).resolves.toEqual({
+      runId: 'retry-1',
+      revision: 4,
+      created: true,
+    })
+    expect(mocks.rpc).toHaveBeenCalledWith('retry_deterministic_ranking_run')
   })
 })

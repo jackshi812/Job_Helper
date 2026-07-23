@@ -29,6 +29,24 @@ vi.mock('@tanstack/react-query', () => ({
       include_keywords: [],
       exclude_keywords: [],
       title_exclude_keywords: [],
+      max_required_experience: null,
+      ranking_rubric: {
+        strictTitle: 30,
+        weakTitle: 20,
+        preferredLocation: 10,
+        recency: 10,
+        watchlist: 10,
+        experience: 20,
+        includeKeywordSteps: {
+          one: 3,
+          two: 5,
+          three: 10,
+          four: 15,
+          fivePlus: 20,
+        },
+      },
+      ranking_good_threshold: 50,
+      ranking_strong_threshold: 75,
       updated_at: '2026-07-22T00:00:00.000Z',
     },
     isPending: false,
@@ -47,26 +65,38 @@ function captureMutation() {
   return mocks.mutationOptions
 }
 
-describe('title exclusion preference form', () => {
-  it('uses exact approved copy and field order without experience-year language', () => {
+describe('deterministic ranking preference form', () => {
+  it('uses the approved complete form order and exact rubric copy', () => {
     const markup = renderToStaticMarkup(<Preferences />)
     const target = markup.indexOf('Target titles')
     const titleExclusions = markup.indexOf('Exclude title keywords')
     const locations = markup.indexOf('Locations')
+    const maximumExperience = markup.indexOf('Maximum required experience (years)')
     const include = markup.indexOf('Include keywords')
     const exclude = markup.indexOf('Exclude keywords')
+    const rubric = markup.indexOf('Ranking rubric')
+    const thresholds = markup.indexOf('Score thresholds')
 
     expect(target).toBeGreaterThan(-1)
     expect(target).toBeLessThan(titleExclusions)
     expect(titleExclusions).toBeLessThan(locations)
-    expect(locations).toBeLessThan(include)
+    expect(locations).toBeLessThan(maximumExperience)
+    expect(maximumExperience).toBeLessThan(include)
     expect(include).toBeLessThan(exclude)
+    expect(exclude).toBeLessThan(rubric)
+    expect(rubric).toBeLessThan(thresholds)
     expect(markup).toContain(
       'Jobs are excluded when their title contains one of these words or phrases. PhD also matches Ph.D. and Ph D.',
     )
+    expect(markup).toContain(
+      'Jobs earn experience points only when an explicit required minimum is below this value. Leave blank to award no experience points. This never filters a job.',
+    )
+    expect(markup).toContain(
+      'Choose how many points each match signal earns. Category maximums must total 100.',
+    )
+    expect(markup).toContain('Category maximums: 100 / 100 points')
+    expect(markup).toContain('Weak: 0–49 · Good: 50–74 · Strong: 75–100')
     expect(markup).toContain('Type and press Enter or comma')
-    expect(markup).not.toContain('Maximum required experience')
-    expect(markup).not.toContain('pref-max-experience')
   })
 
   it('seeds only a missing row and preserves a stored empty array', () => {
@@ -77,18 +107,27 @@ describe('title exclusion preference form', () => {
     expect(preferencesSource).not.toContain('data.title_exclude_keywords.length')
   })
 
-  it('keeps canonical cross-commit dedupe, validation, pending disablement, and explicit save payload', () => {
+  it('wires semantic groups, accessible errors, invalid focus, and complete save payload', () => {
     expect(preferencesSource).toContain('chipComparisonKey(value)')
     expect(preferencesSource).toContain('chipComparisonKey(addition)')
     expect(preferencesSource).toContain('validateTitleExclusions(titleExcludeKeywords)')
+    expect(preferencesSource).toContain('validateRankingForm')
+    expect(preferencesSource).toContain('firstInvalidField')
+    expect(preferencesSource).toContain('document.getElementById')
+    expect(preferencesSource).toContain('<fieldset')
+    expect(preferencesSource).toContain('<legend')
+    expect(preferencesSource).toContain('aria-describedby')
+    expect(preferencesSource).toContain('aria-invalid')
     expect(preferencesSource).toContain('title_exclude_keywords: titleExcludeKeywords')
+    expect(preferencesSource).toContain('max_required_experience:')
+    expect(preferencesSource).toContain('ranking_rubric:')
+    expect(preferencesSource).toContain('ranking_good_threshold:')
+    expect(preferencesSource).toContain('ranking_strong_threshold:')
     expect(preferencesSource).toContain('disabled={pending}')
-    expect(preferencesSource).toContain("setMessage('Preferences saved — recent jobs re-filtering.')")
+    expect(preferencesSource).toContain("setMessage('Preferences saved. Updating rankings…')")
     expect(preferencesSource).toContain(
-      'setError("Couldn\'t save preferences. Your changes are still in the form — retry.")',
+      "setError('Couldn’t save these ranking settings. Check the highlighted values and retry.')",
     )
-    expect(preferencesSource).not.toContain('maxRequiredExperience')
-    expect(preferencesSource).not.toContain('experienceError')
   })
 })
 
@@ -106,43 +145,31 @@ describe('preference save cache gap', () => {
     mocks.savePreferences.mockResolvedValue(undefined)
   })
 
-  it('cancels removes and invalidates feed only after signal success', async () => {
-    const events: string[] = []
-    let completeSave!: () => void
-    mocks.savePreferences.mockImplementation(() => new Promise<void>((resolve) => {
-      completeSave = resolve
-    }))
-    mocks.cancelQueries.mockImplementation(async () => { events.push('cancel feed') })
-    mocks.removeQueries.mockImplementation(() => { events.push('remove feed') })
-    mocks.invalidateQueries.mockImplementation(async ({ queryKey }: { queryKey: string[] }) => {
-      events.push(`invalidate ${queryKey[0]}`)
-    })
+  it('keeps the complete prior feed cache untouched after an accepted save', async () => {
     const mutation = captureMutation()
 
-    const pendingSave = mutation.mutationFn()
-    expect(events).toEqual([])
-    completeSave()
-    await pendingSave
+    await mutation.mutationFn()
     await mutation.onSuccess()
 
-    expect(events).toEqual([
-      'cancel feed',
-      'remove feed',
-      'invalidate feed',
-      'invalidate preferences',
-    ])
+    expect(mocks.cancelQueries).not.toHaveBeenCalled()
+    expect(mocks.removeQueries).not.toHaveBeenCalled()
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ['feed'] })
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['preferences'] })
   })
 
-  it('sends title exclusions explicitly without an experience payload', async () => {
+  it('sends title exclusions, blank maximum, rubric, and thresholds explicitly', async () => {
     const mutation = captureMutation()
 
     await mutation.mutationFn()
 
     expect(mocks.savePreferences).toHaveBeenCalledWith(
-      expect.objectContaining({ title_exclude_keywords: [] }),
-    )
-    expect(mocks.savePreferences).not.toHaveBeenCalledWith(
-      expect.objectContaining({ max_required_experience: expect.anything() }),
+      expect.objectContaining({
+        title_exclude_keywords: [],
+        max_required_experience: null,
+        ranking_rubric: expect.objectContaining({ strictTitle: 30 }),
+        ranking_good_threshold: 50,
+        ranking_strong_threshold: 75,
+      }),
     )
   })
 
