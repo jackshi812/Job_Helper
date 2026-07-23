@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import {
   assertInitializerAuthority,
   runApprovedBackfill,
+  summarizeActiveCoverageRows,
   validateEvidenceText,
   verifyAutomaticEntryPoints,
   verifyPostReleaseEvidence,
@@ -450,6 +451,53 @@ test('initializer propagates command, API, authentication, and malformed respons
   )
 })
 
+test('active coverage permits only completed historical surplus for jobs that are now closed', () => {
+  const coverage = summarizeActiveCoverageRows([activeCoverageOwner({
+    current_open_jobs: 17,
+    exact_current_open_results: 17,
+    historical_closed_completed_items: 1,
+  })])
+
+  assert.deepEqual(coverage, {
+    remainingUsers: 0,
+    activeOwners: 1,
+    completeActiveOwners: 1,
+    duplicateActiveOwners: 0,
+    incompleteActiveOwners: 0,
+    visibleMissingDeterministic: 0,
+    visibleMixedRevision: 0,
+    nonterminalOpenItems: 0,
+  })
+})
+
+test('active coverage rejects missing current-open results', () => {
+  const coverage = summarizeActiveCoverageRows([activeCoverageOwner({
+    current_open_jobs: 17,
+    exact_current_open_results: 16,
+    missing_current_open_results: 1,
+    visible_missing_deterministic: 1,
+  })])
+
+  assert.equal(coverage.completeActiveOwners, 0)
+  assert.equal(coverage.incompleteActiveOwners, 1)
+  assert.equal(coverage.visibleMissingDeterministic, 1)
+})
+
+test('active coverage rejects duplicate, mixed, nonterminal, and surplus open results', () => {
+  for (const overrides of [
+    { duplicate_current_open_results: 1 },
+    { mixed_active_items: 1, visible_mixed_revision: 1 },
+    { nonterminal_active_items: 1, nonterminal_open_items: 1 },
+    { failed_active_items: 1 },
+    { surplus_open_items: 1 },
+    { invalid_closed_surplus_items: 1 },
+  ]) {
+    const coverage = summarizeActiveCoverageRows([activeCoverageOwner(overrides)])
+    assert.equal(coverage.completeActiveOwners, 0)
+    assert.equal(coverage.incompleteActiveOwners, 1)
+  }
+})
+
 test('post-release rejects partial, mixed, missing deterministic, identity, asset, and cost evidence', () => {
   assert.doesNotThrow(() => verifyPostReleaseEvidence(postRelease(), postReleaseProbes()))
   for (const [field, value, expected] of [
@@ -525,6 +573,28 @@ test('automatic entry points contain no score-purpose AI capability and extracti
     /extract-resume is not extraction-only/,
   )
 })
+
+function activeCoverageOwner(overrides = {}) {
+  return {
+    active_owner_ready: 1,
+    active_revision: 1,
+    current_open_jobs: 17,
+    exact_current_open_results: 17,
+    missing_current_open_results: 0,
+    duplicate_current_open_results: 0,
+    visible_missing_deterministic: 0,
+    visible_mixed_revision: 0,
+    nonterminal_active_items: 0,
+    nonterminal_open_items: 0,
+    failed_active_items: 0,
+    mixed_active_items: 0,
+    surplus_open_items: 0,
+    invalid_closed_surplus_items: 0,
+    historical_closed_completed_items: 0,
+    initial_run_count: 1,
+    ...overrides,
+  }
+}
 
 function approval(overrides = {}) {
   return {

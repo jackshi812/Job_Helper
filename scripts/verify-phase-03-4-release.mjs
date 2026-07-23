@@ -495,6 +495,76 @@ function assertQueueState(state) {
   if (state.failed !== 0) throw new Error('initial ranking item failed')
 }
 
+export function summarizeActiveCoverageRows(rows) {
+  if (!Array.isArray(rows)) throw new Error('active coverage response is malformed')
+
+  const summary = {
+    remainingUsers: 0,
+    activeOwners: 0,
+    completeActiveOwners: 0,
+    duplicateActiveOwners: 0,
+    incompleteActiveOwners: 0,
+    visibleMissingDeterministic: 0,
+    visibleMixedRevision: 0,
+    nonterminalOpenItems: 0,
+  }
+  const integerFields = [
+    'active_owner_ready',
+    'active_revision',
+    'current_open_jobs',
+    'exact_current_open_results',
+    'missing_current_open_results',
+    'duplicate_current_open_results',
+    'visible_missing_deterministic',
+    'visible_mixed_revision',
+    'nonterminal_active_items',
+    'nonterminal_open_items',
+    'failed_active_items',
+    'mixed_active_items',
+    'surplus_open_items',
+    'invalid_closed_surplus_items',
+    'historical_closed_completed_items',
+    'initial_run_count',
+  ]
+
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') throw new Error('active coverage row is malformed')
+    const values = Object.fromEntries(integerFields.map(
+      (key) => [key, rowInteger(row, key, `active coverage ${key}`)],
+    ))
+    const active = values.active_revision > 0
+    const duplicate = values.duplicate_current_open_results > 0 ||
+      values.surplus_open_items > 0 ||
+      values.initial_run_count > 1
+    const complete = values.active_owner_ready === 1 &&
+      values.initial_run_count === 1 &&
+      values.exact_current_open_results === values.current_open_jobs &&
+      values.missing_current_open_results === 0 &&
+      values.duplicate_current_open_results === 0 &&
+      values.visible_missing_deterministic === 0 &&
+      values.visible_mixed_revision === 0 &&
+      values.nonterminal_active_items === 0 &&
+      values.failed_active_items === 0 &&
+      values.mixed_active_items === 0 &&
+      values.surplus_open_items === 0 &&
+      values.invalid_closed_surplus_items === 0
+
+    summary.remainingUsers += active ? 0 : 1
+    summary.activeOwners += active ? 1 : 0
+    summary.completeActiveOwners += complete ? 1 : 0
+    summary.duplicateActiveOwners += duplicate ? 1 : 0
+    summary.incompleteActiveOwners += complete ? 0 : 1
+    summary.visibleMissingDeterministic += values.visible_missing_deterministic
+    summary.visibleMixedRevision += values.visible_mixed_revision
+    summary.nonterminalOpenItems += values.nonterminal_open_items
+  }
+
+  for (const [key, value] of Object.entries(summary)) {
+    if (!Number.isSafeInteger(value)) throw new Error(`active coverage ${key} exceeds safe range`)
+  }
+  return summary
+}
+
 function assertFinalState(state, approvedOwnerCount) {
   for (const key of [
     'remainingUsers',
@@ -985,7 +1055,7 @@ export async function collectLivePostReleaseProbes(root, fields) {
     remoteMigrationInventory(),
     functionInventory(),
     liveCountAndCostProbe(),
-    liveFinalState(),
+    collectLiveActiveCoverage(),
     liveCloudflareProbe(root, fields),
     liveAssetProbe(root, fields),
     command(root, 'git', ['rev-parse', 'origin/main']),
@@ -1129,87 +1199,204 @@ async function invokeWorker() {
   return body
 }
 
-async function liveFinalState() {
-  const row = oneRow(await managementSql(`
+export async function collectLiveActiveCoverage() {
+  const rows = await managementSql(`
     with eligible_owners as (
       select user_id from public.preferences
       union
       select user_id from public.user_jobs
     ),
-    owner_completeness as (
+    active_owner as (
       select owner.user_id,
-             state.active_revision,
+             coalesce(state.active_revision, 0) as active_revision,
+             state.desired_revision,
              state.active_run_id,
-             state.status,
+             state.status as state_status,
+             run.user_id as run_user_id,
+             run.revision as run_revision,
              run.status as run_status,
-             run.expected_job_count,
              (
                select count(*)::integer
-               from public.deterministic_ranking_items item
-               where item.run_id = state.active_run_id and item.status = 'completed'
-             ) as completed_items
+               from public.deterministic_ranking_runs initial_run
+               where initial_run.user_id = owner.user_id
+                 and initial_run.is_initial
+             ) as initial_run_count
       from eligible_owners owner
       left join public.deterministic_ranking_state state on state.user_id = owner.user_id
       left join public.deterministic_ranking_runs run on run.id = state.active_run_id
+    ),
+    current_open_coverage as (
+      select
+        owner.user_id,
+        owner.active_revision,
+        job.id as job_id,
+        user_job.id as user_job_id,
+        user_job.deterministic_revision,
+        user_job.deterministic_eligible,
+        user_job.deterministic_score,
+        user_job.deterministic_tier,
+        user_job.deterministic_breakdown,
+        count(item.id)::integer as active_item_count,
+        count(item.id) filter (
+          where item.status = 'completed'
+            and item.revision = owner.active_revision
+            and item.user_id = owner.user_id
+            and item.user_job_id = user_job.id
+        )::integer as exact_completed_result_count,
+        count(item.id) filter (
+          where item.revision is distinct from owner.active_revision
+            or item.user_id is distinct from owner.user_id
+            or item.user_job_id is distinct from user_job.id
+        )::integer as mixed_item_count
+      from active_owner owner
+      cross join public.jobs job
+      left join public.user_jobs user_job
+        on user_job.user_id = owner.user_id
+       and user_job.job_id = job.id
+      left join public.deterministic_ranking_items item
+        on item.run_id = owner.active_run_id
+       and item.job_id = job.id
+      where job.status = 'open'
+      group by
+        owner.user_id,
+        owner.active_revision,
+        job.id,
+        user_job.id,
+        user_job.deterministic_revision,
+        user_job.deterministic_eligible,
+        user_job.deterministic_score,
+        user_job.deterministic_tier,
+        user_job.deterministic_breakdown
+    ),
+    current_open_health as (
+      select
+        coverage.user_id,
+        count(*)::integer as current_open_jobs,
+        count(*) filter (
+          where coverage.active_item_count = 1
+            and coverage.exact_completed_result_count = 1
+        )::integer as exact_current_open_results,
+        count(*) filter (
+          where coverage.exact_completed_result_count = 0
+        )::integer as missing_current_open_results,
+        count(*) filter (
+          where coverage.active_item_count > 1
+            or coverage.exact_completed_result_count > 1
+        )::integer as duplicate_current_open_results,
+        count(*) filter (
+          where coverage.user_job_id is null
+            or coverage.exact_completed_result_count <> 1
+            or coverage.deterministic_eligible is null
+            or (
+              coverage.deterministic_eligible
+              and (
+                coverage.deterministic_score is null
+                or coverage.deterministic_tier is null
+                or coverage.deterministic_breakdown is null
+              )
+            )
+        )::integer as visible_missing_deterministic,
+        count(*) filter (
+          where coverage.user_job_id is not null
+            and (
+              coverage.deterministic_revision is distinct from coverage.active_revision
+              or coverage.mixed_item_count > 0
+            )
+        )::integer as visible_mixed_revision
+      from current_open_coverage coverage
+      group by coverage.user_id
+    ),
+    active_item_health as (
+      select
+        owner.user_id,
+        count(item.id) filter (
+          where item.status <> 'completed'
+        )::integer as nonterminal_active_items,
+        count(item.id) filter (
+          where job.status = 'open' and item.status <> 'completed'
+        )::integer as nonterminal_open_items,
+        count(item.id) filter (
+          where item.status = 'failed'
+        )::integer as failed_active_items,
+        count(item.id) filter (
+          where item.revision is distinct from owner.active_revision
+            or item.user_id is distinct from owner.user_id
+            or user_job.user_id is distinct from owner.user_id
+            or user_job.job_id is distinct from item.job_id
+        )::integer as mixed_active_items,
+        count(item.id) filter (
+          where job.status = 'open'
+            and (
+              user_job.id is null
+              or user_job.user_id is distinct from owner.user_id
+              or user_job.job_id is distinct from item.job_id
+            )
+        )::integer as surplus_open_items,
+        count(item.id) filter (
+          where job.status is distinct from 'open'
+            and (
+              item.status <> 'completed'
+              or item.revision is distinct from owner.active_revision
+              or item.user_id is distinct from owner.user_id
+              or user_job.user_id is distinct from owner.user_id
+              or user_job.job_id is distinct from item.job_id
+            )
+        )::integer as invalid_closed_surplus_items,
+        count(item.id) filter (
+          where job.status is distinct from 'open'
+            and item.status = 'completed'
+            and item.revision = owner.active_revision
+            and item.user_id = owner.user_id
+            and user_job.user_id = owner.user_id
+            and user_job.job_id = item.job_id
+        )::integer as historical_closed_completed_items
+      from active_owner owner
+      left join public.deterministic_ranking_items item
+        on item.run_id = owner.active_run_id
+      left join public.jobs job on job.id = item.job_id
+      left join public.user_jobs user_job on user_job.id = item.user_job_id
+      group by owner.user_id
     )
     select
-      count(*) filter (where active_revision is null or active_revision = 0)::integer as remaining_users,
-      count(*) filter (where active_revision > 0)::integer as active_owners,
-      count(*) filter (
-        where active_revision > 0 and run_status = 'completed'
-          and expected_job_count = completed_items
-      )::integer as complete_active_owners,
-      (
-        select count(*)::integer from (
-          select user_id from public.deterministic_ranking_runs
-          where is_initial group by user_id having count(*) > 1
-        ) duplicates
-      ) as duplicate_active_owners,
-      count(*) filter (
-        where active_revision is null or active_revision = 0
-          or run_status is distinct from 'completed'
-          or expected_job_count is distinct from completed_items
-      )::integer as incomplete_active_owners,
-      (
-        select count(*)::integer
-        from public.user_jobs uj
-        join public.jobs j on j.id = uj.job_id
-        join public.deterministic_ranking_state state on state.user_id = uj.user_id
-        where j.status = 'open'
-          and uj.deterministic_eligible = true
-          and (
-            uj.deterministic_score is null
-            or uj.deterministic_tier is null
-            or uj.deterministic_breakdown is null
-          )
-      ) as visible_missing_deterministic,
-      (
-        select count(*)::integer
-        from public.user_jobs uj
-        join public.jobs j on j.id = uj.job_id
-        join public.deterministic_ranking_state state on state.user_id = uj.user_id
-        where j.status = 'open'
-          and uj.deterministic_eligible = true
-          and uj.deterministic_revision is distinct from state.active_revision
-      ) as visible_mixed_revision,
-      (
-        select count(*)::integer
-        from public.deterministic_ranking_items item
-        join public.jobs j on j.id = item.job_id
-        where j.status = 'open' and item.status <> 'completed'
-      ) as nonterminal_open_items
-    from owner_completeness
-  `), 'final ranking state')
-  return {
-    remainingUsers: rowInteger(row, 'remaining_users'),
-    activeOwners: rowInteger(row, 'active_owners'),
-    completeActiveOwners: rowInteger(row, 'complete_active_owners'),
-    duplicateActiveOwners: rowInteger(row, 'duplicate_active_owners'),
-    incompleteActiveOwners: rowInteger(row, 'incomplete_active_owners'),
-    visibleMissingDeterministic: rowInteger(row, 'visible_missing_deterministic'),
-    visibleMixedRevision: rowInteger(row, 'visible_mixed_revision'),
-    nonterminalOpenItems: rowInteger(row, 'nonterminal_open_items'),
-  }
+      case when
+        owner.active_revision > 0
+        and owner.desired_revision = owner.active_revision
+        and owner.state_status = 'idle'
+        and owner.active_run_id is not null
+        and owner.run_user_id = owner.user_id
+        and owner.run_revision = owner.active_revision
+        and owner.run_status = 'completed'
+      then 1 else 0 end::integer as active_owner_ready,
+      owner.active_revision::bigint,
+      coalesce(current_health.current_open_jobs, 0)::integer as current_open_jobs,
+      coalesce(current_health.exact_current_open_results, 0)::integer
+        as exact_current_open_results,
+      coalesce(current_health.missing_current_open_results, 0)::integer
+        as missing_current_open_results,
+      coalesce(current_health.duplicate_current_open_results, 0)::integer
+        as duplicate_current_open_results,
+      coalesce(current_health.visible_missing_deterministic, 0)::integer
+        as visible_missing_deterministic,
+      coalesce(current_health.visible_mixed_revision, 0)::integer
+        as visible_mixed_revision,
+      coalesce(item_health.nonterminal_active_items, 0)::integer
+        as nonterminal_active_items,
+      coalesce(item_health.nonterminal_open_items, 0)::integer
+        as nonterminal_open_items,
+      coalesce(item_health.failed_active_items, 0)::integer as failed_active_items,
+      coalesce(item_health.mixed_active_items, 0)::integer as mixed_active_items,
+      coalesce(item_health.surplus_open_items, 0)::integer as surplus_open_items,
+      coalesce(item_health.invalid_closed_surplus_items, 0)::integer
+        as invalid_closed_surplus_items,
+      coalesce(item_health.historical_closed_completed_items, 0)::integer
+        as historical_closed_completed_items,
+      owner.initial_run_count::integer
+    from active_owner owner
+    left join current_open_health current_health on current_health.user_id = owner.user_id
+    left join active_item_health item_health on item_health.user_id = owner.user_id
+    order by owner.user_id
+  `)
+  return summarizeActiveCoverageRows(rows)
 }
 
 async function liveBackfillAdapters(root) {
@@ -1239,7 +1426,7 @@ async function liveBackfillAdapters(root) {
     async costBaseline() {
       return (await liveCountAndCostProbe()).cost.sha256
     },
-    finalState: liveFinalState,
+    finalState: collectLiveActiveCoverage,
   }
 }
 
