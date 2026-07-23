@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
+import { access, mkdir, rm, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { test } from 'node:test'
 
 import {
   assertInitializerAuthority,
+  functionProbe,
   inspectWorkerLivenessSource,
   runApprovedBackfill,
   summarizeActiveCoverageRows,
@@ -27,6 +31,167 @@ const MIGRATIONS = Array.from(
   { length: 32 },
   (_, index) => String(index + 1).padStart(4, '0'),
 )
+
+function fixtureSha256(value) {
+  return createHash('sha256').update(value).digest('hex')
+}
+
+function hostedFunctionFixture(overrides = {}) {
+  const entryPath = 'supabase/functions/score-tick/index.ts'
+  const dependencyPath = 'supabase/functions/_shared/value.ts'
+  const files = {
+    [entryPath]: `import { value } from '../_shared/value.ts'\nconsole.log(value)\n`,
+    [dependencyPath]: 'export const value = 1\n',
+    ...overrides,
+  }
+  const bundleFiles = [dependencyPath, entryPath].sort()
+  const bundleEntries = bundleFiles.map((path) => ({
+    path,
+    sha256: fixtureSha256(files[path]),
+  }))
+  return {
+    entryPath,
+    files,
+    approved: {
+      indexSha256: fixtureSha256(files[entryPath]),
+      bundleManifestSha256: fixtureSha256(JSON.stringify(bundleEntries)),
+      bundleFiles,
+    },
+  }
+}
+
+async function writeHostedFixture(root, files) {
+  for (const [path, source] of Object.entries(files)) {
+    await mkdir(join(root, path, '..'), { recursive: true })
+    await writeFile(join(root, path), source)
+  }
+}
+
+function stableFunctionMetadata(overrides = {}) {
+  return [{
+    slug: 'score-tick',
+    id: 'ae6c147f-c3a8-417e-8057-d4105ac9aed5',
+    version: 14,
+    status: 'ACTIVE',
+    verify_jwt: false,
+    ...overrides,
+  }]
+}
+
+test('hosted function probe hashes only fresh downloaded bytes and removes them', async () => {
+  const fixture = hostedFunctionFixture()
+  const downloadRoots = []
+  const commands = []
+  const result = await functionProbe(process.cwd(), 'score-tick', fixture.approved, {
+    fetchMetadata: async () => stableFunctionMetadata(),
+    runCommand: async (cwd, executable, args, options) => {
+      downloadRoots.push(cwd)
+      commands.push({ executable, args, options })
+      await writeHostedFixture(cwd, fixture.files)
+      return ''
+    },
+  })
+
+  assert.deepEqual(result, {
+    id: 'ae6c147f-c3a8-417e-8057-d4105ac9aed5',
+    version: 14,
+    status: 'ACTIVE',
+    verifyJwt: false,
+    indexSha256: fixture.approved.indexSha256,
+    bundleManifestSha256: fixture.approved.bundleManifestSha256,
+  })
+  assert.equal(downloadRoots.length, 1)
+  assert.match(commands[0].executable, /web\/node_modules\/\.bin\/supabase$/)
+  assert.deepEqual(commands[0].args, [
+    'functions',
+    'download',
+    'score-tick',
+    '--project-ref',
+    'fjcsvajkkztvlrpdplwx',
+    '--use-api',
+  ])
+  assert.equal(commands[0].options.timeout, 30_000)
+  await assert.rejects(() => access(downloadRoots[0]), /ENOENT/)
+})
+
+test('hosted function probe rejects local hash substitution and incomplete bundles', async () => {
+  const fixture = hostedFunctionFixture()
+  await assert.rejects(
+    () => functionProbe(process.cwd(), 'score-tick', fixture.approved, {
+      fetchMetadata: async () => stableFunctionMetadata(),
+      runCommand: async (cwd) => {
+        await writeHostedFixture(cwd, {
+          ...fixture.files,
+          [fixture.entryPath]: `${fixture.files[fixture.entryPath]}// one-byte remote drift\n`,
+        })
+      },
+    }),
+    /hosted index SHA-256 mismatch/,
+  )
+  await assert.rejects(
+    () => functionProbe(process.cwd(), 'score-tick', fixture.approved, {
+      fetchMetadata: async () => stableFunctionMetadata(),
+      runCommand: async (cwd) => {
+        await writeHostedFixture(cwd, {
+          [fixture.entryPath]: fixture.files[fixture.entryPath],
+        })
+      },
+    }),
+    /hosted source inventory failed/,
+  )
+})
+
+test('hosted function probe rejects metadata races and unavailable downloads', async () => {
+  const fixture = hostedFunctionFixture()
+  let metadataRead = 0
+  await assert.rejects(
+    () => functionProbe(process.cwd(), 'score-tick', fixture.approved, {
+      fetchMetadata: async () => stableFunctionMetadata({
+        version: metadataRead++ === 0 ? 14 : 15,
+      }),
+      runCommand: async (cwd) => writeHostedFixture(cwd, fixture.files),
+    }),
+    /hosted function metadata changed during download/,
+  )
+
+  const downloadRoots = []
+  await assert.rejects(
+    () => functionProbe(process.cwd(), 'score-tick', fixture.approved, {
+      fetchMetadata: async () => stableFunctionMetadata(),
+      runCommand: async (cwd) => {
+        downloadRoots.push(cwd)
+        throw new Error('SUPABASE_ACCESS_TOKEN=secret-value')
+      },
+    }),
+    (error) => {
+      assert.match(error.message, /hosted source download failed/)
+      assert.doesNotMatch(error.message, /secret-value/)
+      return true
+    },
+  )
+  await assert.rejects(() => access(downloadRoots[0]), /ENOENT/)
+})
+
+test('hosted function downloads cannot reuse stale cached source', async () => {
+  const fixture = hostedFunctionFixture()
+  const downloadRoots = []
+  let download = 0
+  const adapters = {
+    fetchMetadata: async () => stableFunctionMetadata(),
+    runCommand: async (cwd) => {
+      downloadRoots.push(cwd)
+      if (download++ === 0) await writeHostedFixture(cwd, fixture.files)
+    },
+  }
+  await functionProbe(process.cwd(), 'score-tick', fixture.approved, adapters)
+  await assert.rejects(
+    () => functionProbe(process.cwd(), 'score-tick', fixture.approved, adapters),
+    /hosted source inventory failed/,
+  )
+  assert.equal(new Set(downloadRoots).size, 2)
+  await Promise.all(downloadRoots.map((root) => assert.rejects(() => access(root), /ENOENT/)))
+  await rm(downloadRoots[0], { recursive: true, force: true })
+})
 
 function preflight(overrides = {}) {
   return {
