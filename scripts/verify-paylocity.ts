@@ -949,9 +949,12 @@ async function dryRun() {
   check(verifyBoard.includes("auth.getUser(token)")
     && verifyBoard.includes("record_connector_observation"),
   'dry-run: activation uses real-user verification and server evidence')
-  check(scoreTick.includes('maxAttempts: 1')
-    && scoreTick.includes('x-scoring-verification-run-id'),
-  'dry-run: scoring path is latch-isolated and physically single-attempt')
+  check(scoreTick.includes("status: 'contained'")
+    && scoreTick.includes('automatic_job_scoring: false')
+    && scoreTick.includes('mutations: 0')
+    && !scoreTick.includes('generateStructured')
+    && !scoreTick.includes('reserve_score_request'),
+  'dry-run: automatic job scoring is contained with no provider or paid reservation')
   check(feed.includes('preferenceVisible')
     && feed.includes('tierPresentation')
     && feed.includes('companyName'),
