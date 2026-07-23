@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03.3
 current_phase_name: Dashboard Filter Refinements
 status: executing
-stopped_at: Phase 03.3 UI-SPEC approved
-last_updated: "2026-07-23T01:07:34.232Z"
+stopped_at: Completed 03.3-01-PLAN.md
+last_updated: "2026-07-23T01:19:56.064Z"
 last_activity: 2026-07-23
 last_activity_desc: Phase 03.3 execution started
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 47
-  completed_plans: 43
+  completed_plans: 44
   percent: 75
 ---
 
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 03.3 (Dashboard Filter Refinements) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 03.3
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-07-23 — Phase 03.3 execution started
 
 Progress: [███████████████░░░░░] 43/43 currently planned plans complete; milestone 6/8 phases complete (75%)
@@ -89,6 +89,7 @@ Progress: [███████████████░░░░░] 43/43 c
 | Phase 03.2 P02 | 5min | 3 tasks | 9 files |
 | Phase 03.2 P03 | 20min | 3 tasks | 5 files |
 | Phase 03.2 P04 | 15min | 3 tasks | 15 files |
+| Phase 03.3 P01 | 10min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -183,6 +184,10 @@ Recent decisions affecting current work:
 - [Phase 03.2]: Use the exact index pathname to widen only Dashboard content while preserving centered shared chrome.
 - [Phase 03.2]: Persist only validated versioned Dashboard column widths; keep company and tier filters session-only, and leave authenticated interaction UAT pending until a human browser session can verify it. — This preserves the owner's persistence boundary and prevents deployment evidence from being misrepresented as signed-in interaction approval.
 - [Phase 03.2]: Use one current preference-pass Dashboard scope; Strong, Good, and Weak all start selected, and explicit tier selection is the only score-boundary control. — Removes the observationally redundant All jobs mode while keeping every confirmed current preference pass inspectable.
+- [Phase 03.3]: Retain the physical experience column and legacy stored reason for rolling compatibility while removing them from active filter, worker, and hash source.
+- [Phase 03.3]: Normalize only bounded PhD punctuation and spacing variants before literal whole-token matching; never interpolate user input into regex.
+- [Phase 03.3]: Use the verifier target's exact current title as its temporary title exclusion and restore the complete preference snapshot.
+- [Phase 03.3]: Apply the same 50-entry and 4,096-byte title-exclusion limits at database and shared worker boundaries, with persisted reason detail capped at 160 Unicode code points.
 
 ### Pending Todos
 
@@ -216,7 +221,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-23T00:34:57.497Z
-Stopped at: Phase 03.3 UI-SPEC approved
-Resume file: .planning/phases/03.3-dashboard-filter-refinements/03.3-UI-SPEC.md
+Last session: 2026-07-23T01:17:02.851Z
+Stopped at: Completed 03.3-01-PLAN.md
+Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

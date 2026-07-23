@@ -271,7 +271,7 @@ Plans:
 **Goal:** Simplify Dashboard filtering by replacing the required-experience cap with persisted job-title exclusions, adding staged company bulk-selection actions, and consolidating score tiers into one accessible multi-select dropdown.
 **Requirements**: PREF-01, SCOR-01, SCOR-03, SCOR-04
 **Depends on:** Phase 03.2
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 **Success Criteria** (what must be TRUE):
 
@@ -283,7 +283,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 03.3-01-PLAN.md — Add the compatible persisted title-exclusion, filter-v4, hash, worker, and verifier contract
+- [x] 03.3-01-PLAN.md — Add the compatible persisted title-exclusion, filter-v4, hash, worker, and verifier contract
 - [ ] 03.3-02-PLAN.md — Replace the Preferences experience control with seeded, explicit-empty-safe title-exclusion chips
 - [ ] 03.3-03-PLAN.md — Add staged full-list company bulk actions and one accessible score-tier multi-select
 
@@ -321,7 +321,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 3. Scoring & Feed | 11/11 | Complete    | 2026-07-20 |
 | 03.1 SuccessFactors & Paylocity Connector Expansion | 5/5 | Complete | 2026-07-22 |
 | 03.2 Dashboard Precision & Company Visibility | 4/4 | Complete | 2026-07-22 |
-| 03.3 Dashboard Filter Refinements | 0/4 | Planned | - |
+| 03.3 Dashboard Filter Refinements | 1/4 | In Progress|  |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
