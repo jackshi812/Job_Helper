@@ -375,12 +375,29 @@ async function main() {
       retryState.building_run_id === retryResult[0].run_id,
     'retry_rpc_did_not_activate_retry',
   )
+  const duplicateRetry = await ownerA.session.rpc(
+    'retry_deterministic_ranking_run',
+    {},
+    400,
+  )
+  assert(
+    duplicateRetry?.message === 'ranking_retry_unavailable',
+    'duplicate_retry_did_not_fail_closed',
+  )
+  const retryRuns = await service.table(
+    'deterministic_ranking_runs',
+    `retry_of_run_id=eq.${leaseRunId}&select=id`,
+  )
+  assert(
+    retryRuns.length === 1 && retryRuns[0].id === retryResult[0].run_id,
+    'duplicate_retry_created_extra_run',
+  )
   const claimedAfterReap = await service.table(
     'deterministic_ranking_items',
     `run_id=eq.${leaseRunId}&status=eq.claimed&select=id`,
   )
   assert(claimedAfterReap.length === 0, 'terminal_lease_left_claimed')
-  record('third-attempt lease exhaustion', 5)
+  record('third-attempt lease exhaustion and unique retry', 7)
 
   const firstConcurrent = await ownerA.session.rpc(
     'save_preferences_and_start_ranking',

@@ -164,6 +164,7 @@ export function Dashboard() {
   const [draftHiddenKeys, setDraftHiddenKeys] = useState<Set<string>>(() => new Set())
   const [selectedTiers, setSelectedTiers] = useState(() => new Set(ALL_SCORE_TIERS))
   const [rankingAnnouncement, setRankingAnnouncement] = useState('')
+  const [retryError, setRetryError] = useState('')
   const [columnWidths, setColumnWidths] = useState(loadDashboardColumnWidths)
   const columnWidthsRef = useRef(columnWidths)
   const resizeCoordinator = useRef<ColumnResizeCoordinator>({ activeColumnId: null })
@@ -222,9 +223,18 @@ export function Dashboard() {
 
   const retryRankingMutation = useMutation({
     mutationFn: retryDeterministicRankingRun,
+    onMutate: () => {
+      setRetryError('')
+    },
     onSuccess: async () => {
+      setRetryError('')
       setRankingAnnouncement('')
       await queryClient.invalidateQueries({ queryKey: ['ranking-state'] })
+    },
+    onError: () => {
+      setRetryError(
+        'Couldn’t retry this ranking update. Your previous results are still shown. Please try once more.',
+      )
     },
   })
 
@@ -568,14 +578,27 @@ export function Dashboard() {
             </p>
           ) : null}
           {rankingState.retryAvailable ? (
-            <button
-              type="button"
-              disabled={retryRankingMutation.isPending}
-              onClick={() => retryRankingMutation.mutate()}
-              className={`mt-3 min-h-9 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-semibold hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-800 ${filterInactive}`}
-            >
-              {retryRankingMutation.isPending ? 'Retrying…' : 'Retry update'}
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={retryRankingMutation.isPending}
+                aria-describedby={retryError ? 'ranking-retry-error' : undefined}
+                onClick={() => retryRankingMutation.mutate()}
+                className={`mt-3 min-h-9 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-semibold hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-800 ${filterInactive}`}
+              >
+                {retryRankingMutation.isPending ? 'Retrying…' : 'Retry update'}
+              </button>
+              {retryError ? (
+                <p
+                  id="ranking-retry-error"
+                  role="alert"
+                  aria-live="assertive"
+                  className="mt-2 text-sm text-red-700 dark:text-red-400"
+                >
+                  {retryError}
+                </p>
+              ) : null}
+            </>
           ) : (
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
               Retry limit reached. Save preferences again to start a new update.

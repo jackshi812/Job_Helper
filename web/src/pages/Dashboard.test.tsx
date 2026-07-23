@@ -132,6 +132,11 @@ describe('Dashboard precision controls', () => {
     )
     expect(dashboardSource).toContain('Retry update')
     expect(dashboardSource).toContain('Retrying…')
+    expect(dashboardSource).toContain('onError: () =>')
+    expect(dashboardSource).toContain('Couldn’t retry this ranking update.')
+    expect(dashboardSource).toContain('id="ranking-retry-error"')
+    expect(dashboardSource).toContain('aria-describedby={retryError')
+    expect(dashboardSource).toContain('aria-live="assertive"')
     expect(dashboardSource).toContain(
       'Retry limit reached. Save preferences again to start a new update.',
     )
