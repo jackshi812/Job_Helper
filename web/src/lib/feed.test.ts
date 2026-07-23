@@ -4,16 +4,60 @@ import {
   deterministicVisible,
   FEED_DETAIL_COLUMNS,
   FEED_LIST_COLUMNS,
+  listFeed,
   relativePostedTime,
   safeApplyUrl,
   tierPresentation,
   type FeedRow,
 } from './feed'
 
-// Pure mappers only — feed.ts imports ./supabase, mocked to an empty object so
-// the query/mutation helpers stay out of these unit tests (pipeline.test.ts idiom).
 import { vi } from 'vitest'
-vi.mock('./supabase', () => ({ supabase: {} }))
+const queryMock = vi.hoisted(() => {
+  const calls: Array<[string, ...unknown[]]> = []
+  let rows: FeedRow[] = []
+  const builder = {
+    select: vi.fn((...args: unknown[]) => {
+      calls.push(['select', ...args])
+      return builder
+    }),
+    eq: vi.fn((...args: unknown[]) => {
+      calls.push(['eq', ...args])
+      return builder
+    }),
+    not: vi.fn((...args: unknown[]) => {
+      calls.push(['not', ...args])
+      return builder
+    }),
+    order: vi.fn((...args: unknown[]) => {
+      calls.push(['order', ...args])
+      return builder
+    }),
+    limit: vi.fn(async (...args: unknown[]) => {
+      calls.push(['limit', ...args])
+      const openFilter = calls.some(
+        ([method, column, value]) =>
+          method === 'eq' && column === 'jobs.status' && value === 'open',
+      )
+      return {
+        data: (openFilter
+          ? rows.filter((row) => row.jobs?.status === 'open')
+          : rows
+        ).slice(0, Number(args[0])),
+        error: null,
+      }
+    }),
+  }
+  return {
+    builder,
+    calls,
+    from: vi.fn(() => builder),
+    setRows(next: FeedRow[]) {
+      rows = next
+      calls.length = 0
+    },
+  }
+})
+vi.mock('./supabase', () => ({ supabase: { from: queryMock.from } }))
 
 function feedRow(overrides: Partial<FeedRow> = {}): FeedRow {
   return {
@@ -108,6 +152,27 @@ describe('deterministic feed projection', () => {
     expect(deterministicVisible(feedRow({
       dismissed_at: '2026-07-20T00:00:00.000Z',
     }))).toBe(true)
+  })
+
+  it('filters through an inner jobs relation before applying the 200-row cap', async () => {
+    const closed = Array.from({ length: 205 }, (_, index) =>
+      feedRow({
+        id: `closed-${index}`,
+        jobs: { ...feedRow().jobs!, id: `closed-job-${index}`, status: 'closed' },
+      }))
+    const open = Array.from({ length: 200 }, (_, index) =>
+      feedRow({
+        id: `open-${index}`,
+        jobs: { ...feedRow().jobs!, id: `open-job-${index}`, status: 'open' },
+      }))
+    queryMock.setRows([...closed, ...open])
+
+    await expect(listFeed()).resolves.toHaveLength(200)
+    expect(FEED_LIST_COLUMNS).toContain('jobs!inner')
+    expect(queryMock.calls).toContainEqual(['eq', 'jobs.status', 'open'])
+    expect(queryMock.calls.findIndex(([method, column]) =>
+      method === 'eq' && column === 'jobs.status',
+    )).toBeLessThan(queryMock.calls.findIndex(([method]) => method === 'limit'))
   })
 })
 
