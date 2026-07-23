@@ -3,12 +3,17 @@ import dashboardSource from './dashboard.ts?raw'
 import type { FeedRow, Tier } from './feed'
 import {
   ALL_SCORE_TIERS,
+  areAllCurrentCompaniesCleared,
+  areAllCurrentCompaniesSelected,
+  clearAllCompanies,
   copyHiddenCompanyKeys,
   dashboardCompanyOptions,
   filterDashboardRows,
   normalizedCompanyKey,
   resetHiddenCompanyKeys,
   searchCompanyOptions,
+  scoreTierSummary,
+  selectAllCompanies,
   toggleHiddenCompanyKey,
   toggleScoreTier,
 } from './dashboard'
@@ -104,6 +109,50 @@ describe('Dashboard staged filters', () => {
     expect([...applied]).toEqual(['accenture'])
     expect([...changed]).toEqual(['accenture', 'walmart'])
     expect(resetHiddenCompanyKeys().size).toBe(0)
+  })
+
+  it('clears and selects the complete current company list with fresh hidden-key sets', () => {
+    const options = dashboardCompanyOptions([
+      feedRow('Acme', 80),
+      feedRow('Walmart', 60),
+      feedRow('PwC', 40),
+    ])
+    const searched = searchCompanyOptions(options, 'acme')
+    const previous = new Set(['stale-company'])
+
+    const cleared = clearAllCompanies(options)
+    const selected = selectAllCompanies()
+
+    expect(searched.map((option) => option.key)).toEqual(['acme'])
+    expect([...cleared]).toEqual(['acme', 'pwc', 'walmart'])
+    expect(cleared).not.toBe(previous)
+    expect(selected).not.toBe(previous)
+    expect(selected.size).toBe(0)
+    expect([...previous]).toEqual(['stale-company'])
+    expect(options.map((option) => option.key)).toEqual(['acme', 'pwc', 'walmart'])
+  })
+
+  it('computes bulk disabled states from current option keys and tolerates stale keys', () => {
+    const options = dashboardCompanyOptions([
+      feedRow('Acme', 80),
+      feedRow('Walmart', 60),
+    ])
+
+    expect(areAllCurrentCompaniesCleared(options, new Set(['acme', 'walmart']))).toBe(true)
+    expect(areAllCurrentCompaniesCleared(options, new Set(['acme', 'stale-company']))).toBe(false)
+    expect(areAllCurrentCompaniesSelected(options, new Set(['stale-company']))).toBe(true)
+    expect(areAllCurrentCompaniesSelected(options, new Set(['acme', 'stale-company']))).toBe(false)
+    expect(areAllCurrentCompaniesCleared([], new Set(['stale-company']))).toBe(true)
+    expect(areAllCurrentCompaniesSelected([], new Set(['stale-company']))).toBe(true)
+  })
+
+  it('summarizes all, none, and partial score-tier selections exactly', () => {
+    expect(scoreTierSummary(new Set<Tier>(ALL_SCORE_TIERS))).toBe('Score tiers: All')
+    expect(scoreTierSummary(new Set<Tier>())).toBe('Score tiers: None')
+    expect(scoreTierSummary(new Set<Tier>(['Strong']))).toBe('Score tiers: 1 selected')
+    expect(scoreTierSummary(new Set<Tier>(['Strong', 'Weak']))).toBe(
+      'Score tiers: 2 selected',
+    )
   })
 
   it('shows a newly refreshed company by default because only hidden keys are stored', () => {
