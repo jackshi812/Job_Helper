@@ -956,10 +956,10 @@ async function dryRun() {
     && !scoreTick.includes('generateStructured')
     && !scoreTick.includes('reserve_score_request'),
   'dry-run: automatic job scoring is deterministic with no provider or paid reservation')
-  check(feed.includes('preferenceVisible')
+  check(feed.includes('deterministicVisible')
     && feed.includes('tierPresentation')
     && feed.includes('companyName'),
-  'dry-run: dashboard proof uses one preference-pass scope with tier-owned boundaries and truthful company identity')
+  'dry-run: dashboard proof uses one complete deterministic scope with stored-tier boundaries and truthful company identity')
   if (failures.length) throw new Error(`${failures.length} Paylocity dry-run check(s) failed: ${failures.join(', ')}`)
   console.log('COMPLETE mode=dry-run network_calls=0 database_calls=0 auth_calls=0 paid_calls=0')
 }

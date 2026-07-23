@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   companyName,
+  deterministicVisible,
   listFeed,
-  preferenceVisible,
   type FeedRow,
 } from '../src/lib/feed'
 
 const mocks = vi.hoisted(() => ({
+  eq: vi.fn(),
   from: vi.fn(),
   limit: vi.fn(),
-  or: vi.fn(),
+  not: vi.fn(),
   order: vi.fn(),
   select: vi.fn(),
 }))
@@ -26,17 +27,16 @@ function providerRow(
 ): FeedRow {
   return {
     id: `user-${id}`,
-    status: 'scored',
-    filter_reason: null,
-    filter_detail: null,
-    score,
-    tier: score >= 75 ? 'Strong' : 'Good',
-    reasons: ['source-agnostic match'],
-    routed_resume_id: null,
-    runner_up_resume_id: null,
-    scored_at: '2026-07-20T00:00:00.000Z',
-    needs_refilter: false,
-    score_deferred_until: null,
+    deterministic_revision: 4,
+    deterministic_eligible: true,
+    deterministic_score: score,
+    deterministic_tier: score >= 75 ? 'Strong' : 'Good',
+    deterministic_breakdown: [],
+    deterministic_filter_code: null,
+    deterministic_filter_detail: null,
+    deterministic_ranked_at: '2026-07-23T00:00:00.000Z',
+    deterministic_best_fit_resume_id: null,
+    deterministic_runner_up_resume_id: null,
     seen_at: null,
     dismissed_at: null,
     jobs: {
@@ -56,10 +56,18 @@ function providerRow(
 describe('truthful company feed gap', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.from.mockReturnValue({ select: mocks.select })
-    mocks.select.mockReturnValue({ or: mocks.or })
-    mocks.or.mockReturnValue({ order: mocks.order })
-    mocks.order.mockReturnValue({ limit: mocks.limit })
+    const chain = {
+      eq: mocks.eq,
+      limit: mocks.limit,
+      not: mocks.not,
+      order: mocks.order,
+      select: mocks.select,
+    }
+    mocks.from.mockReturnValue(chain)
+    mocks.select.mockReturnValue(chain)
+    mocks.eq.mockReturnValue(chain)
+    mocks.not.mockReturnValue(chain)
+    mocks.order.mockReturnValue(chain)
   })
 
   it('maps Adzuna Greenhouse and Ashby names without fabrication', async () => {
@@ -72,45 +80,47 @@ describe('truthful company feed gap', () => {
     mocks.limit.mockResolvedValue({ data: fixtures, error: null })
 
     const returned = await listFeed()
-    const ranked = [...returned].sort((left, right) => (right.score ?? -1) - (left.score ?? -1))
+    const ranked = [...returned].sort(
+      (left, right) =>
+        (right.deterministic_score ?? -1) - (left.deterministic_score ?? -1),
+    )
 
     expect(ranked.map((entry) => [entry.jobs?.title, companyName(entry)])).toEqual([
       ['Greenhouse Equity Research', 'Greenhouse Bank'],
       ['Ashby Equity Research', 'Ashby Partners'],
       ['Adzuna Equity Research', 'Source Capital'],
     ])
-    expect(ranked.every(preferenceVisible)).toBe(true)
+    expect(ranked.every(deterministicVisible)).toBe(true)
     expect(ranked.some((entry) => companyName(entry) === 'Unknown')).toBe(false)
     expect(mocks.select).toHaveBeenCalledWith(expect.stringContaining('source_company_name'))
   })
 
-  it('returns only current preference-pass candidates while Dashboard tiers own score visibility', async () => {
+  it('returns only complete eligible rows while stored tiers own visibility', async () => {
     const filtered = providerRow('Filtered mismatch', 0, { name: 'Filtered Co' }, null)
-    filtered.status = 'filtered'
-    filtered.score = null
-    filtered.tier = null
+    filtered.deterministic_eligible = false
+    filtered.deterministic_score = null
+    filtered.deterministic_tier = null
     const weak = providerRow('Preference pass weak score', 42, { name: 'Weak Co' }, null)
-    weak.tier = 'Weak'
+    weak.deterministic_tier = 'Weak'
     const pendingScore = providerRow('Preference pass awaiting score', 0, { name: 'Pending Co' }, null)
-    pendingScore.status = 'pending'
-    pendingScore.score = null
-    pendingScore.tier = null
-    pendingScore.needs_refilter = true
-    pendingScore.score_deferred_until = '2026-07-21T00:00:00.000Z'
+    pendingScore.deterministic_revision = null
+    pendingScore.deterministic_eligible = null
+    pendingScore.deterministic_score = null
+    pendingScore.deterministic_tier = null
     const strong = providerRow('Strong match', 84, { name: 'Strong Co' }, null)
 
     mocks.limit.mockResolvedValue({ data: [filtered, weak, pendingScore, strong], error: null })
 
     const returned = await listFeed()
 
-    expect(returned.filter(preferenceVisible).map((row) => row.id)).toEqual([
+    expect(returned.filter(deterministicVisible).map((row) => row.id)).toEqual([
       weak.id,
-      pendingScore.id,
       strong.id,
     ])
-    expect(mocks.or).toHaveBeenCalledWith(
-      'status.eq.scored,status.eq.failed,score_deferred_until.not.is.null',
-    )
+    expect(mocks.eq).toHaveBeenCalledWith('deterministic_eligible', true)
+    expect(mocks.not).toHaveBeenCalledWith('deterministic_revision', 'is', null)
+    expect(mocks.not).toHaveBeenCalledWith('deterministic_score', 'is', null)
+    expect(mocks.not).toHaveBeenCalledWith('deterministic_tier', 'is', null)
     expect(mocks.order).toHaveBeenCalledWith('jobs(posted_at)', {
       ascending: false,
       nullsFirst: false,
