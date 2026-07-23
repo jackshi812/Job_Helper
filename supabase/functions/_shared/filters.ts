@@ -8,7 +8,7 @@ export type FilterOutcome =
   | { pass: true; matchedIncludeKeywords: string[] }
   | {
       pass: false
-      reason: 'excluded_keyword' | 'wrong_location' | 'title_non_overlap' | 'experience_above_max'
+      reason: 'excluded_title_keyword' | 'excluded_keyword' | 'wrong_location' | 'title_non_overlap'
       detail: string
     }
 
@@ -23,105 +23,7 @@ export interface FilterPreferences {
   locations: string[]
   includeKeywords: string[]
   excludeKeywords: string[]
-  maxRequiredExperience?: number | null
-}
-
-const OPTIONAL_EXPERIENCE_SIGNAL = /\b(?:preferred|preferably|desired|bonus|optional|nice(?:[\s-]+)to(?:[\s-]+)have)\b|\b(?:is|would\s+be|considered)\s+(?:an?\s+)?plus\b/i
-const REQUIRED_EXPERIENCE_SIGNAL = /\b(?:requires?|required|requirement|minimum(?:\s+of)?|at\s+least|must\s+have|need(?:ed)?|basic\s+qualifications?|minimum\s+qualifications?)\b/i
-const EXPERIENCE_YEARS = /\b(\d{1,2})\s*(?:(?:-|to)\s*(\d{1,2})\s*)?(\+|plus)?\s*years?\b/gi
-const LEADING_EXPERIENCE_TERM = /^\s*(?:(?:of|['’])\s+)?(?:(?:professional|relevant|related|industry|work)\s+)?experience\b/i
-const LEADING_EXPERIENCE_DOMAIN = /^\s+in\s+(?!(?:total|duration|required|preferred|preferably|desired|optional|nice|bonus|a)\b)[a-z][a-z0-9&/+.-]*(?:\s+(?!(?:is|would|considered|required|preferred|preferably|desired|optional|nice|bonus|a)\b)[a-z][a-z0-9&/+.-]*){0,2}\b/i
-const LEADING_OPTIONAL_SIGNAL = /^\s*[(:,\-]*\s*(?:is\s+)?(?:preferred|preferably|desired|a\s+bonus|optional|nice(?:[\s-]+)to(?:[\s-]+)have|(?:an?\s+)?plus|would\s+be\s+(?:an?\s+)?plus|considered\s+(?:an?\s+)?plus)\b/i
-const LEADING_REQUIRED_SIGNAL = /^\s*[(:,\-]*\s*(?:is\s+)?(?:required|a\s+requirement|minimum|at\s+least|must\s+have|needed)\b/i
-const LEADING_REQUIREMENT_CONTEXT = /^\s*(?:(?:[-*]|\d+[.)])\s*)?(?:(?:requires?|required|requirement|minimum(?:\s+of)?|at\s+least|must\s+have|need(?:ed)?|basic\s+qualifications?|minimum\s+qualifications?)\b|(?:we|this\s+(?:role|position)|the\s+(?:role|position))\s+(?:requires?|needs?)\b)/i
-const APPLICANT_CONTEXT = /\b(?:candidates?|applicants?|you|your|qualifications?|requirements?)\b/i
-const LEADING_NEW_EXPERIENCE_CANDIDATE = /^\s*(?:qualifications?\s*)?[(:,\-]*\s*(?:(?:minimum(?:\s+of)?|at\s+least)\s+)?\d{1,2}\s*(?:(?:-|to)\s*\d{1,2}\s*)?(?:\+|plus)?\s*years?\b/i
-const EXPERIENCE_CONTEXT_RADIUS = 96
-const STANDALONE_QUALIFICATION_PREFIX = /^\s*(?:(?:[-*]|\d+[.)])\s*)?$/
-
-function experienceClauses(text: string): string[] {
-  return text
-    .split(/(?:[.!?;\n\r•●▪]+|\s+(?:and|or)\s+)/i)
-    .map((clause) => clause.trim())
-    .filter(Boolean)
-}
-
-function lastSignalIndex(text: string, signal: RegExp): number {
-  const matches = text.matchAll(new RegExp(signal.source, `${signal.flags.replace('g', '')}g`))
-  let lastIndex = -1
-  for (const match of matches) lastIndex = match.index
-  return lastIndex
-}
-
-function leadingSignalAppliesToCurrentCandidate(text: string, signal: RegExp): boolean {
-  const match = text.match(signal)
-  if (!match) return false
-  return !LEADING_NEW_EXPERIENCE_CANDIDATE.test(text.slice(match[0].length))
-}
-
-function parseMandatoryExperienceMinima(clause: string): number[] {
-  const minima: number[] = []
-
-  for (const match of clause.matchAll(EXPERIENCE_YEARS)) {
-    const lowerBound = Number(match[1])
-    if (!Number.isFinite(lowerBound) || match.index === undefined) continue
-
-    const prefix = clause.slice(
-      Math.max(0, match.index - EXPERIENCE_CONTEXT_RADIUS),
-      match.index,
-    )
-    const punctuationBoundary = Math.max(
-      prefix.lastIndexOf(','),
-      prefix.lastIndexOf('('),
-    )
-    const localPrefix = prefix.slice(punctuationBoundary + 1)
-    const suffix = clause.slice(
-      match.index + match[0].length,
-      match.index + match[0].length + EXPERIENCE_CONTEXT_RADIUS,
-    )
-    const requiredBefore = lastSignalIndex(prefix, REQUIRED_EXPERIENCE_SIGNAL)
-    const optionalBefore = lastSignalIndex(prefix, OPTIONAL_EXPERIENCE_SIGNAL)
-    const experienceTerm = suffix.match(LEADING_EXPERIENCE_TERM)
-    const experienceDomain = suffix.match(LEADING_EXPERIENCE_DOMAIN)
-    const candidateSuffix = experienceTerm ?? experienceDomain
-    const suffixAfterCandidate = candidateSuffix
-      ? suffix.slice(candidateSuffix[0].length)
-      : suffix
-    const requiredAfter = leadingSignalAppliesToCurrentCandidate(
-      suffixAfterCandidate,
-      LEADING_REQUIRED_SIGNAL,
-    )
-    const optionalAfter = leadingSignalAppliesToCurrentCandidate(
-      suffixAfterCandidate,
-      LEADING_OPTIONAL_SIGNAL,
-    )
-    const hasOptionalBefore = optionalBefore >= 0 && optionalBefore > requiredBefore
-    const hasRequiredBefore = !hasOptionalBefore && Boolean(
-      LEADING_REQUIREMENT_CONTEXT.test(localPrefix) ||
-      (APPLICANT_CONTEXT.test(prefix) && requiredBefore >= 0),
-    )
-    const isStandaloneCandidate = STANDALONE_QUALIFICATION_PREFIX.test(localPrefix)
-    const isStandalonePlusDomain = Boolean(
-      match[3] && experienceDomain && isStandaloneCandidate,
-    )
-    const isExperienceCandidate = Boolean(
-      hasRequiredBefore ||
-      (requiredAfter && (candidateSuffix || isStandaloneCandidate)) ||
-      (experienceTerm && isStandaloneCandidate) ||
-      isStandalonePlusDomain,
-    )
-    const isOptionalCandidate = optionalAfter || (hasOptionalBefore && !requiredAfter)
-
-    if (isExperienceCandidate && !isOptionalCandidate) minima.push(lowerBound)
-  }
-
-  return minima
-}
-
-export function experienceMinimumRequired(description: string): number | null {
-  const text = description.normalize('NFKC').replace(/[–—−]/g, '-').replace(/\u00a0/g, ' ')
-  const mandatoryMinima = experienceClauses(text).flatMap(parseMandatoryExperienceMinima)
-  return mandatoryMinima.length > 0 ? Math.max(...mandatoryMinima) : null
+  titleExcludeKeywords: string[]
 }
 
 // D-01 named pairs plus a few Claude-discretion extensions. Keys are canonical
@@ -178,6 +80,34 @@ function containsTokenSequence(haystack: string[], needle: string[]): boolean {
     if (match) return true
   }
   return false
+}
+
+const MAX_JOB_TITLE_LENGTH = 1_024
+const MAX_TITLE_EXCLUSION_LENGTH = 256
+const MAX_FILTER_DETAIL_LENGTH = 160
+
+function literalTitleTokens(value: string, maxLength: number): string[] {
+  const normalized = value
+    .slice(0, maxLength)
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/\bph(?:\.?\s*)d\b\.?/g, 'phd')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return normalized ? normalized.split(' ') : []
+}
+
+function excludedTitleKeyword(title: string, keywords: readonly string[]): string | null {
+  const titleTokens = literalTitleTokens(title, MAX_JOB_TITLE_LENGTH)
+  for (const keyword of keywords) {
+    if (keyword.length > MAX_TITLE_EXCLUSION_LENGTH) continue
+    const needle = literalTitleTokens(keyword, MAX_TITLE_EXCLUSION_LENGTH)
+    if (containsTokenSequence(titleTokens, needle)) {
+      return needle.join(' ').slice(0, MAX_FILTER_DETAIL_LENGTH)
+    }
+  }
+  return null
 }
 
 // Token-level bidirectional synonym index. Each token of a synonym key is linked
@@ -252,18 +182,16 @@ function expandedJobTitleConcepts(value: string): Set<string> {
 }
 
 export function cheapFilter(job: FilterJobInput, prefs: FilterPreferences): FilterOutcome {
+  const titleExclusion = excludedTitleKeyword(job.title, prefs.titleExcludeKeywords)
+  if (titleExclusion !== null) {
+    return { pass: false, reason: 'excluded_title_keyword', detail: titleExclusion }
+  }
+
   const titleTokens = tokenize(job.title)
   const locationTokens = tokenize(job.location ?? '')
   const descriptionTokens = tokenize(job.descriptionText)
 
-  if (prefs.maxRequiredExperience != null) {
-    const minimum = experienceMinimumRequired(job.descriptionText)
-    if (minimum !== null && minimum > prefs.maxRequiredExperience) {
-      return { pass: false, reason: 'experience_above_max', detail: String(minimum) }
-    }
-  }
-
-  // 1. Exclude keywords (hard discard, checked first) — literal, never synonym-expanded.
+  // 1. General exclude keywords — title plus description, literal, never synonym-expanded.
   const excludeHaystack = [...titleTokens, ...descriptionTokens]
   for (const keyword of prefs.excludeKeywords) {
     const needle = tokenize(keyword)

@@ -121,7 +121,10 @@ describe('preference refilter feed gap', () => {
       ).pass,
     ).toBe(true)
 
-    const updating = row('Vice President', { needs_refilter: true })
+    const updating = row('Vice President', {
+      needs_refilter: true,
+      score_deferred_until: '2026-07-23T00:00:00.000Z',
+    })
     expect(preferenceVisible(updating)).toBe(true)
     expect(scoreFreshnessLabel(updating)).toBe('Updating')
     const converged = row('Vice President', {
