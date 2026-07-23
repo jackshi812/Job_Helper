@@ -7,6 +7,7 @@ const scoringInputPath = `${root}/supabase/functions/_shared/scoring-input.ts`
 const migrationPath = `${root}/supabase/migrations/0025_scoring_freshness.sql`
 const budgetMigrationPath = `${root}/supabase/migrations/0027_score_budget_after_free_work.sql`
 const workerPath = `${root}/supabase/functions/score-tick/index.ts`
+const verifierPath = `${root}/scripts/verify-scoring.ts`
 const notificationMigrationPath = `${root}/supabase/migrations/0024_remove_notifications.sql`
 const dashboardFilterMigrationPath = `${root}/supabase/migrations/0031_dashboard_filter_refinements.sql`
 
@@ -27,7 +28,7 @@ function semanticInput() {
       locations: ['Chicago'],
       includeKeywords: ['Valuation'],
       excludeKeywords: ['Senior'],
-      maxRequiredExperience: null,
+      titleExcludeKeywords: ['president', 'PhD'],
     },
     job: {
       title: 'Equity Research Analyst',
@@ -43,7 +44,7 @@ function semanticInput() {
     },
     scoringModel: 'gpt-5.4-nano',
     promptRevision: 'score-v1',
-    filterRevision: 'filter-v2',
+    filterRevision: 'filter-v4',
   }
 }
 
@@ -133,6 +134,7 @@ describe('semantic scoring input freshness', () => {
       { ...base, preferences: { ...base.preferences, locations: ['New York'] } },
       { ...base, preferences: { ...base.preferences, includeKeywords: ['Python'] } },
       { ...base, preferences: { ...base.preferences, excludeKeywords: ['Director'] } },
+      { ...base, preferences: { ...base.preferences, titleExcludeKeywords: ['director'] } },
       { ...base, job: { ...base.job, title: 'Equity Research Associate' } },
       { ...base, job: { ...base.job, location: 'New York, NY' } },
       { ...base, job: { ...base.job, descriptionText: 'Cover regional banks.' } },
@@ -163,6 +165,7 @@ describe('semantic scoring input freshness', () => {
         locations: ['CHICAGO'],
         includeKeywords: ['valuation'],
         excludeKeywords: ['senior'],
+        titleExcludeKeywords: ['ＰｈＤ', 'PRESIDENT', 'phd'],
       },
       extraction: { ...base.extraction, keywords: ['excel', 'VALUATION'] },
     }
@@ -313,6 +316,30 @@ describe('migration 0031 dashboard filter refinement contract', () => {
 })
 
 describe('score-tick isolation and survivor ordering contract', () => {
+  it('projects filter-v4 title exclusions without active experience-cap source', () => {
+    const worker = read(workerPath)
+    const scoringInput = read(scoringInputPath)
+
+    expect(worker).toContain("const SCORING_FILTER_REVISION = 'filter-v4'")
+    expect(worker).toMatch(/title_exclude_keywords:\s*string\[\]\s*\|\s*null/)
+    expect(worker).toMatch(/titleExcludeKeywords:\s*row\?\.title_exclude_keywords\s*\?\?\s*\[\]/)
+    expect(worker).toContain('user_id, titles, locations, include_keywords, exclude_keywords, title_exclude_keywords')
+    expect(scoringInput).toMatch(/titleExcludeKeywords:\s*canonicalArray\(input\.preferences\.titleExcludeKeywords\)/)
+    expect(`${worker}\n${scoringInput}`).not.toMatch(
+      /max_required_experience|maxRequiredExperience|experience_above_max/,
+    )
+  })
+
+  it('keeps the hosted verifier compatible with new and legacy rows and exact preference restore', () => {
+    const verifier = read(verifierPath)
+    expect(verifier).toContain("'excluded_title_keyword'")
+    expect(verifier).toContain("'experience_above_max'")
+    expect(verifier).toMatch(/title_exclude_keywords:\s*string\[\]\s*\|\s*null/)
+    expect(verifier).toContain(".select('titles, locations, include_keywords, exclude_keywords, title_exclude_keywords')")
+    expect(verifier).toMatch(/title_exclude_keywords:\s*prefRow\?\.title_exclude_keywords\s*\?\?\s*null/)
+    expect(verifier).toMatch(/title_exclude_keywords:\s*\[NONSENSE_TITLE\]/)
+  })
+
   it('validates a strict verification UUID after method and cron auth before claim', () => {
     const worker = read(workerPath)
     const method = worker.indexOf("request.method !== 'POST'")
