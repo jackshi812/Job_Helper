@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   cheapFilter,
+  TITLE_EXCLUSION_DETAIL_MAX_CODE_POINTS,
+  TITLE_EXCLUSION_MAX_BYTES,
+  TITLE_EXCLUSION_MAX_ENTRIES,
   SYNONYMS,
   type FilterJobInput,
   type FilterPreferences,
@@ -70,6 +73,41 @@ describe('cheapFilter — title-only exclusions', () => {
         prefs({ titleExcludeKeywords: ['president'], excludeKeywords: ['python'] }),
       ),
     ).toEqual({ pass: false, reason: 'excluded_title_keyword', detail: 'president' })
+  })
+
+  it('accepts the exact entry and encoded-byte boundaries', () => {
+    expect(TITLE_EXCLUSION_MAX_ENTRIES).toBe(50)
+    expect(TITLE_EXCLUSION_MAX_BYTES).toBe(4_096)
+    expect(() =>
+      cheapFilter(job(), prefs({ titleExcludeKeywords: Array.from({ length: 50 }, (_, i) => `x${i}`) })),
+    ).not.toThrow()
+    expect(() =>
+      cheapFilter(job(), prefs({ titleExcludeKeywords: ['a'.repeat(4_092)] })),
+    ).not.toThrow()
+  })
+
+  it('rejects oversized and malformed arrays before matching with a content-free code', () => {
+    const invalidValues: unknown[] = [
+      Array.from({ length: 51 }, (_, i) => `entry-${i}`),
+      ['a'.repeat(4_093)],
+      ['president', null],
+    ]
+    for (const titleExcludeKeywords of invalidValues) {
+      expect(() =>
+        cheapFilter(job({ title: 'Vice President' }), {
+          ...prefs(),
+          titleExcludeKeywords,
+        } as FilterPreferences),
+      ).toThrowError(/^invalid_title_exclusions$/)
+    }
+  })
+
+  it('caps persisted title-exclusion detail at 160 Unicode code points', () => {
+    expect(TITLE_EXCLUSION_DETAIL_MAX_CODE_POINTS).toBe(160)
+    const keyword = 'a'.repeat(161)
+    const result = cheapFilter(job({ title: keyword }), prefs({ titleExcludeKeywords: [keyword] }))
+    expect(result).toMatchObject({ pass: false, reason: 'excluded_title_keyword' })
+    if (!result.pass) expect([...result.detail]).toHaveLength(160)
   })
 })
 

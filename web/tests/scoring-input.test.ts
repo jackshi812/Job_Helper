@@ -290,6 +290,8 @@ describe('migration 0031 dashboard filter refinement contract', () => {
     expect(sql).toMatch(/alter table public\.preferences\s+add column title_exclude_keywords text\[\] not null/i)
     expect(sql).toMatch(/default array\['president',\s*'PhD'\]::text\[\]/i)
     expect(sql).toMatch(/check \(cardinality\(title_exclude_keywords\) <= 50\)/i)
+    expect(sql).toMatch(/octet_length\(array_to_json\(title_exclude_keywords\)::text\) <= 4096/i)
+    expect(sql).toMatch(/array_position\(title_exclude_keywords,\s*null\) is null/i)
     expect(sql.match(/add column/gi)).toHaveLength(1)
     expect(sql).not.toMatch(/drop column\s+(?:if exists\s+)?max_required_experience/i)
   })
@@ -321,6 +323,7 @@ describe('score-tick isolation and survivor ordering contract', () => {
     const scoringInput = read(scoringInputPath)
 
     expect(worker).toContain("const SCORING_FILTER_REVISION = 'filter-v4'")
+    expect(worker).toContain("'invalid_title_exclusions'")
     expect(worker).toMatch(/title_exclude_keywords:\s*string\[\]\s*\|\s*null/)
     expect(worker).toMatch(/titleExcludeKeywords:\s*row\?\.title_exclude_keywords\s*\?\?\s*\[\]/)
     expect(worker).toContain('user_id, titles, locations, include_keywords, exclude_keywords, title_exclude_keywords')
@@ -328,6 +331,12 @@ describe('score-tick isolation and survivor ordering contract', () => {
     expect(`${worker}\n${scoringInput}`).not.toMatch(
       /max_required_experience|maxRequiredExperience|experience_above_max/,
     )
+    const filter = worker.indexOf('cheapFilter(filterInput, prefs)')
+    const route = worker.indexOf('routeResume(', filter)
+    const reserve = worker.indexOf("admin.rpc('reserve_score_request'", route)
+    expect(filter).toBeGreaterThanOrEqual(0)
+    expect(route).toBeGreaterThan(filter)
+    expect(reserve).toBeGreaterThan(route)
   })
 
   it('keeps the hosted verifier compatible with new and legacy rows and exact preference restore', () => {
