@@ -67,7 +67,7 @@ export async function scoringInputHash(input: ScoringInput): Promise<string> {
       locations: canonicalArray(input.preferences.locations),
       includeKeywords: canonicalArray(input.preferences.includeKeywords),
       excludeKeywords: canonicalArray(input.preferences.excludeKeywords),
-      maxRequiredExperience: input.preferences.maxRequiredExperience ?? null,
+      titleExcludeKeywords: canonicalArray(input.preferences.titleExcludeKeywords),
     },
     jobDigest,
     routedResumeId: canonicalText(input.routedResumeId),

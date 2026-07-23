@@ -33,7 +33,7 @@ const DEFAULT_DAILY_SCORE_CAP = 200
 const TEMPORARY_DAILY_SCORE_CAP_DATE = '2026-07-20'
 const TEMPORARY_DAILY_SCORE_CAP = 499
 const SCORING_PROMPT_REVISION = 'score-v1'
-const SCORING_FILTER_REVISION = 'filter-v3'
+const SCORING_FILTER_REVISION = 'filter-v4'
 const STRICT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 // Strict Structured Outputs schema. additionalProperties:false at every object
@@ -87,7 +87,7 @@ interface PreferencesRow {
   locations: string[] | null
   include_keywords: string[] | null
   exclude_keywords: string[] | null
-  max_required_experience: number | null
+  title_exclude_keywords: string[] | null
 }
 
 interface ExtractRow {
@@ -161,7 +161,7 @@ function preferencesToFilter(row: PreferencesRow | undefined): FilterPreferences
     locations: row?.locations ?? [],
     includeKeywords: row?.include_keywords ?? [],
     excludeKeywords: row?.exclude_keywords ?? [],
-    maxRequiredExperience: row?.max_required_experience ?? null,
+    titleExcludeKeywords: row?.title_exclude_keywords ?? [],
   }
 }
 
@@ -476,7 +476,7 @@ Deno.serve(async (request) => {
         admin.from('jobs').select('id, title, location, description_text').in('id', jobIds),
         admin
           .from('preferences')
-          .select('user_id, titles, locations, include_keywords, exclude_keywords, max_required_experience')
+          .select('user_id, titles, locations, include_keywords, exclude_keywords, title_exclude_keywords')
           .in('user_id', userIds),
         admin
           .from('resume_extracts')

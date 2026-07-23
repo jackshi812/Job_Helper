@@ -337,7 +337,7 @@ describe('score-tick isolation and survivor ordering contract', () => {
     expect(verifier).toMatch(/title_exclude_keywords:\s*string\[\]\s*\|\s*null/)
     expect(verifier).toContain(".select('titles, locations, include_keywords, exclude_keywords, title_exclude_keywords')")
     expect(verifier).toMatch(/title_exclude_keywords:\s*prefRow\?\.title_exclude_keywords\s*\?\?\s*null/)
-    expect(verifier).toMatch(/title_exclude_keywords:\s*\[NONSENSE_TITLE\]/)
+    expect(verifier).toMatch(/title_exclude_keywords:\s*\[newestJob\.title as string\]/)
   })
 
   it('validates a strict verification UUID after method and cron auth before claim', () => {

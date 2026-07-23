@@ -36,7 +36,13 @@ const required = [
 ] as const
 
 const D07_TIERS = new Set(['Strong', 'Good', 'Weak'])
-const VALID_FILTER_REASONS = new Set(['excluded_keyword', 'wrong_location', 'title_non_overlap', 'experience_above_max'])
+const VALID_FILTER_REASONS = new Set([
+  'excluded_title_keyword',
+  'excluded_keyword',
+  'wrong_location',
+  'title_non_overlap',
+  'experience_above_max',
+])
 const AI_USAGE_CONTENT_COLUMNS = ['text_content', 'content', 'prompt', 'response', 'text', 'body']
 
 const DRAIN_ATTEMPTS = 25
@@ -63,6 +69,7 @@ interface PreferencesSnapshot {
   locations: string[] | null
   include_keywords: string[] | null
   exclude_keywords: string[] | null
+  title_exclude_keywords: string[] | null
 }
 
 interface UserJobSnapshot {
@@ -424,13 +431,12 @@ async function verifyScoring(env: Environment, admin: ReturnType<typeof probeCli
 // ---------------------------------------------------------------------------
 // Probe 4: refilter economy — user-scoped flag flips, tick clears it.
 // ---------------------------------------------------------------------------
-// A title token no seeded job will contain, so cheapFilter's title-overlap gate
-// (filters.ts step 3) discards every one of User A's recent rows via the pure
-// FILTERED path — BEFORE any OpenAI call. That is what lets probe 4 prove the
+// The exact current job title is temporarily added to the title-only exclusion
+// list, so cheapFilter discards the target row via the pure FILTERED path before
+// any OpenAI call. That is what lets probe 4 prove the
 // refilter flag clears without requiring User A to have a ready resume (an empty
 // system has none): the flag only clears on a resolvable outcome, and `filtered`
 // is the cheapest resolvable outcome (zero AI spend).
-const NONSENSE_TITLE = 'zzqqxxnofitmarker'
 
 function pipelineState(row: UserJobSnapshot) {
   return {
@@ -496,7 +502,7 @@ async function verifyRefilter(env: Environment, admin: ReturnType<typeof probeCl
     // resolve via the cheap FILTERED path (no resume / no OpenAI call needed).
     const { data: prefRow, error: snapError } = await admin
       .from('preferences')
-      .select('titles, locations, include_keywords, exclude_keywords')
+      .select('titles, locations, include_keywords, exclude_keywords, title_exclude_keywords')
       .eq('user_id', uidA)
       .maybeSingle()
     if (snapError) throw snapError
@@ -506,6 +512,7 @@ async function verifyRefilter(env: Environment, admin: ReturnType<typeof probeCl
       locations: prefRow?.locations ?? null,
       include_keywords: prefRow?.include_keywords ?? null,
       exclude_keywords: prefRow?.exclude_keywords ?? null,
+      title_exclude_keywords: prefRow?.title_exclude_keywords ?? null,
     }
 
     const { data: snapshotRows, error: snapshotError } = await admin
@@ -523,7 +530,7 @@ async function verifyRefilter(env: Environment, admin: ReturnType<typeof probeCl
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1_000).toISOString()
     const { data: newestJob, error: newestError } = await admin
       .from('jobs')
-      .select('id')
+      .select('id, title')
       .eq('status', 'open')
       .gte('first_seen_at', sevenDaysAgo)
       .order('first_seen_at', { ascending: false })
@@ -547,10 +554,11 @@ async function verifyRefilter(env: Environment, admin: ReturnType<typeof probeCl
       .upsert(
         {
           user_id: uidA,
-          titles: [NONSENSE_TITLE],
+          titles: [],
           locations: [],
           include_keywords: [],
           exclude_keywords: [],
+          title_exclude_keywords: [newestJob.title as string],
         },
         { onConflict: 'user_id' },
     )
