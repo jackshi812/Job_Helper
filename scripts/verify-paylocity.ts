@@ -930,13 +930,22 @@ async function dryRun() {
     && PAYLOCITY_SOURCE_KEY.endsWith(PAYLOCITY_BOARD_UUID),
   'dry-run: exact Paylocity board and source identities are internally consistent')
 
-  const [migration, connectors, verifyBoard, scoreTick, feed] = await Promise.all([
+  const [
+    migration,
+    connectors,
+    verifyBoard,
+    scoreTickEntry,
+    deterministicWorker,
+    feed,
+  ] = await Promise.all([
     readFile(new URL('../supabase/migrations/0029_paylocity_connector.sql', import.meta.url), 'utf8'),
     readFile(new URL('../supabase/functions/_shared/connectors.ts', import.meta.url), 'utf8'),
     readFile(new URL('../supabase/functions/verify-board/index.ts', import.meta.url), 'utf8'),
     readFile(new URL('../supabase/functions/score-tick/index.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../supabase/functions/_shared/deterministic-worker.ts', import.meta.url), 'utf8'),
     readFile(new URL('../web/src/lib/feed.ts', import.meta.url), 'utf8'),
   ])
+  const scoreTick = `${scoreTickEntry}\n${deterministicWorker}`
   check(migration.includes(PAYLOCITY_SOURCE_KEY)
     && migration.includes("ats_type = 'workday'")
     && migration.includes("source_key = 'workday:wd12:capitalone:Capital_One'")

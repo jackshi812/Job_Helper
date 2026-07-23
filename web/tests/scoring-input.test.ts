@@ -7,12 +7,18 @@ const scoringInputPath = `${root}/supabase/functions/_shared/scoring-input.ts`
 const migrationPath = `${root}/supabase/migrations/0025_scoring_freshness.sql`
 const budgetMigrationPath = `${root}/supabase/migrations/0027_score_budget_after_free_work.sql`
 const workerPath = `${root}/supabase/functions/score-tick/index.ts`
+const deterministicWorkerPath =
+  `${root}/supabase/functions/_shared/deterministic-worker.ts`
 const verifierPath = `${root}/scripts/verify-scoring.ts`
 const notificationMigrationPath = `${root}/supabase/migrations/0024_remove_notifications.sql`
 const dashboardFilterMigrationPath = `${root}/supabase/migrations/0031_dashboard_filter_refinements.sql`
 
 function read(path: string) {
   return readFileSync(path, 'utf8')
+}
+
+function readWorkerBundle() {
+  return `${read(workerPath)}\n${read(deterministicWorkerPath)}`
 }
 
 async function loadScoringInput() {
@@ -318,7 +324,7 @@ describe('migration 0031 dashboard filter refinement contract', () => {
 
 describe('score-tick deterministic worker and preserved migration evidence contract', () => {
   it('leaves historical input hashing intact while using only the deterministic evaluator', () => {
-    const worker = read(workerPath)
+    const worker = readWorkerBundle()
     const scoringInput = read(scoringInputPath)
 
     expect(scoringInput).toMatch(/titleExcludeKeywords:\s*canonicalArray\(input\.preferences\.titleExcludeKeywords\)/)
@@ -352,7 +358,7 @@ describe('score-tick deterministic worker and preserved migration evidence contr
   })
 
   it('has no provider, legacy hashing, or source-specific bypass', () => {
-    const worker = read(workerPath)
+    const worker = readWorkerBundle()
     expect(worker).not.toMatch(/job\.(source|provider)|claimed\.(source|provider)|source\s*===|provider\s*===/i)
     expect(worker).not.toMatch(/cheapFilter|scoringInputHash|generateStructured/)
     expect(worker).not.toMatch(
@@ -361,7 +367,7 @@ describe('score-tick deterministic worker and preserved migration evidence contr
   })
 
   it('claims only deterministic work and never reserves or accounts paid scoring', () => {
-    const worker = read(workerPath)
+    const worker = readWorkerBundle()
     expect(worker).not.toMatch(/claim_scoring_work|reserve_score_request|purpose\s*:\s*['"]score['"]/)
     expect(worker).toContain("'claim_deterministic_ranking_work'")
     expect(worker).toContain("'stage_deterministic_ranking_result'")
@@ -389,7 +395,7 @@ describe('score-tick deterministic worker and preserved migration evidence contr
   })
 
   it('does not read any paid-score cap configuration', () => {
-    const worker = read(workerPath)
+    const worker = readWorkerBundle()
     expect(worker).not.toMatch(
       /TEMPORARY_DAILY_SCORE_CAP|AI_DAILY_SCORE_CAP|effectiveDailyScoreCap|PRO_RESCORE_ENABLED/,
     )
