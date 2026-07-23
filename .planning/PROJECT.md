@@ -17,7 +17,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 - ✓ Shared watchlist management for Greenhouse, Lever, and Ashby career URLs, including add/remove/re-add flows and visible source-health badges — Phase 2 (production UAT 2/2)
 - ✓ Scheduled direct-ATS ingestion plus quota-capped Adzuna discovery, exact-once deduplication, immutable first-sight snapshots, safe close/reopen behavior, and public heartbeat health — Phase 2 (15/15 verification truths passed)
 - ✓ Per-user job preferences for target titles, locations, and include/exclude keywords — Phase 3 (8/8 UAT; own-row RLS)
-- ✓ Cheap preference filters followed by resume-grounded AI scoring with plain-language reasons — Phase 3 (17/17 verification truths; paid final-release proof)
+- ✓ Transparent deterministic ranking after owner-controlled title, location, and keyword filters, with stored score evidence and no automatic/background paid AI scoring — Phase 03.4 (13/13 verification truths; 6/6 production UAT; paid score ledger unchanged)
 - ✓ Unified dashboard and job detail: one current preference-pass scope stays inspectable, explicit Strong/Good/Weak selection owns score boundaries, and job descriptions/apply links render safely — Phase 3 and Phase 03.2
 
 ### Active
@@ -66,7 +66,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 | Major-employers-first source expansion | Representative adapters prove coverage without pretending that arbitrary-site scraping is universally reliable; custom finance sources are allowlisted and monitored | — Pending (Phase 02.1) |
 | Phase 2 security register accepted without implementation audit | The owner chose bulk acceptance during the verification gate; this records acceptance, not evidence that mitigations were tested | ⚠ Accepted risk — a later security audit may reopen threats |
 | DOCX as base resume format | Preserves user's own formatting; app edits text and converts to PDF | ✓ Good — Phase 3 private upload/extraction works; Phase 4 will preserve formatting during tailoring |
-| Cheap filters before AI scoring | Keeps AI cost near zero; AI only scores plausible candidates | ✓ Good — Phase 3 filters before routing/AI, atomically caps paid calls, and passed final proof |
+| Deterministic ranking replaces automatic AI scoring | Ranking must be transparent, reproducible, retryable, and free of background paid-score work while preserving the feed workflow | ✓ Good — Phase 03.4 passed 13/13 verification truths, 966/966 tests, and exact-release production UAT |
 | Feed-only match delivery | Owner does not want notifications; scored matches remain in the dashboard | ✓ Chosen — notifications removed 2026-07-19 |
 | Dashboard feed scope and score tiers | Every confirmed preference pass should remain inspectable without a redundant mode; explicit tiers should own score boundaries | ✓ Phase 03.2 — one current preference-pass scope with Strong, Good, and Weak selected by default |
 | Disposable-account production verification | Proof must not overwrite real-user preferences/resume/reroute state | ✓ Phase 3 — verifier account exists only inside the paused/drained interval and is deleted before cron restoration |
@@ -92,4 +92,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-22 during Phase 03.2 gap closure*
+*Last updated: 2026-07-23 after Phase 03.4 completion*
