@@ -167,6 +167,13 @@ export function chipComparisonKey(value: string): string {
   return value.normalize('NFKC').trim().toLowerCase()
 }
 
+function hasControlCharacter(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0)!
+    return codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f)
+  })
+}
+
 // Split a raw text input into normalized chips: comma-separated, trimmed,
 // de-duplicated, empties dropped. Pure so it is unit-tested directly.
 export function parseChips(raw: string): string[] {
@@ -211,7 +218,7 @@ export function validatePreferenceTextArray(
     if (Array.from(entry).length > MAX_PREFERENCE_TEXT_ENTRY_CHARACTERS) {
       return result(`${definition.label} entries must be 200 characters or less.`)
     }
-    if (/[\u0000-\u001f\u007f-\u009f]/u.test(entry)) {
+    if (hasControlCharacter(entry)) {
       return result(`${definition.label} entries cannot contain control characters.`)
     }
   }
