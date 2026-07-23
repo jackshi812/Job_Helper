@@ -8,6 +8,7 @@ const migrationPath = `${root}/supabase/migrations/0025_scoring_freshness.sql`
 const budgetMigrationPath = `${root}/supabase/migrations/0027_score_budget_after_free_work.sql`
 const workerPath = `${root}/supabase/functions/score-tick/index.ts`
 const notificationMigrationPath = `${root}/supabase/migrations/0024_remove_notifications.sql`
+const dashboardFilterMigrationPath = `${root}/supabase/migrations/0031_dashboard_filter_refinements.sql`
 
 function read(path: string) {
   return readFileSync(path, 'utf8')
@@ -274,6 +275,40 @@ describe('migration 0025 scoring freshness contract', () => {
     expect(sql).toMatch(/revoke update \(scoring_input_hash, desired_input_revision, claimed_input_revision\)/i)
     expect(sql).not.toMatch(/notification|push_subscription|notify_tick/i)
     expect(notificationSql).toMatch(/drop table if exists public\.notifications/i)
+  })
+})
+
+describe('migration 0031 dashboard filter refinement contract', () => {
+  it('adds the seeded bounded title exclusion preference without removing legacy compatibility', () => {
+    expect(existsSync(dashboardFilterMigrationPath), 'migration 0031 must exist').toBe(true)
+    if (!existsSync(dashboardFilterMigrationPath)) return
+
+    const sql = read(dashboardFilterMigrationPath)
+    expect(sql).toMatch(/alter table public\.preferences\s+add column title_exclude_keywords text\[\] not null/i)
+    expect(sql).toMatch(/default array\['president',\s*'PhD'\]::text\[\]/i)
+    expect(sql).toMatch(/check \(cardinality\(title_exclude_keywords\) <= 50\)/i)
+    expect(sql.match(/add column/gi)).toHaveLength(1)
+    expect(sql).not.toMatch(/drop column\s+(?:if exists\s+)?max_required_experience/i)
+  })
+
+  it('admits the new bounded reason while retaining the rolling legacy reason', () => {
+    expect(existsSync(dashboardFilterMigrationPath), 'migration 0031 must exist').toBe(true)
+    if (!existsSync(dashboardFilterMigrationPath)) return
+
+    const sql = read(dashboardFilterMigrationPath)
+    expect(sql).toMatch(/drop constraint if exists user_jobs_filter_reason_check/i)
+    expect(sql).toMatch(/add constraint user_jobs_filter_reason_check/i)
+    for (const reason of [
+      'excluded_title_keyword',
+      'excluded_keyword',
+      'wrong_location',
+      'title_non_overlap',
+      'experience_above_max',
+    ]) {
+      expect(sql).toContain(`'${reason}'`)
+    }
+    expect(sql).not.toMatch(/\b(?:create|alter|drop)\s+policy\b|\bgrant\b|\bcron\b|\bprovider\b/i)
+    expect(sql).not.toMatch(/\bupdate\s+public\.preferences\b/i)
   })
 })
 
