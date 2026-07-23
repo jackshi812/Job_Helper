@@ -5,8 +5,8 @@ milestone_name: milestone
 current_phase: 03.4
 current_phase_name: replace-automatic-ai-scoring-with-deterministic-ranking
 status: executing
-stopped_at: Phase 03.4 context gathered
-last_updated: "2026-07-23T04:02:09.556Z"
+stopped_at: Phase 03.4 UI-SPEC approved
+last_updated: "2026-07-23T04:22:20.324Z"
 last_activity: 2026-07-22
 last_activity_desc: Phase 03.4 inserted; awaiting owner ranking rules
 progress:
@@ -227,7 +227,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-23T04:02:09.543Z
-Stopped at: Phase 03.4 context gathered
-Resume file: .planning/phases/03.4-replace-automatic-ai-scoring-with-deterministic-ranking/03.4-CONTEXT.md
+Last session: 2026-07-23T04:22:20.313Z
+Stopped at: Phase 03.4 UI-SPEC approved
+Resume file: .planning/phases/03.4-replace-automatic-ai-scoring-with-deterministic-ranking/03.4-UI-SPEC.md
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

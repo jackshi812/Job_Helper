@@ -294,9 +294,9 @@ Plans:
 ### Phase 03.4: Replace Automatic AI Scoring with Deterministic Ranking (INSERTED)
 
 **Goal:** Remove automatic/background AI job scoring and replace it with transparent deterministic ranking while preserving ingestion, preferences, company controls, dashboard structure, job detail, apply links, dismissal, and every unrelated feature.
-**Requirements**: TBD — remap the existing scoring requirements during discussion
+**Requirements**: PREF-01, SCOR-01, SCOR-02, SCOR-03, SCOR-04, SCOR-05
 **Depends on:** Phase 03.3
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 **Success Criteria** (what must be TRUE):
 
@@ -315,8 +315,21 @@ Plans:
 **Open decision:** The owner will provide the deterministic-ranking rules before Phase 03.4 planning.
 
 Plans:
+**Wave 1**
 
-- [ ] TBD (run `$gsd-discuss-phase 03.4` after the ranking rules are supplied)
+- [ ] 03.4-01-PLAN.md — Contain automatic paid scoring first and implement the pure deterministic evaluator
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03.4-02-PLAN.md — Add/push atomic ranking schema and build the deterministic worker
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03.4-03-PLAN.md — Cut Preferences, Dashboard, feed, and detail to deterministic contracts
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 03.4-04-PLAN.md — Backfill completely, release exact worker/web artifacts, and finish UAT
 
 ### Phase 4: Resume Tailoring & Tracker
 
