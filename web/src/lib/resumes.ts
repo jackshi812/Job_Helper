@@ -84,13 +84,8 @@ export async function uploadResume(file: File, displayName?: string): Promise<Re
     throw insertError
   }
 
-  // Resume changes affect only the free local Best-fit projection. They never
-  // invalidate deterministic scores or reserve paid score capacity.
-  const { error: rpcError } = await supabase.rpc(
-    'request_deterministic_route_refresh',
-  )
-  if (rpcError) throw rpcError
-
+  // The metadata insert is the durable user-visible result. Database-owned
+  // transactional signaling schedules the free Best-fit route refresh.
   return data as ResumeRecord
 }
 
@@ -121,9 +116,6 @@ export async function deleteResume({ id, storagePath }: DeleteResumeInput): Prom
   const { error: rowError } = await supabase.from('resumes').delete().eq('id', id)
   if (rowError) throw rowError
 
-  // Deletion refreshes only free local Best-fit routing.
-  const { error: rpcError } = await supabase.rpc(
-    'request_deterministic_route_refresh',
-  )
-  if (rpcError) throw rpcError
+  // The metadata delete is the durable user-visible result. Database-owned
+  // transactional signaling schedules the free Best-fit route refresh.
 }
