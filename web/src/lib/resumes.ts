@@ -84,11 +84,11 @@ export async function uploadResume(file: File, displayName?: string): Promise<Re
     throw insertError
   }
 
-  // The resume set changed → routing may change → flag recent jobs for refilter
-  // so score-tick recomputes and rescores only real changes (D-04/D-10). The
-  // service-side extract-resume worker also reroutes once extraction lands (F2);
-  // this browser-side flag is the immediate signal.
-  const { error: rpcError } = await supabase.rpc('mark_recent_jobs_for_refilter')
+  // Resume changes affect only the free local Best-fit projection. They never
+  // invalidate deterministic scores or reserve paid score capacity.
+  const { error: rpcError } = await supabase.rpc(
+    'request_deterministic_route_refresh',
+  )
   if (rpcError) throw rpcError
 
   return data as ResumeRecord
@@ -121,8 +121,9 @@ export async function deleteResume({ id, storagePath }: DeleteResumeInput): Prom
   const { error: rowError } = await supabase.from('resumes').delete().eq('id', id)
   if (rowError) throw rowError
 
-  // The resume set changed → flag recent jobs for refilter so routing/scoring
-  // recomputes (D-04/D-10). Same RPC as upload/preferences.
-  const { error: rpcError } = await supabase.rpc('mark_recent_jobs_for_refilter')
+  // Deletion refreshes only free local Best-fit routing.
+  const { error: rpcError } = await supabase.rpc(
+    'request_deterministic_route_refresh',
+  )
   if (rpcError) throw rpcError
 }

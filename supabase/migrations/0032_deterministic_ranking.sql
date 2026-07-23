@@ -1372,6 +1372,9 @@ begin
         retry_available = false,
         updated_at = clock_timestamp()
     where state.user_id = source_run.user_id;
+    if added = 0 then
+      perform public.finalize_deterministic_ranking_run(new_run_id);
+    end if;
   end loop;
   return query select initialized, seeded;
 end;
@@ -1470,6 +1473,9 @@ begin
         building_run_id = new_run_id,
         updated_at = clock_timestamp()
     where state.user_id = source_run.user_id;
+    if added = 0 then
+      perform public.finalize_deterministic_ranking_run(new_run_id);
+    end if;
   end loop;
   return query select initialized, seeded;
 end;
@@ -1557,6 +1563,9 @@ begin
         route_refresh_requested_at = null,
         updated_at = clock_timestamp()
     where state.user_id = source_run.user_id;
+    if added = 0 then
+      perform public.finalize_deterministic_ranking_run(new_run_id);
+    end if;
   end loop;
   return query select initialized, seeded;
 end;

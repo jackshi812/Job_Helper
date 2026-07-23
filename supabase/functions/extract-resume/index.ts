@@ -132,13 +132,14 @@ async function processRow(
   })
   if (usageError) console.error('extract-resume usage write failed', 'ai_usage_write_failed')
 
-  // F2: a newly extracted resume must re-enter D-06 routing. The reroute RPC
-  // lives in Plan 03's migration 0019 (deployed together in Plan 07); tolerate
-  // its absence during isolated wave-1 local runs.
+  // Resume extraction remains the allowed AI boundary. Its only downstream
+  // signal requests a free local Best-fit refresh; it cannot invalidate or
+  // reserve deterministic score work.
   try {
-    const { error: rerouteError } = await admin.rpc('mark_user_jobs_for_reroute', {
-      p_user_id: row.user_id,
-    })
+    const { error: rerouteError } = await admin.rpc(
+      'request_deterministic_route_refresh_for_user',
+      { p_user_id: row.user_id },
+    )
     if (rerouteError) throw rerouteError
   } catch {
     console.error('extract-resume reroute signal failed', 'reroute_signal_failed')

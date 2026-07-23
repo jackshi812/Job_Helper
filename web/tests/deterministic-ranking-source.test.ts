@@ -65,6 +65,10 @@ describe('score-tick deterministic worker source contract', () => {
 
   it('evaluates only captured run inputs and routes resumes separately', () => {
     const worker = read(scoreTickPath)
+    const evaluationCall = worker.slice(
+      worker.indexOf('evaluateDeterministicRanking({'),
+      worker.indexOf('const routing = routeResume('),
+    )
 
     expect(worker).toContain('evaluateDeterministicRanking({')
     expect(worker).toContain('evaluationTime: row.evaluation_time')
@@ -72,8 +76,8 @@ describe('score-tick deterministic worker source contract', () => {
     expect(worker).toContain('good: row.captured_good_threshold')
     expect(worker).toContain('strong: row.captured_strong_threshold')
     expect(worker).toContain('routeResume(')
-    expect(worker).not.toMatch(
-      /evaluateDeterministicRanking\([\s\S]*?(?:resume|text_content|keywords)/,
+    expect(evaluationCall).not.toMatch(
+      /routeResume|extractsByUser|resumeId|text_content/,
     )
   })
 

@@ -316,15 +316,17 @@ describe('migration 0031 dashboard filter refinement contract', () => {
   })
 })
 
-describe('score-tick containment and preserved migration evidence contract', () => {
-  it('contains the legacy filter and scoring pipeline without altering historical input hashing', () => {
+describe('score-tick deterministic worker and preserved migration evidence contract', () => {
+  it('leaves historical input hashing intact while using only the deterministic evaluator', () => {
     const worker = read(workerPath)
     const scoringInput = read(scoringInputPath)
 
     expect(scoringInput).toMatch(/titleExcludeKeywords:\s*canonicalArray\(input\.preferences\.titleExcludeKeywords\)/)
     expect(worker).not.toMatch(
-      /cheapFilter|routeResume|scoringInputHash|SCORING_FILTER_REVISION|max_required_experience|maxRequiredExperience|experience_above_max/,
+      /scoringInputHash|SCORING_FILTER_REVISION|experience_above_max/,
     )
+    expect(worker).toContain('evaluateDeterministicRanking({')
+    expect(worker).toContain('routeResume(')
   })
 
   it('keeps the hosted verifier compatible with new and legacy rows and exact preference restore', () => {
@@ -337,30 +339,35 @@ describe('score-tick containment and preserved migration evidence contract', () 
     expect(verifier).toMatch(/title_exclude_keywords:\s*\[newestJob\.title as string\]/)
   })
 
-  it('preserves method and cron auth before returning containment', () => {
+  it('preserves method and cron auth before creating the service client', () => {
     const worker = read(workerPath)
     const method = worker.indexOf("request.method !== 'POST'")
     const auth = worker.indexOf("request.headers.get('x-cron-secret')")
-    const contained = worker.indexOf("status: 'contained'")
+    const client = worker.indexOf("requiredEnvironment('SUPABASE_SERVICE_ROLE_KEY')")
     expect(method).toBeGreaterThanOrEqual(0)
     expect(auth).toBeGreaterThan(method)
-    expect(contained).toBeGreaterThan(auth)
+    expect(client).toBeGreaterThan(auth)
     expect(worker).not.toContain('x-scoring-verification-run-id')
     expect(worker).not.toContain('claim_scoring_work')
   })
 
-  it('has no provider, routing, hashing, or source-specific bypass', () => {
+  it('has no provider, legacy hashing, or source-specific bypass', () => {
     const worker = read(workerPath)
     expect(worker).not.toMatch(/job\.(source|provider)|claimed\.(source|provider)|source\s*===|provider\s*===/i)
-    expect(worker).not.toMatch(/cheapFilter|routeResume|scoringInputHash|generateStructured/)
-    expect(worker).not.toMatch(/OPENAI|provider|apiKey/i)
+    expect(worker).not.toMatch(/cheapFilter|scoringInputHash|generateStructured/)
+    expect(worker).not.toMatch(
+      /OPENAI_API_KEY|OPENAI_SCORING_MODEL|generateStructured|apiKey\s*:/,
+    )
   })
 
-  it('does not claim, reserve, account, or mutate work', () => {
+  it('claims only deterministic work and never reserves or accounts paid scoring', () => {
     const worker = read(workerPath)
     expect(worker).not.toMatch(/claim_scoring_work|reserve_score_request|purpose\s*:\s*['"]score['"]/)
-    expect(worker).not.toMatch(/\.rpc\(|\.from\(|\.update\(|\.insert\(|\.upsert\(/)
-    expect(worker).toContain('mutations: 0')
+    expect(worker).toContain("'claim_deterministic_ranking_work'")
+    expect(worker).toContain("'stage_deterministic_ranking_result'")
+    expect(worker).toContain("'finalize_deterministic_ranking_run'")
+    expect(worker).not.toMatch(/\.update\(|\.insert\(|\.upsert\(/)
+    expect(worker).toContain('automatic_ai_scoring: false')
   })
 
   it('serializes exact-cap reservations and defers only paid rows until UTC rollover', () => {

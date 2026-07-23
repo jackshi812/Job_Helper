@@ -949,12 +949,13 @@ async function dryRun() {
   check(verifyBoard.includes("auth.getUser(token)")
     && verifyBoard.includes("record_connector_observation"),
   'dry-run: activation uses real-user verification and server evidence')
-  check(scoreTick.includes("status: 'contained'")
-    && scoreTick.includes('automatic_job_scoring: false')
-    && scoreTick.includes('mutations: 0')
+  check(scoreTick.includes("'claim_deterministic_ranking_work'")
+    && scoreTick.includes("'stage_deterministic_ranking_result'")
+    && scoreTick.includes("'finalize_deterministic_ranking_run'")
+    && scoreTick.includes('automatic_ai_scoring: false')
     && !scoreTick.includes('generateStructured')
     && !scoreTick.includes('reserve_score_request'),
-  'dry-run: automatic job scoring is contained with no provider or paid reservation')
+  'dry-run: automatic job scoring is deterministic with no provider or paid reservation')
   check(feed.includes('preferenceVisible')
     && feed.includes('tierPresentation')
     && feed.includes('companyName'),
