@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 4
-current_phase_name: Resume Tailoring & Tracker
+current_phase: 03.3
+current_phase_name: Dashboard Filter Refinements
 status: ready_for_planning
-stopped_at: Phase 03.2 complete; Phase 4 not started
-last_updated: "2026-07-22T23:55:03.171Z"
+stopped_at: Phase 03.3 context gathered
+last_updated: "2026-07-23T00:28:29.351Z"
 last_activity: 2026-07-22
-last_activity_desc: Phase 03.2 complete, transitioned to Phase 4
+last_activity_desc: Phase 03.3 inserted for three Dashboard filter refinements; not planned
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 6
   total_plans: 43
   completed_plans: 43
-  percent: 86
+  percent: 75
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 4 — Resume Tailoring & Tracker
+**Current focus:** Phase 03.3 — Dashboard Filter Refinements
 
 ## Current Position
 
-Phase: 4 — Resume Tailoring & Tracker
+Phase: 03.3 — Dashboard Filter Refinements
 Plan: Not started
 Status: Ready for discussion and planning
-Last activity: 2026-07-22 — Phase 03.2 complete, transitioned to Phase 4
+Last activity: 2026-07-22 — Phase 03.3 inserted for three Dashboard filter refinements; not planned
 
-Progress: [████████████████████] 43/43 currently planned plans complete; milestone 6/7 phases complete (86%)
+Progress: [███████████████░░░░░] 43/43 currently planned plans complete; milestone 6/8 phases complete (75%)
 
 ## Performance Metrics
 
@@ -212,10 +212,11 @@ Recent decisions affecting current work:
 - Phase 02.1 inserted after Phase 2: Expand representative ATS and branded finance career-site coverage with safe degraded-source behavior (URGENT)
 - Phase 03.1 inserted after Phase 3 and rescoped on 2026-07-20: SuccessFactors & Paylocity Connector Expansion; new Workday expansion deferred (URGENT)
 - Phase 03.2 inserted after Phase 3: Dashboard Precision & Company Visibility (URGENT)
+- Phase 03.3 inserted after Phase 3: Dashboard Filter Refinements (URGENT)
 
 ## Session Continuity
 
-Last session: 2026-07-22T23:55:03.159Z
-Stopped at: Phase 03.2 complete; Phase 4 not started
-Resume file: None
+Last session: 2026-07-23T00:28:29.336Z
+Stopped at: Phase 03.3 context gathered
+Resume file: .planning/phases/03.3-dashboard-filter-refinements/03.3-CONTEXT.md
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

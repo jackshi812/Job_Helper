@@ -266,11 +266,28 @@ Plans:
 
 - [x] 03.2-04-PLAN.md — Remove the redundant All jobs mode, preserve tier-owned complete preference-pass visibility, and run exact-release UAT
 
+### Phase 03.3: Dashboard Filter Refinements (INSERTED)
+
+**Goal:** Simplify Dashboard filtering by replacing the required-experience cap with persisted job-title exclusions, adding staged company bulk-selection actions, and consolidating score tiers into one accessible multi-select dropdown.
+**Requirements**: PREF-01, SCOR-01, SCOR-03, SCOR-04
+**Depends on:** Phase 03.2
+**Plans:** 0 plans
+
+**Success Criteria** (what must be TRUE):
+
+  1. Preferences no longer exposes required experience; users instead manage persisted, case-insensitive job-title exclusion keywords initially seeded with `president` and `PhD`, using safe word/phrase boundaries and the existing refilter lifecycle.
+  2. The company panel replaces Reset with `Clear all` and `Select all`; both update only the staged draft until Show results, retain truthful session-only company behavior, and expose correct disabled and empty-result states.
+  3. Strong, Good, and Weak move into one accessible multi-select dropdown while preserving all-selected defaults, zero-to-three selection states, tier/company AND semantics, counts, keyboard access, and session-only state.
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 03.3 to break down)
+
 ### Phase 4: Resume Tailoring & Tracker
 
 **Goal**: User can turn any match into a truthfully tailored, formatting-faithful PDF resume after mandatory review, and track every application from saved through offer
 **Mode:** mvp
-**Depends on**: Phase 3
+**Depends on**: Phase 03.3
 **Requirements**: RESU-02, RESU-03, RESU-04, RESU-05, TRAK-01, TRAK-02, TRAK-03, TRAK-04
 **Success Criteria** (what must be TRUE):
 
@@ -286,7 +303,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
+Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03.3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -294,6 +311,9 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 4
 | 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
 | 02.1 Source Coverage Expansion | 13/13 | Gaps found (deferred) |  |
 | 3. Scoring & Feed | 11/11 | Complete    | 2026-07-20 |
+| 03.1 SuccessFactors & Paylocity Connector Expansion | 5/5 | Complete | 2026-07-22 |
+| 03.2 Dashboard Precision & Company Visibility | 4/4 | Complete | 2026-07-22 |
+| 03.3 Dashboard Filter Refinements | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
