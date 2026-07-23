@@ -296,7 +296,7 @@ Plans:
 **Goal:** Remove automatic/background AI job scoring and replace it with transparent deterministic ranking while preserving ingestion, preferences, company controls, dashboard structure, job detail, apply links, dismissal, and every unrelated feature.
 **Requirements**: PREF-01, SCOR-01, SCOR-02, SCOR-03, SCOR-04, SCOR-05
 **Depends on:** Phase 03.3
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 **Success Criteria** (what must be TRUE):
 
@@ -317,7 +317,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 03.4-01-PLAN.md — Contain automatic paid scoring first and implement the pure deterministic evaluator
+- [x] 03.4-01-PLAN.md — Contain automatic paid scoring first and implement the pure deterministic evaluator
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -362,7 +362,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.1 SuccessFactors & Paylocity Connector Expansion | 5/5 | Complete | 2026-07-22 |
 | 03.2 Dashboard Precision & Company Visibility | 4/4 | Complete | 2026-07-22 |
 | 03.3 Dashboard Filter Refinements | 3/4 | In Progress|  |
-| 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 0/TBD | Not started | - |
+| 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 1/4 | In Progress|  |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage

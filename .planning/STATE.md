@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03.4
 current_phase_name: replace-automatic-ai-scoring-with-deterministic-ranking
 status: executing
-stopped_at: Phase 03.4 UI-SPEC approved
-last_updated: "2026-07-23T04:22:20.324Z"
-last_activity: 2026-07-22
-last_activity_desc: Phase 03.4 inserted; awaiting owner ranking rules
+stopped_at: Completed 03.4-01-PLAN.md
+last_updated: "2026-07-23T05:20:58.231Z"
+last_activity: 2026-07-23
+last_activity_desc: Completed Phase 03.4 Plan 01 containment and evaluator
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 47
-  completed_plans: 46
-  percent: 67
+  total_plans: 51
+  completed_plans: 47
+  percent: 92
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 03.4 — replace automatic AI scoring with deterministic ranking
+**Current focus:** Phase 03.4 — replace-automatic-ai-scoring-with-deterministic-ranking
 
 ## Current Position
 
-Phase: 03.4 (replace-automatic-ai-scoring-with-deterministic-ranking) — NOT PLANNED
-Plan: 0 of TBD
+Phase: 03.4 (replace-automatic-ai-scoring-with-deterministic-ranking) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-07-22 — Phase 03.4 inserted; awaiting owner ranking rules
+Last activity: 2026-07-23 — Completed Phase 03.4 Plan 01 containment and evaluator
 
-Progress: [███████████████░░░░░] 43/43 currently planned plans complete; milestone 6/8 phases complete (75%)
+Progress: [██████████████████░░] 47/51 plans complete; milestone 6/9 phases complete (67%)
 
 ## Performance Metrics
 
@@ -92,6 +92,7 @@ Progress: [███████████████░░░░░] 43/43 c
 | Phase 03.3 P01 | 10min | 3 tasks | 8 files |
 | Phase 03.3 P02 | 6min | 2 tasks | 4 files |
 | Phase 03.3 P03 | 5min | 2 tasks | 6 files |
+| Phase 03.4 P01 | 20 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,9 @@ Recent decisions affecting current work:
 - [Phase 03.3]: Seed title exclusions only when no preference row exists; a stored empty array remains authoritative.
 - [Phase 03.3]: Mirror the backend 50-entry and 4,096-byte limits in both the page submit boundary and preference service before any remote mutation.
 - [Phase 03.3]: Use NFKC-trimmed lowercase comparison keys while preserving the first-entered chip spelling.
+- [Phase 03.4]: Keep score-tick's POST and x-cron-secret boundary while removing every privileged client, provider, reservation, usage, and user-row mutation capability. — Stops automatic paid scoring immediately without schema or scheduler drift.
+- [Phase 03.4]: Restore the final Phase 03.2 required-experience parser and use its explicit minimum only as a strict less-than scoring signal. — Preserves the hardened grammar while honoring the owner-approved soft-signal boundary.
+- [Phase 03.4]: Reject only explicit foreign locations through a three-state US classifier; unknown and countryless Remote remain eligible. — Fails open on ambiguity as required by D-11.
 
 ### Pending Todos
 
@@ -227,7 +231,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-23T04:22:20.313Z
-Stopped at: Phase 03.4 UI-SPEC approved
-Resume file: .planning/phases/03.4-replace-automatic-ai-scoring-with-deterministic-ranking/03.4-UI-SPEC.md
+Last session: 2026-07-23T05:20:58.221Z
+Stopped at: Completed 03.4-01-PLAN.md
+Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
