@@ -26,7 +26,8 @@ describe('deterministic ranking migration', () => {
     expect(migration).toMatch(/add column deterministic_revision bigint/i)
     expect(migration).toMatch(/add column deterministic_breakdown jsonb/i)
     expect(migration).toMatch(/deterministic_tier.*Strong.*Good.*Weak/is)
-    expect(migration).toMatch(/cardinality\(.*\) <= 50/is)
+    expect(migration).toMatch(/cardinality\(value\) <= maximum_items/i)
+    expect(migration).toMatch(/is_valid_ranking_text_array\(titles, 50\)/i)
     expect(migration).toMatch(/octet_length\(.*4096/is)
     expect(migration).not.toMatch(/\bdrop\s+(?:column|table)\b/i)
     expect(migration).not.toMatch(
@@ -73,9 +74,9 @@ describe('deterministic ranking migration', () => {
     const stage = sqlFunction('stage_deterministic_ranking_result')
     const finalize = sqlFunction('finalize_deterministic_ranking_run')
 
-    expect(claim).toMatch(/for update skip locked/i)
+    expect(claim).toMatch(/for update(?: of item)? skip locked/i)
     expect(claim).toMatch(/limit batch_size/i)
-    expect(stage).toMatch(/claimed_revision\s*=\s*p_revision/i)
+    expect(stage).toMatch(/claimed_revision\s*<>\s*p_revision/i)
     expect(stage).toMatch(/run\.status\s*=\s*'building'|r\.status\s*=\s*'building'/i)
 
     const stateLockAt = finalize.indexOf('for update')
@@ -83,7 +84,7 @@ describe('deterministic ranking migration', () => {
       'insert into public.deterministic_ranking_items',
     )
     const promotionAt = finalize.indexOf('update public.user_jobs')
-    const stateSwitchAt = finalize.indexOf(
+    const stateSwitchAt = finalize.lastIndexOf(
       'update public.deterministic_ranking_state',
     )
     expect(stateLockAt).toBeGreaterThanOrEqual(0)
@@ -100,7 +101,7 @@ describe('deterministic ranking migration', () => {
     expect(retry).not.toMatch(/p_user_id/)
     expect(retry).toMatch(/retry_of_run_id/)
     expect(migration).toMatch(
-      /unique index .*retry.* on public\.deterministic_ranking_runs \(retry_of_run_id\)/i,
+      /unique index .*retry.* on public\.deterministic_ranking_runs \(retry_of_run_id\)/is,
     )
     expect(retry).toMatch(/on conflict.*do nothing/is)
   })
@@ -123,13 +124,13 @@ describe('deterministic ranking migration', () => {
       /unique index .*initial.* on public\.deterministic_ranking_runs \(user_id\).*where is_initial/is,
     )
     expect(migration).toMatch(
-      /alter function public\.initialize_deterministic_ranking_backfill\(integer\) owner to postgres/i,
+      /alter function public\.initialize_deterministic_ranking_backfill\(integer\)\s+owner to postgres/i,
     )
     expect(migration).toMatch(
-      /revoke execute on function public\.initialize_deterministic_ranking_backfill\(integer\) from public, anon, authenticated/i,
+      /revoke execute on function public\.initialize_deterministic_ranking_backfill\(integer\)\s+from public, anon, authenticated/i,
     )
     expect(migration).toMatch(
-      /grant execute on function public\.initialize_deterministic_ranking_backfill\(integer\) to service_role/i,
+      /grant execute on function public\.initialize_deterministic_ranking_backfill\(integer\)\s+to service_role/i,
     )
   })
 
@@ -153,24 +154,24 @@ describe('deterministic ranking migration', () => {
     for (const name of [...authenticated, ...service]) {
       expect(migration).toMatch(
         new RegExp(
-          `revoke execute on function public\\.${name}\\([^;]*\\) from public, anon(?:, authenticated)?`,
-          'i',
+          `revoke execute on function public\\.${name}\\([^;]*\\)\\s+from public, anon(?:, authenticated)?`,
+          'is',
         ),
       )
     }
     for (const name of authenticated) {
       expect(migration).toMatch(
         new RegExp(
-          `grant execute on function public\\.${name}\\([^;]*\\) to authenticated`,
-          'i',
+          `grant execute on function public\\.${name}\\([^;]*\\)\\s+to authenticated`,
+          'is',
         ),
       )
     }
     for (const name of service) {
       expect(migration).toMatch(
         new RegExp(
-          `grant execute on function public\\.${name}\\([^;]*\\) to service_role`,
-          'i',
+          `grant execute on function public\\.${name}\\([^;]*\\)\\s+to service_role`,
+          'is',
         ),
       )
     }
