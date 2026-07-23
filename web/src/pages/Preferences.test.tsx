@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Preferences } from './Preferences'
+import preferencesSource from './Preferences.tsx?raw'
+import { Preferences, titleExclusionsForPreferences } from './Preferences'
 
 const mocks = vi.hoisted(() => ({
   cancelQueries: vi.fn(),
@@ -22,10 +23,13 @@ vi.mock('@tanstack/react-query', () => ({
   },
   useQuery: () => ({
     data: {
+      user_id: 'user-1',
       titles: ['Equity Research'],
       locations: [],
       include_keywords: [],
       exclude_keywords: [],
+      title_exclude_keywords: [],
+      updated_at: '2026-07-22T00:00:00.000Z',
     },
     isPending: false,
   }),
@@ -42,6 +46,56 @@ function captureMutation() {
   if (!mocks.mutationOptions) throw new Error('Preferences did not register its mutation')
   return mocks.mutationOptions
 }
+
+describe('title exclusion preference form', () => {
+  it('uses exact approved copy and field order without experience-year language', () => {
+    const markup = renderToStaticMarkup(<Preferences />)
+    const target = markup.indexOf('Target titles')
+    const titleExclusions = markup.indexOf('Exclude title keywords')
+    const locations = markup.indexOf('Locations')
+    const include = markup.indexOf('Include keywords')
+    const exclude = markup.indexOf('Exclude keywords')
+
+    expect(target).toBeGreaterThan(-1)
+    expect(target).toBeLessThan(titleExclusions)
+    expect(titleExclusions).toBeLessThan(locations)
+    expect(locations).toBeLessThan(include)
+    expect(include).toBeLessThan(exclude)
+    expect(markup).toContain(
+      'Jobs are excluded when their title contains one of these words or phrases. PhD also matches Ph.D. and Ph D.',
+    )
+    expect(markup).toContain('Type and press Enter or comma')
+    expect(markup).not.toContain('Maximum required experience')
+    expect(markup).not.toContain('pref-max-experience')
+  })
+
+  it('seeds only a missing row and preserves a stored empty array', () => {
+    expect(titleExclusionsForPreferences(null)).toEqual(['president', 'PhD'])
+    expect(titleExclusionsForPreferences({
+      user_id: 'user-1',
+      titles: [],
+      locations: [],
+      include_keywords: [],
+      exclude_keywords: [],
+      title_exclude_keywords: [],
+      updated_at: '2026-07-22T00:00:00.000Z',
+    })).toEqual([])
+  })
+
+  it('keeps canonical cross-commit dedupe, validation, pending disablement, and explicit save payload', () => {
+    expect(preferencesSource).toContain('chipComparisonKey(value)')
+    expect(preferencesSource).toContain('chipComparisonKey(addition)')
+    expect(preferencesSource).toContain('validateTitleExclusions(titleExcludeKeywords)')
+    expect(preferencesSource).toContain('title_exclude_keywords: titleExcludeKeywords')
+    expect(preferencesSource).toContain('disabled={pending}')
+    expect(preferencesSource).toContain("setMessage('Preferences saved — recent jobs re-filtering.')")
+    expect(preferencesSource).toContain(
+      'setError("Couldn\'t save preferences. Your changes are still in the form — retry.")',
+    )
+    expect(preferencesSource).not.toContain('maxRequiredExperience')
+    expect(preferencesSource).not.toContain('experienceError')
+  })
+})
 
 describe('preference save cache gap', () => {
   beforeEach(() => {
@@ -82,6 +136,19 @@ describe('preference save cache gap', () => {
       'invalidate feed',
       'invalidate preferences',
     ])
+  })
+
+  it('sends title exclusions explicitly without an experience payload', async () => {
+    const mutation = captureMutation()
+
+    await mutation.mutationFn()
+
+    expect(mocks.savePreferences).toHaveBeenCalledWith(
+      expect.objectContaining({ title_exclude_keywords: [] }),
+    )
+    expect(mocks.savePreferences).not.toHaveBeenCalledWith(
+      expect.objectContaining({ max_required_experience: expect.anything() }),
+    )
   })
 
   it('keeps feed cache untouched when saving fails', () => {
