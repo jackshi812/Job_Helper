@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 03.4
 current_phase_name: replace-automatic-ai-scoring-with-deterministic-ranking
-status: executing
-stopped_at: Completed 03.4-03-PLAN.md
-last_updated: "2026-07-23T14:18:50.576Z"
+status: verifying
+stopped_at: Completed 03.4-04-PLAN.md
+last_updated: "2026-07-23T17:57:58.880Z"
 last_activity: 2026-07-23
-last_activity_desc: Completed Phase 03.4 Plan 03 deterministic browser cutover
+last_activity_desc: Completed Phase 03.4 deterministic production release
 progress:
   total_phases: 9
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 51
-  completed_plans: 49
-  percent: 96
+  completed_plans: 50
+  percent: 98
 ---
 
 # Project State
@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Phase: 03.4 (replace-automatic-ai-scoring-with-deterministic-ranking) — EXECUTING
+Phase: 03.4 (replace-automatic-ai-scoring-with-deterministic-ranking) — VERIFYING
 Plan: 4 of 4
-Status: Ready to execute
-Last activity: 2026-07-23 — Completed Phase 03.4 Plan 03 deterministic browser cutover
+Status: Phase complete — ready for verification
+Last activity: 2026-07-23 — Completed Phase 03.4 deterministic production release
 
-Progress: [███████████████████░] 49/51 plans complete; milestone 6/9 phases complete (96%)
+Progress: [███████████████████░] 50/51 plans complete; milestone 7/9 phases complete (98%)
 
 ## Performance Metrics
 
@@ -95,6 +95,7 @@ Progress: [███████████████████░] 49/51 p
 | Phase 03.4 P01 | 20 min | 3 tasks | 8 files |
 | Phase 03.4 P02 | 34 min | 3 tasks | 11 files |
 | Phase 03.4 P03 | 17 min | 3 tasks | 16 files |
+| Phase 03.4 P04 | 3h 6m | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -205,6 +206,10 @@ Recent decisions affecting current work:
 - [Phase 03.4]: Treat stored deterministic tier as the sole browser authority; null, pending, ineligible, and closed rows remain absent instead of becoming synthetic Weak results.
 - [Phase 03.4]: Poll ranking state independently and refetch the feed once when the active revision advances so the prior complete table stays usable during building, failure, and retry.
 - [Phase 03.4]: Save the complete ranking form through one authenticated owner RPC without invalidating or removing the existing feed cache.
+- [Phase 03.4]: Drain ordinary deterministic work before maintenance, and run maintenance at most once only after an empty initial claim.
+- [Phase 03.4]: Recover at most 25 building runs through only the existing atomic finalizer; never publish or repair ranking state manually.
+- [Phase 03.4]: Judge release coverage against every current open job while permitting only structurally valid completed history for jobs that closed after capture.
+- [Phase 03.4]: Bind production acceptance to exact local HEAD, origin/main, Cloudflare commit metadata, and byte-identical immutable JavaScript.
 
 ### Pending Todos
 
@@ -239,7 +244,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-23T14:18:50.567Z
-Stopped at: Completed 03.4-03-PLAN.md
+Last session: 2026-07-23T17:57:58.871Z
+Stopped at: Completed 03.4-04-PLAN.md
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
