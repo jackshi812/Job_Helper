@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03.4
 current_phase_name: replace-automatic-ai-scoring-with-deterministic-ranking
 status: executing
-stopped_at: Completed 03.4-06-PLAN.md
-last_updated: "2026-07-23T19:33:27.713Z"
+stopped_at: Completed 03.4-07-PLAN.md
+last_updated: "2026-07-23T19:41:25.551Z"
 last_activity: 2026-07-23
-last_activity_desc: Completed Plan 03.4-06 browser boundaries and durable mutation truth
+last_activity_desc: Completed Plan 03.4-07 independent hosted function proof
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 56
-  completed_plans: 52
-  percent: 93
+  completed_plans: 53
+  percent: 95
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 03.4 (replace-automatic-ai-scoring-with-deterministic-ranking) — EXECUTING
-Plan: 6 of 9
+Plan: 7 of 9
 Status: Ready to execute
-Last activity: 2026-07-23 — Completed Plan 03.4-06 browser boundaries and durable mutation truth
+Last activity: 2026-07-23 — Completed Plan 03.4-07 independent hosted function proof
 
-Progress: [███████████████████░] 52/56 plans complete; milestone 6/9 phases complete (93%)
+Progress: [███████████████████░] 53/56 plans complete; milestone 6/9 phases complete (95%)
 
 ## Performance Metrics
 
@@ -98,6 +98,7 @@ Progress: [███████████████████░] 52/56 p
 | Phase 03.4 P04 | 3h 6m | 3 tasks | 10 files |
 | Phase 03.4 P05 | 8 min | 2 tasks | 3 files |
 | Phase 03.4 P06 | 7 min | 3 tasks | 8 files |
+| Phase 03.4 P07 | 7 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -217,6 +218,8 @@ Recent decisions affecting current work:
 - [Phase 03.4]: Use one structured field-identity validator for count, serialized UTF-8 bytes, trimming, character length, and control characters across all five arrays. — The service boundary and accessible UI must reject the same bounded shapes.
 - [Phase 03.4]: Keep deterministicVisible as defense in depth while making jobs.status=open a server-side pre-limit predicate. — Closed rows must not consume the 200-row Dashboard cap.
 - [Phase 03.4]: Treat committed resume metadata mutations as the browser-visible truth and leave transactional refresh signaling to Plan 08. — A secondary refresh failure must not misreport a durable upload or deletion as failed.
+- [Phase 03.4]: Accept hosted function evidence only when fresh CLI-downloaded bytes match the approved local entry hash and exact transitive bundle inventory across stable metadata snapshots. — Prevents local substitution or raced deployments from satisfying the exact-release gate.
+- [Phase 03.4]: Use a new temporary source root for every hosted function probe and remove it on both success and failure so cached source can never certify a deployment. — Preserves independent provenance and avoids retaining downloaded source.
 
 ### Pending Todos
 
@@ -251,7 +254,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-23T19:33:27.703Z
-Stopped at: Completed 03.4-06-PLAN.md
+Last session: 2026-07-23T19:41:25.541Z
+Stopped at: Completed 03.4-07-PLAN.md
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
