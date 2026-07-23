@@ -21,6 +21,8 @@ const EXTRACT_RESUME_ID = '9358db1a-95fc-49bc-a684-b98fb8eceff9'
 const MAX_INITIALIZER_BATCH = 25
 const MAX_WORKER_TICKS = 2_000
 const WORKER_SCHEDULER_INTERVAL_MS = 60_000
+const WORKER_LEASE_POLL_MS = 5_000
+const MAX_WORKER_IDLE_POLLS = 120
 
 const PREFLIGHT_SCHEMA = Object.freeze({
   evidence_mode: 'preflight',
@@ -59,6 +61,8 @@ const PREFLIGHT_SCHEMA = Object.freeze({
   worker_max_invocation_ms: /^45000$/,
   worker_scheduler_interval_ms: /^60000$/,
   worker_drain_before_maintenance: /^true$/,
+  worker_recovery_run_scan_limit: /^25$/,
+  worker_recovery_before_maintenance: /^true$/,
   real_user_count: NONNEGATIVE_INTEGER,
   open_job_count: NONNEGATIVE_INTEGER,
   eligible_owner_count: NONNEGATIVE_INTEGER,
@@ -77,6 +81,7 @@ const PREFLIGHT_SCHEMA = Object.freeze({
   pending_new_job_transition: 'pass',
   recency_expiry_transition: 'pass',
   worker_liveness_transition: 'pass',
+  worker_crash_recovery_transition: 'pass',
   retry_transition: 'pass',
   atomic_preference_transition: 'pass',
   full_tests: 'pass',
@@ -105,6 +110,8 @@ const POST_RELEASE_SCHEMA = Object.freeze({
   worker_max_invocation_ms: /^45000$/,
   worker_scheduler_interval_ms: /^60000$/,
   worker_drain_before_maintenance: /^true$/,
+  worker_recovery_run_scan_limit: /^25$/,
+  worker_recovery_before_maintenance: /^true$/,
   real_user_count: NONNEGATIVE_INTEGER,
   open_job_count: NONNEGATIVE_INTEGER,
   eligible_owner_count: NONNEGATIVE_INTEGER,
@@ -267,13 +274,20 @@ function numericSourceConstant(source, name) {
 
 export function inspectWorkerLivenessSource(source, schedule = {}) {
   const initialClaim = source.indexOf('let rows = await claimWork(admin)')
+  const recovery = source.indexOf(
+    'recovery = await recoverOrphanedRuns(admin, startedAt)',
+  )
   const maintenance = source.indexOf('await runMaintenance(admin)')
   const drainLoop = source.indexOf('while (rows.length > 0)')
   const claimCalls = source.match(/claimWork\(admin\)/g)?.length ?? 0
   const maintenanceCalls = source.match(/await runMaintenance\(admin\)/g)?.length ?? 0
-  if (initialClaim < 0 || maintenance < 0 || drainLoop < 0 ||
-      initialClaim > maintenance || maintenance > drainLoop ||
-      claimCalls !== 3 || maintenanceCalls !== 1) {
+  const recoveryCalls = source.match(
+    /await recoverOrphanedRuns\(admin, startedAt\)/g,
+  )?.length ?? 0
+  if (initialClaim < 0 || recovery < 0 || maintenance < 0 || drainLoop < 0 ||
+      initialClaim > recovery || recovery > maintenance ||
+      maintenance > drainLoop || claimCalls !== 4 ||
+      recoveryCalls !== 1 || maintenanceCalls !== 1) {
     throw new Error('score-tick does not drain existing work before bounded maintenance')
   }
 
@@ -282,13 +296,16 @@ export function inspectWorkerLivenessSource(source, schedule = {}) {
     maxConcurrency: numericSourceConstant(source, 'MAX_CONCURRENCY'),
     maxItemsPerInvocation: numericSourceConstant(source, 'MAX_ITEMS_PER_INVOCATION'),
     maxInvocationMs: numericSourceConstant(source, 'MAX_INVOCATION_MS'),
+    recoveryRunScanLimit: numericSourceConstant(source, 'RECOVERY_RUN_SCAN_LIMIT'),
     schedulerIntervalMs: Number(schedule.intervalMs),
     drainBeforeMaintenance: true,
+    recoveryBeforeMaintenance: true,
   }
   if (result.claimBatchSize !== 25 ||
       result.maxConcurrency !== 25 ||
       result.maxItemsPerInvocation !== 5_000 ||
-      result.maxInvocationMs !== 45_000) {
+      result.maxInvocationMs !== 45_000 ||
+      result.recoveryRunScanLimit !== 25) {
     throw new Error('score-tick liveness bounds drifted')
   }
   if (schedule.count !== 1 || schedule.active !== true ||
@@ -310,6 +327,12 @@ function verifyWorkerLiveness(fields, worker, counts) {
     ['maxInvocationMs', 'worker_max_invocation_ms', 'worker time bound'],
     ['schedulerIntervalMs', 'worker_scheduler_interval_ms', 'worker scheduler interval'],
     ['drainBeforeMaintenance', 'worker_drain_before_maintenance', 'worker drain ordering'],
+    ['recoveryRunScanLimit', 'worker_recovery_run_scan_limit', 'worker recovery scan bound'],
+    [
+      'recoveryBeforeMaintenance',
+      'worker_recovery_before_maintenance',
+      'worker recovery ordering',
+    ],
   ]) exact(worker[probeKey], fields[fieldKey], label)
   const completeUniverse = Number(counts.realUsers) * Number(counts.openJobs)
   if (!Number.isSafeInteger(completeUniverse) ||
@@ -394,6 +417,7 @@ export function verifyPreflightEvidence(fields, probes) {
     'pending_new_job_transition',
     'recency_expiry_transition',
     'worker_liveness_transition',
+    'worker_crash_recovery_transition',
     'retry_transition',
     'atomic_preference_transition',
     'full_tests',
@@ -674,6 +698,31 @@ function assertFinalState(state, approvedOwnerCount) {
   if (state.nonterminalOpenItems !== 0) throw new Error('nonterminal open items remain')
 }
 
+function isTerminalOrphanRecoveryState(state, approvedOwnerCount) {
+  for (const key of [
+    'remainingUsers',
+    'activeOwners',
+    'completeActiveOwners',
+    'duplicateActiveOwners',
+    'incompleteActiveOwners',
+    'visibleMissingDeterministic',
+    'visibleMixedRevision',
+    'nonterminalOpenItems',
+  ]) {
+    if (!Number.isSafeInteger(state?.[key]) || state[key] < 0) {
+      throw new Error('final ranking state is malformed')
+    }
+  }
+  return state.remainingUsers === 0 &&
+    state.activeOwners === approvedOwnerCount &&
+    state.completeActiveOwners < approvedOwnerCount &&
+    state.incompleteActiveOwners > 0 &&
+    state.duplicateActiveOwners === 0 &&
+    state.visibleMissingDeterministic === 0 &&
+    state.visibleMixedRevision === 0 &&
+    state.nonterminalOpenItems === 0
+}
+
 export async function runApprovedBackfill(approval, adapters) {
   requireApproval(approval)
   const live = await adapters.preflight()
@@ -698,6 +747,48 @@ export async function runApprovedBackfill(approval, adapters) {
   let workerTicks = 0
   let remainingUsers = approval.approvedOwnerCount
   const maxBatches = Math.ceil(approval.approvedOwnerCount / MAX_INITIALIZER_BATCH) + 1
+  async function tickOnce() {
+    if (workerTicks >= MAX_WORKER_TICKS) {
+      throw new Error('worker drain exceeded safety bound')
+    }
+    const tick = await adapters.tick()
+    if (!tick || !Number.isSafeInteger(tick.claimed) || tick.claimed < 0 ||
+        !Number.isSafeInteger(tick.failed) || tick.failed < 0) {
+      throw new Error('worker response is malformed')
+    }
+    if (tick.failed !== 0) throw new Error('worker reported failed ranking items')
+    workerTicks += 1
+    exact(
+      await adapters.costBaseline(),
+      approval.approvedCostBaselineSha256,
+      'score-purpose cost baseline changed',
+    )
+    return tick
+  }
+  async function drainQueue(queue) {
+    let current = queue
+    let idlePolls = 0
+    while (current.pending + current.claimed > 0) {
+      const tick = await tickOnce()
+      current = await adapters.queueState()
+      assertQueueState(current)
+      if (
+        current.pending + current.claimed > 0 &&
+        tick.claimed === 0
+      ) {
+        idlePolls += 1
+        if (idlePolls > MAX_WORKER_IDLE_POLLS) {
+          throw new Error('worker lease recovery exceeded safety bound')
+        }
+        if (typeof adapters.wait === 'function') {
+          await adapters.wait(WORKER_LEASE_POLL_MS)
+        }
+      } else {
+        idlePolls = 0
+      }
+    }
+    return current
+  }
 
   for (let batch = 0; batch < maxBatches; batch += 1) {
     const result = initializerResponse(await adapters.initialize(MAX_INITIALIZER_BATCH))
@@ -710,28 +801,19 @@ export async function runApprovedBackfill(approval, adapters) {
 
     let queue = await adapters.queueState()
     assertQueueState(queue)
-    while (queue.pending + queue.claimed > 0) {
-      if (workerTicks >= MAX_WORKER_TICKS) throw new Error('worker drain exceeded safety bound')
-      const tick = await adapters.tick()
-      if (!tick || !Number.isSafeInteger(tick.claimed) || tick.claimed < 0 ||
-          !Number.isSafeInteger(tick.failed) || tick.failed < 0) {
-        throw new Error('worker response is malformed')
-      }
-      if (tick.failed !== 0) throw new Error('worker reported failed ranking items')
-      workerTicks += 1
-      exact(
-        await adapters.costBaseline(),
-        approval.approvedCostBaselineSha256,
-        'score-purpose cost baseline changed',
-      )
-      queue = await adapters.queueState()
-      assertQueueState(queue)
-    }
+    queue = await drainQueue(queue)
     if (remainingUsers === 0) break
   }
 
   if (remainingUsers !== 0) throw new Error('initializer did not reach zero remaining users')
-  const finalState = await adapters.finalState()
+  let finalState = await adapters.finalState()
+  if (isTerminalOrphanRecoveryState(finalState, approval.approvedOwnerCount)) {
+    await tickOnce()
+    const queue = await adapters.queueState()
+    assertQueueState(queue)
+    await drainQueue(queue)
+    finalState = await adapters.finalState()
+  }
   assertFinalState(finalState, approval.approvedOwnerCount)
   exact(
     await adapters.costBaseline(),
@@ -1545,6 +1627,9 @@ async function liveBackfillAdapters(root) {
     tick: invokeWorker,
     async costBaseline() {
       return (await liveCountAndCostProbe()).cost.sha256
+    },
+    async wait(milliseconds) {
+      await new Promise((resolve) => setTimeout(resolve, milliseconds))
     },
     finalState: collectLiveActiveCoverage,
   }

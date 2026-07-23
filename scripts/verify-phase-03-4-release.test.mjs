@@ -66,6 +66,8 @@ function preflight(overrides = {}) {
     worker_max_invocation_ms: '45000',
     worker_scheduler_interval_ms: '60000',
     worker_drain_before_maintenance: 'true',
+    worker_recovery_run_scan_limit: '25',
+    worker_recovery_before_maintenance: 'true',
     real_user_count: '2',
     open_job_count: '17',
     eligible_owner_count: '2',
@@ -84,6 +86,7 @@ function preflight(overrides = {}) {
     pending_new_job_transition: 'pass',
     recency_expiry_transition: 'pass',
     worker_liveness_transition: 'pass',
+    worker_crash_recovery_transition: 'pass',
     retry_transition: 'pass',
     atomic_preference_transition: 'pass',
     full_tests: 'pass',
@@ -115,6 +118,8 @@ function postRelease(overrides = {}) {
     worker_max_invocation_ms: '45000',
     worker_scheduler_interval_ms: '60000',
     worker_drain_before_maintenance: 'true',
+    worker_recovery_run_scan_limit: '25',
+    worker_recovery_before_maintenance: 'true',
     real_user_count: '2',
     open_job_count: '17',
     eligible_owner_count: '2',
@@ -207,6 +212,8 @@ function preflightProbes(overrides = {}) {
       maxInvocationMs: 45_000,
       schedulerIntervalMs: 60_000,
       drainBeforeMaintenance: true,
+      recoveryRunScanLimit: 25,
+      recoveryBeforeMaintenance: true,
     },
     counts: {
       realUsers: 2,
@@ -254,6 +261,8 @@ function postReleaseProbes(overrides = {}) {
       maxInvocationMs: 45_000,
       schedulerIntervalMs: 60_000,
       drainBeforeMaintenance: true,
+      recoveryRunScanLimit: 25,
+      recoveryBeforeMaintenance: true,
     },
     counts: {
       realUsers: 2,
@@ -392,10 +401,15 @@ test('worker liveness source is bounded below scheduler cadence and drains befor
     const MAX_CONCURRENCY = 25
     const MAX_ITEMS_PER_INVOCATION = 5_000
     const MAX_INVOCATION_MS = 45_000
+    const RECOVERY_RUN_SCAN_LIMIT = 25
     let rows = await claimWork(admin)
     if (rows.length === 0) {
-      await runMaintenance(admin)
+      recovery = await recoverOrphanedRuns(admin, startedAt)
       rows = await claimWork(admin)
+      if (rows.length === 0) {
+        await runMaintenance(admin)
+        rows = await claimWork(admin)
+      }
     }
     while (rows.length > 0) {
       rows = await claimWork(admin)
@@ -415,6 +429,8 @@ test('worker liveness source is bounded below scheduler cadence and drains befor
       maxInvocationMs: 45_000,
       schedulerIntervalMs: 60_000,
       drainBeforeMaintenance: true,
+      recoveryRunScanLimit: 25,
+      recoveryBeforeMaintenance: true,
     },
   )
   assert.throws(
@@ -431,6 +447,55 @@ test('worker liveness source is bounded below scheduler cadence and drains befor
       },
     ),
     /drain existing work before bounded maintenance/,
+  )
+})
+
+test('worker recovery source is bounded and ordered before maintenance', () => {
+  const source = `
+    const CLAIM_BATCH_SIZE = 25
+    const MAX_CONCURRENCY = 25
+    const MAX_ITEMS_PER_INVOCATION = 5_000
+    const MAX_INVOCATION_MS = 45_000
+    const RECOVERY_RUN_SCAN_LIMIT = 25
+    let rows = await claimWork(admin)
+    if (rows.length === 0) {
+      recovery = await recoverOrphanedRuns(admin, startedAt)
+      rows = await claimWork(admin)
+      if (rows.length === 0) {
+        await runMaintenance(admin)
+        rows = await claimWork(admin)
+      }
+    }
+    while (rows.length > 0) {
+      rows = await claimWork(admin)
+    }
+  `
+  const schedule = {
+    count: 1,
+    expression: '* * * * *',
+    active: true,
+    intervalMs: 60_000,
+  }
+
+  assert.throws(
+    () => inspectWorkerLivenessSource(
+      source.replace(
+        'recovery = await recoverOrphanedRuns(admin, startedAt)',
+        'recovery = { scanned: 0, attempted: 0, finalized: 0 }',
+      ),
+      schedule,
+    ),
+    /drain existing work before bounded maintenance/,
+  )
+  assert.throws(
+    () => inspectWorkerLivenessSource(
+      source.replace(
+        'const RECOVERY_RUN_SCAN_LIMIT = 25',
+        'const RECOVERY_RUN_SCAN_LIMIT = 26',
+      ),
+      schedule,
+    ),
+    /liveness bounds drifted/,
   )
 })
 
@@ -483,6 +548,112 @@ test('initializer uses only batch 25 and ordinary worker draining until no owner
     workerTicks: 2,
     remainingUsers: 0,
   })
+})
+
+test('initializer invokes one bounded empty recovery tick for a terminal orphan', async () => {
+  const calls = []
+  const result = await runApprovedBackfill(
+    approval(),
+    backfillAdapters({
+      calls,
+      batches: [{ initialized_count: 0, seeded_count: 0, remaining_count: 0 }],
+      queueStates: [
+        { pending: 0, claimed: 0, failed: 0, duplicateOwners: 0 },
+        { pending: 0, claimed: 0, failed: 0, duplicateOwners: 0 },
+      ],
+      finalStates: [
+        {
+          remainingUsers: 0,
+          activeOwners: 2,
+          completeActiveOwners: 1,
+          duplicateActiveOwners: 0,
+          incompleteActiveOwners: 1,
+          visibleMissingDeterministic: 0,
+          visibleMixedRevision: 0,
+          nonterminalOpenItems: 0,
+        },
+        {
+          remainingUsers: 0,
+          activeOwners: 2,
+          completeActiveOwners: 2,
+          duplicateActiveOwners: 0,
+          incompleteActiveOwners: 0,
+          visibleMissingDeterministic: 0,
+          visibleMixedRevision: 0,
+          nonterminalOpenItems: 0,
+        },
+      ],
+    }),
+  )
+
+  assert.deepEqual(calls, [
+    ['initialize', 25],
+    ['tick'],
+  ])
+  assert.equal(result.workerTicks, 1)
+})
+
+test('initializer polls bounded claimed leases instead of spinning', async () => {
+  const calls = []
+  const result = await runApprovedBackfill(
+    approval(),
+    backfillAdapters({
+      calls,
+      batches: [{ initialized_count: 0, seeded_count: 0, remaining_count: 0 }],
+      queueStates: [
+        { pending: 0, claimed: 23, failed: 0, duplicateOwners: 0 },
+        { pending: 0, claimed: 23, failed: 0, duplicateOwners: 0 },
+        { pending: 0, claimed: 0, failed: 0, duplicateOwners: 0 },
+      ],
+      ticks: [
+        { claimed: 0, failed: 0 },
+        { claimed: 23, failed: 0 },
+      ],
+    }),
+  )
+
+  assert.deepEqual(calls, [
+    ['initialize', 25],
+    ['tick'],
+    ['wait', 5_000],
+    ['tick'],
+  ])
+  assert.equal(result.workerTicks, 2)
+})
+
+test('initializer refuses recovery on failed, mixed, or nonterminal final state', async () => {
+  for (const drift of [
+    { duplicateActiveOwners: 1 },
+    { visibleMixedRevision: 1 },
+    { visibleMissingDeterministic: 1 },
+    { nonterminalOpenItems: 1 },
+  ]) {
+    const calls = []
+    await assert.rejects(
+      () => runApprovedBackfill(
+        approval(),
+        backfillAdapters({
+          calls,
+          batches: [{ initialized_count: 0, seeded_count: 0, remaining_count: 0 }],
+          queueStates: [
+            { pending: 0, claimed: 0, failed: 0, duplicateOwners: 0 },
+          ],
+          finalStates: [{
+            remainingUsers: 0,
+            activeOwners: 2,
+            completeActiveOwners: 1,
+            duplicateActiveOwners: 0,
+            incompleteActiveOwners: 1,
+            visibleMissingDeterministic: 0,
+            visibleMixedRevision: 0,
+            nonterminalOpenItems: 0,
+            ...drift,
+          }],
+        }),
+      ),
+    )
+    assert.deepEqual(calls, [['initialize', 25]])
+  }
 })
 
 test('initializer rejects over-25 responses, duplicate owners, partial progress, and cost drift', async () => {
@@ -702,9 +873,15 @@ function backfillAdapters({
   duplicateOwners = 0,
   costAfter = COST_BASELINE_SHA,
   initializerError,
+  queueStates,
+  finalStates,
+  ticks,
 } = {}) {
   let batchIndex = 0
   let tickIndex = 0
+  let queueIndex = 0
+  let finalStateIndex = 0
+  let configuredTickIndex = 0
   return {
     async preflight() {
       return {
@@ -732,18 +909,30 @@ function backfillAdapters({
       return batches[Math.min(batchIndex++, batches.length - 1)]
     },
     async queueState() {
+      if (queueStates) {
+        return queueStates[Math.min(queueIndex++, queueStates.length - 1)]
+      }
       const pending = tickIndex === 0 ? 17 : tickIndex === 1 ? 5 : 0
       return { pending, claimed: 0, failed: 0, duplicateOwners }
     },
     async tick() {
       calls.push(['tick'])
       tickIndex += 1
+      if (ticks) {
+        return ticks[Math.min(configuredTickIndex++, ticks.length - 1)]
+      }
       return { claimed: tickIndex === 1 ? 12 : 5, failed: 0 }
+    },
+    async wait(milliseconds) {
+      calls.push(['wait', milliseconds])
     },
     async costBaseline() {
       return tickIndex === 0 && batchIndex === 0 ? COST_BASELINE_SHA : costAfter
     },
     async finalState() {
+      if (finalStates) {
+        return finalStates[Math.min(finalStateIndex++, finalStates.length - 1)]
+      }
       return {
         remainingUsers: 0,
         activeOwners: 2,

@@ -62,16 +62,38 @@ describe('score-tick deterministic worker source contract', () => {
     expect(worker).toMatch(/MAX_CONCURRENCY\s*=\s*25/)
     expect(worker).toMatch(/MAX_ITEMS_PER_INVOCATION\s*=\s*5_000/)
     expect(worker).toMatch(/MAX_INVOCATION_MS\s*=\s*45_000/)
+    expect(worker).toMatch(/RECOVERY_RUN_SCAN_LIMIT\s*=\s*25/)
     expect(worker).toMatch(
-      /let rows = await claimWork\(admin\)[\s\S]*if \(rows\.length === 0\) \{[\s\S]*await runMaintenance\(admin\)[\s\S]*rows = await claimWork\(admin\)/,
+      /let rows = await claimWork\(admin\)[\s\S]*if \(rows\.length === 0\) \{[\s\S]*recoverOrphanedRuns\(admin, startedAt\)[\s\S]*rows = await claimWork\(admin\)[\s\S]*await runMaintenance\(admin\)[\s\S]*rows = await claimWork\(admin\)/,
     )
     expect(worker).toMatch(
       /while \(rows\.length > 0\)[\s\S]*rows = await claimWork\(admin\)/,
     )
     expect(worker.indexOf('let rows = await claimWork(admin)')).toBeLessThan(
+      worker.indexOf('recoverOrphanedRuns(admin, startedAt)'),
+    )
+    expect(worker.indexOf('recoverOrphanedRuns(admin, startedAt)')).toBeLessThan(
       worker.indexOf('await runMaintenance(admin)'),
     )
     expect(worker).toContain('Promise.allSettled')
+  })
+
+  it('bounds orphan recovery and delegates publication only to the atomic finalizer', () => {
+    const worker = read(scoreTickPath)
+    const recovery = worker.slice(
+      worker.indexOf('async function recoverOrphanedRuns'),
+      worker.indexOf('Deno.serve'),
+    )
+
+    expect(recovery).toContain(".from('deterministic_ranking_state')")
+    expect(recovery).toContain(".eq('status', 'building')")
+    expect(recovery).toContain(".not('building_run_id', 'is', null)")
+    expect(recovery).toContain('.limit(RECOVERY_RUN_SCAN_LIMIT)')
+    expect(recovery).toContain("'finalize_deterministic_ranking_run'")
+    expect(recovery).toContain('MAX_INVOCATION_MS')
+    expect(recovery).not.toMatch(
+      /\.from\(['"](?:deterministic_ranking_runs|deterministic_ranking_items|user_jobs)['"]\)\s*\.\s*(?:insert|update|delete|upsert)/,
+    )
   })
 
   it('evaluates only captured run inputs and routes resumes separately', () => {

@@ -16,6 +16,7 @@ const MAX_CONCURRENCY = 25
 const MAINTENANCE_BATCH_SIZE = 25
 const MAX_ITEMS_PER_INVOCATION = 5_000
 const MAX_INVOCATION_MS = 45_000
+const RECOVERY_RUN_SCAN_LIMIT = 25
 
 interface ClaimedRankingRow {
   item_id: string
@@ -54,6 +55,15 @@ interface ResumeExtractRow {
 interface ResumeRow {
   id: string
   filename: string
+}
+
+interface BuildingRankingStateRow {
+  building_run_id: string | null
+}
+
+interface FinalizeResult {
+  status?: string
+  published?: boolean
 }
 
 function requiredEnvironment(name: string): string {
@@ -299,6 +309,42 @@ async function finalizeRuns(
   return finalized
 }
 
+async function recoverOrphanedRuns(
+  admin: SupabaseClient,
+  startedAt: number,
+): Promise<{ scanned: number; attempted: number; finalized: number }> {
+  const { data, error } = await admin
+    .from('deterministic_ranking_state')
+    .select('building_run_id')
+    .eq('status', 'building')
+    .not('building_run_id', 'is', null)
+    .order('updated_at', { ascending: true })
+    .limit(RECOVERY_RUN_SCAN_LIMIT)
+  if (error) throw error
+
+  const runIds = [...new Set(
+    ((data ?? []) as BuildingRankingStateRow[])
+      .map((row) => row.building_run_id)
+      .filter((runId): runId is string => typeof runId === 'string'),
+  )]
+  let attempted = 0
+  let finalized = 0
+  for (const runId of runIds) {
+    if (performance.now() - startedAt >= MAX_INVOCATION_MS) break
+    const { data: finalizedData, error: finalizeError } = await admin.rpc(
+      'finalize_deterministic_ranking_run',
+      { p_run_id: runId },
+    )
+    if (finalizeError) throw finalizeError
+    attempted += 1
+    const result = (
+      Array.isArray(finalizedData) ? finalizedData[0] : finalizedData
+    ) as FinalizeResult | null
+    if (result?.published === true) finalized += 1
+  }
+  return { scanned: runIds.length, attempted, finalized }
+}
+
 Deno.serve(async (request) => {
   if (request.method !== 'POST') {
     return Response.json({ error: 'Method not allowed' }, { status: 405 })
@@ -324,15 +370,26 @@ Deno.serve(async (request) => {
 
     const startedAt = performance.now()
     let maintenanceRan = false
+    let recovery = { scanned: 0, attempted: 0, finalized: 0 }
     let rows = await claimWork(admin)
     // Existing work always drains first. In particular, an owner that becomes
     // idle cannot start another full recency snapshot while an older owner run
-    // is still pending. Maintenance is attempted only once after an empty
-    // initial claim and is never repeated mid-drain.
+    // is still pending. After an empty initial claim, a bounded recovery sweep
+    // gives the existing atomic finalizer a chance to publish a fully staged
+    // run orphaned by a prior hard invocation death. A second claim catches any
+    // open-job work seeded by that finalizer before maintenance may create a
+    // fresh snapshot.
     if (rows.length === 0) {
-      await runMaintenance(admin)
-      maintenanceRan = true
+      recovery = await recoverOrphanedRuns(admin, startedAt)
       rows = await claimWork(admin)
+      if (
+        rows.length === 0 &&
+        performance.now() - startedAt < MAX_INVOCATION_MS
+      ) {
+        await runMaintenance(admin)
+        maintenanceRan = true
+        rows = await claimWork(admin)
+      }
     }
 
     let claimed = 0
@@ -362,7 +419,8 @@ Deno.serve(async (request) => {
     // Publication remains an all-or-nothing database operation. Finalizing
     // only after this invocation's terminal staging also avoids one finalizer
     // round-trip per 25-item batch.
-    const finalized = await finalizeRuns(admin, touchedRunIds)
+    const finalized = recovery.finalized +
+      await finalizeRuns(admin, touchedRunIds)
     const saturated = claimed >= MAX_ITEMS_PER_INVOCATION ||
       performance.now() - startedAt >= MAX_INVOCATION_MS
     return Response.json({
@@ -372,6 +430,9 @@ Deno.serve(async (request) => {
       finalized,
       batches,
       maintenance_ran: maintenanceRan,
+      recovery_scanned: recovery.scanned,
+      recovery_attempted: recovery.attempted,
+      recovery_finalized: recovery.finalized,
       saturated,
       automatic_ai_scoring: false,
     })
