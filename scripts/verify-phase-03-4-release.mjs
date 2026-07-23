@@ -2,7 +2,8 @@
 
 import { execFile as execFileCallback } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readdir, readFile } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
@@ -1055,16 +1056,122 @@ async function scoreTickScheduleProbe() {
   }
 }
 
-function functionProbe(functions, slug, local) {
+function functionMetadata(functions, slug) {
+  if (!Array.isArray(functions)) {
+    throw new Error(`${slug} function metadata is malformed`)
+  }
   const found = functions.filter((entry) => entry.slug === slug)
   if (found.length !== 1) throw new Error(`${slug} function metadata is not unique`)
-  return {
-    id: found[0].id,
+  const metadata = {
+    id: String(found[0].id ?? ''),
     version: Number(found[0].version),
-    status: found[0].status,
+    status: String(found[0].status ?? ''),
     verifyJwt: found[0].verify_jwt,
-    indexSha256: local.indexSha256,
-    bundleManifestSha256: local.bundleManifestSha256,
+  }
+  if (!metadata.id ||
+      !Number.isSafeInteger(metadata.version) ||
+      metadata.version < 1 ||
+      !metadata.status ||
+      typeof metadata.verifyJwt !== 'boolean') {
+    throw new Error(`${slug} function metadata is malformed`)
+  }
+  return Object.freeze(metadata)
+}
+
+function exactFunctionMetadata(before, after, slug) {
+  for (const key of ['id', 'version', 'status', 'verifyJwt']) {
+    if (before[key] !== after[key]) {
+      throw new Error(`${slug} hosted function metadata changed during download`)
+    }
+  }
+}
+
+function exactBundleFiles(actual, expected, slug) {
+  if (!Array.isArray(expected) ||
+      actual.length !== expected.length ||
+      actual.some((path, index) => path !== expected[index])) {
+    throw new Error(`${slug} hosted bundle file inventory mismatch`)
+  }
+}
+
+export async function functionProbe(root, slug, approved, adapters = {}) {
+  if (!['score-tick', 'extract-resume'].includes(slug)) {
+    throw new Error('hosted function slug is not approved')
+  }
+  if (!SHA256.test(approved?.indexSha256 ?? '') ||
+      !SHA256.test(approved?.bundleManifestSha256 ?? '') ||
+      !Array.isArray(approved?.bundleFiles)) {
+    throw new Error(`${slug} approved local function inventory is malformed`)
+  }
+
+  const fetchMetadata = adapters.fetchMetadata ?? functionInventory
+  const runCommand = adapters.runCommand ?? command
+  let before
+  try {
+    before = functionMetadata(await fetchMetadata(), slug)
+  } catch {
+    throw new Error(`${slug} hosted function metadata is unavailable`)
+  }
+
+  const downloadRoot = await mkdtemp(join(tmpdir(), `job-copilot-${slug}-`))
+  try {
+    const executable = join(root, 'web/node_modules/.bin/supabase')
+    try {
+      await runCommand(
+        downloadRoot,
+        executable,
+        [
+          'functions',
+          'download',
+          slug,
+          '--project-ref',
+          PROJECT_REF,
+          '--use-api',
+        ],
+        {
+          timeout: 30_000,
+          maxBuffer: 512 * 1024,
+          env: { ...process.env, SUPABASE_TELEMETRY_DISABLED: '1' },
+        },
+      )
+    } catch {
+      throw new Error(`${slug} hosted source download failed`)
+    }
+
+    let after
+    try {
+      after = functionMetadata(await fetchMetadata(), slug)
+    } catch {
+      throw new Error(`${slug} hosted function metadata is unavailable after download`)
+    }
+    exactFunctionMetadata(before, after, slug)
+
+    const entry = `supabase/functions/${slug}/index.ts`
+    let remoteBundle
+    let remoteIndexSha256
+    try {
+      remoteBundle = await bundleManifest(downloadRoot, entry)
+      exactBundleFiles(remoteBundle.paths, approved.bundleFiles, slug)
+      remoteIndexSha256 = sha256(await readFile(join(downloadRoot, entry)))
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('bundle file inventory mismatch')) {
+        throw error
+      }
+      throw new Error(`${slug} hosted source inventory failed`)
+    }
+    exact(remoteIndexSha256, approved.indexSha256, `${slug} hosted index SHA-256`)
+    exact(
+      remoteBundle.sha256,
+      approved.bundleManifestSha256,
+      `${slug} hosted bundle manifest SHA-256`,
+    )
+    return Object.freeze({
+      ...before,
+      indexSha256: remoteIndexSha256,
+      bundleManifestSha256: remoteBundle.sha256,
+    })
+  } finally {
+    await rm(downloadRoot, { recursive: true, force: true })
   }
 }
 
@@ -1109,20 +1216,28 @@ export async function collectLivePreflightProbes(root) {
   )
   const [
     remoteMigrations,
-    functions,
     migration32,
     countCost,
     initializer,
     schedule,
   ] = await Promise.all([
     remoteMigrationInventory(),
-    functionInventory(),
     migration32Probe(),
     liveCountAndCostProbe(),
     initializerAuthorityProbe(),
     scoreTickScheduleProbe(),
   ])
   const localMigrations = await localMigrationInventory(root)
+  const scoreTick = await functionProbe(root, 'score-tick', {
+    indexSha256: local.scoreTickIndexSha256,
+    bundleManifestSha256: local.scoreTickBundleManifestSha256,
+    bundleFiles: local.scoreTickBundleFiles,
+  })
+  const extractResume = await functionProbe(root, 'extract-resume', {
+    indexSha256: local.extractResumeIndexSha256,
+    bundleManifestSha256: local.extractResumeBundleManifestSha256,
+    bundleFiles: local.extractResumeBundleFiles,
+  })
   return {
     projectRef: PROJECT_REF,
     localMigrations,
@@ -1130,14 +1245,8 @@ export async function collectLivePreflightProbes(root) {
     migration0032Sha256: local.migration0032Sha256,
     migration0032RemoteName: migration32.name,
     migration0032RemoteStatementCount: migration32.statementCount,
-    scoreTick: functionProbe(functions, 'score-tick', {
-      indexSha256: local.scoreTickIndexSha256,
-      bundleManifestSha256: local.scoreTickBundleManifestSha256,
-    }),
-    extractResume: functionProbe(functions, 'extract-resume', {
-      indexSha256: local.extractResumeIndexSha256,
-      bundleManifestSha256: local.extractResumeBundleManifestSha256,
-    }),
+    scoreTick,
+    extractResume,
     verifierSha256: local.verifierSha256,
     verifierTestSha256: local.verifierTestSha256,
     webAsset: { path: local.webAssetPath, sha256: local.webAssetSha256 },
@@ -1244,7 +1353,6 @@ export async function collectLivePostReleaseProbes(root, fields) {
   )
   const [
     remoteMigrations,
-    functions,
     countCost,
     finalState,
     cloudflare,
@@ -1253,7 +1361,6 @@ export async function collectLivePostReleaseProbes(root, fields) {
     schedule,
   ] = await Promise.all([
     remoteMigrationInventory(),
-    functionInventory(),
     liveCountAndCostProbe(),
     collectLiveActiveCoverage(),
     liveCloudflareProbe(root, fields),
@@ -1261,6 +1368,11 @@ export async function collectLivePostReleaseProbes(root, fields) {
     command(root, 'git', ['rev-parse', 'origin/main']),
     scoreTickScheduleProbe(),
   ])
+  const scoreTick = await functionProbe(root, 'score-tick', {
+    indexSha256: local.scoreTickIndexSha256,
+    bundleManifestSha256: local.scoreTickBundleManifestSha256,
+    bundleFiles: local.scoreTickBundleFiles,
+  })
   return {
     localGitSha: local.gitSha,
     originGitSha,
@@ -1269,10 +1381,7 @@ export async function collectLivePostReleaseProbes(root, fields) {
     localMigrations: await localMigrationInventory(root),
     remoteMigrations,
     migration0032Sha256: local.migration0032Sha256,
-    scoreTick: functionProbe(functions, 'score-tick', {
-      indexSha256: local.scoreTickIndexSha256,
-      bundleManifestSha256: local.scoreTickBundleManifestSha256,
-    }),
+    scoreTick,
     worker: inspectWorkerLivenessSource(scoreTickSource, schedule),
     counts: {
       realUsers: countCost.counts.realUsers,
