@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03.4
 current_phase_name: replace-automatic-ai-scoring-with-deterministic-ranking
 status: executing
-stopped_at: Completed 03.4-08-PLAN.md
-last_updated: "2026-07-23T20:19:14.354Z"
+stopped_at: Completed 03.4-09-PLAN.md; signed-in responsive visual UAT remains human_needed
+last_updated: "2026-07-23T22:30:03.808Z"
 last_activity: 2026-07-23
 last_activity_desc: Completed Plan 03.4-08 runtime-backed protocol hardening
 progress:
   total_phases: 9
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 56
-  completed_plans: 54
-  percent: 96
+  completed_plans: 55
+  percent: 78
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 03.4 (replace-automatic-ai-scoring-with-deterministic-ranking) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Status: Ready to execute
 Last activity: 2026-07-23 — Completed Plan 03.4-08 runtime-backed protocol hardening
 
@@ -100,6 +100,7 @@ Progress: [███████████████████░] 54/56 p
 | Phase 03.4 P06 | 7 min | 3 tasks | 8 files |
 | Phase 03.4 P07 | 7 min | 2 tasks | 2 files |
 | Phase 03.4 P08 | 34 min | 3 tasks | 10 files |
+| Phase 03.4 P09 | 2h 5m | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -224,6 +225,8 @@ Recent decisions affecting current work:
 - [Phase 03.4]: Name the deterministic item unique constraint in preference-save ON CONFLICT so PL/pgSQL output parameters cannot make the production RPC ambiguous. — Fresh real SQL execution exposed the ambiguity behind the generic save failure.
 - [Phase 03.4]: A generic finalizer never acknowledges route demand; only successful route-run enqueue clears the exact observed timestamp. — Older runs cannot erase newer resume-routing requests.
 - [Phase 03.4]: Use one worker AbortController with a one-second response-cleanup margin; deadline aborts remain lease-reclaimable. — Every awaited network operation must obey the scheduler-safe invocation bound without fabricating failure or publication.
+- [Phase 03.4]: Preserve superseded failed source items as immutable history and prove zero actionable, active, visible, and current-open work instead of deleting evidence. — Historical failure rows are audit evidence and cannot affect current publication.
+- [Phase 03.4]: Repair authenticated Retry through forward-only migration 0034 and a second exact approval; never rewrite deployed migrations or manually repair rows. — Keeps release identity and production mutation scope fail-closed.
 
 ### Pending Todos
 
@@ -258,7 +261,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-23T20:19:14.344Z
-Stopped at: Completed 03.4-08-PLAN.md
+Last session: 2026-07-23T22:30:03.798Z
+Stopped at: Completed 03.4-09-PLAN.md; signed-in responsive visual UAT remains human_needed
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
