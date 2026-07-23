@@ -296,7 +296,7 @@ Plans:
 **Goal:** Remove automatic/background AI job scoring and replace it with transparent deterministic ranking while preserving ingestion, preferences, company controls, dashboard structure, job detail, apply links, dismissal, and every unrelated feature.
 **Requirements**: PREF-01, SCOR-01, SCOR-02, SCOR-03, SCOR-04, SCOR-05
 **Depends on:** Phase 03.3
-**Plans:** 4/4 plans complete
+**Plans:** 4/9 plans executed
 
 **Success Criteria** (what must be TRUE):
 
@@ -315,6 +315,7 @@ Plans:
 **Open decision:** The owner will provide the deterministic-ranking rules before Phase 03.4 planning.
 
 Plans:
+
 **Wave 1**
 
 - [x] 03.4-01-PLAN.md — Contain automatic paid scoring first and implement the pure deterministic evaluator
@@ -330,6 +331,17 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 03.4-04-PLAN.md — Backfill completely, release exact worker/web artifacts, and finish UAT
+
+**Wave 5** *(gap closure; blocked on Wave 4 completion)*
+
+- [ ] 03.4-05-PLAN.md — Make title and explicit-country eligibility filters exact
+- [ ] 03.4-06-PLAN.md — Fix preference validation, feed completeness, and truthful resume mutations
+- [ ] 03.4-07-PLAN.md — Prove hosted worker bytes independently
+- [ ] 03.4-08-PLAN.md — Harden SQL/worker liveness with a forward-only migration and runtime-backed tests
+
+**Wave 6** *(blocked on all Wave 5 plans)*
+
+- [ ] 03.4-09-PLAN.md — Approve and release the exact repaired schema, worker, and web artifacts; finish convergence and visual UAT
 
 ### Phase 4: Resume Tailoring & Tracker
 
@@ -362,7 +374,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.1 SuccessFactors & Paylocity Connector Expansion | 5/5 | Complete | 2026-07-22 |
 | 03.2 Dashboard Precision & Company Visibility | 4/4 | Complete | 2026-07-22 |
 | 03.3 Dashboard Filter Refinements | 3/4 | In Progress|  |
-| 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 4/4 | Complete   | 2026-07-23 |
+| 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 4/9 | In Progress|  |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
