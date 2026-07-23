@@ -1,90 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   cheapFilter,
-  experienceMinimumRequired,
   SYNONYMS,
   type FilterJobInput,
   type FilterPreferences,
 } from '../../supabase/functions/_shared/filters'
-
-describe('required experience parsing', () => {
-  it.each([
-    ['Requires 3 years of experience', 3],
-    ['At least 4 years experience', 4],
-    ['Minimum of 5 years', 5],
-    ['3+ years in analytics', 3],
-    ['3–5 years required', 3],
-    ['Preferred: 8 years experience', null],
-    ['Preferred 5-7 years', null],
-    ['5 years preferred', null],
-    ['Benefits vest after 5 years', null],
-    ['Requires 5 years of experience with Python preferred', 5],
-    ['Benefits vest after 5-7 years', null],
-    ['Our office lease runs 10+ years', null],
-    ['Nice-to-have: 8 years experience', null],
-    ['Preferably 5+ years experience', null],
-    ['5 years in finance preferred', null],
-    ['5 years in finance required', 5],
-    ['5+ years in analytics is a plus', null],
-    ['Our company has operated 10 years in healthcare', null],
-    ['Benefits vest after 5 years in the company', null],
-    ['Our founders bring 10 years of experience', null],
-    ['Employees are required to wait 5 years for benefits', null],
-    ['5+ years in analytics, is a plus', null],
-    ['5+ years in analytics - preferred', null],
-    ['5 years in finance, required', 5],
-    ['5 years in finance (required)', 5],
-    ['Required 5 years of experience, preferred 7 years of experience', 5],
-    ['Preferred 5 years of experience, required 3 years of experience', 3],
-    ['Candidates must have 5 years of experience', 5],
-    ['Applicants need 4 years of relevant experience', 4],
-    ["5 years' experience required", 5],
-    ['5 years’ experience required', 5],
-    ['Required: 5 years of experience, preferred: 7 years in finance', 5],
-    ['Preferred: 5 years in finance, required: 3 years of experience', 3],
-    ['Minimum qualifications: 5 years of experience, Preferred qualifications: 7 years of experience', 5],
-    ['Preferred qualifications: 5 years of experience, Minimum qualifications: 3 years of experience', 3],
-    ['Requires 3 years SQL and 5 years industry experience', 5],
-    ['Senior analyst role', null],
-    ['Experience required', null],
-  ])('%s => %s', (description, expected) => {
-    expect(experienceMinimumRequired(description)).toBe(expected)
-  })
-
-  it('rejects only explicit minimums above the cap', () => {
-    expect(cheapFilter(job({ descriptionText: 'Requires 3 years.' }), prefs({ maxRequiredExperience: 3 })).pass).toBe(true)
-    expect(cheapFilter(job({ descriptionText: 'Requires 4 years.' }), prefs({ maxRequiredExperience: 3 }))).toMatchObject({ pass: false, reason: 'experience_above_max' })
-    expect(cheapFilter(job({ title: 'Senior Analyst', descriptionText: '' }), prefs({ maxRequiredExperience: 3 })).pass).toBe(true)
-  })
-
-  it.each([
-    ['Requires 5 years of experience with Python preferred', false, 'experience_above_max'],
-    ['Benefits vest after 5-7 years', true, undefined],
-    ['Our office lease runs 10+ years', true, undefined],
-    ['Nice-to-have: 8 years experience', true, undefined],
-    ['Preferably 5+ years experience', true, undefined],
-    ['5 years in finance preferred', true, undefined],
-    ['5+ years in analytics is a plus', true, undefined],
-    ['Our company has operated 10 years in healthcare', true, undefined],
-    ['Benefits vest after 5 years in the company', true, undefined],
-    ['Our founders bring 10 years of experience', true, undefined],
-    ['Employees are required to wait 5 years for benefits', true, undefined],
-    ['5+ years in analytics, is a plus', true, undefined],
-    ['5+ years in analytics - preferred', true, undefined],
-    ['Required 5 years of experience, preferred 7 years of experience', false, 'experience_above_max'],
-    ['Preferred 5 years of experience, required 3 years of experience', true, undefined],
-    ['Candidates must have 5 years of experience', false, 'experience_above_max'],
-    ["5 years' experience required", false, 'experience_above_max'],
-    ['Required: 5 years of experience, preferred: 7 years in finance', false, 'experience_above_max'],
-    ['Preferred: 5 years in finance, required: 3 years of experience', true, undefined],
-    ['Minimum qualifications: 5 years of experience, Preferred qualifications: 7 years of experience', false, 'experience_above_max'],
-    ['Preferred qualifications: 5 years of experience, Minimum qualifications: 3 years of experience', true, undefined],
-  ])('applies candidate-local semantics to %s', (descriptionText, pass, reason) => {
-    const result = cheapFilter(job({ descriptionText }), prefs({ maxRequiredExperience: 3 }))
-    expect(result.pass).toBe(pass)
-    if (!result.pass) expect(result.reason).toBe(reason)
-  })
-})
 
 function job(overrides: Partial<FilterJobInput> = {}): FilterJobInput {
   return {
@@ -101,10 +21,57 @@ function prefs(overrides: Partial<FilterPreferences> = {}): FilterPreferences {
     locations: [],
     includeKeywords: [],
     excludeKeywords: [],
-    maxRequiredExperience: null,
+    titleExcludeKeywords: [],
     ...overrides,
   }
 }
+
+describe('cheapFilter — title-only exclusions', () => {
+  it.each([
+    ['President', 'president', true],
+    ['Vice President', 'president', true],
+    ['Senior Vice-President', 'president', true],
+    ['PRESIDENT, Americas', 'president', true],
+    ['Presidential Affairs Analyst', 'president', false],
+    ['Economist, PhD', 'PhD', true],
+    ['Ph.D. Quantitative Researcher', 'PhD', true],
+    ['Ph D Research Fellow', 'PhD', true],
+    ['Economist (Ph.D.)', 'PhD', true],
+    ['Doctoral Researcher', 'PhD', false],
+    ['Doctorate Program Manager', 'PhD', false],
+    ['Category Manager', 'go', false],
+    ['Go Developer', 'go', true],
+    ['Senior Product Manager', 'product manager', true],
+    ['Product Growth Manager', 'product manager', false],
+  ])('%s with %s has exclusion=%s', (title, keyword, excluded) => {
+    const result = cheapFilter(job({ title }), prefs({ titleExcludeKeywords: [keyword] }))
+    expect(result.pass).toBe(!excluded)
+    if (excluded) {
+      expect(result).toMatchObject({ pass: false, reason: 'excluded_title_keyword' })
+    }
+  })
+
+  it('searches only the title and accepts an explicit empty list', () => {
+    expect(
+      cheapFilter(
+        job({ title: 'Economist', descriptionText: 'The successful candidate will hold a Ph.D.' }),
+        prefs({ titleExcludeKeywords: ['PhD'] }),
+      ).pass,
+    ).toBe(true)
+    expect(
+      cheapFilter(job({ title: 'Vice President' }), prefs({ titleExcludeKeywords: [] })).pass,
+    ).toBe(true)
+  })
+
+  it('runs before the separate general title-and-description exclusion gate', () => {
+    expect(
+      cheapFilter(
+        job({ title: 'Vice President', descriptionText: 'Requires Python.' }),
+        prefs({ titleExcludeKeywords: ['president'], excludeKeywords: ['python'] }),
+      ),
+    ).toEqual({ pass: false, reason: 'excluded_title_keyword', detail: 'president' })
+  })
+})
 
 describe('cheapFilter — exclude keywords (D-02, word boundary)', () => {
   it('hard-discards on a whole-word exclude hit in the title', () => {

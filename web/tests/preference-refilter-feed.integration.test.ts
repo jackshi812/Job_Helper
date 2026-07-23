@@ -62,7 +62,7 @@ describe('preference refilter feed gap', () => {
       locations: [],
       includeKeywords: [],
       excludeKeywords: [],
-      maxRequiredExperience: null,
+      titleExcludeKeywords: ['president', 'PhD'],
     }
     const staleOutcome = cheapFilter(
       { title: stale.jobs!.title, location: stale.jobs!.location, descriptionText: '' },
@@ -95,5 +95,44 @@ describe('preference refilter feed gap', () => {
     expect(converged.filter(preferenceVisible).map((entry) => entry.jobs?.title)).toEqual([
       'Equity Research Analyst',
     ])
+  })
+
+  it('converges title exclusions without broadening PhD to doctoral or restoring an explicit empty list', () => {
+    const preferences = {
+      titles: [],
+      locations: [],
+      includeKeywords: [],
+      excludeKeywords: [],
+      titleExcludeKeywords: ['president', 'PhD'],
+    }
+    for (const title of ['Vice President', 'Senior Vice-President', 'Economist (Ph.D.)', 'Ph D Researcher']) {
+      expect(cheapFilter({ title, location: null, descriptionText: '' }, preferences)).toMatchObject({
+        pass: false,
+        reason: 'excluded_title_keyword',
+      })
+    }
+    expect(
+      cheapFilter({ title: 'Doctoral Researcher', location: null, descriptionText: '' }, preferences).pass,
+    ).toBe(true)
+    expect(
+      cheapFilter(
+        { title: 'Vice President', location: null, descriptionText: '' },
+        { ...preferences, titleExcludeKeywords: [] },
+      ).pass,
+    ).toBe(true)
+
+    const updating = row('Vice President', { needs_refilter: true })
+    expect(preferenceVisible(updating)).toBe(true)
+    expect(scoreFreshnessLabel(updating)).toBe('Updating')
+    const converged = row('Vice President', {
+      status: 'filtered',
+      filter_reason: 'excluded_title_keyword',
+      filter_detail: 'president',
+      score: null,
+      tier: null,
+      reasons: null,
+      needs_refilter: false,
+    })
+    expect(preferenceVisible(converged)).toBe(false)
   })
 })
