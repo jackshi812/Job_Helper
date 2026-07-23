@@ -60,6 +60,10 @@ describe('deterministic ranking gap-closure migration', () => {
       /update public\.deterministic_ranking_items[\s\S]*status = 'superseded'/i,
     )
     expect(save).toMatch(/status in \('pending', 'claimed'\)/i)
+    expect(save).toMatch(
+      /on conflict on constraint\s+deterministic_ranking_items_run_id_user_job_id_key/i,
+    )
+    expect(save).not.toMatch(/on conflict \(run_id,\s*user_job_id\)/i)
     expect(save.indexOf("status = 'superseded'"))
       .toBeLessThan(save.indexOf("status = 'stale'"))
   })
@@ -103,7 +107,7 @@ describe('deterministic ranking gap-closure migration', () => {
       /after insert or delete on public\.resumes[\s\S]*signal_deterministic_route_refresh_from_resume/i,
     )
     expect(migration).toMatch(
-      /revoke all on function public\.signal_deterministic_route_refresh_from_resume\(\) from public, anon, authenticated/i,
+      /revoke all on function public\.signal_deterministic_route_refresh_from_resume\(\)\s+from public, anon, authenticated/i,
     )
   })
 
