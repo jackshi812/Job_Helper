@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03.4
 current_phase_name: replace-automatic-ai-scoring-with-deterministic-ranking
 status: executing
-stopped_at: Completed 03.4-04-PLAN.md
-last_updated: "2026-07-23T19:09:37.092Z"
+stopped_at: Completed 03.4-05-PLAN.md
+last_updated: "2026-07-23T19:22:25.762Z"
 last_activity: 2026-07-23
-last_activity_desc: Completed Phase 03.4 deterministic production release
+last_activity_desc: Completed Plan 03.4-05 deterministic eligibility gap closure
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 56
-  completed_plans: 50
-  percent: 67
+  completed_plans: 51
+  percent: 91
 ---
 
 # Project State
@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Phase: 03.4 (replace-automatic-ai-scoring-with-deterministic-ranking) — VERIFYING
-Plan: 4 of 9
+Phase: 03.4 (replace-automatic-ai-scoring-with-deterministic-ranking) — EXECUTING
+Plan: 5 of 9
 Status: Ready to execute
-Last activity: 2026-07-23 — Completed Phase 03.4 deterministic production release
+Last activity: 2026-07-23 — Completed Plan 03.4-05 deterministic eligibility gap closure
 
-Progress: [███████████████████░] 50/51 plans complete; milestone 7/9 phases complete (98%)
+Progress: [██████████████████░░] 51/56 plans complete; milestone 6/9 phases complete (91%)
 
 ## Performance Metrics
 
@@ -96,6 +96,7 @@ Progress: [███████████████████░] 50/51 p
 | Phase 03.4 P02 | 34 min | 3 tasks | 11 files |
 | Phase 03.4 P03 | 17 min | 3 tasks | 16 files |
 | Phase 03.4 P04 | 3h 6m | 3 tasks | 10 files |
+| Phase 03.4 P05 | 8 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -210,6 +211,8 @@ Recent decisions affecting current work:
 - [Phase 03.4]: Recover at most 25 building runs through only the existing atomic finalizer; never publish or repair ranking state manually.
 - [Phase 03.4]: Judge release coverage against every current open job while permitting only structurally valid completed history for jobs that closed after capture.
 - [Phase 03.4]: Bind production acceptance to exact local HEAD, origin/main, Cloudflare commit metadata, and byte-identical immutable JavaScript.
+- [Phase 03.4]: Expand exact acronym tokens into complete phrases on both title operands, but never reverse-link individual phrase tokens through an acronym.
+- [Phase 03.4]: Keep US territories as explicit US evidence and keep plain Georgia on the conservative US-state path; support the unambiguous foreign form Georgia country.
 
 ### Pending Todos
 
@@ -244,7 +247,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-23T17:57:58.871Z
-Stopped at: Completed 03.4-04-PLAN.md
+Last session: 2026-07-23T19:22:25.752Z
+Stopped at: Completed 03.4-05-PLAN.md
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
