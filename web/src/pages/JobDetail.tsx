@@ -10,17 +10,19 @@ import {
   safeApplyUrl,
   tierPresentation,
   type FeedRow,
-  type GapGroups,
+  type RankingCategory,
+  type Tier,
 } from '../lib/feed'
-import { listResumes, resumeLabel } from '../lib/resumes'
 
 const relativeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
 
-const GAP_GROUPS: { key: keyof GapGroups; label: string }[] = [
-  { key: 'skills', label: 'Skills' },
-  { key: 'tools', label: 'Tools' },
-  { key: 'certs', label: 'Certs' },
-  { key: 'domain', label: 'Domain' },
+const BREAKDOWN_ROWS: { key: RankingCategory; label: string }[] = [
+  { key: 'title', label: 'Title match' },
+  { key: 'location', label: 'Preferred location' },
+  { key: 'recency', label: 'Posted within 24 hours' },
+  { key: 'watchlist', label: 'Watchlist source' },
+  { key: 'experience', label: 'Required experience' },
+  { key: 'keywords', label: 'Description keywords' },
 ]
 
 function relativeTime(timestamp: string) {
@@ -35,8 +37,9 @@ function relativeTime(timestamp: string) {
   return relativeFormatter.format(Math.round(elapsedHours / 24), 'day')
 }
 
-function TierBadge({ score }: { score: number | null }) {
-  const presentation = tierPresentation(score)
+function TierBadge({ tier }: { tier: Tier | null }) {
+  const presentation = tierPresentation(tier)
+  if (!presentation) return null
   if (presentation.badge === null) {
     return <span className="text-xs font-semibold text-zinc-500">{presentation.label}</span>
   }
@@ -53,68 +56,59 @@ function TierBadge({ score }: { score: number | null }) {
   )
 }
 
-function Chip({ label, tone }: { label: string; tone: 'neutral' | 'emerald' }) {
-  const classes =
-    tone === 'emerald'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-400'
-      : 'border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400'
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${classes}`}
-    >
-      {label}
-    </span>
+function RankingBreakdown({ feedRow }: { feedRow: FeedRow }) {
+  const byCategory = new Map(
+    (feedRow.deterministic_breakdown ?? []).map((row) => [row.key, row]),
   )
-}
-
-function GapPanel({ row, resumeName }: { row: FeedRow; resumeName: string }) {
-  const gaps = row.gaps ?? {}
-  const covered = row.covered ?? []
-  const hasGaps = GAP_GROUPS.some((group) => (gaps[group.key]?.length ?? 0) > 0)
 
   return (
     <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-      <h2 className="text-base font-semibold">Gaps vs your {resumeName} resume — advisory only</h2>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Keywords in the posting, grouped by category, that are missing from the routed resume.
-        Advisory only — it never changes your resume.
-      </p>
-      {hasGaps ? (
-        <div className="mt-4 grid gap-4">
-          {GAP_GROUPS.map((group) => {
-            const items = gaps[group.key] ?? []
-            if (items.length === 0) return null
-            return (
-              <div key={group.key} className="grid gap-1.5">
-                <span className="text-xs font-semibold tracking-wide text-zinc-600 uppercase dark:text-zinc-400">
-                  {group.label}
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {items.map((item) => (
-                    <Chip key={`${group.key}-${item}`} label={item} tone="neutral" />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
-          No gaps found against your {resumeName} resume.
-        </p>
-      )}
-      {covered.length > 0 ? (
-        <div className="mt-4 grid gap-1.5">
-          <span className="text-xs font-semibold tracking-wide text-zinc-600 uppercase dark:text-zinc-400">
-            Covered
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            {covered.map((item) => (
-              <Chip key={`covered-${item}`} label={item} tone="emerald" />
-            ))}
-          </div>
-        </div>
-      ) : null}
+      <h2 className="text-base font-semibold">Ranking breakdown</h2>
+      <div className="mt-3 overflow-x-auto">
+        <table className="min-w-[640px] w-full border-collapse text-left text-sm">
+          <caption className="sr-only">Deterministic ranking breakdown</caption>
+          <thead className="border-b border-zinc-200 text-xs font-semibold tracking-wide text-zinc-600 uppercase dark:border-zinc-800 dark:text-zinc-400">
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col">Points</th>
+              <th scope="col">Evidence</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+            {BREAKDOWN_ROWS.map(({ key, label }) => {
+              const row = byCategory.get(key)
+              return (
+                <tr key={key}>
+                  <th scope="row" className="py-3 pr-4 font-medium">
+                    {label}
+                  </th>
+                  <td
+                    aria-label={row ? `${row.earned} of ${row.possible} points` : undefined}
+                    className="py-3 pr-4 whitespace-nowrap tabular-nums"
+                  >
+                    {row ? `${row.earned} / ${row.possible}` : '—'}
+                  </td>
+                  <td className="py-3 text-zinc-600 break-words dark:text-zinc-400">
+                    {row && row.evidence.length > 0 ? row.evidence.join(', ') : '—'}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+          <tfoot className="border-t-2 border-zinc-300 font-semibold dark:border-zinc-700">
+            <tr>
+              <th scope="row" className="py-3 pr-4">Total</th>
+              <td
+                aria-label={`${feedRow.deterministic_score ?? 0} of 100 points`}
+                className="py-3 pr-4 whitespace-nowrap tabular-nums"
+              >
+                {feedRow.deterministic_score ?? 0} / 100
+              </td>
+              <td className="py-3">{feedRow.deterministic_tier ?? '—'}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </section>
   )
 }
@@ -128,7 +122,6 @@ export function JobDetail() {
     queryFn: () => getFeedJob(id as string),
     enabled: Boolean(id),
   })
-  const resumesQuery = useQuery({ queryKey: ['resumes'], queryFn: listResumes })
 
   const seenMutation = useMutation({
     mutationFn: markSeen,
@@ -175,10 +168,6 @@ export function JobDetail() {
   const company = companyName(row)
   const applyUrl = safeApplyUrl(job?.absolute_url)
   const postedTimestamp = relativePostedTime(row)
-  const routedResume = row.routed_resume_id
-    ? resumesQuery.data?.find((resume) => resume.id === row.routed_resume_id)
-    : undefined
-  const resumeName = routedResume ? resumeLabel(routedResume) : 'routed'
   const sanitizedDescription = job?.description_html
     ? DOMPurify.sanitize(job.description_html, { FORBID_TAGS: ['style', 'form'] })
     : null
@@ -196,17 +185,19 @@ export function JobDetail() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">{jobTitle}</h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            {[company ?? '—', job?.location ?? undefined, postedTimestamp ? relativeTime(postedTimestamp) : undefined]
+            {[company ?? '—', job?.location ?? '—', postedTimestamp ? relativeTime(postedTimestamp) : undefined]
               .filter(Boolean)
               .join(' · ')}
           </p>
           <div className="mt-2 flex items-center gap-2">
-            {row.score !== null ? (
-              <span className="text-sm font-semibold">{row.score}</span>
+            {row.deterministic_score !== null ? (
+              <span className="text-sm font-semibold">{row.deterministic_score}</span>
             ) : null}
-            <TierBadge score={row.score} />
-            {row.scored_at ? (
-              <span className="text-xs text-zinc-500">scored {relativeTime(row.scored_at)}</span>
+            <TierBadge tier={row.deterministic_tier} />
+            {row.deterministic_ranked_at ? (
+              <span className="text-xs text-zinc-500">
+                ranked {relativeTime(row.deterministic_ranked_at)}
+              </span>
             ) : null}
           </div>
         </div>
@@ -223,22 +214,7 @@ export function JobDetail() {
         ) : null}
       </div>
 
-      <GapPanel row={row} resumeName={resumeName} />
-
-      <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-base font-semibold">Match reasons</h2>
-        {row.reasons && row.reasons.length > 0 ? (
-          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
-            {row.reasons.slice(0, 5).map((reason, index) => (
-              <li key={`${index}-${reason}`}>{reason}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-            No match reasons recorded yet.
-          </p>
-        )}
-      </section>
+      <RankingBreakdown feedRow={row} />
 
       <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-base font-semibold">Job description</h2>
