@@ -226,22 +226,99 @@ const US_STATE_ABBREVIATIONS = new Set([
 const EXPLICIT_US_PHRASES = [
   'united states of america',
   'united states',
+  'american samoa',
+  'guam',
+  'northern mariana islands',
+  'puerto rico',
+  'united states minor outlying islands',
+  'u s minor outlying islands',
+  'united states virgin islands',
+  'u s virgin islands',
   'u s a',
   'usa',
   'u s',
   'us',
 ] as const
-const EXPLICIT_FOREIGN_PHRASES = [
-  'united kingdom', 'great britain', 'uk', 'england', 'scotland', 'wales',
-  'northern ireland', 'canada', 'mexico', 'australia', 'new zealand',
-  'india', 'china', 'japan', 'singapore', 'hong kong', 'germany', 'france',
-  'spain', 'italy', 'ireland', 'netherlands', 'belgium', 'switzerland',
-  'austria', 'sweden', 'norway', 'denmark', 'finland', 'poland', 'portugal',
-  'brazil', 'argentina', 'chile', 'colombia', 'south africa', 'israel',
-  'united arab emirates', 'saudi arabia', 'philippines', 'malaysia',
-  'indonesia', 'thailand', 'vietnam', 'south korea', 'taiwan',
-  'ontario', 'quebec', 'british columbia', 'alberta',
+// Reviewed ISO-style English display names and bounded common aliases for
+// countries outside the United States. US territories remain explicit US
+// evidence above. Plain "Georgia" is intentionally absent because it is also a
+// US state; "Georgia (country)" is the unambiguous supported form.
+export const EXPLICIT_NON_US_COUNTRY_PHRASES = [
+  'afghanistan', 'albania', 'algeria', 'andorra', 'angola', 'anguilla',
+  'antarctica', 'antigua and barbuda', 'argentina', 'armenia', 'aruba',
+  'australia', 'austria', 'azerbaijan',
+  'bahamas', 'bahrain', 'bangladesh', 'barbados', 'belarus', 'belgium',
+  'belize', 'benin', 'bermuda', 'bhutan', 'bolivia',
+  'plurinational state of bolivia', 'bonaire sint eustatius and saba',
+  'bosnia and herzegovina', 'botswana', 'bouvet island', 'brazil',
+  'british indian ocean territory', 'brunei darussalam', 'brunei',
+  'bulgaria', 'burkina faso', 'burundi',
+  'cabo verde', 'cape verde', 'cambodia', 'cameroon', 'canada',
+  'cayman islands', 'central african republic', 'chad', 'chile', 'china',
+  'christmas island', 'cocos keeling islands', 'cocos islands', 'colombia',
+  'comoros', 'congo', 'democratic republic of the congo',
+  'democratic republic of congo', 'dr congo', 'republic of the congo',
+  'cook islands', 'costa rica', 'côte d ivoire', 'cote d ivoire',
+  'ivory coast', 'croatia', 'cuba', 'curaçao', 'curacao', 'cyprus',
+  'czechia', 'czech republic',
+  'denmark', 'djibouti', 'dominica', 'dominican republic',
+  'ecuador', 'egypt', 'el salvador', 'equatorial guinea', 'eritrea',
+  'estonia', 'eswatini', 'swaziland', 'ethiopia',
+  'falkland islands', 'malvinas', 'faroe islands', 'fiji', 'finland',
+  'france', 'french guiana', 'french polynesia',
+  'french southern territories',
+  'gabon', 'gambia', 'georgia country', 'germany', 'ghana', 'gibraltar',
+  'greece', 'greenland', 'grenada', 'guadeloupe', 'guatemala', 'guernsey',
+  'guinea', 'guinea bissau', 'guyana',
+  'haiti', 'heard island and mcdonald islands', 'holy see', 'vatican city',
+  'honduras', 'hong kong', 'hungary',
+  'iceland', 'india', 'indonesia', 'iran', 'islamic republic of iran',
+  'iraq', 'ireland', 'isle of man', 'israel', 'italy',
+  'jamaica', 'japan', 'jersey', 'jordan',
+  'kazakhstan', 'kenya', 'kiribati', 'north korea',
+  'democratic people s republic of korea', 'south korea',
+  'republic of korea', 'kuwait', 'kyrgyzstan',
+  'lao people s democratic republic', 'laos', 'latvia', 'lebanon',
+  'lesotho', 'liberia', 'libya', 'liechtenstein', 'lithuania', 'luxembourg',
+  'macao', 'macau', 'madagascar', 'malawi', 'malaysia', 'maldives', 'mali',
+  'malta', 'marshall islands', 'martinique', 'mauritania', 'mauritius',
+  'mayotte', 'mexico', 'micronesia', 'federated states of micronesia',
+  'moldova', 'republic of moldova', 'monaco', 'mongolia', 'montenegro',
+  'montserrat', 'morocco', 'mozambique', 'myanmar', 'burma',
+  'namibia', 'nauru', 'nepal', 'netherlands', 'new caledonia',
+  'new zealand', 'nicaragua', 'niger', 'nigeria', 'niue', 'norfolk island',
+  'north macedonia', 'macedonia', 'norway',
+  'oman',
+  'pakistan', 'palau', 'palestine', 'state of palestine',
+  'palestinian territories', 'panama', 'papua new guinea', 'paraguay',
+  'peru', 'philippines', 'pitcairn', 'poland', 'portugal',
+  'qatar',
+  'réunion', 'reunion', 'romania', 'russian federation', 'russia', 'rwanda',
+  'saint barthélemy', 'saint barthelemy',
+  'saint helena ascension and tristan da cunha', 'saint kitts and nevis',
+  'saint lucia', 'saint martin french part', 'saint pierre and miquelon',
+  'saint vincent and the grenadines', 'samoa', 'san marino',
+  'sao tome and principe', 'saudi arabia', 'senegal', 'serbia',
+  'seychelles', 'sierra leone', 'singapore', 'sint maarten dutch part',
+  'slovakia', 'slovenia', 'solomon islands', 'somalia', 'south africa',
+  'south georgia and the south sandwich islands', 'south sudan', 'spain',
+  'sri lanka', 'sudan', 'suriname', 'svalbard and jan mayen', 'sweden',
+  'switzerland', 'syrian arab republic', 'syria',
+  'taiwan', 'taiwan province of china', 'tajikistan', 'tanzania',
+  'united republic of tanzania', 'thailand', 'timor leste', 'east timor',
+  'togo', 'tokelau', 'tonga', 'trinidad and tobago', 'tunisia', 'türkiye',
+  'turkiye', 'turkey', 'turkmenistan', 'turks and caicos islands', 'tuvalu',
+  'uganda', 'ukraine', 'united arab emirates', 'united kingdom',
+  'great britain', 'uk', 'england', 'scotland', 'wales',
+  'northern ireland', 'uruguay', 'uzbekistan',
+  'vanuatu', 'venezuela', 'bolivarian republic of venezuela', 'viet nam',
+  'vietnam', 'british virgin islands', 'virgin islands british',
+  'wallis and futuna', 'western sahara',
+  'yemen',
+  'zambia', 'zimbabwe',
 ] as const
+
+const US_STATE_NAMES_THAT_CONTAIN_COUNTRIES = ['new jersey', 'new mexico'] as const
 
 function explicitStateAbbreviation(location: string): boolean {
   const delimitedSegments = location
@@ -257,12 +334,13 @@ export function classifyUsLocation(
   location: string | null,
 ): 'us' | 'outside_us' | 'unknown' {
   if (!location || normalizedFilterTokens(location).length === 0) return 'unknown'
-  if (phraseMatch(location, EXPLICIT_FOREIGN_PHRASES)) return 'outside_us'
   if (
     phraseMatch(location, EXPLICIT_US_PHRASES) ||
-    phraseMatch(location, US_STATE_NAMES) ||
+    phraseMatch(location, US_STATE_NAMES_THAT_CONTAIN_COUNTRIES) ||
     explicitStateAbbreviation(location)
   ) return 'us'
+  if (phraseMatch(location, EXPLICIT_NON_US_COUNTRY_PHRASES)) return 'outside_us'
+  if (phraseMatch(location, US_STATE_NAMES)) return 'us'
   return 'unknown'
 }
 
