@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03.4
 current_phase_name: replace-automatic-ai-scoring-with-deterministic-ranking
 status: executing
-stopped_at: Completed 03.4-01-PLAN.md
-last_updated: "2026-07-23T05:20:58.231Z"
+stopped_at: Completed 03.4-02-PLAN.md
+last_updated: "2026-07-23T06:01:30.417Z"
 last_activity: 2026-07-23
-last_activity_desc: Completed Phase 03.4 Plan 01 containment and evaluator
+last_activity_desc: Completed Phase 03.4 Plan 02 atomic ranking data plane and worker rollout
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 51
-  completed_plans: 47
-  percent: 92
+  completed_plans: 48
+  percent: 94
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 03.4 (replace-automatic-ai-scoring-with-deterministic-ranking) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
-Last activity: 2026-07-23 — Completed Phase 03.4 Plan 01 containment and evaluator
+Last activity: 2026-07-23 — Completed Phase 03.4 Plan 02 atomic ranking data plane and worker rollout
 
-Progress: [██████████████████░░] 47/51 plans complete; milestone 6/9 phases complete (67%)
+Progress: [███████████████████░] 48/51 plans complete; milestone 6/9 phases complete (94%)
 
 ## Performance Metrics
 
@@ -93,6 +93,7 @@ Progress: [██████████████████░░] 47/51 p
 | Phase 03.3 P02 | 6min | 2 tasks | 4 files |
 | Phase 03.3 P03 | 5min | 2 tasks | 6 files |
 | Phase 03.4 P01 | 20 min | 3 tasks | 8 files |
+| Phase 03.4 P02 | 34 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -197,6 +198,9 @@ Recent decisions affecting current work:
 - [Phase 03.4]: Keep score-tick's POST and x-cron-secret boundary while removing every privileged client, provider, reservation, usage, and user-row mutation capability. — Stops automatic paid scoring immediately without schema or scheduler drift.
 - [Phase 03.4]: Restore the final Phase 03.2 required-experience parser and use its explicit minimum only as a strict less-than scoring signal. — Preserves the hardened grammar while honoring the owner-approved soft-signal boundary.
 - [Phase 03.4]: Reject only explicit foreign locations through a three-state US classifier; unknown and countryless Remote remain eligible. — Fails open on ambiguity as required by D-11.
+- [Phase 03.4]: Publish deterministic rankings only by promoting a complete captured revision in one locked transaction; partial, failed, stale, or universe-incomplete runs never change active results.
+- [Phase 03.4]: Keep initial backfill behind one bounded, idempotent, service-role-only initializer that feeds the ordinary claim, stage, and finalize protocol.
+- [Phase 03.4]: Deploy extract-resume before score-tick only after exact source hashes, migration parity, hosted identity checks, and empty deterministic tables pass.
 
 ### Pending Todos
 
@@ -231,7 +235,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-23T05:20:58.221Z
-Stopped at: Completed 03.4-01-PLAN.md
+Last session: 2026-07-23T06:01:30.390Z
+Stopped at: Completed 03.4-02-PLAN.md
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
