@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import {
@@ -15,11 +15,15 @@ import {
 } from '../lib/feed'
 import {
   ALL_SCORE_TIERS,
+  areAllCurrentCompaniesCleared,
+  areAllCurrentCompaniesSelected,
+  clearAllCompanies,
   copyHiddenCompanyKeys,
   dashboardCompanyOptions,
   filterDashboardRows,
-  resetHiddenCompanyKeys,
   searchCompanyOptions,
+  scoreTierSummary,
+  selectAllCompanies,
   toggleHiddenCompanyKey,
   toggleScoreTier,
 } from '../lib/dashboard'
@@ -150,6 +154,7 @@ export function Dashboard() {
   const [sortByScore, setSortByScore] = useState(false)
   const [scoreAscending, setScoreAscending] = useState(false)
   const [companyPanelOpen, setCompanyPanelOpen] = useState(false)
+  const [scoreTierPopoverOpen, setScoreTierPopoverOpen] = useState(false)
   const [companySearch, setCompanySearch] = useState('')
   const [appliedHiddenKeys, setAppliedHiddenKeys] = useState<Set<string>>(() => new Set())
   const [draftHiddenKeys, setDraftHiddenKeys] = useState<Set<string>>(() => new Set())
@@ -158,6 +163,28 @@ export function Dashboard() {
   const columnWidthsRef = useRef(columnWidths)
   const resizeCoordinator = useRef<ColumnResizeCoordinator>({ activeColumnId: null })
   const companyTriggerRef = useRef<HTMLButtonElement>(null)
+  const scoreTierTriggerRef = useRef<HTMLButtonElement>(null)
+  const scoreTierPopoverRef = useRef<HTMLDivElement>(null)
+  const firstScoreTierCheckboxRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!scoreTierPopoverOpen) return
+
+    queueMicrotask(() => firstScoreTierCheckboxRef.current?.focus())
+
+    function handleOutsidePointerDown(event: globalThis.PointerEvent) {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (
+        scoreTierPopoverRef.current?.contains(target)
+        || scoreTierTriggerRef.current?.contains(target)
+      ) return
+      setScoreTierPopoverOpen(false)
+    }
+
+    document.addEventListener('pointerdown', handleOutsidePointerDown)
+    return () => document.removeEventListener('pointerdown', handleOutsidePointerDown)
+  }, [scoreTierPopoverOpen])
 
   const feedQuery = useQuery({
     queryKey: ['feed'],
@@ -245,6 +272,7 @@ export function Dashboard() {
   ])
 
   function openCompanyPanel() {
+    setScoreTierPopoverOpen(false)
     setDraftHiddenKeys(copyHiddenCompanyKeys(appliedHiddenKeys))
     setCompanySearch('')
     setCompanyPanelOpen(true)
@@ -261,11 +289,29 @@ export function Dashboard() {
     closeCompanyPanel()
   }
 
+  function openScoreTierPopover() {
+    setCompanyPanelOpen(false)
+    setCompanySearch('')
+    setScoreTierPopoverOpen(true)
+  }
+
+  function closeScoreTierPopover(returnFocus: boolean) {
+    setScoreTierPopoverOpen(false)
+    if (returnFocus) queueMicrotask(() => scoreTierTriggerRef.current?.focus())
+  }
+
   const visibleCompanyCount = companyOptions.filter(
     (option) => !appliedHiddenKeys.has(option.key),
   ).length
-  const companyFilterNarrowed = appliedHiddenKeys.size > 0
+  const companyFilterNarrowed = !areAllCurrentCompaniesSelected(
+    companyOptions,
+    appliedHiddenKeys,
+  )
   const filtersNarrowed = companyFilterNarrowed || selectedTiers.size < ALL_SCORE_TIERS.length
+  const scoreSummary = scoreTierSummary(selectedTiers)
+  const scoreFilterNarrowed = selectedTiers.size < ALL_SCORE_TIERS.length
+  const clearAllDisabled = areAllCurrentCompaniesCleared(companyOptions, draftHiddenKeys)
+  const selectAllDisabled = areAllCurrentCompaniesSelected(companyOptions, draftHiddenKeys)
 
   function toggleScoreSort() {
     if (!sortByScore) {
@@ -317,7 +363,7 @@ export function Dashboard() {
         </button>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-3">
+      <div className="relative mt-4 flex flex-wrap gap-3">
         <button
           ref={companyTriggerRef}
           type="button"
@@ -328,20 +374,59 @@ export function Dashboard() {
         >
           {companyFilterNarrowed ? `Companies (${visibleCompanyCount} selected)` : 'Companies'}
         </button>
-        {ALL_SCORE_TIERS.map((tier) => {
-          const selected = selectedTiers.has(tier)
-          return (
-            <button
-              key={tier}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => setSelectedTiers((current) => toggleScoreTier(current, tier))}
-              className={`${filterButtonBase} ${selected ? filterActive : filterInactive}`}
+        <div className="relative">
+          <button
+            ref={scoreTierTriggerRef}
+            type="button"
+            aria-expanded={scoreTierPopoverOpen}
+            aria-controls="dashboard-score-tier-popover"
+            onClick={() => (
+              scoreTierPopoverOpen
+                ? closeScoreTierPopover(true)
+                : openScoreTierPopover()
+            )}
+            className={`${filterButtonBase} ${scoreFilterNarrowed ? filterActive : filterInactive}`}
+          >
+            {scoreSummary}
+            <span aria-hidden="true" className="ml-2">▾</span>
+          </button>
+          {scoreTierPopoverOpen ? (
+            <div
+              ref={scoreTierPopoverRef}
+              id="dashboard-score-tier-popover"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  closeScoreTierPopover(true)
+                }
+              }}
+              className="absolute top-full left-0 z-20 mt-2 min-w-[220px] max-w-[calc(100vw-2rem)] rounded-lg border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-800 dark:bg-zinc-900"
             >
-              {tier}
-            </button>
-          )
-        })}
+              <fieldset>
+                <legend className="px-1 text-sm font-semibold">Score tiers</legend>
+                <div className="mt-2 grid">
+                  {ALL_SCORE_TIERS.map((tier) => (
+                    <label
+                      key={tier}
+                      className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-1 text-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-zinc-900 dark:focus-within:outline-zinc-100"
+                    >
+                      <input
+                        ref={tier === ALL_SCORE_TIERS[0] ? firstScoreTierCheckboxRef : undefined}
+                        type="checkbox"
+                        checked={selectedTiers.has(tier)}
+                        onChange={() => setSelectedTiers((current) =>
+                          toggleScoreTier(current, tier))}
+                        className="size-6 rounded border-zinc-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
+                      />
+                      <span>{tier}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {companyPanelOpen ? (
@@ -371,7 +456,11 @@ export function Dashboard() {
             className="mt-2 min-h-11 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 dark:border-zinc-700 dark:bg-zinc-950"
           />
           <fieldset className="mt-3 max-h-80 overflow-y-auto" aria-label="Current companies">
-            {searchedCompanyOptions.length === 0 ? (
+            {companyOptions.length === 0 ? (
+              <p className="py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                No companies in the current feed.
+              </p>
+            ) : searchedCompanyOptions.length === 0 ? (
               <p className="py-3 text-sm text-zinc-600 dark:text-zinc-400">
                 No current companies match your search.
               </p>
@@ -393,14 +482,24 @@ export function Dashboard() {
               ))
             )}
           </fieldset>
-          <div className="sticky bottom-0 mt-4 flex justify-end gap-3 border-t border-zinc-200 bg-white pt-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="sticky bottom-0 mt-4 flex flex-wrap items-center gap-3 border-t border-zinc-200 bg-white pt-4 dark:border-zinc-800 dark:bg-zinc-900">
             <button
               type="button"
-              onClick={() => setDraftHiddenKeys(resetHiddenCompanyKeys())}
-              className={`${filterButtonBase} ${filterInactive}`}
+              disabled={clearAllDisabled}
+              onClick={() => setDraftHiddenKeys(clearAllCompanies(companyOptions))}
+              className={`${filterButtonBase} ${filterInactive} disabled:opacity-50`}
             >
-              Reset
+              Clear all
             </button>
+            <button
+              type="button"
+              disabled={selectAllDisabled}
+              onClick={() => setDraftHiddenKeys(selectAllCompanies())}
+              className={`${filterButtonBase} ${filterInactive} disabled:opacity-50`}
+            >
+              Select all
+            </button>
+            <span aria-hidden="true" className="flex-1" />
             <button
               type="button"
               onClick={applyCompanyDraft}
@@ -445,7 +544,7 @@ export function Dashboard() {
               <>
                 <h2 className="text-base font-semibold">No jobs match these filters</h2>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  Select more companies or score tiers, or reset the company filter.
+                  Select more companies or score tiers, or use Select all in Companies.
                 </p>
               </>
             ) : (

@@ -29,7 +29,12 @@ export const FEED_DETAIL_COLUMNS =
   'source_company_name, description_html, description_text, companies ( name ) )'
 
 export type FeedStatus = 'pending' | 'filtered' | 'scored' | 'failed'
-export type FilterReason = 'excluded_keyword' | 'wrong_location' | 'title_non_overlap' | 'experience_above_max'
+export type FilterReason =
+  | 'excluded_title_keyword'
+  | 'excluded_keyword'
+  | 'wrong_location'
+  | 'title_non_overlap'
+  | 'experience_above_max'
 export type Tier = 'Strong' | 'Good' | 'Weak'
 
 export interface FeedCompany {
@@ -96,6 +101,7 @@ export function tierPresentation(score: number | null): TierPresentation {
 }
 
 const FILTER_REASON_LABELS: Record<FilterReason, string> = {
+  excluded_title_keyword: 'excluded title keyword',
   excluded_keyword: 'excluded keyword',
   wrong_location: 'location mismatch',
   title_non_overlap: 'title mismatch',
@@ -109,6 +115,9 @@ export function filteredReasonLabel(
 ): string | null {
   if (!row.filter_reason) return null
   const base = FILTER_REASON_LABELS[row.filter_reason]
+  if (row.filter_reason === 'excluded_title_keyword' && row.filter_detail) {
+    return `${base}: ${[...row.filter_detail].slice(0, 160).join('')}`
+  }
   if (row.filter_reason === 'excluded_keyword' && row.filter_detail) {
     return `${base}: ${row.filter_detail}`
   }
