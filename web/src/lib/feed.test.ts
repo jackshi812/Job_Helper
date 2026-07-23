@@ -71,6 +71,27 @@ describe('tierPresentation', () => {
 })
 
 describe('filteredReasonLabel', () => {
+  it('renders a bounded excluded-title keyword while preserving legacy experience reads', () => {
+    expect(
+      filteredReasonLabel({
+        filter_reason: 'excluded_title_keyword',
+        filter_detail: 'vice president',
+      }),
+    ).toBe('excluded title keyword: vice president')
+    expect(
+      filteredReasonLabel({
+        filter_reason: 'excluded_title_keyword',
+        filter_detail: 'x'.repeat(161),
+      }),
+    ).toBe(`excluded title keyword: ${'x'.repeat(160)}`)
+    expect(
+      filteredReasonLabel({
+        filter_reason: 'experience_above_max',
+        filter_detail: null,
+      }),
+    ).toBe('required experience above maximum')
+  })
+
   it('renders an excluded keyword with its detail', () => {
     expect(
       filteredReasonLabel({ filter_reason: 'excluded_keyword', filter_detail: 'staff' }),

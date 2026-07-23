@@ -82,9 +82,11 @@ describe('Dashboard precision controls', () => {
     expect(markup).not.toContain('All jobs')
     expect(markup).toContain('aria-expanded="false"')
     expect(markup).toContain('>Companies</button>')
-    expect(markup).toMatch(/aria-pressed="true"[^>]*>Strong<\/button>/)
-    expect(markup).toMatch(/aria-pressed="true"[^>]*>Good<\/button>/)
-    expect(markup).toMatch(/aria-pressed="true"[^>]*>Weak<\/button>/)
+    expect(markup).toContain('aria-controls="dashboard-score-tier-popover"')
+    expect(markup).toContain('Score tiers: All')
+    expect(markup).not.toMatch(/aria-pressed="true"[^>]*>Strong<\/button>/)
+    expect(markup).not.toMatch(/aria-pressed="true"[^>]*>Good<\/button>/)
+    expect(markup).not.toMatch(/aria-pressed="true"[^>]*>Weak<\/button>/)
     expect(markup).toContain('1 jobs shown')
     expect(markup).toContain('Analyst')
   })
@@ -106,16 +108,51 @@ describe('Dashboard precision controls', () => {
     expect(jobDetailSource).toContain('Match reasons')
   })
 
-  it('pins staged company search, apply, reset, escape, and filter-empty copy', () => {
+  it('pins staged full-list company actions, escape, and exact filter-empty copy', () => {
     expect(dashboardSource).toContain('Search companies')
     expect(dashboardSource).toContain('Search current companies')
     expect(dashboardSource).toContain('Show results')
-    expect(dashboardSource).toContain('Reset')
+    expect(dashboardSource).toContain('Clear all')
+    expect(dashboardSource).toContain('Select all')
+    expect(dashboardSource).not.toContain('>Reset<')
+    expect(dashboardSource).toContain('clearAllCompanies(companyOptions)')
+    expect(dashboardSource).not.toContain('clearAllCompanies(searchedCompanyOptions)')
+    expect(dashboardSource).toContain('selectAllCompanies()')
+    expect(dashboardSource).toContain('areAllCurrentCompaniesCleared(')
+    expect(dashboardSource).toContain('areAllCurrentCompaniesSelected(')
     expect(dashboardSource).toContain("event.key === 'Escape'")
     expect(dashboardSource).toContain('No jobs match these filters')
+    expect(dashboardSource).toContain(
+      'Select more companies or score tiers, or use Select all in Companies.',
+    )
+    expect(dashboardSource).toContain('No companies in the current feed.')
     expect(dashboardSource).toContain('No current companies match your search.')
     expect(dashboardSource).not.toContain('localStorage')
     expect(dashboardSource).not.toContain('savePreferences')
+  })
+
+  it('uses one native score checkbox group with immediate zero-to-three tier state', () => {
+    expect(dashboardSource).toContain('scoreTierSummary(selectedTiers)')
+    expect(dashboardSource).toContain('id="dashboard-score-tier-popover"')
+    expect(dashboardSource).toContain('<fieldset')
+    expect(dashboardSource).toContain('<legend')
+    expect(dashboardSource).toContain('type="checkbox"')
+    expect(dashboardSource).toContain('ALL_SCORE_TIERS.map((tier)')
+    expect(dashboardSource).toContain('toggleScoreTier(current, tier)')
+    expect(dashboardSource).toContain('min-w-[220px]')
+    expect(dashboardSource).toContain('min-h-11')
+    expect(dashboardSource).not.toContain('aria-pressed={selected}')
+  })
+
+  it('pins mutual exclusion, escape focus return, and outside-pointer listener cleanup', () => {
+    expect(dashboardSource).toContain('setScoreTierPopoverOpen(false)')
+    expect(dashboardSource).toContain('setCompanyPanelOpen(false)')
+    expect(dashboardSource).toContain('scoreTierTriggerRef.current?.focus()')
+    expect(dashboardSource).toContain('firstScoreTierCheckboxRef.current?.focus()')
+    expect(dashboardSource).toContain("document.addEventListener('pointerdown'")
+    expect(dashboardSource).toContain("document.removeEventListener('pointerdown'")
+    expect(dashboardSource).toContain('scoreTierPopoverRef.current?.contains(target)')
+    expect(dashboardSource).toContain('scoreTierTriggerRef.current?.contains(target)')
   })
 
   it('renders fixed colgroup widths and accessible separators except after Action', () => {
