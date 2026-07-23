@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 03.3
-current_phase_name: dashboard-filter-refinements
+current_phase: 03.4
+current_phase_name: replace-automatic-ai-scoring-with-deterministic-ranking
 status: executing
-stopped_at: Completed 03.3-03-PLAN.md
-last_updated: "2026-07-23T01:44:15.138Z"
-last_activity: 2026-07-23
-last_activity_desc: Phase 03.3 execution started
+stopped_at: Phase 03.4 context gathered
+last_updated: "2026-07-23T04:02:09.556Z"
+last_activity: 2026-07-22
+last_activity_desc: Phase 03.4 inserted; awaiting owner ranking rules
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 6
   total_plans: 47
   completed_plans: 46
-  percent: 75
+  percent: 67
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 03.3 — dashboard-filter-refinements
+**Current focus:** Phase 03.4 — replace automatic AI scoring with deterministic ranking
 
 ## Current Position
 
-Phase: 03.3 (dashboard-filter-refinements) — EXECUTING
-Plan: 4 of 4
+Phase: 03.4 (replace-automatic-ai-scoring-with-deterministic-ranking) — NOT PLANNED
+Plan: 0 of TBD
 Status: Ready to execute
-Last activity: 2026-07-23 — Phase 03.3 execution started
+Last activity: 2026-07-22 — Phase 03.4 inserted; awaiting owner ranking rules
 
 Progress: [███████████████░░░░░] 43/43 currently planned plans complete; milestone 6/8 phases complete (75%)
 
@@ -223,10 +223,11 @@ Recent decisions affecting current work:
 - Phase 03.1 inserted after Phase 3 and rescoped on 2026-07-20: SuccessFactors & Paylocity Connector Expansion; new Workday expansion deferred (URGENT)
 - Phase 03.2 inserted after Phase 3: Dashboard Precision & Company Visibility (URGENT)
 - Phase 03.3 inserted after Phase 3: Dashboard Filter Refinements (URGENT)
+- Phase 03.4 inserted after Phase 03.3: Replace automatic AI scoring with deterministic ranking; defer AI scoring to explicit job-detail actions after Phase 4 (URGENT)
 
 ## Session Continuity
 
-Last session: 2026-07-23T01:44:15.129Z
-Stopped at: Completed 03.3-03-PLAN.md
-Resume file: None
+Last session: 2026-07-23T04:02:09.543Z
+Stopped at: Phase 03.4 context gathered
+Resume file: .planning/phases/03.4-replace-automatic-ai-scoring-with-deterministic-ranking/03.4-CONTEXT.md
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
