@@ -110,7 +110,19 @@ describe('deterministic ranking preference form', () => {
   it('wires semantic groups, accessible errors, invalid focus, and complete save payload', () => {
     expect(preferencesSource).toContain('chipComparisonKey(value)')
     expect(preferencesSource).toContain('chipComparisonKey(addition)')
-    expect(preferencesSource).toContain('validateTitleExclusions(titleExcludeKeywords)')
+    expect(preferencesSource).toContain('validatePreferenceTextArrays')
+    expect(preferencesSource).toContain('textArrayValidation.firstInvalidField')
+    expect(preferencesSource).toContain('requestAnimationFrame')
+    expect(preferencesSource).toContain('document.getElementById(firstInvalidField)?.focus()')
+    for (const id of [
+      'pref-titles-error',
+      'pref-title-exclude-error',
+      'pref-locations-error',
+      'pref-include-error',
+      'pref-exclude-error',
+    ]) {
+      expect(preferencesSource).toContain(id)
+    }
     expect(preferencesSource).toContain('validateRankingForm')
     expect(preferencesSource).toContain('firstInvalidField')
     expect(preferencesSource).toContain('document.getElementById')

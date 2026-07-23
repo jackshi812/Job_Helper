@@ -8,8 +8,8 @@ import {
   parseChips,
   retryDeterministicRankingRun,
   savePreferences,
+  validatePreferenceTextArray,
   validateRankingForm,
-  validateTitleExclusions,
 } from './preferences'
 
 const mocks = vi.hoisted(() => ({
@@ -81,7 +81,7 @@ describe('parseChips', () => {
   })
 })
 
-describe('title exclusion contract', () => {
+describe('ranking text-array contract', () => {
   it('projects the complete deterministic preference record', () => {
     expect(PREFERENCE_COLUMNS).toBe(
       'user_id, titles, locations, include_keywords, exclude_keywords, title_exclude_keywords, max_required_experience, ranking_rubric, ranking_good_threshold, ranking_strong_threshold, updated_at',
@@ -92,29 +92,45 @@ describe('title exclusion contract', () => {
     expect(DEFAULT_RANKING_RUBRIC).toEqual(input.ranking_rubric)
   })
 
-  it('accepts explicit empty, 50 entries, and exactly 4,096 encoded bytes', () => {
-    expect(() => validateTitleExclusions([])).not.toThrow()
-    expect(() =>
-      validateTitleExclusions(Array.from({ length: 50 }, (_, index) => `term-${index}`)),
-    ).not.toThrow()
-    expect(new TextEncoder().encode(JSON.stringify(['a'.repeat(4092)])).byteLength).toBe(4096)
-    expect(() => validateTitleExclusions(['a'.repeat(4092)])).not.toThrow()
+  const fields = [
+    ['titles', 'pref-titles'],
+    ['title_exclude_keywords', 'pref-title-exclude'],
+    ['locations', 'pref-locations'],
+    ['include_keywords', 'pref-include'],
+    ['exclude_keywords', 'pref-exclude'],
+  ] as const
+  const exactByteBoundary = [
+    ...Array.from({ length: 20 }, () => 'a'.repeat(200)),
+    'b'.repeat(32),
+  ]
+
+  it.each(fields)('accepts exact count, byte, trim, and length boundaries for %s', (field) => {
+    expect(validatePreferenceTextArray(field, [])).toMatchObject({ valid: true })
+    expect(validatePreferenceTextArray(
+      field,
+      Array.from({ length: 50 }, (_, index) => `term-${index}`),
+    )).toMatchObject({ valid: true })
+    expect(new TextEncoder().encode(JSON.stringify(exactByteBoundary)).byteLength).toBe(4096)
+    expect(validatePreferenceTextArray(field, exactByteBoundary)).toMatchObject({ valid: true })
+    expect(validatePreferenceTextArray(field, ['a'.repeat(200)])).toMatchObject({ valid: true })
   })
 
-  it('rejects a 51st entry and 4,097 encoded bytes with bounded value-free errors', () => {
-    expect(() =>
-      validateTitleExclusions(Array.from({ length: 51 }, (_, index) => `term-${index}`)),
-    ).toThrow('Title exclusions can contain at most 50 entries.')
+  it.each(fields)('rejects every server-bounded invalid shape for %s', (field, inputId) => {
+    const cases = [
+      Array.from({ length: 51 }, (_, index) => `term-${index}`),
+      [...exactByteBoundary.slice(0, -1), 'b'.repeat(33)],
+      [''],
+      [' surrounded '],
+      ['a'.repeat(201)],
+      ['line\nbreak'],
+    ]
 
-    const oversized = 'z'.repeat(4093)
-    expect(new TextEncoder().encode(JSON.stringify([oversized])).byteLength).toBe(4097)
-    expect(() => validateTitleExclusions([oversized])).toThrow(
-      'Title exclusions must be 4,096 bytes or less.',
-    )
-    try {
-      validateTitleExclusions([oversized])
-    } catch (error) {
-      expect(String(error)).not.toContain(oversized)
+    for (const values of cases) {
+      const result = validatePreferenceTextArray(field, values)
+      expect(result.valid).toBe(false)
+      expect(result.inputId).toBe(inputId)
+      expect(result.errorId).toBe(`${inputId}-error`)
+      expect(result.message).not.toContain(values[0] ?? '')
     }
   })
 })
@@ -237,18 +253,26 @@ describe('deterministic ranking RPC contract', () => {
   })
 
   it('accepts the exact title-exclusion byte boundary before the atomic RPC', async () => {
-    await savePreferences({ ...input, title_exclude_keywords: ['a'.repeat(4092)] })
+    const values = [
+      ...Array.from({ length: 20 }, () => 'a'.repeat(200)),
+      'b'.repeat(32),
+    ]
+    await savePreferences({ ...input, title_exclude_keywords: values })
 
     expect(mocks.rpc).toHaveBeenCalledTimes(1)
   })
 
   it.each([
-    ['51 entries', Array.from({ length: 51 }, (_, index) => `term-${index}`)],
-    ['4,097 bytes', ['z'.repeat(4093)]],
-  ])('rejects %s before remote work', async (_label, values) => {
-    await expect(savePreferences({ ...input, title_exclude_keywords: values })).rejects.toThrow(
-      /^Title exclusions /,
-    )
+    ['titles', { titles: [''] }],
+    ['locations', { locations: [' surrounded '] }],
+    ['include keywords', { include_keywords: ['a'.repeat(201)] }],
+    ['exclude keywords', { exclude_keywords: ['line\nbreak'] }],
+    [
+      'title exclusions',
+      { title_exclude_keywords: Array.from({ length: 51 }, (_, index) => `term-${index}`) },
+    ],
+  ])('rejects invalid %s before remote work', async (_label, overrides) => {
+    await expect(savePreferences({ ...input, ...overrides })).rejects.toThrow()
 
     expect(mocks.from).not.toHaveBeenCalled()
     expect(mocks.rpc).not.toHaveBeenCalled()
