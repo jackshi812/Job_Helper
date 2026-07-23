@@ -251,6 +251,11 @@ function verifyMigrationInventory(fields, probes) {
 }
 
 function verifyFunction(fields, prefix, probe) {
+  exactValue(
+    probe.provenance,
+    'hosted-download',
+    `${prefix.replaceAll('_', '-')} source provenance`,
+  )
   exact(probe.id, fields[`${prefix}_deployment_id`], `${prefix.replaceAll('_', '-')} deployment ID`)
   exact(probe.version, fields[`${prefix}_version`], `${prefix.replaceAll('_', '-')} version`)
   exactValue(probe.status, 'ACTIVE', `${prefix.replaceAll('_', '-')} status`)
@@ -912,7 +917,9 @@ async function relativeImportGraph(root, entry) {
     if (visited.has(key)) return
     visited.add(key)
     const source = await readFile(absolute, 'utf8')
-    for (const match of source.matchAll(/from\s+['"](\.\.?\/[^'"]+)['"]/g)) {
+    for (const match of source.matchAll(
+      /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)['"](\.\.?\/[^'"]+)['"]/g,
+    )) {
       let target = resolve(dirname(absolute), match[1])
       if (!/\.[cm]?[jt]sx?$/.test(target)) target += '.ts'
       await visit(relative(root, target))
@@ -1167,6 +1174,7 @@ export async function functionProbe(root, slug, approved, adapters = {}) {
     )
     return Object.freeze({
       ...before,
+      provenance: 'hosted-download',
       indexSha256: remoteIndexSha256,
       bundleManifestSha256: remoteBundle.sha256,
     })

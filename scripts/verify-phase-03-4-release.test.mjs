@@ -97,6 +97,7 @@ test('hosted function probe hashes only fresh downloaded bytes and removes them'
     version: 14,
     status: 'ACTIVE',
     verifyJwt: false,
+    provenance: 'hosted-download',
     indexSha256: fixture.approved.indexSha256,
     bundleManifestSha256: fixture.approved.bundleManifestSha256,
   })
@@ -138,6 +139,19 @@ test('hosted function probe rejects local hash substitution and incomplete bundl
       },
     }),
     /hosted source inventory failed/,
+  )
+  await assert.rejects(
+    () => functionProbe(process.cwd(), 'score-tick', fixture.approved, {
+      fetchMetadata: async () => stableFunctionMetadata(),
+      runCommand: async (cwd) => {
+        await writeHostedFixture(cwd, {
+          ...fixture.files,
+          'supabase/functions/_shared/unapproved.ts': 'export const unapproved = true\n',
+          [fixture.entryPath]: `${fixture.files[fixture.entryPath]}import '../_shared/unapproved.ts'\n`,
+        })
+      },
+    }),
+    /hosted bundle file inventory mismatch/,
   )
 })
 
@@ -344,6 +358,7 @@ function preflightProbes(overrides = {}) {
       version: 11,
       status: 'ACTIVE',
       verifyJwt: false,
+      provenance: 'hosted-download',
       indexSha256: SCORE_TICK_SHA,
       bundleManifestSha256: SCORE_TICK_BUNDLE_SHA,
     },
@@ -352,6 +367,7 @@ function preflightProbes(overrides = {}) {
       version: 4,
       status: 'ACTIVE',
       verifyJwt: false,
+      provenance: 'hosted-download',
       indexSha256: EXTRACT_RESUME_SHA,
       bundleManifestSha256: EXTRACT_RESUME_BUNDLE_SHA,
     },
@@ -416,6 +432,7 @@ function postReleaseProbes(overrides = {}) {
       version: 12,
       status: 'ACTIVE',
       verifyJwt: false,
+      provenance: 'hosted-download',
       indexSha256: SCORE_TICK_SHA,
       bundleManifestSha256: SCORE_TICK_BUNDLE_SHA,
     },
@@ -511,6 +528,31 @@ test('preflight rejects migration, function, owner-count, cost, or transition dr
       }),
     ),
     /score-tick verify_jwt mismatch/,
+  )
+  assert.throws(
+    () => verifyPreflightEvidence(
+      preflight(),
+      preflightProbes({
+        scoreTick: {
+          ...preflightProbes().scoreTick,
+          provenance: 'approved-local',
+        },
+      }),
+    ),
+    /score-tick source provenance must equal hosted-download/,
+  )
+  assert.throws(
+    () => verifyPreflightEvidence(
+      preflight(),
+      preflightProbes({
+        scoreTick: {
+          ...preflightProbes().scoreTick,
+          indexSha256: EXTRACT_RESUME_SHA,
+          bundleManifestSha256: EXTRACT_RESUME_BUNDLE_SHA,
+        },
+      }),
+    ),
+    /score-tick index SHA-256 mismatch/,
   )
   assert.throws(
     () => verifyPreflightEvidence(
@@ -945,6 +987,18 @@ test('post-release rejects partial, mixed, missing deterministic, identity, asse
       postReleaseProbes({ originGitSha: '9'.repeat(40) }),
     ),
     /origin\/main Git SHA mismatch/,
+  )
+  assert.throws(
+    () => verifyPostReleaseEvidence(
+      postRelease(),
+      postReleaseProbes({
+        scoreTick: {
+          ...postReleaseProbes().scoreTick,
+          provenance: 'approved-local',
+        },
+      }),
+    ),
+    /score-tick source provenance must equal hosted-download/,
   )
 })
 
