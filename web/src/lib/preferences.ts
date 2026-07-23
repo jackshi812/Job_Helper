@@ -22,8 +22,46 @@ export const DEFAULT_RANKING_RUBRIC: RankingRubric = {
 export const DEFAULT_GOOD_THRESHOLD = 50
 export const DEFAULT_STRONG_THRESHOLD = 75
 
-const MAX_TITLE_EXCLUSION_ENTRIES = 50
-const MAX_TITLE_EXCLUSION_BYTES = 4096
+const MAX_PREFERENCE_TEXT_ARRAY_ENTRIES = 50
+const MAX_PREFERENCE_TEXT_ARRAY_BYTES = 4096
+const MAX_PREFERENCE_TEXT_ENTRY_CHARACTERS = 200
+
+export type PreferenceTextArrayField =
+  | 'titles'
+  | 'title_exclude_keywords'
+  | 'locations'
+  | 'include_keywords'
+  | 'exclude_keywords'
+
+const PREFERENCE_TEXT_ARRAY_FIELDS: ReadonlyArray<{
+  field: PreferenceTextArrayField
+  inputId: string
+  label: string
+}> = [
+  { field: 'titles', inputId: 'pref-titles', label: 'Target titles' },
+  {
+    field: 'title_exclude_keywords',
+    inputId: 'pref-title-exclude',
+    label: 'Exclude title keywords',
+  },
+  { field: 'locations', inputId: 'pref-locations', label: 'Locations' },
+  { field: 'include_keywords', inputId: 'pref-include', label: 'Include keywords' },
+  { field: 'exclude_keywords', inputId: 'pref-exclude', label: 'Exclude keywords' },
+]
+
+export interface PreferenceTextArrayValidation {
+  valid: boolean
+  field: PreferenceTextArrayField
+  inputId: string
+  errorId: string
+  message: string | null
+}
+
+export interface PreferenceTextArraysValidation {
+  valid: boolean
+  fieldErrors: Record<string, string>
+  firstInvalidField: string | null
+}
 
 export interface RankingRubric {
   strictTitle: number
@@ -144,14 +182,74 @@ export function parseChips(raw: string): string[] {
   return chips
 }
 
-export function validateTitleExclusions(values: readonly string[]): void {
-  if (values.length > MAX_TITLE_EXCLUSION_ENTRIES) {
-    throw new Error('Title exclusions can contain at most 50 entries.')
+export function validatePreferenceTextArray(
+  field: PreferenceTextArrayField,
+  values: readonly string[],
+): PreferenceTextArrayValidation {
+  const definition = PREFERENCE_TEXT_ARRAY_FIELDS.find((candidate) => candidate.field === field)!
+  const result = (message: string | null): PreferenceTextArrayValidation => ({
+    valid: message === null,
+    field,
+    inputId: definition.inputId,
+    errorId: `${definition.inputId}-error`,
+    message,
+  })
+
+  if (!Array.isArray(values) || values.length > MAX_PREFERENCE_TEXT_ARRAY_ENTRIES) {
+    return result(`${definition.label} can contain at most 50 entries.`)
   }
 
   const encodedBytes = new TextEncoder().encode(JSON.stringify(values)).byteLength
-  if (encodedBytes > MAX_TITLE_EXCLUSION_BYTES) {
-    throw new Error('Title exclusions must be 4,096 bytes or less.')
+  if (encodedBytes > MAX_PREFERENCE_TEXT_ARRAY_BYTES) {
+    return result(`${definition.label} must be 4,096 bytes or less.`)
+  }
+
+  for (const entry of values) {
+    if (typeof entry !== 'string' || entry.length === 0 || entry.trim() !== entry) {
+      return result(`${definition.label} entries cannot be blank or have surrounding whitespace.`)
+    }
+    if (Array.from(entry).length > MAX_PREFERENCE_TEXT_ENTRY_CHARACTERS) {
+      return result(`${definition.label} entries must be 200 characters or less.`)
+    }
+    if (/[\u0000-\u001f\u007f-\u009f]/u.test(entry)) {
+      return result(`${definition.label} entries cannot contain control characters.`)
+    }
+  }
+
+  return result(null)
+}
+
+export function validatePreferenceTextArrays(
+  values: Pick<
+    SavePreferencesInput,
+    | 'titles'
+    | 'title_exclude_keywords'
+    | 'locations'
+    | 'include_keywords'
+    | 'exclude_keywords'
+  >,
+): PreferenceTextArraysValidation {
+  const fieldErrors: Record<string, string> = {}
+  let firstInvalidField: string | null = null
+
+  for (const definition of PREFERENCE_TEXT_ARRAY_FIELDS) {
+    const validation = validatePreferenceTextArray(definition.field, values[definition.field])
+    if (validation.valid || validation.message === null) continue
+    fieldErrors[validation.inputId] = validation.message
+    firstInvalidField ??= validation.inputId
+  }
+
+  return {
+    valid: firstInvalidField === null,
+    fieldErrors,
+    firstInvalidField,
+  }
+}
+
+function assertValidPreferenceTextArrays(input: SavePreferencesInput): void {
+  const validation = validatePreferenceTextArrays(input)
+  if (!validation.valid && validation.firstInvalidField) {
+    throw new Error(validation.fieldErrors[validation.firstInvalidField])
   }
 }
 
@@ -326,7 +424,7 @@ export async function loadPreferences(): Promise<PreferencesRecord | null> {
 export async function savePreferences(
   input: SavePreferencesInput,
 ): Promise<SavePreferencesResult> {
-  validateTitleExclusions(input.title_exclude_keywords)
+  assertValidPreferenceTextArrays(input)
 
   const { data, error } = await supabase.rpc('save_preferences_and_start_ranking', {
     p_titles: input.titles,

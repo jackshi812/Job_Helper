@@ -10,8 +10,8 @@ import {
   parseChips,
   rankingRubricToForm,
   savePreferences,
+  validatePreferenceTextArrays,
   validateRankingForm,
-  validateTitleExclusions,
   type PreferencesRecord,
   type RankingFormValues,
 } from '../lib/preferences'
@@ -32,10 +32,22 @@ interface ChipInputProps {
   values: string[]
   onChange: (next: string[]) => void
   disabled: boolean
+  error?: string
+  errorId: string
 }
 
-function ChipInput({ id, label, helper, values, onChange, disabled }: ChipInputProps) {
+function ChipInput({
+  id,
+  label,
+  helper,
+  values,
+  onChange,
+  disabled,
+  error,
+  errorId,
+}: ChipInputProps) {
   const [draft, setDraft] = useState('')
+  const helperId = `${id}-helper`
 
   function commit(raw: string) {
     const additions = parseChips(raw)
@@ -69,11 +81,11 @@ function ChipInput({ id, label, helper, values, onChange, disabled }: ChipInputP
   }
 
   return (
-    <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium">
+    <fieldset className="grid min-w-0 gap-1.5 border-0 p-0">
+      <legend className="text-sm font-medium">
         {label}
-      </label>
-      {helper ? <p className="text-xs text-zinc-500">{helper}</p> : null}
+      </legend>
+      {helper ? <p id={helperId} className="text-xs text-zinc-500">{helper}</p> : null}
       {values.length > 0 ? (
         <ul className="flex flex-wrap gap-1.5">
           {values.map((keyword) => (
@@ -103,9 +115,20 @@ function ChipInput({ id, label, helper, values, onChange, disabled }: ChipInputP
         onKeyDown={handleKeyDown}
         onBlur={() => commit(draft)}
         placeholder="Type and press Enter or comma"
+        aria-label={`Add ${label.toLowerCase()}`}
+        aria-invalid={error ? 'true' : undefined}
+        aria-describedby={[
+          helper ? helperId : null,
+          error ? errorId : null,
+        ].filter(Boolean).join(' ') || undefined}
         className={`${INPUT_CLASSES} ${FOCUS_RING}`}
       />
-    </div>
+      {error ? (
+        <p id={errorId} className="text-xs text-red-700 dark:text-red-400">
+          {error}
+        </p>
+      ) : null}
+    </fieldset>
   )
 }
 
@@ -214,16 +237,66 @@ export function Preferences() {
     return { maxRequiredExperience, rubric, goodThreshold, strongThreshold }
   }
 
-  function validateVisibleRankingForm() {
-    const validation = validateRankingForm(currentRankingForm())
-    setFieldErrors(validation.fieldErrors)
-    return validation
+  function currentTextArrays() {
+    return {
+      titles,
+      title_exclude_keywords: titleExcludeKeywords,
+      locations,
+      include_keywords: includeKeywords,
+      exclude_keywords: excludeKeywords,
+    }
+  }
+
+  function validateVisibleForm() {
+    const textArrayValidation = validatePreferenceTextArrays(currentTextArrays())
+    const rankingValidation = validateRankingForm(currentRankingForm())
+    const nextFieldErrors = {
+      ...textArrayValidation.fieldErrors,
+      ...rankingValidation.fieldErrors,
+    }
+    const formOrder = [
+      'pref-titles',
+      'pref-title-exclude',
+      'pref-locations',
+      'pref-max-experience',
+      'pref-include',
+      'pref-exclude',
+      'ranking-strict-title',
+      'ranking-weak-title',
+      'ranking-preferred-location',
+      'ranking-recency',
+      'ranking-watchlist',
+      'ranking-experience',
+      'ranking-keyword-one',
+      'ranking-keyword-two',
+      'ranking-keyword-three',
+      'ranking-keyword-four',
+      'ranking-keyword-five-plus',
+      'ranking-keyword-steps',
+      'ranking-total',
+      'ranking-good-threshold',
+      'ranking-strong-threshold',
+    ]
+    const firstInvalidField =
+      formOrder.find((field) => nextFieldErrors[field]) ?? null
+    setFieldErrors(nextFieldErrors)
+    return {
+      valid: textArrayValidation.valid && rankingValidation.valid,
+      firstInvalidField,
+      rankingValidation,
+      textArrayValidation,
+    }
+  }
+
+  function focusInvalidField(firstInvalidField: string | null) {
+    if (!firstInvalidField) return
+    requestAnimationFrame(() => document.getElementById(firstInvalidField)?.focus())
   }
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const validation = validateRankingForm(currentRankingForm())
-      if (!validation.valid || !validation.value) {
+      const validation = validateVisibleForm()
+      if (!validation.valid || !validation.rankingValidation.value) {
         throw new Error('invalid_ranking_form')
       }
       return savePreferences({
@@ -232,10 +305,10 @@ export function Preferences() {
         include_keywords: includeKeywords,
         exclude_keywords: excludeKeywords,
         title_exclude_keywords: titleExcludeKeywords,
-        max_required_experience: validation.value.maxRequiredExperience,
-        ranking_rubric: validation.value.rubric,
-        ranking_good_threshold: validation.value.goodThreshold,
-        ranking_strong_threshold: validation.value.strongThreshold,
+        max_required_experience: validation.rankingValidation.value.maxRequiredExperience,
+        ranking_rubric: validation.rankingValidation.value.rubric,
+        ranking_good_threshold: validation.rankingValidation.value.goodThreshold,
+        ranking_strong_threshold: validation.rankingValidation.value.strongThreshold,
       })
     },
     onSuccess: async () => {
@@ -245,8 +318,11 @@ export function Preferences() {
       await queryClient.invalidateQueries({ queryKey: ['preferences'] })
     },
     onError: () => {
+      const validation = validateVisibleForm()
       setMessage(null)
       setError('Couldn’t save these ranking settings. Check the highlighted values and retry.')
+      setFormValidationError(!validation.valid)
+      focusInvalidField(validation.firstInvalidField)
     },
   })
 
@@ -254,19 +330,10 @@ export function Preferences() {
     event.preventDefault()
     setMessage(null)
     setError(null)
-    try {
-      validateTitleExclusions(titleExcludeKeywords)
-    } catch {
-      setError('Couldn’t save these ranking settings. Check the highlighted values and retry.')
-      return
-    }
-    const validation = validateVisibleRankingForm()
+    const validation = validateVisibleForm()
     if (!validation.valid) {
       setFormValidationError(true)
-      const firstInvalidField = validation.firstInvalidField
-      if (firstInvalidField) {
-        requestAnimationFrame(() => document.getElementById(firstInvalidField)?.focus())
-      }
+      focusInvalidField(validation.firstInvalidField)
       return
     }
     setFormValidationError(false)
@@ -334,6 +401,8 @@ export function Preferences() {
             values={titles}
             onChange={setTitles}
             disabled={pending}
+            error={fieldErrors['pref-titles']}
+            errorId="pref-titles-error"
           />
           <ChipInput
             id="pref-title-exclude"
@@ -342,6 +411,8 @@ export function Preferences() {
             values={titleExcludeKeywords}
             onChange={setTitleExcludeKeywords}
             disabled={pending}
+            error={fieldErrors['pref-title-exclude']}
+            errorId="pref-title-exclude-error"
           />
           <ChipInput
             id="pref-locations"
@@ -349,6 +420,8 @@ export function Preferences() {
             values={locations}
             onChange={setLocations}
             disabled={pending}
+            error={fieldErrors['pref-locations']}
+            errorId="pref-locations-error"
           />
           <div className="grid gap-1.5">
             <label htmlFor="pref-max-experience" className="text-sm font-medium">
@@ -368,7 +441,7 @@ export function Preferences() {
               value={maxRequiredExperience}
               disabled={pending}
               onChange={(event) => setMaxRequiredExperience(event.target.value)}
-              onBlur={validateVisibleRankingForm}
+              onBlur={validateVisibleForm}
               aria-invalid={fieldErrors['pref-max-experience'] ? 'true' : undefined}
               aria-describedby={
                 fieldErrors['pref-max-experience']
@@ -390,6 +463,8 @@ export function Preferences() {
             values={includeKeywords}
             onChange={setIncludeKeywords}
             disabled={pending}
+            error={fieldErrors['pref-include']}
+            errorId="pref-include-error"
           />
           <ChipInput
             id="pref-exclude"
@@ -398,6 +473,8 @@ export function Preferences() {
             values={excludeKeywords}
             onChange={setExcludeKeywords}
             disabled={pending}
+            error={fieldErrors['pref-exclude']}
+            errorId="pref-exclude-error"
           />
 
           <section className="grid gap-6 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
@@ -415,7 +492,7 @@ export function Preferences() {
                 label="Strict title match points"
                 value={rubric.strictTitle}
                 onChange={(value) => updateRubricField('strictTitle', value)}
-                onBlur={validateVisibleRankingForm}
+                onBlur={validateVisibleForm}
                 error={fieldErrors['ranking-strict-title']}
                 disabled={pending}
               />
@@ -424,7 +501,7 @@ export function Preferences() {
                 label="Weak title match points"
                 value={rubric.weakTitle}
                 onChange={(value) => updateRubricField('weakTitle', value)}
-                onBlur={validateVisibleRankingForm}
+                onBlur={validateVisibleForm}
                 error={fieldErrors['ranking-weak-title']}
                 disabled={pending}
               />
@@ -437,7 +514,7 @@ export function Preferences() {
                 label="Preferred location points"
                 value={rubric.preferredLocation}
                 onChange={(value) => updateRubricField('preferredLocation', value)}
-                onBlur={validateVisibleRankingForm}
+                onBlur={validateVisibleForm}
                 error={fieldErrors['ranking-preferred-location']}
                 disabled={pending}
               />
@@ -446,7 +523,7 @@ export function Preferences() {
                 label="Posted within 24 hours points"
                 value={rubric.recency}
                 onChange={(value) => updateRubricField('recency', value)}
-                onBlur={validateVisibleRankingForm}
+                onBlur={validateVisibleForm}
                 error={fieldErrors['ranking-recency']}
                 disabled={pending}
               />
@@ -455,7 +532,7 @@ export function Preferences() {
                 label="Watchlist source points"
                 value={rubric.watchlist}
                 onChange={(value) => updateRubricField('watchlist', value)}
-                onBlur={validateVisibleRankingForm}
+                onBlur={validateVisibleForm}
                 error={fieldErrors['ranking-watchlist']}
                 disabled={pending}
               />
@@ -464,7 +541,7 @@ export function Preferences() {
                 label="Required experience below maximum points"
                 value={rubric.experience}
                 onChange={(value) => updateRubricField('experience', value)}
-                onBlur={validateVisibleRankingForm}
+                onBlur={validateVisibleForm}
                 error={fieldErrors['ranking-experience']}
                 disabled={pending}
               />
@@ -503,7 +580,7 @@ export function Preferences() {
                       value={rubric.includeKeywordSteps[key]}
                       disabled={pending}
                       onChange={(event) => updateKeywordStep(key, event.target.value)}
-                      onBlur={validateVisibleRankingForm}
+                      onBlur={validateVisibleForm}
                       aria-invalid={
                         fieldErrors[id] || fieldErrors['ranking-keyword-steps']
                           ? 'true'
@@ -547,7 +624,7 @@ export function Preferences() {
                 label="Good starts at"
                 value={goodThreshold}
                 onChange={setGoodThreshold}
-                onBlur={validateVisibleRankingForm}
+                onBlur={validateVisibleForm}
                 error={fieldErrors['ranking-good-threshold']}
                 disabled={pending}
               />
@@ -556,7 +633,7 @@ export function Preferences() {
                 label="Strong starts at"
                 value={strongThreshold}
                 onChange={setStrongThreshold}
-                onBlur={validateVisibleRankingForm}
+                onBlur={validateVisibleForm}
                 error={fieldErrors['ranking-strong-threshold']}
                 disabled={pending}
               />

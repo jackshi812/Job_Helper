@@ -111,7 +111,7 @@ describe('deterministic ranking preference form', () => {
     expect(preferencesSource).toContain('chipComparisonKey(value)')
     expect(preferencesSource).toContain('chipComparisonKey(addition)')
     expect(preferencesSource).toContain('validatePreferenceTextArrays')
-    expect(preferencesSource).toContain('textArrayValidation.firstInvalidField')
+    expect(preferencesSource).toContain('textArrayValidation.fieldErrors')
     expect(preferencesSource).toContain('requestAnimationFrame')
     expect(preferencesSource).toContain('document.getElementById(firstInvalidField)?.focus()')
     for (const id of [

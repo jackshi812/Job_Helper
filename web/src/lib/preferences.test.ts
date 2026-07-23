@@ -130,7 +130,7 @@ describe('ranking text-array contract', () => {
       expect(result.valid).toBe(false)
       expect(result.inputId).toBe(inputId)
       expect(result.errorId).toBe(`${inputId}-error`)
-      expect(result.message).not.toContain(values[0] ?? '')
+      if (values[0]) expect(result.message).not.toContain(values[0])
     }
   })
 })
