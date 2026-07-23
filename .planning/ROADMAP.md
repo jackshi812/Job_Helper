@@ -291,11 +291,38 @@ Plans:
 
 - [ ] 03.3-04-PLAN.md — [BLOCKING] Apply schema → score-tick → exact web release and complete signed-in UAT
 
+### Phase 03.4: Replace Automatic AI Scoring with Deterministic Ranking (INSERTED)
+
+**Goal:** Remove automatic/background AI job scoring and replace it with transparent deterministic ranking while preserving ingestion, preferences, company controls, dashboard structure, job detail, apply links, dismissal, and every unrelated feature.
+**Requirements**: TBD — remap the existing scoring requirements during discussion
+**Depends on:** Phase 03.3
+**Plans:** 0 plans
+
+**Success Criteria** (what must be TRUE):
+
+  1. No scheduled or background job-scoring path can call an AI provider or incur a paid scoring request.
+  2. Current and newly ingested jobs remain available through the existing preference filters and Dashboard while deterministic ranking replaces AI-produced scores and tiers.
+  3. The deterministic score is reproducible, transparent, and covered by owner-approved rules supplied before planning; Phase 03.4 must not invent those rules.
+  4. Existing stored AI scores may remain temporarily for compatibility or migration evidence, but they are not refreshed automatically and unrelated ingestion, preferences, company controls, table/detail behavior, and Phase 4 scope remain unchanged.
+
+**Deferred AI boundary:**
+
+- AI scoring returns only after Phase 4 resume tailoring is complete.
+- A user may explicitly request an AI score from an opened job detail.
+- After tailoring a resume, the user may explicitly request a second score against that tailored resume.
+- Both calls are manual, visible, and separately initiated; no automatic or background AI scoring returns.
+
+**Open decision:** The owner will provide the deterministic-ranking rules before Phase 03.4 planning.
+
+Plans:
+
+- [ ] TBD (run `$gsd-discuss-phase 03.4` after the ranking rules are supplied)
+
 ### Phase 4: Resume Tailoring & Tracker
 
 **Goal**: User can turn any match into a truthfully tailored, formatting-faithful PDF resume after mandatory review, and track every application from saved through offer
 **Mode:** mvp
-**Depends on**: Phase 03.3
+**Depends on**: Phase 03.4
 **Requirements**: RESU-02, RESU-03, RESU-04, RESU-05, TRAK-01, TRAK-02, TRAK-03, TRAK-04
 **Success Criteria** (what must be TRUE):
 
@@ -311,7 +338,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03.3 → 4
+Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03.3 → 03.4 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -322,6 +349,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.1 SuccessFactors & Paylocity Connector Expansion | 5/5 | Complete | 2026-07-22 |
 | 03.2 Dashboard Precision & Company Visibility | 4/4 | Complete | 2026-07-22 |
 | 03.3 Dashboard Filter Refinements | 3/4 | In Progress|  |
+| 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 0/TBD | Not started | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
