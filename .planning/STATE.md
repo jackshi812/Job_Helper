@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 03.3
-current_phase_name: Dashboard Filter Refinements
+current_phase_name: dashboard-filter-refinements
 status: executing
-stopped_at: Completed 03.3-01-PLAN.md
-last_updated: "2026-07-23T01:19:56.064Z"
+stopped_at: Completed 03.3-02-PLAN.md
+last_updated: "2026-07-23T01:36:04.151Z"
 last_activity: 2026-07-23
 last_activity_desc: Phase 03.3 execution started
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 47
-  completed_plans: 44
+  completed_plans: 45
   percent: 75
 ---
 
@@ -24,12 +24,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 03.3 — Dashboard Filter Refinements
+**Current focus:** Phase 03.3 — dashboard-filter-refinements
 
 ## Current Position
 
-Phase: 03.3 (Dashboard Filter Refinements) — EXECUTING
-Plan: 2 of 4
+Phase: 03.3 (dashboard-filter-refinements) — EXECUTING
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-07-23 — Phase 03.3 execution started
 
@@ -90,6 +90,7 @@ Progress: [███████████████░░░░░] 43/43 c
 | Phase 03.2 P03 | 20min | 3 tasks | 5 files |
 | Phase 03.2 P04 | 15min | 3 tasks | 15 files |
 | Phase 03.3 P01 | 10min | 3 tasks | 8 files |
+| Phase 03.3 P02 | 6min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -188,6 +189,9 @@ Recent decisions affecting current work:
 - [Phase 03.3]: Normalize only bounded PhD punctuation and spacing variants before literal whole-token matching; never interpolate user input into regex.
 - [Phase 03.3]: Use the verifier target's exact current title as its temporary title exclusion and restore the complete preference snapshot.
 - [Phase 03.3]: Apply the same 50-entry and 4,096-byte title-exclusion limits at database and shared worker boundaries, with persisted reason detail capped at 160 Unicode code points.
+- [Phase 03.3]: Seed title exclusions only when no preference row exists; a stored empty array remains authoritative.
+- [Phase 03.3]: Mirror the backend 50-entry and 4,096-byte limits in both the page submit boundary and preference service before any remote mutation.
+- [Phase 03.3]: Use NFKC-trimmed lowercase comparison keys while preserving the first-entered chip spelling.
 
 ### Pending Todos
 
@@ -221,7 +225,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-23T01:17:02.851Z
-Stopped at: Completed 03.3-01-PLAN.md
+Last session: 2026-07-23T01:36:04.141Z
+Stopped at: Completed 03.3-02-PLAN.md
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
