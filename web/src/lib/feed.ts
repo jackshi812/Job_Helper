@@ -20,7 +20,7 @@ export const FEED_LIST_COLUMNS =
   'deterministic_filter_detail, deterministic_ranked_at, ' +
   'deterministic_best_fit_resume_id, deterministic_runner_up_resume_id, ' +
   'seen_at, dismissed_at, ' +
-  'jobs ( id, title, location, absolute_url, posted_at, first_seen_at, status, ' +
+  'jobs!inner ( id, title, location, absolute_url, posted_at, first_seen_at, status, ' +
   'source_company_name, companies ( name ) )'
 
 export const FEED_DETAIL_COLUMNS =
@@ -161,6 +161,7 @@ export async function listFeed(): Promise<FeedRow[]> {
     .not('deterministic_revision', 'is', null)
     .not('deterministic_score', 'is', null)
     .not('deterministic_tier', 'is', null)
+    .eq('jobs.status', 'open')
     .order('jobs(posted_at)', { ascending: false, nullsFirst: false })
     .limit(200)
 
