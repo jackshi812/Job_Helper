@@ -1,7 +1,6 @@
 import {
   companyName,
-  preferenceVisible,
-  tierPresentation,
+  deterministicVisible,
   type FeedRow,
   type Tier,
 } from './feed'
@@ -108,7 +107,7 @@ export function baseDashboardVisible(
 ): boolean {
   if (showDismissed) return row.dismissed_at !== null
   if (row.dismissed_at !== null) return false
-  return preferenceVisible(row)
+  return deterministicVisible(row)
 }
 
 export function filterDashboardRows(
@@ -119,6 +118,7 @@ export function filterDashboardRows(
     if (!baseDashboardVisible(row, state.showDismissed)) return false
     const name = companyName(row)
     if (!name || state.appliedHiddenKeys.has(normalizedCompanyKey(name))) return false
-    return state.selectedTiers.has(tierPresentation(row.score).label)
+    return row.deterministic_tier !== null
+      && state.selectedTiers.has(row.deterministic_tier)
   })
 }

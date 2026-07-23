@@ -15,27 +15,43 @@ import { supabase } from './supabase'
 // to public.companies — Codex F5). It is pulled through the FK by nesting
 // companies(name) inside the embedded jobs(...) via PostgREST resource embedding.
 export const FEED_LIST_COLUMNS =
-  'id, status, filter_reason, filter_detail, score, tier, reasons, ' +
-  'matched_include_keywords, routed_resume_id, runner_up_resume_id, scored_at, ' +
-  'needs_refilter, score_deferred_until, seen_at, dismissed_at, ' +
+  'id, deterministic_revision, deterministic_eligible, deterministic_score, ' +
+  'deterministic_tier, deterministic_breakdown, deterministic_filter_code, ' +
+  'deterministic_filter_detail, deterministic_ranked_at, ' +
+  'deterministic_best_fit_resume_id, deterministic_runner_up_resume_id, ' +
+  'seen_at, dismissed_at, ' +
   'jobs ( id, title, location, absolute_url, posted_at, first_seen_at, status, ' +
   'source_company_name, companies ( name ) )'
 
 export const FEED_DETAIL_COLUMNS =
-  'id, status, filter_reason, filter_detail, score, tier, reasons, gaps, covered, ' +
-  'matched_include_keywords, routed_resume_id, runner_up_resume_id, scored_at, ' +
-  'needs_refilter, score_deferred_until, seen_at, dismissed_at, ' +
+  'id, deterministic_revision, deterministic_eligible, deterministic_score, ' +
+  'deterministic_tier, deterministic_breakdown, deterministic_filter_code, ' +
+  'deterministic_filter_detail, deterministic_ranked_at, ' +
+  'deterministic_best_fit_resume_id, deterministic_runner_up_resume_id, ' +
+  'seen_at, dismissed_at, ' +
   'jobs ( id, title, location, absolute_url, posted_at, first_seen_at, status, ' +
   'source_company_name, description_html, description_text, companies ( name ) )'
 
-export type FeedStatus = 'pending' | 'filtered' | 'scored' | 'failed'
-export type FilterReason =
+export type DeterministicFilterCode =
   | 'excluded_title_keyword'
   | 'excluded_keyword'
-  | 'wrong_location'
+  | 'outside_us'
   | 'title_non_overlap'
-  | 'experience_above_max'
 export type Tier = 'Strong' | 'Good' | 'Weak'
+export type RankingCategory =
+  | 'title'
+  | 'location'
+  | 'recency'
+  | 'watchlist'
+  | 'experience'
+  | 'keywords'
+
+export interface RankingBreakdownRow {
+  key: RankingCategory
+  earned: number
+  possible: number
+  evidence: string[]
+}
 
 export interface FeedCompany {
   name: string | null
@@ -56,33 +72,21 @@ export interface FeedJob {
   description_text?: string | null
 }
 
-export interface GapGroups {
-  skills?: string[]
-  tools?: string[]
-  certs?: string[]
-  domain?: string[]
-}
-
 export interface FeedRow {
   id: string
-  status: FeedStatus
-  filter_reason: FilterReason | null
-  filter_detail: string | null
-  score: number | null
-  tier: Tier | null
-  reasons: string[] | null
-  matched_include_keywords?: string[] | null
-  routed_resume_id: string | null
-  runner_up_resume_id: string | null
-  scored_at: string | null
-  needs_refilter: boolean
-  score_deferred_until: string | null
+  deterministic_revision: number | null
+  deterministic_eligible: boolean | null
+  deterministic_score: number | null
+  deterministic_tier: Tier | null
+  deterministic_breakdown: RankingBreakdownRow[] | null
+  deterministic_filter_code: DeterministicFilterCode | null
+  deterministic_filter_detail: string | null
+  deterministic_ranked_at: string | null
+  deterministic_best_fit_resume_id: string | null
+  deterministic_runner_up_resume_id: string | null
   seen_at: string | null
   dismissed_at: string | null
   jobs: FeedJob | null
-  // Detail-only (FEED_DETAIL_COLUMNS).
-  gaps?: GapGroups | null
-  covered?: string[] | null
 }
 
 export interface TierPresentation {
@@ -92,61 +96,21 @@ export interface TierPresentation {
 
 // Pure mappers — no supabase import needed, unit-tested directly.
 
-// D-07 tiers re-derived from the clamped score: Strong >=75 (emerald fill),
-// Good 50..74 (neutral fill), Weak <50 (plain text, no badge fill — UI-SPEC).
-export function tierPresentation(score: number | null): TierPresentation {
-  if (score !== null && score >= 75) return { label: 'Strong', badge: 'emerald' }
-  if (score !== null && score >= 50) return { label: 'Good', badge: 'neutral' }
-  return { label: 'Weak', badge: null }
+export function tierPresentation(tier: Tier | null): TierPresentation | null {
+  if (tier === 'Strong') return { label: 'Strong', badge: 'emerald' }
+  if (tier === 'Good') return { label: 'Good', badge: 'neutral' }
+  if (tier === 'Weak') return { label: 'Weak', badge: null }
+  return null
 }
 
-const FILTER_REASON_LABELS: Record<FilterReason, string> = {
-  excluded_title_keyword: 'excluded title keyword',
-  excluded_keyword: 'excluded keyword',
-  wrong_location: 'location mismatch',
-  title_non_overlap: 'title mismatch',
-  experience_above_max: 'required experience above maximum',
-}
-
-// D-04 filtered-reason copy (UI-SPEC): excluded keyword carries its detail term;
-// location/title mismatches are fixed strings. Returns null for unfiltered rows.
-export function filteredReasonLabel(
-  row: Pick<FeedRow, 'filter_reason' | 'filter_detail'>,
-): string | null {
-  if (!row.filter_reason) return null
-  const base = FILTER_REASON_LABELS[row.filter_reason]
-  if (row.filter_reason === 'excluded_title_keyword' && row.filter_detail) {
-    return `${base}: ${[...row.filter_detail].slice(0, 160).join('')}`
-  }
-  if (row.filter_reason === 'excluded_keyword' && row.filter_detail) {
-    return `${base}: ${row.filter_detail}`
-  }
-  return base
-}
-
-// The Dashboard's single base scope is the current preference-pass pool,
-// independent of AI score. A
-// completed score or post-filter failure proves the cheap preference filter
-// passed for the current revision. A deferred row is also confirmed because
-// deferral occurs only after cheapFilter passes. Unknown pending work and stale
-// rows awaiting a new free-filter decision remain hidden. Dismissal stays a
-// separate Dashboard state filter; explicit Strong/Good/Weak selection owns the
-// score boundary after this eligibility check.
-export function preferenceVisible(row: FeedRow): boolean {
+// Only an atomically promoted, complete, eligible deterministic result can
+// enter the active browser feed. Null/pending/ineligible rows never become Weak.
+export function deterministicVisible(row: FeedRow): boolean {
   if (row.jobs?.status !== 'open') return false
-  if (row.needs_refilter) return row.score_deferred_until !== null
-  return row.status === 'scored' || row.status === 'failed'
-}
-
-export function scoreFreshnessLabel(
-  row: Pick<FeedRow, 'status' | 'score' | 'needs_refilter' | 'score_deferred_until'>,
-): 'Updating' | null {
-  return row.status === 'scored'
-      && row.score !== null
-      && row.needs_refilter
-      && row.score_deferred_until !== null
-    ? 'Updating'
-    : null
+  return row.deterministic_revision !== null
+    && row.deterministic_eligible === true
+    && row.deterministic_score !== null
+    && row.deterministic_tier !== null
 }
 
 function nonblankName(value: string | null | undefined): string | null {
@@ -186,22 +150,23 @@ export function safeApplyUrl(value: string | null | undefined): string | null {
 
 // Queries — throw on error, cast, return typed rows (watchlist.ts idiom).
 
-// RLS-scoped to the current user. Query only rows that can represent a confirmed
-// preference pass: completed scores, post-filter failures, or paid-deferred
-// survivors. preferenceVisible applies the current-revision/open-job boundary
-// after hydration. Parent ordering uses PostgREST's to-one jobs(posted_at)
+// RLS-scoped to the current user. Query only atomically promoted eligible
+// deterministic rows. Parent ordering uses PostgREST's to-one jobs(posted_at)
 // syntax; referencedTable/foreignTable would sort only the embedded job object.
 export async function listFeed(): Promise<FeedRow[]> {
   const { data, error } = await supabase
     .from('user_jobs')
     .select(FEED_LIST_COLUMNS)
-    .or('status.eq.scored,status.eq.failed,score_deferred_until.not.is.null')
+    .eq('deterministic_eligible', true)
+    .not('deterministic_revision', 'is', null)
+    .not('deterministic_score', 'is', null)
+    .not('deterministic_tier', 'is', null)
     .order('jobs(posted_at)', { ascending: false, nullsFirst: false })
     .limit(200)
 
   if (error) throw error
   const rows = (data ?? []) as unknown as FeedRow[]
-  return rows.filter((row) => companyName(row) !== null && preferenceVisible(row))
+  return rows.filter((row) => companyName(row) !== null && deterministicVisible(row))
 }
 
 // The only place JD bodies (description_html/description_text) are fetched.
@@ -213,7 +178,9 @@ export async function getFeedJob(userJobId: string): Promise<FeedRow> {
     .single()
 
   if (error) throw error
-  return data as unknown as FeedRow
+  const row = data as unknown as FeedRow
+  if (!deterministicVisible(row)) throw new Error('deterministic_job_not_visible')
+  return row
 }
 
 // Mutations — only seen_at/dismissed_at are grant-writable (Plan 03 column

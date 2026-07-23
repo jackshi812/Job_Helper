@@ -4,14 +4,13 @@ import { Link } from 'react-router'
 import {
   companyName,
   dismissJob,
-  filteredReasonLabel,
   listFeed,
   relativePostedTime,
   safeApplyUrl,
-  scoreFreshnessLabel,
   tierPresentation,
   undismissJob,
   type FeedRow,
+  type Tier,
 } from '../lib/feed'
 import {
   ALL_SCORE_TIERS,
@@ -28,7 +27,11 @@ import {
   toggleScoreTier,
 } from '../lib/dashboard'
 import { listResumes, resumeLabel } from '../lib/resumes'
-import { loadPreferences } from '../lib/preferences'
+import {
+  getDeterministicRankingState,
+  loadPreferences,
+  retryDeterministicRankingRun,
+} from '../lib/preferences'
 import { ColumnResizeHandle } from '../components/ColumnResizeHandle'
 import {
   DASHBOARD_COLUMNS,
@@ -71,8 +74,9 @@ function relativeTime(timestamp: string) {
   return relativeFormatter.format(Math.round(elapsedHours / 24), 'day')
 }
 
-function TierBadge({ score }: { score: number | null }) {
-  const presentation = tierPresentation(score)
+function TierBadge({ tier }: { tier: Tier | null }) {
+  const presentation = tierPresentation(tier)
+  if (!presentation) return null
   if (presentation.badge === null) {
     return <span className="text-xs font-semibold text-zinc-500">{presentation.label}</span>
   }
@@ -159,6 +163,7 @@ export function Dashboard() {
   const [appliedHiddenKeys, setAppliedHiddenKeys] = useState<Set<string>>(() => new Set())
   const [draftHiddenKeys, setDraftHiddenKeys] = useState<Set<string>>(() => new Set())
   const [selectedTiers, setSelectedTiers] = useState(() => new Set(ALL_SCORE_TIERS))
+  const [rankingAnnouncement, setRankingAnnouncement] = useState('')
   const [columnWidths, setColumnWidths] = useState(loadDashboardColumnWidths)
   const columnWidthsRef = useRef(columnWidths)
   const resizeCoordinator = useRef<ColumnResizeCoordinator>({ activeColumnId: null })
@@ -166,6 +171,7 @@ export function Dashboard() {
   const scoreTierTriggerRef = useRef<HTMLButtonElement>(null)
   const scoreTierPopoverRef = useRef<HTMLDivElement>(null)
   const firstScoreTierCheckboxRef = useRef<HTMLInputElement>(null)
+  const observedActiveRevisionRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!scoreTierPopoverOpen) return
@@ -191,8 +197,36 @@ export function Dashboard() {
     queryFn: listFeed,
     refetchInterval: 60_000,
   })
+  const rankingStateQuery = useQuery({
+    queryKey: ['ranking-state'],
+    queryFn: getDeterministicRankingState,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'building' ? 2_000 : false,
+  })
   const resumesQuery = useQuery({ queryKey: ['resumes'], queryFn: listResumes })
   const preferencesQuery = useQuery({ queryKey: ['preferences'], queryFn: loadPreferences })
+
+  useEffect(() => {
+    const state = rankingStateQuery.data
+    if (!state) return
+    if (observedActiveRevisionRef.current === null) {
+      observedActiveRevisionRef.current = state.activeRevision
+      return
+    }
+    if (state.activeRevision <= observedActiveRevisionRef.current) return
+
+    observedActiveRevisionRef.current = state.activeRevision
+    setRankingAnnouncement('Rankings updated.')
+    void queryClient.refetchQueries({ queryKey: ['feed'], exact: true })
+  }, [queryClient, rankingStateQuery.data])
+
+  const retryRankingMutation = useMutation({
+    mutationFn: retryDeterministicRankingRun,
+    onSuccess: async () => {
+      setRankingAnnouncement('')
+      await queryClient.invalidateQueries({ queryKey: ['ranking-state'] })
+    },
+  })
 
   const resumeNames = useMemo(() => {
     const map = new Map<string, string>()
@@ -253,8 +287,8 @@ export function Dashboard() {
     const sorted = [...filtered]
     sorted.sort((a, b) => {
       if (sortByScore) {
-        const sa = a.score ?? -1
-        const sb = b.score ?? -1
+        const sa = a.deterministic_score ?? -1
+        const sb = b.deterministic_score ?? -1
         return scoreAscending ? sa - sb : sb - sa
       }
       const ta = relativePostedTime(a)
@@ -324,6 +358,7 @@ export function Dashboard() {
 
   const scoreAriaSort = sortByScore ? (scoreAscending ? 'ascending' : 'descending') : 'none'
   const hasPreferences = preferencesQuery.data !== null && preferencesQuery.data !== undefined
+  const rankingState = rankingStateQuery.data
   const tableWidth = dashboardTableWidth(columnWidths)
 
   function updateColumnWidth(columnId: DashboardColumnId, width: number) {
@@ -349,7 +384,7 @@ export function Dashboard() {
     <section>
       <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        New postings scored against your resumes and preferences, newest first.
+        New postings ranked against your preferences, newest first.
       </p>
 
       <div className="mt-6 flex flex-wrap gap-3">
@@ -511,6 +546,48 @@ export function Dashboard() {
         </section>
       ) : null}
 
+      {rankingState?.status === 'building' ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+        >
+          <h2 className="text-base font-semibold">Updating rankings…</h2>
+          <p className="mt-1 text-sm">
+            Your current results stay visible until the full update is ready.
+          </p>
+        </div>
+      ) : rankingState?.status === 'failed' ? (
+        <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+            Rankings couldn’t update. Your previous results are still shown.
+          </p>
+          {rankingState.errorCode ? (
+            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+              Update error: {rankingState.errorCode.slice(0, 80).replaceAll('_', ' ')}.
+            </p>
+          ) : null}
+          {rankingState.retryAvailable ? (
+            <button
+              type="button"
+              disabled={retryRankingMutation.isPending}
+              onClick={() => retryRankingMutation.mutate()}
+              className={`mt-3 min-h-9 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-semibold hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-800 ${filterInactive}`}
+            >
+              {retryRankingMutation.isPending ? 'Retrying…' : 'Retry update'}
+            </button>
+          ) : (
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              Retry limit reached. Save preferences again to start a new update.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      <p aria-live="polite" className="sr-only">
+        {rankingAnnouncement}
+      </p>
+
       {!feedQuery.isPending && !feedQuery.error ? (
         <p role="status" aria-live="polite" className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
           {rows.length} jobs shown
@@ -551,8 +628,8 @@ export function Dashboard() {
               <>
                 <h2 className="text-base font-semibold">No matches yet</h2>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  New postings are scored against your resumes and preferences within minutes of
-                  discovery. Set your preferences to start matching.
+                  New postings are ranked against your preferences within minutes of discovery.
+                  Set your preferences to start matching.
                   {!hasPreferences ? (
                     <>
                       {' '}
@@ -639,20 +716,19 @@ export function Dashboard() {
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {rows.map((row) => {
-                const isFiltered = row.status === 'filtered'
                 const applyUrl = safeApplyUrl(row.jobs?.absolute_url)
                 const jobTitle = row.jobs?.title ?? 'Untitled role'
                 const company = companyName(row)
-                const bestFit = row.routed_resume_id ? resumeNames.get(row.routed_resume_id) : undefined
-                const runnerUp = row.runner_up_resume_id
-                  ? resumeNames.get(row.runner_up_resume_id)
+                const bestFit = row.deterministic_best_fit_resume_id
+                  ? resumeNames.get(row.deterministic_best_fit_resume_id)
                   : undefined
-                const filteredLabel = filteredReasonLabel(row)
-                const freshnessLabel = scoreFreshnessLabel(row)
+                const runnerUp = row.deterministic_runner_up_resume_id
+                  ? resumeNames.get(row.deterministic_runner_up_resume_id)
+                  : undefined
                 return (
                   <tr
                     key={row.id}
-                    className={`hover:bg-zinc-50 focus-within:bg-zinc-50 dark:hover:bg-zinc-800/50 dark:focus-within:bg-zinc-800/50 ${isFiltered ? 'text-zinc-500' : ''}`}
+                    className="hover:bg-zinc-50 focus-within:bg-zinc-50 dark:hover:bg-zinc-800/50 dark:focus-within:bg-zinc-800/50"
                   >
                     <td className="px-4 py-3">
                       {row.seen_at === null ? (
@@ -685,20 +761,12 @@ export function Dashboard() {
                       {row.jobs?.location ?? '—'}
                     </td>
                     <td className="px-4 py-3">
-                      {isFiltered ? (
-                        <span className="text-xs">{filteredLabel ?? '—'}</span>
-                      ) : row.score !== null ? (
+                      {row.deterministic_score !== null ? (
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold">{row.score}</span>
-                          <TierBadge score={row.score} />
-                          {freshnessLabel ? (
-                            <span
-                              title="Score and match details are from previous inputs; an update is pending."
-                              className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300"
-                            >
-                              {freshnessLabel}
-                            </span>
-                          ) : null}
+                          <span className="text-sm font-semibold">
+                            {row.deterministic_score}
+                          </span>
+                          <TierBadge tier={row.deterministic_tier} />
                         </div>
                       ) : (
                         <span className="text-zinc-500">—</span>

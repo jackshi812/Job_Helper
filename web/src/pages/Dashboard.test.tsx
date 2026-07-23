@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { FeedRow } from '../lib/feed'
 import dashboardSource from './Dashboard.tsx?raw'
-import jobDetailSource from './JobDetail.tsx?raw'
 import resizeHandleSource from '../components/ColumnResizeHandle.tsx?raw'
 import {
   DASHBOARD_COLUMN_STORAGE_KEY,
@@ -118,7 +117,6 @@ describe('Dashboard precision controls', () => {
     expect(table).toContain('>Location<div role="separator"')
     expect(table).toContain('Chicago, IL')
     expect(table).not.toContain('Match reason')
-    expect(jobDetailSource).not.toContain('Match reasons')
   })
 
   it('uses a separate ranking-state query and preserves the feed through updates and failure', () => {
