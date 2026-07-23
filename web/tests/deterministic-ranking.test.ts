@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_RANKING_RUBRIC,
   DEFAULT_RANKING_THRESHOLDS,
+  EXPLICIT_NON_US_COUNTRY_PHRASES,
   classifyUsLocation,
   evaluateDeterministicRanking,
   evaluateTitleMatch,
@@ -185,6 +186,13 @@ describe('title matching and hard filters', () => {
 })
 
 describe('United States eligibility', () => {
+  it.each(EXPLICIT_NON_US_COUNTRY_PHRASES)(
+    'classifies the reviewed non-US country phrase %s as outside_us',
+    (country) => {
+      expect(classifyUsLocation(`Remote — ${country}`)).toBe('outside_us')
+    },
+  )
+
   it.each([
     ['Chicago, IL', 'us'],
     ['Remote - United States', 'us'],
@@ -198,6 +206,34 @@ describe('United States eligibility', () => {
     ['Toronto, Ontario, Canada', 'outside_us'],
   ] as const)('classifies %s as %s', (location, expected) => {
     expect(classifyUsLocation(location)).toBe(expected)
+  })
+
+  it.each([
+    'Prague, Czech Republic',
+    'Prague / Czechia',
+    'Bucharest | Romania',
+    'Lagos, Nigeria',
+  ])('rejects explicit provider-style foreign location %s', (location) => {
+    expect(classifyUsLocation(location)).toBe('outside_us')
+    expect(evaluateDeterministicRanking(input({
+      job: { ...input().job, location },
+    }))).toMatchObject({
+      eligible: false,
+      filterReason: 'outside_us',
+    })
+  })
+
+  it.each([
+    null,
+    '',
+    'Remote',
+    'London',
+    'Paris',
+    'Austin based',
+    'USability Research',
+    'Remote Software Engineer',
+  ])('keeps ambiguous or countryless location %s unknown', (location) => {
+    expect(classifyUsLocation(location)).toBe('unknown')
   })
 
   it('rejects only explicit foreign locations', () => {
