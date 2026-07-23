@@ -30,15 +30,18 @@ const PREFLIGHT_SCHEMA = Object.freeze({
   project_ref: new RegExp(`^${PROJECT_REF}$`),
   local_migrations: MIGRATION_INVENTORY,
   remote_migrations: MIGRATION_INVENTORY,
-  migration_0032_sha256: SHA256,
+  pending_migrations: /^0033$/,
+  migration_0033_sha256: SHA256,
   migration_0032_remote_name: /^deterministic_ranking$/,
   migration_0032_remote_statement_count: POSITIVE_INTEGER,
   score_tick_deployment_id: new RegExp(`^${SCORE_TICK_ID}$`),
   score_tick_version: POSITIVE_INTEGER,
   score_tick_status: /^ACTIVE$/,
   score_tick_verify_jwt: /^false$/,
-  score_tick_index_sha256: SHA256,
-  score_tick_bundle_manifest_sha256: SHA256,
+  candidate_score_tick_index_sha256: SHA256,
+  candidate_score_tick_bundle_manifest_sha256: SHA256,
+  hosted_score_tick_index_sha256: SHA256,
+  hosted_score_tick_bundle_manifest_sha256: SHA256,
   extract_resume_deployment_id: new RegExp(`^${EXTRACT_RESUME_ID}$`),
   extract_resume_version: POSITIVE_INTEGER,
   extract_resume_status: /^ACTIVE$/,
@@ -71,6 +74,16 @@ const PREFLIGHT_SCHEMA = Object.freeze({
   deterministic_run_count: NONNEGATIVE_INTEGER,
   deterministic_item_count: NONNEGATIVE_INTEGER,
   deterministic_initial_run_count: NONNEGATIVE_INTEGER,
+  queue_pending_count: NONNEGATIVE_INTEGER,
+  queue_claimed_count: NONNEGATIVE_INTEGER,
+  queue_failed_count: NONNEGATIVE_INTEGER,
+  duplicate_initial_owner_count: NONNEGATIVE_INTEGER,
+  active_revision_owner_count: NONNEGATIVE_INTEGER,
+  complete_active_owner_count: NONNEGATIVE_INTEGER,
+  incomplete_active_owner_count: NONNEGATIVE_INTEGER,
+  visible_missing_deterministic_count: NONNEGATIVE_INTEGER,
+  visible_mixed_revision_count: NONNEGATIVE_INTEGER,
+  nonterminal_open_item_count: NONNEGATIVE_INTEGER,
   score_usage_row_count: NONNEGATIVE_INTEGER,
   score_usage_prompt_tokens: NONNEGATIVE_INTEGER,
   score_usage_output_tokens: NONNEGATIVE_INTEGER,
@@ -98,7 +111,8 @@ const POST_RELEASE_SCHEMA = Object.freeze({
   project_ref: new RegExp(`^${PROJECT_REF}$`),
   local_migrations: MIGRATION_INVENTORY,
   remote_migrations: MIGRATION_INVENTORY,
-  migration_0032_sha256: SHA256,
+  pending_migrations: /^none$/,
+  migration_0033_sha256: SHA256,
   score_tick_deployment_id: new RegExp(`^${SCORE_TICK_ID}$`),
   score_tick_version: POSITIVE_INTEGER,
   score_tick_status: /^ACTIVE$/,
@@ -230,11 +244,15 @@ function asInventory(value) {
   return typeof value === 'string' ? value.split(',') : [...value]
 }
 
-function verifyMigrationInventory(fields, probes) {
+function verifyMigrationInventory(fields, probes, mode) {
   const local = asInventory(probes.localMigrations)
   const remote = asInventory(probes.remoteMigrations)
+  const pending = asInventory(
+    probes.pendingMigrations.length === 0 ? ['none'] : probes.pendingMigrations,
+  )
   const expectedLocal = asInventory(fields.local_migrations)
   const expectedRemote = asInventory(fields.remote_migrations)
+  const expectedPending = asInventory(fields.pending_migrations)
   if (local.length !== expectedLocal.length ||
       local.some((entry, index) => entry !== expectedLocal[index])) {
     throw new Error('local migration inventory mismatch')
@@ -243,11 +261,29 @@ function verifyMigrationInventory(fields, probes) {
       remote.some((entry, index) => entry !== expectedRemote[index])) {
     throw new Error('remote migration inventory mismatch')
   }
-  exact(fields.local_migrations, fields.remote_migrations, 'local/remote migration parity')
-  if (local.at(-1) !== '0032' || local.filter((entry) => entry === '0032').length !== 1) {
-    throw new Error('migration 0032 must be the unique inventory tail')
+  if (pending.length !== expectedPending.length ||
+      pending.some((entry, index) => entry !== expectedPending[index])) {
+    throw new Error('pending migration inventory mismatch')
   }
-  exact(probes.migration0032Sha256, fields.migration_0032_sha256, 'migration 0032 SHA-256')
+  if (local.at(-1) !== '0033' || local.filter((entry) => entry === '0033').length !== 1) {
+    throw new Error('migration 0033 must be the unique local inventory tail')
+  }
+  if (mode === 'preflight') {
+    if (remote.at(-1) !== '0032' ||
+        remote.length !== local.length - 1 ||
+        remote.some((entry, index) => entry !== local[index]) ||
+        pending.length !== 1 ||
+        pending[0] !== '0033') {
+      throw new Error('preflight must propose exactly migration 0033')
+    }
+  } else if (
+    fields.local_migrations !== fields.remote_migrations ||
+    pending.length !== 1 ||
+    pending[0] !== 'none'
+  ) {
+    throw new Error('post-release migration parity is incomplete')
+  }
+  exact(probes.migration0033Sha256, fields.migration_0033_sha256, 'migration 0033 SHA-256')
 }
 
 function verifyFunction(fields, prefix, probe) {
@@ -279,16 +315,24 @@ function numericSourceConstant(source, name) {
 }
 
 export function inspectWorkerLivenessSource(source, schedule = {}) {
-  const initialClaim = source.indexOf('let rows = await claimWork(admin)')
-  const recovery = source.indexOf(
-    'recovery = await recoverOrphanedRuns(admin, startedAt)',
+  const initialClaim = source.indexOf(
+    'let rows = await claimWork(options.client, context)',
   )
-  const maintenance = source.indexOf('await runMaintenance(admin)')
+  const recovery = source.indexOf(
+    'recovery = await recoverOrphanedRuns(options.client, context)',
+  )
+  const maintenance = source.indexOf(
+    'await runMaintenance(options.client, context)',
+  )
   const drainLoop = source.indexOf('while (rows.length > 0)')
-  const claimCalls = source.match(/claimWork\(admin\)/g)?.length ?? 0
-  const maintenanceCalls = source.match(/await runMaintenance\(admin\)/g)?.length ?? 0
+  const claimCalls = source.match(
+    /claimWork\(options\.client,\s*context\)/g,
+  )?.length ?? 0
+  const maintenanceCalls = source.match(
+    /await runMaintenance\(options\.client,\s*context\)/g,
+  )?.length ?? 0
   const recoveryCalls = source.match(
-    /await recoverOrphanedRuns\(admin, startedAt\)/g,
+    /await recoverOrphanedRuns\(options\.client,\s*context\)/g,
   )?.length ?? 0
   if (initialClaim < 0 || recovery < 0 || maintenance < 0 || drainLoop < 0 ||
       initialClaim > recovery || recovery > maintenance ||
@@ -350,14 +394,38 @@ function verifyWorkerLiveness(fields, worker, counts) {
 export function verifyPreflightEvidence(fields, probes) {
   requireSchema(fields, PREFLIGHT_SCHEMA)
   exact(probes.projectRef, fields.project_ref, 'project reference')
-  verifyMigrationInventory(fields, probes)
+  verifyMigrationInventory(fields, probes, 'preflight')
   exact(probes.migration0032RemoteName, fields.migration_0032_remote_name, 'migration 0032 name')
   exact(
     probes.migration0032RemoteStatementCount,
     fields.migration_0032_remote_statement_count,
     'migration 0032 statement count',
   )
-  verifyFunction(fields, 'score_tick', probes.scoreTick)
+  exact(probes.scoreTick.id, fields.score_tick_deployment_id, 'score-tick deployment ID')
+  exact(probes.scoreTick.version, fields.score_tick_version, 'score-tick version')
+  exactValue(probes.scoreTick.status, 'ACTIVE', 'score-tick status')
+  exact(String(probes.scoreTick.verifyJwt), fields.score_tick_verify_jwt, 'score-tick verify_jwt')
+  exact(
+    probes.candidateScoreTick.indexSha256,
+    fields.candidate_score_tick_index_sha256,
+    'candidate score-tick index SHA-256',
+  )
+  exact(
+    probes.candidateScoreTick.bundleManifestSha256,
+    fields.candidate_score_tick_bundle_manifest_sha256,
+    'candidate score-tick bundle manifest SHA-256',
+  )
+  exactValue(probes.scoreTick.provenance, 'hosted-download', 'score-tick source provenance')
+  exact(
+    probes.scoreTick.indexSha256,
+    fields.hosted_score_tick_index_sha256,
+    'hosted score-tick index SHA-256',
+  )
+  exact(
+    probes.scoreTick.bundleManifestSha256,
+    fields.hosted_score_tick_bundle_manifest_sha256,
+    'hosted score-tick bundle manifest SHA-256',
+  )
   verifyFunction(fields, 'extract_resume', probes.extractResume)
   exact(probes.verifierSha256, fields.verifier_sha256, 'verifier SHA-256')
   exact(probes.verifierTestSha256, fields.verifier_test_sha256, 'verifier test SHA-256')
@@ -403,12 +471,41 @@ export function verifyPreflightEvidence(fields, probes) {
   if (probes.counts.realUsers !== probes.counts.eligibleOwners) {
     throw new Error('initializer owner universe does not cover every real user')
   }
-  for (const key of [
-    'deterministic_state_count',
-    'deterministic_run_count',
-    'deterministic_item_count',
-    'deterministic_initial_run_count',
-  ]) zero(fields, key)
+  exact(probes.queue.pending, fields.queue_pending_count, 'queue pending count')
+  exact(probes.queue.claimed, fields.queue_claimed_count, 'queue claimed count')
+  exact(probes.queue.failed, fields.queue_failed_count, 'queue failed count')
+  exact(
+    probes.queue.duplicateOwners,
+    fields.duplicate_initial_owner_count,
+    'duplicate initial owner count',
+  )
+  exact(probes.coverage.activeOwners, fields.active_revision_owner_count, 'active owner count')
+  exact(
+    probes.coverage.completeActiveOwners,
+    fields.complete_active_owner_count,
+    'complete active owner count',
+  )
+  exact(
+    probes.coverage.incompleteActiveOwners,
+    fields.incomplete_active_owner_count,
+    'incomplete active owner count',
+  )
+  exact(
+    probes.coverage.visibleMissingDeterministic,
+    fields.visible_missing_deterministic_count,
+    'visible missing deterministic count',
+  )
+  exact(
+    probes.coverage.visibleMixedRevision,
+    fields.visible_mixed_revision_count,
+    'visible mixed revision count',
+  )
+  exact(
+    probes.coverage.nonterminalOpenItems,
+    fields.nonterminal_open_item_count,
+    'nonterminal open item count',
+  )
+  zero(fields, 'duplicate_initial_owner_count')
 
   exact(probes.cost.usageRows, fields.score_usage_row_count, 'score usage row count')
   exact(probes.cost.promptTokens, fields.score_usage_prompt_tokens, 'score usage prompt tokens')
@@ -461,7 +558,7 @@ export function verifyPostReleaseEvidence(fields, probes) {
   exact(probes.originGitSha, fields.approved_git_sha, 'origin/main Git SHA')
   exact(probes.inventorySha256, fields.approved_inventory_sha256, 'approved inventory SHA-256')
   exact(probes.projectRef, fields.project_ref, 'project reference')
-  verifyMigrationInventory(fields, probes)
+  verifyMigrationInventory(fields, probes, 'post-release')
   verifyFunction(fields, 'score_tick', probes.scoreTick)
   verifyWorkerLiveness(fields, probes.worker, probes.counts)
   exact(probes.costAfter.usageRows, fields.score_usage_row_count_after, 'live score usage row count')
@@ -884,6 +981,17 @@ async function command(cwd, executable, args, options = {}) {
   return result.stdout.trim()
 }
 
+async function commandCombined(cwd, executable, args, options = {}) {
+  const result = await execFile(executable, args, {
+    cwd,
+    encoding: 'utf8',
+    maxBuffer: 20 * 1024 * 1024,
+    env: process.env,
+    ...options,
+  })
+  return `${result.stdout}\n${result.stderr}`.trim()
+}
+
 function requiredEnvironment(name) {
   const value = process.env[name]?.trim()
   if (!value) throw new Error(`${name} is required`)
@@ -935,7 +1043,7 @@ async function bundleManifest(root, entry) {
   for (const path of paths) {
     entries.push({ path, sha256: sha256(await readFile(join(root, path))) })
   }
-  return { paths, sha256: sha256(canonicalJson(entries)) }
+  return { paths, entries, sha256: sha256(canonicalJson(entries)) }
 }
 
 async function localMigrationInventory(root) {
@@ -955,6 +1063,31 @@ async function remoteMigrationInventory() {
     throw new Error('migration inventory response is malformed')
   }
   return rows.map((entry) => String(entry.version))
+}
+
+export function parseLinkedDryRunMigrations(output) {
+  const migrations = [...String(output).matchAll(
+    /\b(\d{4})_[A-Za-z0-9_]+\.sql\b/g,
+  )].map((match) => match[1])
+  return [...new Set(migrations)]
+}
+
+async function linkedMigrationDryRun(root) {
+  const output = await commandCombined(
+    root,
+    join(root, 'web/node_modules/.bin/supabase'),
+    ['db', 'push', '--dry-run', '--linked', '--yes'],
+    {
+      timeout: 30_000,
+      maxBuffer: 512 * 1024,
+      env: { ...process.env, SUPABASE_TELEMETRY_DISABLED: '1' },
+    },
+  )
+  const migrations = parseLinkedDryRunMigrations(output)
+  if (migrations.length !== 1 || migrations[0] !== '0033') {
+    throw new Error('linked dry-run must propose exactly migration 0033')
+  }
+  return migrations
 }
 
 async function functionInventory() {
@@ -1101,14 +1234,9 @@ function exactBundleFiles(actual, expected, slug) {
   }
 }
 
-export async function functionProbe(root, slug, approved, adapters = {}) {
+export async function downloadFunctionProbe(root, slug, adapters = {}) {
   if (!['score-tick', 'extract-resume'].includes(slug)) {
     throw new Error('hosted function slug is not approved')
-  }
-  if (!SHA256.test(approved?.indexSha256 ?? '') ||
-      !SHA256.test(approved?.bundleManifestSha256 ?? '') ||
-      !Array.isArray(approved?.bundleFiles)) {
-    throw new Error(`${slug} approved local function inventory is malformed`)
   }
 
   const fetchMetadata = adapters.fetchMetadata ?? functionInventory
@@ -1158,7 +1286,6 @@ export async function functionProbe(root, slug, approved, adapters = {}) {
     let remoteIndexSha256
     try {
       remoteBundle = await bundleManifest(downloadRoot, entry)
-      exactBundleFiles(remoteBundle.paths, approved.bundleFiles, slug)
       remoteIndexSha256 = sha256(await readFile(join(downloadRoot, entry)))
     } catch (error) {
       if (error instanceof Error && error.message.includes('bundle file inventory mismatch')) {
@@ -1166,21 +1293,42 @@ export async function functionProbe(root, slug, approved, adapters = {}) {
       }
       throw new Error(`${slug} hosted source inventory failed`)
     }
-    exact(remoteIndexSha256, approved.indexSha256, `${slug} hosted index SHA-256`)
-    exact(
-      remoteBundle.sha256,
-      approved.bundleManifestSha256,
-      `${slug} hosted bundle manifest SHA-256`,
-    )
     return Object.freeze({
       ...before,
       provenance: 'hosted-download',
       indexSha256: remoteIndexSha256,
       bundleManifestSha256: remoteBundle.sha256,
+      bundleFiles: remoteBundle.paths,
+      bundleEntries: remoteBundle.entries,
     })
   } finally {
     await rm(downloadRoot, { recursive: true, force: true })
   }
+}
+
+export async function functionProbe(root, slug, approved, adapters = {}) {
+  if (!SHA256.test(approved?.indexSha256 ?? '') ||
+      !SHA256.test(approved?.bundleManifestSha256 ?? '') ||
+      !Array.isArray(approved?.bundleFiles)) {
+    throw new Error(`${slug} approved local function inventory is malformed`)
+  }
+  const remote = await downloadFunctionProbe(root, slug, adapters)
+  exactBundleFiles(remote.bundleFiles, approved.bundleFiles, slug)
+  exact(remote.indexSha256, approved.indexSha256, `${slug} hosted index SHA-256`)
+  exact(
+    remote.bundleManifestSha256,
+    approved.bundleManifestSha256,
+    `${slug} hosted bundle manifest SHA-256`,
+  )
+  return Object.freeze({
+    id: remote.id,
+    version: remote.version,
+    status: remote.status,
+    verifyJwt: remote.verifyJwt,
+    provenance: remote.provenance,
+    indexSha256: remote.indexSha256,
+    bundleManifestSha256: remote.bundleManifestSha256,
+  })
 }
 
 export async function collectLocalInventory(root) {
@@ -1194,15 +1342,17 @@ export async function collectLocalInventory(root) {
   if (!webAssetPath) throw new Error('built web JavaScript asset is missing')
   const inventory = {
     gitSha: await command(root, 'git', ['rev-parse', 'HEAD']),
-    migration0032Sha256: sha256(await readFile(
-      join(root, 'supabase/migrations/0032_deterministic_ranking.sql'),
+    migration0033Sha256: sha256(await readFile(
+      join(root, 'supabase/migrations/0033_deterministic_ranking_gap_closure.sql'),
     )),
     scoreTickIndexSha256: sha256(await readFile(join(root, scoreTickEntry))),
     scoreTickBundleManifestSha256: scoreBundle.sha256,
     scoreTickBundleFiles: scoreBundle.paths,
+    scoreTickBundleEntries: scoreBundle.entries,
     extractResumeIndexSha256: sha256(await readFile(join(root, extractResumeEntry))),
     extractResumeBundleManifestSha256: extractBundle.sha256,
     extractResumeBundleFiles: extractBundle.paths,
+    extractResumeBundleEntries: extractBundle.entries,
     verifierSha256: sha256(await readFile(join(root, 'scripts/verify-phase-03-4-release.mjs'))),
     verifierTestSha256: sha256(
       await readFile(join(root, 'scripts/verify-phase-03-4-release.test.mjs')),
@@ -1218,29 +1368,33 @@ export async function collectLocalInventory(root) {
 
 export async function collectLivePreflightProbes(root) {
   const local = await collectLocalInventory(root)
-  const scoreTickSource = await readFile(
-    join(root, 'supabase/functions/score-tick/index.ts'),
-    'utf8',
-  )
+  const scoreTickSource = (
+    await Promise.all([
+      readFile(join(root, 'supabase/functions/score-tick/index.ts'), 'utf8'),
+      readFile(join(root, 'supabase/functions/_shared/deterministic-worker.ts'), 'utf8'),
+    ])
+  ).join('\n')
   const [
     remoteMigrations,
+    pendingMigrations,
     migration32,
     countCost,
     initializer,
     schedule,
+    queue,
+    coverage,
   ] = await Promise.all([
     remoteMigrationInventory(),
+    linkedMigrationDryRun(root),
     migration32Probe(),
     liveCountAndCostProbe(),
     initializerAuthorityProbe(),
     scoreTickScheduleProbe(),
+    collectLiveQueueState(),
+    collectLiveActiveCoverage(),
   ])
   const localMigrations = await localMigrationInventory(root)
-  const scoreTick = await functionProbe(root, 'score-tick', {
-    indexSha256: local.scoreTickIndexSha256,
-    bundleManifestSha256: local.scoreTickBundleManifestSha256,
-    bundleFiles: local.scoreTickBundleFiles,
-  })
+  const scoreTick = await downloadFunctionProbe(root, 'score-tick')
   const extractResume = await functionProbe(root, 'extract-resume', {
     indexSha256: local.extractResumeIndexSha256,
     bundleManifestSha256: local.extractResumeBundleManifestSha256,
@@ -1250,16 +1404,25 @@ export async function collectLivePreflightProbes(root) {
     projectRef: PROJECT_REF,
     localMigrations,
     remoteMigrations,
-    migration0032Sha256: local.migration0032Sha256,
+    pendingMigrations,
+    migration0033Sha256: local.migration0033Sha256,
     migration0032RemoteName: migration32.name,
     migration0032RemoteStatementCount: migration32.statementCount,
     scoreTick,
+    candidateScoreTick: {
+      indexSha256: local.scoreTickIndexSha256,
+      bundleManifestSha256: local.scoreTickBundleManifestSha256,
+      bundleFiles: local.scoreTickBundleFiles,
+      bundleEntries: local.scoreTickBundleEntries,
+    },
     extractResume,
     verifierSha256: local.verifierSha256,
     verifierTestSha256: local.verifierTestSha256,
     webAsset: { path: local.webAssetPath, sha256: local.webAssetSha256 },
     initializer,
     worker: inspectWorkerLivenessSource(scoreTickSource, schedule),
+    queue,
+    coverage,
     ...countCost,
     inventorySha256: local.inventorySha256,
     gitSha: local.gitSha,
@@ -1267,18 +1430,25 @@ export async function collectLivePreflightProbes(root) {
 }
 
 async function liveSourceProbe(root) {
-  const [scoreTick, extractResume, preferenceSave, migration] = await Promise.all([
+  const [
+    scoreTick,
+    deterministicWorker,
+    extractResume,
+    preferenceSave,
+    migration,
+  ] = await Promise.all([
     readFile(join(root, 'supabase/functions/score-tick/index.ts'), 'utf8'),
+    readFile(join(root, 'supabase/functions/_shared/deterministic-worker.ts'), 'utf8'),
     readFile(join(root, 'supabase/functions/extract-resume/index.ts'), 'utf8'),
     readFile(join(root, 'web/src/lib/preferences.ts'), 'utf8'),
     readFile(join(root, 'supabase/migrations/0032_deterministic_ranking.sql'), 'utf8'),
   ])
   return verifyAutomaticEntryPoints({
-    scoreTick,
+    scoreTick: `${scoreTick}\n${deterministicWorker}`,
     extractResume,
     preferenceSave,
     retry: preferenceSave,
-    maintenance: `${scoreTick}\n${migration}`,
+    maintenance: `${scoreTick}\n${deterministicWorker}\n${migration}`,
   })
 }
 
@@ -1355,10 +1525,12 @@ async function liveAssetProbe(root, fields) {
 
 export async function collectLivePostReleaseProbes(root, fields) {
   const local = await collectLocalInventory(root)
-  const scoreTickSource = await readFile(
-    join(root, 'supabase/functions/score-tick/index.ts'),
-    'utf8',
-  )
+  const scoreTickSource = (
+    await Promise.all([
+      readFile(join(root, 'supabase/functions/score-tick/index.ts'), 'utf8'),
+      readFile(join(root, 'supabase/functions/_shared/deterministic-worker.ts'), 'utf8'),
+    ])
+  ).join('\n')
   const [
     remoteMigrations,
     countCost,
@@ -1388,7 +1560,8 @@ export async function collectLivePostReleaseProbes(root, fields) {
     projectRef: PROJECT_REF,
     localMigrations: await localMigrationInventory(root),
     remoteMigrations,
-    migration0032Sha256: local.migration0032Sha256,
+    pendingMigrations: [],
+    migration0033Sha256: local.migration0033Sha256,
     scoreTick,
     worker: inspectWorkerLivenessSource(scoreTickSource, schedule),
     counts: {
@@ -1767,6 +1940,7 @@ function usage() {
   return [
     'Usage:',
     '  node scripts/verify-phase-03-4-release.mjs --inventory',
+    '  node scripts/verify-phase-03-4-release.mjs --collect-preflight-json',
     '  node scripts/verify-phase-03-4-release.mjs --preflight PATH',
     '  node scripts/verify-phase-03-4-release.mjs --initialize-backfill \\',
     '    --approved-sha SHA --approved-inventory-sha256 SHA256 \\',
@@ -1784,6 +1958,11 @@ async function main(argv) {
   }
   if (argv.length === 1 && argv[0] === '--inventory') {
     console.log(JSON.stringify(await collectLocalInventory(root), null, 2))
+    return
+  }
+  if (argv.length === 1 && argv[0] === '--collect-preflight-json') {
+    await liveSourceProbe(root)
+    console.log(JSON.stringify(await collectLivePreflightProbes(root), null, 2))
     return
   }
   if (argv.length === 2 && argv[0] === '--preflight') {

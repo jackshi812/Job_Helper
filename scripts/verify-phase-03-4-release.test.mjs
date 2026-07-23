@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { access, mkdir, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
@@ -8,6 +8,7 @@ import {
   assertInitializerAuthority,
   functionProbe,
   inspectWorkerLivenessSource,
+  parseLinkedDryRunMigrations,
   runApprovedBackfill,
   summarizeActiveCoverageRows,
   validateEvidenceText,
@@ -28,7 +29,7 @@ const ASSET_SHA = '3'.repeat(64)
 const VERIFIER_SHA = '4'.repeat(64)
 const VERIFIER_TEST_SHA = '5'.repeat(64)
 const MIGRATIONS = Array.from(
-  { length: 32 },
+  { length: 33 },
   (_, index) => String(index + 1).padStart(4, '0'),
 )
 
@@ -212,16 +213,19 @@ function preflight(overrides = {}) {
     evidence_mode: 'preflight',
     project_ref: 'fjcsvajkkztvlrpdplwx',
     local_migrations: MIGRATIONS.join(','),
-    remote_migrations: MIGRATIONS.join(','),
-    migration_0032_sha256: MIGRATION_SHA,
+    remote_migrations: MIGRATIONS.slice(0, -1).join(','),
+    pending_migrations: '0033',
+    migration_0033_sha256: MIGRATION_SHA,
     migration_0032_remote_name: 'deterministic_ranking',
     migration_0032_remote_statement_count: '72',
     score_tick_deployment_id: 'ae6c147f-c3a8-417e-8057-d4105ac9aed5',
     score_tick_version: '11',
     score_tick_status: 'ACTIVE',
     score_tick_verify_jwt: 'false',
-    score_tick_index_sha256: SCORE_TICK_SHA,
-    score_tick_bundle_manifest_sha256: SCORE_TICK_BUNDLE_SHA,
+    candidate_score_tick_index_sha256: SCORE_TICK_SHA,
+    candidate_score_tick_bundle_manifest_sha256: SCORE_TICK_BUNDLE_SHA,
+    hosted_score_tick_index_sha256: '6'.repeat(64),
+    hosted_score_tick_bundle_manifest_sha256: '7'.repeat(64),
     extract_resume_deployment_id: '9358db1a-95fc-49bc-a684-b98fb8eceff9',
     extract_resume_version: '4',
     extract_resume_status: 'ACTIVE',
@@ -254,6 +258,16 @@ function preflight(overrides = {}) {
     deterministic_run_count: '0',
     deterministic_item_count: '0',
     deterministic_initial_run_count: '0',
+    queue_pending_count: '137',
+    queue_claimed_count: '0',
+    queue_failed_count: '1',
+    duplicate_initial_owner_count: '0',
+    active_revision_owner_count: '2',
+    complete_active_owner_count: '1',
+    incomplete_active_owner_count: '1',
+    visible_missing_deterministic_count: '4',
+    visible_mixed_revision_count: '2',
+    nonterminal_open_item_count: '0',
     score_usage_row_count: '9',
     score_usage_prompt_tokens: '120',
     score_usage_output_tokens: '48',
@@ -284,7 +298,8 @@ function postRelease(overrides = {}) {
     project_ref: 'fjcsvajkkztvlrpdplwx',
     local_migrations: MIGRATIONS.join(','),
     remote_migrations: MIGRATIONS.join(','),
-    migration_0032_sha256: MIGRATION_SHA,
+    pending_migrations: 'none',
+    migration_0033_sha256: MIGRATION_SHA,
     score_tick_deployment_id: 'ae6c147f-c3a8-417e-8057-d4105ac9aed5',
     score_tick_version: '12',
     score_tick_status: 'ACTIVE',
@@ -349,8 +364,9 @@ function preflightProbes(overrides = {}) {
   return {
     projectRef: 'fjcsvajkkztvlrpdplwx',
     localMigrations: MIGRATIONS,
-    remoteMigrations: MIGRATIONS,
-    migration0032Sha256: MIGRATION_SHA,
+    remoteMigrations: MIGRATIONS.slice(0, -1),
+    pendingMigrations: ['0033'],
+    migration0033Sha256: MIGRATION_SHA,
     migration0032RemoteName: 'deterministic_ranking',
     migration0032RemoteStatementCount: 72,
     scoreTick: {
@@ -359,6 +375,10 @@ function preflightProbes(overrides = {}) {
       status: 'ACTIVE',
       verifyJwt: false,
       provenance: 'hosted-download',
+      indexSha256: '6'.repeat(64),
+      bundleManifestSha256: '7'.repeat(64),
+    },
+    candidateScoreTick: {
       indexSha256: SCORE_TICK_SHA,
       bundleManifestSha256: SCORE_TICK_BUNDLE_SHA,
     },
@@ -405,6 +425,20 @@ function preflightProbes(overrides = {}) {
       items: 0,
       initialRuns: 0,
     },
+    queue: {
+      pending: 137,
+      claimed: 0,
+      failed: 1,
+      duplicateOwners: 0,
+    },
+    coverage: {
+      activeOwners: 2,
+      completeActiveOwners: 1,
+      incompleteActiveOwners: 1,
+      visibleMissingDeterministic: 4,
+      visibleMixedRevision: 2,
+      nonterminalOpenItems: 0,
+    },
     cost: {
       usageRows: 9,
       promptTokens: 120,
@@ -426,7 +460,8 @@ function postReleaseProbes(overrides = {}) {
     projectRef: 'fjcsvajkkztvlrpdplwx',
     localMigrations: MIGRATIONS,
     remoteMigrations: MIGRATIONS,
-    migration0032Sha256: MIGRATION_SHA,
+    pendingMigrations: [],
+    migration0033Sha256: MIGRATION_SHA,
     scoreTick: {
       id: 'ae6c147f-c3a8-417e-8057-d4105ac9aed5',
       version: 12,
@@ -483,9 +518,24 @@ function postReleaseProbes(overrides = {}) {
   }
 }
 
-test('preflight accepts exact schema, functions, empty deterministic state, and cost baseline', () => {
+test('preflight accepts exact candidate, hosted baseline, queue, and cost inventory', () => {
   const parsed = validateEvidenceText('preflight', evidenceText(preflight()))
   assert.doesNotThrow(() => verifyPreflightEvidence(parsed.fields, preflightProbes()))
+})
+
+test('linked dry-run parser accepts only the literal migration filenames it observes', () => {
+  assert.deepEqual(
+    parseLinkedDryRunMigrations(
+      'DRY RUN: Would push these migrations:\n • 0033_deterministic_ranking_gap_closure.sql\n',
+    ),
+    ['0033'],
+  )
+  assert.deepEqual(
+    parseLinkedDryRunMigrations(
+      '0033_deterministic_ranking_gap_closure.sql\n0034_unapproved.sql\n',
+    ),
+    ['0033', '0034'],
+  )
 })
 
 test('parser fails closed on missing, malformed, duplicate, and unknown evidence', () => {
@@ -516,7 +566,7 @@ test('preflight rejects migration, function, owner-count, cost, or transition dr
   assert.throws(
     () => verifyPreflightEvidence(
       preflight(),
-      preflightProbes({ remoteMigrations: MIGRATIONS.slice(0, -1) }),
+      preflightProbes({ remoteMigrations: MIGRATIONS.slice(0, -2) }),
     ),
     /remote migration inventory mismatch/,
   )
@@ -609,17 +659,17 @@ test('worker liveness source is bounded below scheduler cadence and drains befor
     const MAX_ITEMS_PER_INVOCATION = 5_000
     const MAX_INVOCATION_MS = 45_000
     const RECOVERY_RUN_SCAN_LIMIT = 25
-    let rows = await claimWork(admin)
+    let rows = await claimWork(options.client, context)
     if (rows.length === 0) {
-      recovery = await recoverOrphanedRuns(admin, startedAt)
-      rows = await claimWork(admin)
+      recovery = await recoverOrphanedRuns(options.client, context)
+      rows = await claimWork(options.client, context)
       if (rows.length === 0) {
-        await runMaintenance(admin)
-        rows = await claimWork(admin)
+        await runMaintenance(options.client, context)
+        rows = await claimWork(options.client, context)
       }
     }
     while (rows.length > 0) {
-      rows = await claimWork(admin)
+      rows = await claimWork(options.client, context)
     }
   `
   assert.deepEqual(
@@ -643,8 +693,8 @@ test('worker liveness source is bounded below scheduler cadence and drains befor
   assert.throws(
     () => inspectWorkerLivenessSource(
       source.replace(
-        'let rows = await claimWork(admin)',
-        'await runMaintenance(admin)\nlet rows = await claimWork(admin)',
+        'let rows = await claimWork(options.client, context)',
+        'await runMaintenance(options.client, context)\nlet rows = await claimWork(options.client, context)',
       ),
       {
         count: 1,
@@ -664,17 +714,17 @@ test('worker recovery source is bounded and ordered before maintenance', () => {
     const MAX_ITEMS_PER_INVOCATION = 5_000
     const MAX_INVOCATION_MS = 45_000
     const RECOVERY_RUN_SCAN_LIMIT = 25
-    let rows = await claimWork(admin)
+    let rows = await claimWork(options.client, context)
     if (rows.length === 0) {
-      recovery = await recoverOrphanedRuns(admin, startedAt)
-      rows = await claimWork(admin)
+      recovery = await recoverOrphanedRuns(options.client, context)
+      rows = await claimWork(options.client, context)
       if (rows.length === 0) {
-        await runMaintenance(admin)
-        rows = await claimWork(admin)
+        await runMaintenance(options.client, context)
+        rows = await claimWork(options.client, context)
       }
     }
     while (rows.length > 0) {
-      rows = await claimWork(admin)
+      rows = await claimWork(options.client, context)
     }
   `
   const schedule = {
@@ -687,7 +737,7 @@ test('worker recovery source is bounded and ordered before maintenance', () => {
   assert.throws(
     () => inspectWorkerLivenessSource(
       source.replace(
-        'recovery = await recoverOrphanedRuns(admin, startedAt)',
+        'recovery = await recoverOrphanedRuns(options.client, context)',
         'recovery = { scanned: 0, attempted: 0, finalized: 0 }',
       ),
       schedule,
@@ -704,6 +754,22 @@ test('worker recovery source is bounded and ordered before maintenance', () => {
     ),
     /liveness bounds drifted/,
   )
+})
+
+test('actual extracted worker source satisfies the release liveness contract', async () => {
+  const source = await readFile(
+    join(
+      process.cwd(),
+      'supabase/functions/_shared/deterministic-worker.ts',
+    ),
+    'utf8',
+  )
+  assert.doesNotThrow(() => inspectWorkerLivenessSource(source, {
+    count: 1,
+    expression: '* * * * *',
+    active: true,
+    intervalMs: 60_000,
+  }))
 })
 
 test('preflight rejects a live owner/job universe above the hard worker item bound', () => {
