@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const scoreTickPath = `${root}/supabase/functions/score-tick/index.ts`
+const deterministicWorkerPath =
+  `${root}/supabase/functions/_shared/deterministic-worker.ts`
 const extractResumePath = `${root}/supabase/functions/extract-resume/index.ts`
 
 function read(path: string) {
@@ -27,7 +29,7 @@ describe('score-tick deterministic worker source contract', () => {
   })
 
   it('has no provider, paid reservation, or score accounting capability', () => {
-    const worker = read(scoreTickPath)
+    const worker = `${read(scoreTickPath)}\n${read(deterministicWorkerPath)}`
 
     for (const forbidden of [
       /_shared\/openai/i,
@@ -49,7 +51,7 @@ describe('score-tick deterministic worker source contract', () => {
   })
 
   it('drains bounded full-capacity batches before running maintenance once', () => {
-    const worker = read(scoreTickPath)
+    const worker = read(deterministicWorkerPath)
 
     expect(worker).toContain("'enqueue_deterministic_new_jobs'")
     expect(worker).toContain("'enqueue_deterministic_recency_refresh'")
@@ -64,25 +66,29 @@ describe('score-tick deterministic worker source contract', () => {
     expect(worker).toMatch(/MAX_INVOCATION_MS\s*=\s*45_000/)
     expect(worker).toMatch(/RECOVERY_RUN_SCAN_LIMIT\s*=\s*25/)
     expect(worker).toMatch(
-      /let rows = await claimWork\(admin\)[\s\S]*if \(rows\.length === 0\) \{[\s\S]*recoverOrphanedRuns\(admin, startedAt\)[\s\S]*rows = await claimWork\(admin\)[\s\S]*await runMaintenance\(admin\)[\s\S]*rows = await claimWork\(admin\)/,
+      /let rows = await claimWork\(options\.client, context\)[\s\S]*if \(rows\.length === 0\) \{[\s\S]*recoverOrphanedRuns\(options\.client, context\)[\s\S]*rows = await claimWork\(options\.client, context\)[\s\S]*await runMaintenance\(options\.client, context\)[\s\S]*rows = await claimWork\(options\.client, context\)/,
     )
     expect(worker).toMatch(
-      /while \(rows\.length > 0\)[\s\S]*rows = await claimWork\(admin\)/,
+      /while \(rows\.length > 0\)[\s\S]*rows = await claimWork\(options\.client, context\)/,
     )
-    expect(worker.indexOf('let rows = await claimWork(admin)')).toBeLessThan(
-      worker.indexOf('recoverOrphanedRuns(admin, startedAt)'),
+    expect(
+      worker.indexOf('let rows = await claimWork(options.client, context)'),
+    ).toBeLessThan(
+      worker.indexOf('recoverOrphanedRuns(options.client, context)'),
     )
-    expect(worker.indexOf('recoverOrphanedRuns(admin, startedAt)')).toBeLessThan(
-      worker.indexOf('await runMaintenance(admin)'),
+    expect(
+      worker.indexOf('recoverOrphanedRuns(options.client, context)'),
+    ).toBeLessThan(
+      worker.indexOf('await runMaintenance(options.client, context)'),
     )
     expect(worker).toContain('Promise.allSettled')
   })
 
   it('bounds orphan recovery and delegates publication only to the atomic finalizer', () => {
-    const worker = read(scoreTickPath)
+    const worker = read(deterministicWorkerPath)
     const recovery = worker.slice(
       worker.indexOf('async function recoverOrphanedRuns'),
-      worker.indexOf('Deno.serve'),
+      worker.indexOf('export async function runDeterministicWorker'),
     )
 
     expect(recovery).toContain(".from('deterministic_ranking_state')")
@@ -90,14 +96,15 @@ describe('score-tick deterministic worker source contract', () => {
     expect(recovery).toContain(".not('building_run_id', 'is', null)")
     expect(recovery).toContain('.limit(RECOVERY_RUN_SCAN_LIMIT)')
     expect(recovery).toContain("'finalize_deterministic_ranking_run'")
-    expect(recovery).toContain('MAX_INVOCATION_MS')
+    expect(recovery).toContain('assertWithinDeadline(context)')
+    expect(recovery).toContain('awaitOperation')
     expect(recovery).not.toMatch(
       /\.from\(['"](?:deterministic_ranking_runs|deterministic_ranking_items|user_jobs)['"]\)\s*\.\s*(?:insert|update|delete|upsert)/,
     )
   })
 
   it('evaluates only captured run inputs and routes resumes separately', () => {
-    const worker = read(scoreTickPath)
+    const worker = read(deterministicWorkerPath)
     const evaluationCall = worker.slice(
       worker.indexOf('evaluateDeterministicRanking({'),
       worker.indexOf('const routing = routeResume('),
@@ -115,7 +122,7 @@ describe('score-tick deterministic worker source contract', () => {
   })
 
   it('bounds diagnostic output without logging job or resume content', () => {
-    const worker = read(scoreTickPath)
+    const worker = `${read(scoreTickPath)}\n${read(deterministicWorkerPath)}`
 
     expect(worker).toContain("return 'ranking_item_failed'")
     expect(worker).not.toMatch(
