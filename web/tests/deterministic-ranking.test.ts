@@ -133,6 +133,36 @@ describe('title matching and hard filters', () => {
   })
 
   it.each([
+    ['DS', 'Data Scientist'],
+    ['Senior DS', 'Data Scientist'],
+    ['SWE II', 'Software Engineer'],
+  ])('expands the exact job-title acronym %s to the complete configured phrase', (
+    jobTitle,
+    configuredTitle,
+  ) => {
+    expect(evaluateTitleMatch(jobTitle, [configuredTitle])).toEqual({
+      kind: 'weak',
+      matchedTitle: configuredTitle,
+    })
+  })
+
+  it.each([
+    ['Data Engineer', 'Data Scientist'],
+    ['Data Analyst', 'Data Scientist'],
+    ['Research Scientist', 'Data Scientist'],
+    ['Software Architect', 'Software Engineer'],
+    ['Platform Engineer', 'Software Engineer'],
+  ])('does not let one shared phrase token bridge %s to %s', (
+    jobTitle,
+    configuredTitle,
+  ) => {
+    expect(evaluateTitleMatch(jobTitle, [configuredTitle])).toEqual({
+      kind: null,
+      matchedTitle: null,
+    })
+  })
+
+  it.each([
     ['Vice President, Data Science', ['president'], [], 'excluded_title_keyword'],
     ['Data Scientist', [], ['security clearance'], 'excluded_keyword'],
     ['Registered Nurse', [], [], 'title_non_overlap'],
