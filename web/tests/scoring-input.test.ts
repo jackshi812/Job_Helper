@@ -192,17 +192,16 @@ describe('migration 0025 scoring freshness contract', () => {
     expect(sql).not.toMatch(/interval\s*'7 days'/i)
   })
 
-  it('captures claimed revision and requires id plus revision CAS on every terminal worker write', () => {
+  it('retains revision CAS schema while the containment worker performs no terminal writes', () => {
     expect(existsSync(migrationPath), 'migration 0025 must exist').toBe(true)
     if (!existsSync(migrationPath)) return
     const sql = read(migrationPath)
     const worker = read(workerPath)
     expect(sql).toMatch(/claimed_input_revision\s+bigint/i)
     expect(sql).toMatch(/claimed_input_revision\s*=\s*uj\.desired_input_revision/i)
-    expect(worker.match(/\.eq\('desired_input_revision',\s*(?:claimed|row)\.claimed_input_revision\)/g)?.length)
-      .toBeGreaterThanOrEqual(4)
-    expect(worker.match(/\.select\('id'\)|\.maybeSingle\(\)/g)?.length)
-      .toBeGreaterThanOrEqual(4)
+    expect(worker).not.toMatch(/\.eq\('desired_input_revision'/)
+    expect(worker).not.toMatch(/\.select\('id'\)|\.maybeSingle\(\)/)
+    expect(worker).not.toMatch(/\.update\(|\.insert\(|\.upsert\(/)
 
     const row = { desired: 8 }
     const captured = 7
@@ -317,26 +316,15 @@ describe('migration 0031 dashboard filter refinement contract', () => {
   })
 })
 
-describe('score-tick isolation and survivor ordering contract', () => {
-  it('projects filter-v4 title exclusions without active experience-cap source', () => {
+describe('score-tick containment and preserved migration evidence contract', () => {
+  it('contains the legacy filter and scoring pipeline without altering historical input hashing', () => {
     const worker = read(workerPath)
     const scoringInput = read(scoringInputPath)
 
-    expect(worker).toContain("const SCORING_FILTER_REVISION = 'filter-v4'")
-    expect(worker).toContain("'invalid_title_exclusions'")
-    expect(worker).toMatch(/title_exclude_keywords:\s*string\[\]\s*\|\s*null/)
-    expect(worker).toMatch(/titleExcludeKeywords:\s*row\?\.title_exclude_keywords\s*\?\?\s*\[\]/)
-    expect(worker).toContain('user_id, titles, locations, include_keywords, exclude_keywords, title_exclude_keywords')
     expect(scoringInput).toMatch(/titleExcludeKeywords:\s*canonicalArray\(input\.preferences\.titleExcludeKeywords\)/)
-    expect(`${worker}\n${scoringInput}`).not.toMatch(
-      /max_required_experience|maxRequiredExperience|experience_above_max/,
+    expect(worker).not.toMatch(
+      /cheapFilter|routeResume|scoringInputHash|SCORING_FILTER_REVISION|max_required_experience|maxRequiredExperience|experience_above_max/,
     )
-    const filter = worker.indexOf('cheapFilter(filterInput, prefs)')
-    const route = worker.indexOf('routeResume(', filter)
-    const reserve = worker.indexOf("admin.rpc('reserve_score_request'", route)
-    expect(filter).toBeGreaterThanOrEqual(0)
-    expect(route).toBeGreaterThan(filter)
-    expect(reserve).toBeGreaterThan(route)
   })
 
   it('keeps the hosted verifier compatible with new and legacy rows and exact preference restore', () => {
@@ -349,56 +337,30 @@ describe('score-tick isolation and survivor ordering contract', () => {
     expect(verifier).toMatch(/title_exclude_keywords:\s*\[newestJob\.title as string\]/)
   })
 
-  it('validates a strict verification UUID after method and cron auth before claim', () => {
+  it('preserves method and cron auth before returning containment', () => {
     const worker = read(workerPath)
     const method = worker.indexOf("request.method !== 'POST'")
     const auth = worker.indexOf("request.headers.get('x-cron-secret')")
-    const header = worker.indexOf('x-scoring-verification-run-id')
-    const claim = worker.indexOf("admin.rpc('claim_scoring_work'")
+    const contained = worker.indexOf("status: 'contained'")
     expect(method).toBeGreaterThanOrEqual(0)
     expect(auth).toBeGreaterThan(method)
-    expect(header).toBeGreaterThan(auth)
-    expect(claim).toBeGreaterThan(header)
-    expect(worker).toContain(
-      'const STRICT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i',
-    )
+    expect(contained).toBeGreaterThan(auth)
+    expect(worker).not.toContain('x-scoring-verification-run-id')
+    expect(worker).not.toContain('claim_scoring_work')
   })
 
-  it('has no provider source bypass and reaches routing hashing and AI only after cheapFilter passes', () => {
+  it('has no provider, routing, hashing, or source-specific bypass', () => {
     const worker = read(workerPath)
-    const filter = worker.indexOf('cheapFilter(filterInput, prefs)')
-    const failingBranch = worker.indexOf('if (!outcome.pass)', filter)
-    const route = worker.indexOf('routeResume(', failingBranch)
-    const hash = worker.indexOf('scoringInputHash(', route)
-    const ai = worker.indexOf('generateStructured({', hash)
-    expect(filter).toBeGreaterThanOrEqual(0)
-    expect(failingBranch).toBeGreaterThan(filter)
-    expect(route).toBeGreaterThan(failingBranch)
-    expect(hash).toBeGreaterThan(route)
-    expect(ai).toBeGreaterThan(hash)
     expect(worker).not.toMatch(/job\.(source|provider)|claimed\.(source|provider)|source\s*===|provider\s*===/i)
-    expect(worker.match(/generateStructured\(\{/g)).toHaveLength(1)
+    expect(worker).not.toMatch(/cheapFilter|routeResume|scoringInputHash|generateStructured/)
+    expect(worker).not.toMatch(/OPENAI|provider|apiKey/i)
   })
 
-  it('claims and completes free work before reserving budget immediately before paid scoring', () => {
+  it('does not claim, reserve, account, or mutate work', () => {
     const worker = read(workerPath)
-    const claim = worker.indexOf("admin.rpc('claim_scoring_work'")
-    const filter = worker.indexOf('cheapFilter(filterInput, prefs)')
-    const hash = worker.indexOf('scoringInputHash(', filter)
-    const reuse = worker.indexOf('if (!shouldRescore(', hash)
-    const reserve = worker.indexOf("admin.rpc('reserve_score_request'", reuse)
-    const ai = worker.indexOf('generateStructured({', reserve)
-    const handler = worker.indexOf('Deno.serve')
-
-    expect(claim).toBeGreaterThanOrEqual(0)
-    expect(filter).toBeGreaterThanOrEqual(0)
-    expect(hash).toBeGreaterThan(filter)
-    expect(reuse).toBeGreaterThan(hash)
-    expect(reserve).toBeGreaterThan(reuse)
-    expect(ai).toBeGreaterThan(reserve)
-    expect(worker.slice(handler, claim)).not.toContain(".from('ai_usage')")
-    expect(worker).toContain("return 'budget_deferred'")
-    expect(worker).toMatch(/generateStructured\(\{[\s\S]*?maxAttempts:\s*1[\s\S]*?\}\)/)
+    expect(worker).not.toMatch(/claim_scoring_work|reserve_score_request|purpose\s*:\s*['"]score['"]/)
+    expect(worker).not.toMatch(/\.rpc\(|\.from\(|\.update\(|\.insert\(|\.upsert\(/)
+    expect(worker).toContain('mutations: 0')
   })
 
   it('serializes exact-cap reservations and defers only paid rows until UTC rollover', () => {
@@ -419,13 +381,10 @@ describe('score-tick isolation and survivor ordering contract', () => {
     expect(sql).toMatch(/grant execute on function public\.reserve_score_request\(integer\) to service_role/i)
   })
 
-  it('bounds the July 20 one-day score allowance below 500 and restores the configured cap afterward', () => {
+  it('does not read any paid-score cap configuration', () => {
     const worker = read(workerPath)
-    expect(worker).toContain("const TEMPORARY_DAILY_SCORE_CAP_DATE = '2026-07-20'")
-    expect(worker).toContain('const TEMPORARY_DAILY_SCORE_CAP = 499')
-    expect(worker).toMatch(
-      /utcDate\s*===\s*TEMPORARY_DAILY_SCORE_CAP_DATE\s*\?\s*TEMPORARY_DAILY_SCORE_CAP\s*:\s*configuredCap/,
+    expect(worker).not.toMatch(
+      /TEMPORARY_DAILY_SCORE_CAP|AI_DAILY_SCORE_CAP|effectiveDailyScoreCap|PRO_RESCORE_ENABLED/,
     )
-    expect(worker).toContain('effectiveDailyScoreCap(new Date())')
   })
 })
