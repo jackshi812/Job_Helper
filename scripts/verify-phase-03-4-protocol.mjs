@@ -355,6 +355,26 @@ async function main() {
       failedState.retry_available === true,
     'terminal_lease_not_failed_retryable',
   )
+  const retryResult = await ownerA.session.rpc(
+    'retry_deterministic_ranking_run',
+  )
+  assert(
+    retryResult.length === 1 &&
+      retryResult[0].created === true &&
+      retryResult[0].revision === initialSave[0].revision,
+    'retry_rpc_did_not_create_exact_retry',
+  )
+  const retryState = await one(
+    service,
+    'deterministic_ranking_state',
+    `user_id=eq.${ownerA.id}&select=status,retry_available,building_run_id`,
+  )
+  assert(
+    retryState.status === 'building' &&
+      retryState.retry_available === false &&
+      retryState.building_run_id === retryResult[0].run_id,
+    'retry_rpc_did_not_activate_retry',
+  )
   const claimedAfterReap = await service.table(
     'deterministic_ranking_items',
     `run_id=eq.${leaseRunId}&status=eq.claimed&select=id`,
