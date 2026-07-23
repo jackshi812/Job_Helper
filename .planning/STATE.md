@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03.4
 current_phase_name: replace-automatic-ai-scoring-with-deterministic-ranking
 status: executing
-stopped_at: Completed 03.4-07-PLAN.md
-last_updated: "2026-07-23T19:41:25.551Z"
+stopped_at: Completed 03.4-08-PLAN.md
+last_updated: "2026-07-23T20:19:14.354Z"
 last_activity: 2026-07-23
-last_activity_desc: Completed Plan 03.4-07 independent hosted function proof
+last_activity_desc: Completed Plan 03.4-08 runtime-backed protocol hardening
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 56
-  completed_plans: 53
-  percent: 95
+  completed_plans: 54
+  percent: 96
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 03.4 (replace-automatic-ai-scoring-with-deterministic-ranking) — EXECUTING
-Plan: 7 of 9
+Plan: 8 of 9
 Status: Ready to execute
-Last activity: 2026-07-23 — Completed Plan 03.4-07 independent hosted function proof
+Last activity: 2026-07-23 — Completed Plan 03.4-08 runtime-backed protocol hardening
 
-Progress: [███████████████████░] 53/56 plans complete; milestone 6/9 phases complete (95%)
+Progress: [███████████████████░] 54/56 plans complete; milestone 6/9 phases complete (96%)
 
 ## Performance Metrics
 
@@ -99,6 +99,7 @@ Progress: [███████████████████░] 53/56 p
 | Phase 03.4 P05 | 8 min | 2 tasks | 3 files |
 | Phase 03.4 P06 | 7 min | 3 tasks | 8 files |
 | Phase 03.4 P07 | 7 min | 2 tasks | 2 files |
+| Phase 03.4 P08 | 34 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -220,6 +221,9 @@ Recent decisions affecting current work:
 - [Phase 03.4]: Treat committed resume metadata mutations as the browser-visible truth and leave transactional refresh signaling to Plan 08. — A secondary refresh failure must not misreport a durable upload or deletion as failed.
 - [Phase 03.4]: Accept hosted function evidence only when fresh CLI-downloaded bytes match the approved local entry hash and exact transitive bundle inventory across stable metadata snapshots. — Prevents local substitution or raced deployments from satisfying the exact-release gate.
 - [Phase 03.4]: Use a new temporary source root for every hosted function probe and remove it on both success and failure so cached source can never certify a deployment. — Preserves independent provenance and avoids retaining downloaded source.
+- [Phase 03.4]: Name the deterministic item unique constraint in preference-save ON CONFLICT so PL/pgSQL output parameters cannot make the production RPC ambiguous. — Fresh real SQL execution exposed the ambiguity behind the generic save failure.
+- [Phase 03.4]: A generic finalizer never acknowledges route demand; only successful route-run enqueue clears the exact observed timestamp. — Older runs cannot erase newer resume-routing requests.
+- [Phase 03.4]: Use one worker AbortController with a one-second response-cleanup margin; deadline aborts remain lease-reclaimable. — Every awaited network operation must obey the scheduler-safe invocation bound without fabricating failure or publication.
 
 ### Pending Todos
 
@@ -254,7 +258,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-23T19:41:25.541Z
-Stopped at: Completed 03.4-07-PLAN.md
+Last session: 2026-07-23T20:19:14.344Z
+Stopped at: Completed 03.4-08-PLAN.md
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
