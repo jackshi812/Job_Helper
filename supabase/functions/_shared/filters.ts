@@ -125,10 +125,10 @@ export function experienceMinimumRequired(description: string): number | null {
   return mandatoryMinima.length > 0 ? Math.max(...mandatoryMinima) : null
 }
 
-// D-01 named pairs plus a few Claude-discretion extensions. Keys are canonical
-// short forms; values are the expanded forms (may be multi-word). Expansion is
-// applied bidirectionally at the token level for title overlap only — exclude
-// keywords are NEVER expanded through synonyms (exclusions are literal, D-02).
+// D-01 named pairs plus a few Claude-discretion extensions. Keys are exact
+// short-form title tokens; values are complete replacement phrases. Title
+// aliases expand as phrases, never as pairwise token links. Exclude keywords
+// are NEVER expanded through synonyms (exclusions are literal, D-02).
 export const SYNONYMS: Record<string, string[]> = {
   quant: ['quantitative'],
   sr: ['senior'],
@@ -224,32 +224,6 @@ function excludedTitleKeyword(title: string, keywords: readonly string[]): strin
   return null
 }
 
-// Token-level bidirectional synonym index. Each token of a synonym key is linked
-// to each token of every value form and vice-versa. A multi-word configured form
-// therefore lets one abbreviation satisfy each of its concepts (for example,
-// `ds` satisfies both `data` and `scientist`) without making unrelated shared
-// words sufficient for an entire preferred title.
-const SYNONYM_INDEX: Map<string, Set<string>> = (() => {
-  const index = new Map<string, Set<string>>()
-  const link = (a: string, b: string) => {
-    if (!index.has(a)) index.set(a, new Set())
-    index.get(a)!.add(b)
-  }
-  for (const [key, values] of Object.entries(SYNONYMS)) {
-    const keyTokens = key.split(' ')
-    for (const value of values) {
-      const valueTokens = value.split(' ')
-      for (const kt of keyTokens) {
-        for (const vt of valueTokens) {
-          link(kt, vt)
-          link(vt, kt)
-        }
-      }
-    }
-  }
-  return index
-})()
-
 // Conservative one-step variants only. Variants are derived from the original
 // token and never fed back through this function, so there is no recursive
 // stemming or broad fuzzy match.
@@ -274,23 +248,24 @@ function inflectionVariants(token: string): Set<string> {
   return variants
 }
 
-function titleConceptVariants(token: string): Set<string> {
-  const expanded = inflectionVariants(token)
-  for (const variant of [...expanded]) {
-    const synonyms = SYNONYM_INDEX.get(variant)
-    if (synonyms) for (const synonym of synonyms) expanded.add(synonym)
-  }
-  return expanded
-}
-
 function significantTitleConcepts(value: string): string[] {
   return tokenize(value).filter((token) => !TITLE_STOPWORDS.has(token))
 }
 
+// Exact acronym tokens expand atomically to their complete phrase. Expanding
+// both operands makes a configured acronym useful too, but full-phrase tokens
+// never reverse-expand to an acronym and cannot bridge a missing concept.
+function expandedTitlePhraseConcepts(value: string): string[] {
+  return significantTitleConcepts(value).flatMap((token) => {
+    const expansion = SYNONYMS[token]?.[0]
+    return expansion ? significantTitleConcepts(expansion) : [token]
+  })
+}
+
 function expandedJobTitleConcepts(value: string): Set<string> {
   const expanded = new Set<string>()
-  for (const token of significantTitleConcepts(value)) {
-    for (const variant of titleConceptVariants(token)) expanded.add(variant)
+  for (const token of expandedTitlePhraseConcepts(value)) {
+    for (const variant of inflectionVariants(token)) expanded.add(variant)
   }
   return expanded
 }
@@ -305,9 +280,9 @@ export function containsNormalizedPhrase(haystack: string, needle: string): bool
 
 export function titleConceptsMatch(jobTitle: string, preferredTitle: string): boolean {
   const jobTitleConcepts = expandedJobTitleConcepts(jobTitle)
-  const preferredConcepts = significantTitleConcepts(preferredTitle)
+  const preferredConcepts = expandedTitlePhraseConcepts(preferredTitle)
   return preferredConcepts.length > 0 && preferredConcepts.every((concept) => {
-    for (const variant of titleConceptVariants(concept)) {
+    for (const variant of inflectionVariants(concept)) {
       if (jobTitleConcepts.has(variant)) return true
     }
     return false
