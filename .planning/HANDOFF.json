@@ -1,56 +1,36 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-23T06:03:46.805Z",
-  "phase": "03.4",
-  "phase_name": "replace-automatic-ai-scoring-with-deterministic-ranking",
-  "phase_dir": ".planning/phases/03.4-replace-automatic-ai-scoring-with-deterministic-ranking",
-  "plan": 3,
-  "task": 1,
-  "total_tasks": 3,
+  "timestamp": "2026-07-23T23:31:50.783Z",
+  "phase": "4",
+  "phase_name": "resume-tailoring-and-tracker",
+  "phase_dir": null,
+  "plan": null,
+  "task": null,
+  "total_tasks": 0,
   "status": "paused",
   "completed_tasks": [
     {
-      "id": "03.4-01",
-      "name": "Contain automatic AI scoring and build deterministic evaluator",
+      "id": "03.4",
+      "name": "Replace automatic AI scoring with deterministic ranking",
       "status": "done",
-      "commit": "9f02835"
+      "commit": "7a2c843"
     },
     {
-      "id": "03.4-02",
-      "name": "Deploy atomic deterministic ranking data plane and worker",
+      "id": "03.4-production",
+      "name": "Release deterministic ranking and Retry repair",
       "status": "done",
-      "commit": "f166c50"
+      "commit": "7642fde8"
     }
   ],
   "remaining_tasks": [
     {
-      "id": "03.4-03.1",
-      "name": "Build the complete atomic ranking preference editor",
+      "id": "4-planning",
+      "name": "Discuss and plan Phase 4 Resume Tailoring & Tracker",
       "status": "not_started"
     },
     {
-      "id": "03.4-03.2",
-      "name": "Switch feed and Dashboard to stored deterministic results",
-      "status": "not_started"
-    },
-    {
-      "id": "03.4-03.3",
-      "name": "Replace AI detail panels with deterministic evidence",
-      "status": "not_started"
-    },
-    {
-      "id": "03.4-04.1",
-      "name": "Assemble a fail-closed release preflight",
-      "status": "not_started"
-    },
-    {
-      "id": "03.4-04.2",
-      "name": "Approve deterministic worker, complete backfill, and exact web cutover",
-      "status": "not_started"
-    },
-    {
-      "id": "03.4-04.3",
-      "name": "Deploy, backfill, cut over, and complete UAT",
+      "id": "4-execution",
+      "name": "Execute Phase 4 plans after owner approval",
       "status": "not_started"
     }
   ],
@@ -59,19 +39,19 @@
   "human_actions_pending": [],
   "decisions": [
     {
-      "decision": "Production automatic AI scoring is contained and replaced at the worker boundary before browser cutover.",
-      "rationale": "Stops paid background scoring while later deterministic migration and UI work proceed safely.",
+      "decision": "Automatic/background paid AI scoring is retired; ranking is deterministic, reproducible, and stored with evidence.",
+      "rationale": "Phase 03.4 passed 13/13 verification truths, 966/966 tests, 52/52 security checks, and 6/6 production UAT.",
       "phase": "03.4"
     },
     {
-      "decision": "Migration 0032 is additive; legacy AI fields remain physically present but are inactive in deterministic ranking.",
-      "rationale": "Supports fail-closed migration evidence and avoids destructive compatibility risk.",
+      "decision": "Production remains bound to exact commit 7642fde8bdc55112f50f847a7e65fd39af1d7f64.",
+      "rationale": "The owner approved this exact repaired release and Cloudflare/Supabase evidence matched it.",
       "phase": "03.4"
     },
     {
-      "decision": "No initial backfill, preference save, or web cutover occurs until Plan 04's exact release approval.",
-      "rationale": "Prevents mixed AI/deterministic results and partial snapshots from becoming visible.",
-      "phase": "03.4"
+      "decision": "Phase 4 must preserve truthful resume edits, require explicit review, preserve DOCX formatting, and link tailored artifacts into the manual tracker.",
+      "rationale": "These are the locked Phase 4 roadmap and RESU-02..05/TRAK-01..04 requirement boundaries.",
+      "phase": "4"
     }
   ],
   "uncommitted_files": [
@@ -92,6 +72,6 @@
       "ownership": "pre-existing user file; do not stage"
     }
   ],
-  "next_action": "Run $gsd-resume-work, then resume $gsd-execute-phase 03.4; completed summaries cause execution to start at Wave 3 / Plan 03.",
-  "context_notes": "Wave 2 is fully complete and verified. Production has migration parity through 0032, extract-resume ACTIVE v4, score-tick ACTIVE v11, unchanged cron schedules, and zero deterministic states/runs/items/backfill runs. Full web tests 609/609 and build passed. Do not start backfill or deploy web before Plan 04's explicit exact-release approval."
+  "next_action": "Run $gsd-resume-work, confirm Phase 03.4 remains complete, then start Phase 4 discovery with $gsd-discuss-phase 4.",
+  "context_notes": "Phase 03.4 is fully closed: 9/9 plans, formal verification 13/13, review clean, security 52/52, UAT 6/6, tests 966/966. Production has migration 0034 and exact release SHA 7642fde8; both owners are complete/idle, the updated preference revision shows 9 dashboard jobs, and the paid score ledger was unchanged. Local HEAD 7a2c843 is 11 commits ahead of origin/main because closeout evidence and planning metadata were intentionally not pushed. Do not push or deploy a new commit without a new exact-release approval. No async jobs or human actions remain. Colima was used for disposable local protocol verification and may still be running, but no project server or watcher is required."
 }
