@@ -16,7 +16,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Preferences & Watchlist
 
-- [x] **PREF-01**: User can set job preferences: target titles, locations, keywords (include/exclude)
+- [x] **PREF-01**: User can set target titles, locations, include/exclude keywords, title exclusions, an optional maximum-experience scoring signal, and a validated editable deterministic ranking rubric and tier thresholds
 - [x] **PREF-02**: User can add, edit, and remove companies on a watchlist of 100+ career-site URLs
 - [x] **PREF-03**: System auto-detects ATS platform (Greenhouse/Lever/Ashby) from a pasted career-site URL and stores the polling endpoint
 - [x] **PREF-04**: User can see per-company monitoring health (last successful poll, failing sources flagged)
@@ -36,11 +36,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Scoring & Feed
 
-- [x] **SCOR-01**: Cheap filters (title/location/keyword rules) discard irrelevant postings before any AI call
-- [x] **SCOR-02**: AI scores surviving postings against the user's preferences and uploaded resume
-- [x] **SCOR-03**: Each scored job shows plain-language match reasons ("why this matched")
-- [x] **SCOR-04**: User can view a dashboard feed of new matches with score, match reasons, posted-time, and direct link to the employer's apply page
-- [x] **SCOR-05**: User can view job detail with full JD snapshot and keyword-gap panel (categorized gaps vs their resume, advisory only)
+- [x] **SCOR-01**: Deterministic title, US-location, title-exclusion, and literal keyword rules remove ineligible postings before publication
+- [x] **SCOR-02**: Eligible postings receive a reproducible, transparent 100-point deterministic ranking with no automatic/background AI scoring or paid score reservation
+- [x] **SCOR-03**: Each ranked job stores a six-category points-earned/points-possible/evidence breakdown
+- [x] **SCOR-04**: User can view one atomically complete deterministic Dashboard feed with stored score/tier, posted time, company controls, sorting, and a direct HTTPS employer apply link
+- [x] **SCOR-05**: User can view the full JD snapshot and the same stored six-category deterministic rubric evidence on job detail
 
 ### Resume Tailoring
 
@@ -91,7 +91,11 @@ Deferred to future release. Tracked but not in current roadmap.
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-A requirement may appear on more than one row when a later phase extends it rather than re-closing it. DISC-07, DISC-08, and DISC-09 were closed by Phase 02.1 and are extended by Phase 03.1, which adds SAP SuccessFactors and Paylocity Recruiting to the same discovery surface. The Phase 02.1 rows stay Complete; the Phase 03.1 rows track the extension.
+A requirement may appear on more than one row when a later phase extends or
+replaces its implementation without inventing a new requirement ID. DISC-07,
+DISC-08, and DISC-09 were closed by Phase 02.1 and extended by Phase 03.1.
+PREF-01 and SCOR-01..05 were first closed by Phase 3 and remapped by Phase 03.4
+from automatic AI scoring to the complete deterministic ranking contract.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
@@ -100,6 +104,7 @@ A requirement may appear on more than one row when a later phase extends it rath
 | AUTH-03 | Phase 1 | Complete |
 | AUTH-04 | Phase 1 | Complete |
 | PREF-01 | Phase 3 | Complete |
+| PREF-01 | Phase 03.4 | Complete |
 | PREF-02 | Phase 2 | Complete |
 | PREF-03 | Phase 2 | Complete |
 | PREF-04 | Phase 2 | Complete |
@@ -121,6 +126,11 @@ A requirement may appear on more than one row when a later phase extends it rath
 | SCOR-03 | Phase 3 | Complete |
 | SCOR-04 | Phase 3 | Complete |
 | SCOR-05 | Phase 3 | Complete |
+| SCOR-01 | Phase 03.4 | Complete |
+| SCOR-02 | Phase 03.4 | Complete |
+| SCOR-03 | Phase 03.4 | Complete |
+| SCOR-04 | Phase 03.4 | Complete |
+| SCOR-05 | Phase 03.4 | Complete |
 | RESU-01 | Phase 3 | Complete |
 | RESU-02 | Phase 4 | Pending |
 | RESU-03 | Phase 4 | Pending |
@@ -139,4 +149,4 @@ A requirement may appear on more than one row when a later phase extends it rath
 
 ---
 *Requirements defined: 2026-07-15*
-*Last updated: 2026-07-20 after Phase 3 completion*
+*Last updated: 2026-07-23 after Phase 03.4 deterministic ranking release*
