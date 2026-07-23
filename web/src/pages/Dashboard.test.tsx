@@ -22,17 +22,16 @@ import { Dashboard } from './Dashboard'
 
 const row: FeedRow = {
   id: 'user-job-1',
-  status: 'scored',
-  filter_reason: null,
-  filter_detail: null,
-  score: 42,
-  tier: 'Weak',
-  reasons: ['Entry-level scope'],
-  routed_resume_id: null,
-  runner_up_resume_id: null,
-  scored_at: '2026-07-22T00:00:00.000Z',
-  needs_refilter: false,
-  score_deferred_until: null,
+  deterministic_revision: 4,
+  deterministic_eligible: true,
+  deterministic_score: 42,
+  deterministic_tier: 'Weak',
+  deterministic_breakdown: [],
+  deterministic_filter_code: null,
+  deterministic_filter_detail: null,
+  deterministic_ranked_at: '2026-07-22T00:00:00.000Z',
+  deterministic_best_fit_resume_id: null,
+  deterministic_runner_up_resume_id: null,
   seen_at: null,
   dismissed_at: null,
   jobs: {
@@ -64,6 +63,20 @@ vi.mock('@tanstack/react-query', () => ({
     }
     if (queryKey[0] === 'preferences') {
       return { data: {}, error: null, isPending: false }
+    }
+    if (queryKey[0] === 'ranking-state') {
+      return {
+        data: {
+          activeRevision: 4,
+          desiredRevision: 4,
+          status: 'idle',
+          errorCode: null,
+          retryAvailable: false,
+          updatedAt: '2026-07-23T00:00:00.000Z',
+        },
+        error: null,
+        isPending: false,
+      }
     }
     return { data: [], error: null, isPending: false }
   },
@@ -98,14 +111,45 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).not.toMatch(/\[\s*feedQuery\.data,\s*showDismissed,\s*viewAll,/)
   })
 
-  it('renders Location in the list and preserves Match reasons only on detail', () => {
+  it('renders Location without restoring a Dashboard reason column', () => {
     const markup = renderToStaticMarkup(<Dashboard />)
     const table = markup.match(/<table[\s\S]*<\/table>/)?.[0] ?? ''
 
     expect(table).toContain('>Location<div role="separator"')
     expect(table).toContain('Chicago, IL')
     expect(table).not.toContain('Match reason')
-    expect(jobDetailSource).toContain('Match reasons')
+    expect(jobDetailSource).not.toContain('Match reasons')
+  })
+
+  it('uses a separate ranking-state query and preserves the feed through updates and failure', () => {
+    expect(dashboardSource).toContain("queryKey: ['ranking-state']")
+    expect(dashboardSource).toContain('getDeterministicRankingState')
+    expect(dashboardSource).toContain("status === 'building'")
+    expect(dashboardSource).toContain('Updating rankings…')
+    expect(dashboardSource).toContain(
+      'Your current results stay visible until the full update is ready.',
+    )
+    expect(dashboardSource).toContain(
+      'Rankings couldn’t update. Your previous results are still shown.',
+    )
+    expect(dashboardSource).toContain('Retry update')
+    expect(dashboardSource).toContain('Retrying…')
+    expect(dashboardSource).toContain(
+      'Retry limit reached. Save preferences again to start a new update.',
+    )
+    expect(dashboardSource).toContain('Rankings updated.')
+    expect(dashboardSource).toContain("refetchQueries({ queryKey: ['feed'], exact: true })")
+    expect(dashboardSource).not.toContain('scoreFreshnessLabel')
+  })
+
+  it('renders stored deterministic score, tier, and routing fields without browser derivation', () => {
+    expect(dashboardSource).toContain('row.deterministic_score')
+    expect(dashboardSource).toContain('row.deterministic_tier')
+    expect(dashboardSource).toContain('row.deterministic_best_fit_resume_id')
+    expect(dashboardSource).toContain('<TierBadge tier={row.deterministic_tier}')
+    expect(dashboardSource).not.toContain('tierPresentation(row.score)')
+    expect(dashboardSource).not.toContain('row.score')
+    expect(dashboardSource).not.toContain('row.routed_resume_id')
   })
 
   it('pins staged full-list company actions, escape, and exact filter-empty copy', () => {

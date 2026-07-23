@@ -34,17 +34,16 @@ vi.mock('./supabase', () => ({ supabase: {} }))
 function feedRow(company: string, score: number, overrides: Partial<FeedRow> = {}): FeedRow {
   return {
     id: `${company}-${score}`,
-    status: 'scored',
-    filter_reason: null,
-    filter_detail: null,
-    score,
-    tier: score >= 75 ? 'Strong' : score >= 50 ? 'Good' : 'Weak',
-    reasons: [],
-    routed_resume_id: null,
-    runner_up_resume_id: null,
-    scored_at: '2026-07-22T00:00:00.000Z',
-    needs_refilter: false,
-    score_deferred_until: null,
+    deterministic_revision: 4,
+    deterministic_eligible: true,
+    deterministic_score: score,
+    deterministic_tier: score >= 75 ? 'Strong' : score >= 50 ? 'Good' : 'Weak',
+    deterministic_breakdown: [],
+    deterministic_filter_code: null,
+    deterministic_filter_detail: null,
+    deterministic_ranked_at: '2026-07-22T00:00:00.000Z',
+    deterministic_best_fit_resume_id: null,
+    deterministic_runner_up_resume_id: null,
     seen_at: null,
     dismissed_at: null,
     jobs: {
@@ -166,26 +165,10 @@ describe('Dashboard staged filters', () => {
   })
 
   it('uses one preference-pass scope and composes company and tier filters with AND', () => {
-    const failedScoreless = feedRow('Deferred Co', 0, {
-      id: 'failed-scoreless',
-      status: 'failed',
-      score: null,
-      tier: null,
-    })
-    const deferredScoreless = feedRow('Deferred Co', 0, {
-      id: 'deferred-scoreless',
-      status: 'pending',
-      score: null,
-      tier: null,
-      needs_refilter: true,
-      score_deferred_until: '2026-07-22T01:00:00.000Z',
-    })
     const rows = [
       feedRow('Acme', 85),
       feedRow('Acme', 40),
       feedRow('Walmart', 60),
-      failedScoreless,
-      deferredScoreless,
     ]
     expect(filterDashboardRows(rows, {
       showDismissed: false,
@@ -195,8 +178,6 @@ describe('Dashboard staged filters', () => {
       'Acme-85',
       'Acme-40',
       'Walmart-60',
-      'failed-scoreless',
-      'deferred-scoreless',
     ])
 
     expect(filterDashboardRows(rows, {
@@ -214,13 +195,20 @@ describe('Dashboard staged filters', () => {
 
   it('excludes rows outside the authorized current preference-pass feed contract', () => {
     const rows = [
-      feedRow('Acme', 80, { id: 'unknown', status: 'pending', score: null, tier: null }),
-      feedRow('Acme', 80, { id: 'filtered', status: 'filtered', score: null, tier: null }),
+      feedRow('Acme', 80, {
+        id: 'unknown',
+        deterministic_revision: null,
+        deterministic_eligible: null,
+        deterministic_score: null,
+        deterministic_tier: null,
+      }),
+      feedRow('Acme', 80, { id: 'filtered', deterministic_eligible: false }),
       feedRow('Acme', 80, {
         id: 'closed',
         jobs: { ...feedRow('Acme', 80).jobs!, status: 'closed' },
       }),
-      feedRow('Acme', 80, { id: 'stale', needs_refilter: true }),
+      feedRow('Acme', 80, { id: 'pending-score', deterministic_score: null }),
+      feedRow('Acme', 80, { id: 'pending-tier', deterministic_tier: null }),
       feedRow('Acme', 80, { id: 'identityless', jobs: null }),
     ]
     expect(filterDashboardRows(rows, {

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   companyName,
-  filteredReasonLabel,
-  preferenceVisible,
+  deterministicVisible,
+  FEED_DETAIL_COLUMNS,
+  FEED_LIST_COLUMNS,
   relativePostedTime,
   safeApplyUrl,
-  scoreFreshnessLabel,
   tierPresentation,
   type FeedRow,
 } from './feed'
@@ -18,17 +18,23 @@ vi.mock('./supabase', () => ({ supabase: {} }))
 function feedRow(overrides: Partial<FeedRow> = {}): FeedRow {
   return {
     id: '00000000-0000-4000-8000-000000000000',
-    status: 'scored',
-    filter_reason: null,
-    filter_detail: null,
-    score: 82,
-    tier: 'Strong',
-    reasons: ['strong skill overlap'],
-    routed_resume_id: null,
-    runner_up_resume_id: null,
-    scored_at: '2026-07-19T00:00:00.000Z',
-    needs_refilter: false,
-    score_deferred_until: null,
+    deterministic_revision: 4,
+    deterministic_eligible: true,
+    deterministic_score: 82,
+    deterministic_tier: 'Strong',
+    deterministic_breakdown: [
+      { key: 'title', earned: 30, possible: 30, evidence: ['Strict title match'] },
+      { key: 'location', earned: 10, possible: 10, evidence: ['Chicago'] },
+      { key: 'recency', earned: 10, possible: 10, evidence: ['Posted within 24 hours'] },
+      { key: 'watchlist', earned: 10, possible: 10, evidence: ['Acme'] },
+      { key: 'experience', earned: 20, possible: 20, evidence: ['1 year below 3'] },
+      { key: 'keywords', earned: 2, possible: 20, evidence: ['valuation'] },
+    ],
+    deterministic_filter_code: null,
+    deterministic_filter_detail: null,
+    deterministic_ranked_at: '2026-07-23T00:00:00.000Z',
+    deterministic_best_fit_resume_id: null,
+    deterministic_runner_up_resume_id: null,
     seen_at: null,
     dismissed_at: null,
     jobs: {
@@ -47,121 +53,59 @@ function feedRow(overrides: Partial<FeedRow> = {}): FeedRow {
 }
 
 describe('tierPresentation', () => {
-  it('maps Strong tier at and above 75 to the emerald badge', () => {
-    expect(tierPresentation(82)).toEqual({ label: 'Strong', badge: 'emerald' })
-    expect(tierPresentation(75)).toEqual({ label: 'Strong', badge: 'emerald' })
-    expect(tierPresentation(100)).toEqual({ label: 'Strong', badge: 'emerald' })
+  it('maps the stored Strong tier to the emerald badge', () => {
+    expect(tierPresentation('Strong')).toEqual({ label: 'Strong', badge: 'emerald' })
   })
 
-  it('maps Good tier 50..74 to the neutral badge', () => {
-    expect(tierPresentation(74)).toEqual({ label: 'Good', badge: 'neutral' })
-    expect(tierPresentation(60)).toEqual({ label: 'Good', badge: 'neutral' })
-    expect(tierPresentation(50)).toEqual({ label: 'Good', badge: 'neutral' })
+  it('maps the stored Good tier to the neutral badge', () => {
+    expect(tierPresentation('Good')).toEqual({ label: 'Good', badge: 'neutral' })
   })
 
-  it('maps Weak tier below 50 to a plain label with no badge fill', () => {
-    expect(tierPresentation(49)).toEqual({ label: 'Weak', badge: null })
-    expect(tierPresentation(30)).toEqual({ label: 'Weak', badge: null })
-    expect(tierPresentation(0)).toEqual({ label: 'Weak', badge: null })
+  it('maps the stored Weak tier to a plain label with no badge fill', () => {
+    expect(tierPresentation('Weak')).toEqual({ label: 'Weak', badge: null })
   })
 
-  it('treats a null score as Weak with no badge', () => {
-    expect(tierPresentation(null)).toEqual({ label: 'Weak', badge: null })
+  it('does not synthesize Weak from a missing stored tier', () => {
+    expect(tierPresentation(null)).toBeNull()
   })
 })
 
-describe('filteredReasonLabel', () => {
-  it('renders a bounded excluded-title keyword while preserving legacy experience reads', () => {
-    expect(
-      filteredReasonLabel({
-        filter_reason: 'excluded_title_keyword',
-        filter_detail: 'vice president',
-      }),
-    ).toBe('excluded title keyword: vice president')
-    expect(
-      filteredReasonLabel({
-        filter_reason: 'excluded_title_keyword',
-        filter_detail: 'x'.repeat(161),
-      }),
-    ).toBe(`excluded title keyword: ${'x'.repeat(160)}`)
-    expect(
-      filteredReasonLabel({
-        filter_reason: 'experience_above_max',
-        filter_detail: null,
-      }),
-    ).toBe('required experience above maximum')
+describe('deterministic feed projection', () => {
+  it('selects deterministic result fields and no active AI-era fields', () => {
+    for (const columns of [FEED_LIST_COLUMNS, FEED_DETAIL_COLUMNS]) {
+      expect(columns).toContain('deterministic_revision')
+      expect(columns).toContain('deterministic_eligible')
+      expect(columns).toContain('deterministic_score')
+      expect(columns).toContain('deterministic_tier')
+      expect(columns).toContain('deterministic_breakdown')
+      expect(columns).toContain('deterministic_ranked_at')
+      expect(columns).toContain('deterministic_best_fit_resume_id')
+      expect(columns).not.toMatch(/(^|, )score(,|$)/)
+      expect(columns).not.toMatch(/(^|, )tier(,|$)/)
+      expect(columns).not.toContain('reasons')
+      expect(columns).not.toContain('gaps')
+      expect(columns).not.toContain('covered')
+      expect(columns).not.toContain('needs_refilter')
+      expect(columns).not.toContain('score_deferred_until')
+      expect(columns).not.toContain('scored_at')
+    }
   })
 
-  it('renders an excluded keyword with its detail', () => {
-    expect(
-      filteredReasonLabel({ filter_reason: 'excluded_keyword', filter_detail: 'staff' }),
-    ).toBe('excluded keyword: staff')
-  })
-
-  it('renders a bare excluded-keyword code when no detail is present', () => {
-    expect(
-      filteredReasonLabel({ filter_reason: 'excluded_keyword', filter_detail: null }),
-    ).toBe('excluded keyword')
-  })
-
-  it('renders location and title mismatches', () => {
-    expect(filteredReasonLabel({ filter_reason: 'wrong_location', filter_detail: null })).toBe(
-      'location mismatch',
-    )
-    expect(filteredReasonLabel({ filter_reason: 'title_non_overlap', filter_detail: null })).toBe(
-      'title mismatch',
-    )
-  })
-
-  it('returns null when there is no filter reason', () => {
-    expect(filteredReasonLabel({ filter_reason: null, filter_detail: null })).toBeNull()
-  })
-})
-
-describe('preferenceVisible', () => {
-  it('keeps every current open preference pass in the single feed scope', () => {
-    expect(preferenceVisible(feedRow({ status: 'scored', score: 82 }))).toBe(true)
-    expect(preferenceVisible(feedRow({ status: 'scored', score: 49, tier: 'Weak' }))).toBe(true)
-    expect(preferenceVisible(feedRow({ status: 'failed', score: null, tier: null }))).toBe(true)
-
-    const staleScored = feedRow({
-      status: 'scored',
-      score: 75,
-      needs_refilter: true,
-      score_deferred_until: '2026-07-21T00:00:00.000Z',
-    })
-    const deferredScoreless = feedRow({
-      status: 'pending',
-      score: null,
-      tier: null,
-      needs_refilter: true,
-      score_deferred_until: '2026-07-21T00:00:00.000Z',
-    })
-    expect(preferenceVisible(staleScored)).toBe(true)
-    expect(preferenceVisible(deferredScoreless)).toBe(true)
-    expect(scoreFreshnessLabel(staleScored)).toBe('Updating')
-    expect(scoreFreshnessLabel(deferredScoreless)).toBeNull()
-  })
-
-  it('excludes unknown, filtered, closed, stale-current-revision, and jobless rows', () => {
-    expect(preferenceVisible(feedRow({ status: 'pending', score: null }))).toBe(false)
-    expect(preferenceVisible(feedRow({
-      status: 'filtered',
-      score: null,
-      filter_reason: 'excluded_keyword',
-    }))).toBe(false)
-    expect(preferenceVisible(feedRow({ status: 'scored', score: 75, needs_refilter: true })))
-      .toBe(false)
-    expect(preferenceVisible(feedRow({
+  it('shows only complete eligible deterministic rows', () => {
+    expect(deterministicVisible(feedRow())).toBe(true)
+    expect(deterministicVisible(feedRow({ deterministic_revision: null }))).toBe(false)
+    expect(deterministicVisible(feedRow({ deterministic_eligible: null }))).toBe(false)
+    expect(deterministicVisible(feedRow({ deterministic_eligible: false }))).toBe(false)
+    expect(deterministicVisible(feedRow({ deterministic_score: null }))).toBe(false)
+    expect(deterministicVisible(feedRow({ deterministic_tier: null }))).toBe(false)
+    expect(deterministicVisible(feedRow({
       jobs: { ...feedRow().jobs!, status: 'closed' },
     }))).toBe(false)
-    expect(preferenceVisible(feedRow({ jobs: null }))).toBe(false)
+    expect(deterministicVisible(feedRow({ jobs: null }))).toBe(false)
   })
 
   it('leaves dismissal as a separate Dashboard state dimension', () => {
-    expect(preferenceVisible(feedRow({
-      status: 'scored',
-      score: 75,
+    expect(deterministicVisible(feedRow({
       dismissed_at: '2026-07-20T00:00:00.000Z',
     }))).toBe(true)
   })
