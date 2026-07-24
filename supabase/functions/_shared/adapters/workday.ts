@@ -691,7 +691,10 @@ export async function pollWorkdayRecent(
     }
     const pageTotal = page.total as number
     if (providerTotal === undefined) providerTotal = pageTotal
-    if (providerTotal !== pageTotal) {
+    const laterPageTotalSentinel = pageCount > 0
+      && pageTotal === 0
+      && page.jobPostings.length > 0
+    if (providerTotal !== pageTotal && !laterPageTotalSentinel) {
       return incomplete([], 'count_mismatch', undefined, pageCount + 1)
     }
     if (providerTotal === 0) {
