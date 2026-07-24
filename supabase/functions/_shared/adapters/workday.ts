@@ -212,6 +212,16 @@ function parseListPosting(value: unknown, identity: WorkdayIdentity): WorkdayLis
   return posting as unknown as WorkdayListPosting
 }
 
+function equivalentListPosting(
+  left: WorkdayListPosting,
+  right: WorkdayListPosting,
+) {
+  return left.externalPath === right.externalPath
+    && left.title === right.title
+    && left.locationsText === right.locationsText
+    && left.postedOn === right.postedOn
+}
+
 function parseListingTombstone(value: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const fields = value as Record<string, unknown>
@@ -817,7 +827,7 @@ export async function verifyWorkdayListing(
   const pageSize = Math.min(Math.max(options.pageSize ?? DEFAULT_PAGE_SIZE, 1), 20)
   const maxPages = Math.min(options.maxPages ?? DEFAULT_MAX_PAGES, DEFAULT_MAX_PAGES)
   const maxJobs = Math.min(options.maxJobs ?? DEFAULT_MAX_JOBS, DEFAULT_MAX_JOBS)
-  const seenPaths = new Set<string>()
+  const seenPaths = new Map<string, WorkdayListPosting>()
   const seenTombstones = new Set<string>()
   const seenListingIdentifiers = new Set<string>()
   let expectedCount: number | undefined
@@ -875,10 +885,13 @@ export async function verifyWorkdayListing(
 
     pageCount += 1
     for (const posting of pagePostings) {
-      if (seenPaths.has(posting.externalPath)) throw new ProviderError('count_mismatch')
       const identifier = listingRequisitionIdentifier(posting.externalPath)
       if (identifier && seenTombstones.has(identifier)) throw new ProviderError('count_mismatch')
-      seenPaths.add(posting.externalPath)
+      const prior = seenPaths.get(posting.externalPath)
+      if (prior && !equivalentListPosting(prior, posting)) {
+        throw new ProviderError('count_mismatch')
+      }
+      seenPaths.set(posting.externalPath, posting)
       if (identifier) seenListingIdentifiers.add(identifier)
     }
     for (const identifier of pageTombstones) {
