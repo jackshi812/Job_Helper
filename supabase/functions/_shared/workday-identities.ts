@@ -66,7 +66,7 @@ const fidelityIdentity: WorkdayIdentity = Object.freeze({
   region: 'wd1',
   hostForm: 'site',
   sourceKey: FIDELITY_WORKDAY_SOURCE_KEY,
-  companyName: null,
+  companyName: 'Fidelity',
   applyCapitalOneEligibility: false,
   excludedJobFamilyGroups: Object.freeze(['Sales', 'Customer Service', 'Sales Support']),
 })

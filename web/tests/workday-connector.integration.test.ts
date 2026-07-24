@@ -18,6 +18,7 @@ import {
   verifyConnector,
 } from '../../supabase/functions/_shared/connectors.ts'
 import { detectAts } from '../../supabase/functions/_shared/detect.ts'
+import { fingerprint } from '../../supabase/functions/_shared/dedup.ts'
 import { createVerifyBoardHandler } from '../../supabase/functions/verify-board/index.ts'
 import catalogSql from '../../supabase/migrations/0013_source_coverage_catalog.sql?raw'
 import migrationSql from '../../supabase/migrations/0016_workday_experimental.sql?raw'
@@ -629,9 +630,14 @@ describe('Workday identity registry', () => {
     expect(identity?.origin).toBe('https://wd1.myworkdaysite.com')
     expect(identity?.cxsRoot).toBe('https://wd1.myworkdaysite.com/wday/cxs/fmr/FidelityCareers')
     expect(identity?.hostForm).toBe('site')
-    expect(identity?.companyName).toBeNull()
+    expect(identity?.companyName).toBe('Fidelity')
     expect(identity?.excludedJobFamilyGroups).toEqual(['Sales', 'Customer Service', 'Sales Support'])
     expect(identity?.keptFacetIds).toBeUndefined()
+    expect(fingerprint(
+      identity?.companyName ?? '',
+      'Full Stack Developer',
+      'Westlake, TX',
+    )).toBe(fingerprint('Fidelity', 'Full Stack Developer', 'Westlake, TX'))
   })
 
   it('fails closed for any unadmitted tuple', () => {
@@ -1066,8 +1072,8 @@ describe('Fidelity category-scoped recent import', () => {
       completeness: 'complete',
       credibleForClosure: true,
       jobs: [
-        { externalId: 'R200001', companyName: null },
-        { externalId: 'R200002', companyName: null },
+        { externalId: 'R200001', companyName: 'Fidelity' },
+        { externalId: 'R200002', companyName: 'Fidelity' },
       ],
     })
   })
@@ -1416,7 +1422,7 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
     let insertArg: Record<string, unknown> | null = null
     const persisted = {
       id: 'fidelity-company-1',
-      name: 'fmr',
+      name: 'Fidelity',
       source_key: fidelitySourceKey,
       activation_state: 'experimental',
     }
@@ -1502,6 +1508,7 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
       region: 'wd1',
       site_token: 'FidelityCareers',
       source_key: fidelitySourceKey,
+      name: 'Fidelity',
       activation_state: 'experimental',
       last_observation_count: 704,
     })
