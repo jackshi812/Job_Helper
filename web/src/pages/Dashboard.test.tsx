@@ -57,12 +57,28 @@ vi.mock('react-router', () => ({
 
 vi.mock('@tanstack/react-query', () => ({
   useMutation: () => ({ mutate: vi.fn(), isPending: false }),
-  useQuery: ({ queryKey }: { queryKey: string[] }) => {
-    if (queryKey[0] === 'feed') {
-      return { data: [row], error: null, isPending: false, refetch: vi.fn() }
-    }
+  useInfiniteQuery: () => ({
+    data: {
+      pages: [{
+        rows: [row],
+        nextCursor: 'cursor-1',
+        hasMore: true,
+        caughtUp: false,
+      }],
+      pageParams: [null],
+    },
+    error: null,
+    isPending: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn(),
+    refetch: vi.fn(),
+  }),
+  useQuery: ({ queryKey }: { queryKey: readonly unknown[] }) => {
     if (queryKey[0] === 'preferences') {
       return { data: {}, error: null, isPending: false }
+    }
+    if (queryKey[0] === 'dashboard-companies') {
+      return { data: [{ key: 'acme', label: 'Acme', count: 1 }], error: null, isPending: false }
     }
     if (queryKey[0] === 'ranking-state') {
       return {
@@ -82,17 +98,24 @@ vi.mock('@tanstack/react-query', () => ({
   },
   useQueryClient: () => ({
     cancelQueries: vi.fn(),
+    getQueriesData: vi.fn(() => []),
     getQueryData: vi.fn(),
     invalidateQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+    setQueriesData: vi.fn(),
     setQueryData: vi.fn(),
   }),
 }))
 
 describe('Dashboard precision controls', () => {
-  it('shows every score tier selected and keeps Weak rows reachable on first render', () => {
+  it('renders Active by default with exclusive lifecycle controls and truthful count copy', () => {
     const markup = renderToStaticMarkup(<Dashboard />)
 
     expect(markup).not.toContain('All jobs')
+    expect(markup).toContain('role="group"')
+    expect(markup).toContain('aria-label="Lifecycle view"')
+    expect(markup).toMatch(/aria-pressed="false"[^>]*>Show applied<\/button>[\s\S]*aria-pressed="false"[^>]*>Show dismissed<\/button>/)
+    expect(markup).toContain('New postings ranked against your preferences, newest first.')
     expect(markup).toContain('aria-expanded="false"')
     expect(markup).toContain('>Companies</button>')
     expect(markup).toContain('aria-controls="dashboard-score-tier-popover"')
@@ -100,15 +123,21 @@ describe('Dashboard precision controls', () => {
     expect(markup).not.toMatch(/aria-pressed="true"[^>]*>Strong<\/button>/)
     expect(markup).not.toMatch(/aria-pressed="true"[^>]*>Good<\/button>/)
     expect(markup).not.toMatch(/aria-pressed="true"[^>]*>Weak<\/button>/)
-    expect(markup).toContain('1 jobs shown')
+    expect(markup).toContain('1 active jobs shown')
     expect(markup).toContain('Analyst')
   })
 
-  it('passes only dismissed, company, and tier state into the one-scope row filter', () => {
+  it('keys the server-authoritative paged query by lifecycle, filters, and Active order', () => {
     expect(dashboardSource).not.toContain('viewAll')
     expect(dashboardSource).not.toContain('setViewAll')
-    expect(dashboardSource).toMatch(/filterDashboardRows\(all, \{\s*showDismissed,\s*appliedHiddenKeys,\s*selectedTiers,\s*\}\)/)
-    expect(dashboardSource).not.toMatch(/\[\s*feedQuery\.data,\s*showDismissed,\s*viewAll,/)
+    expect(dashboardSource).not.toContain('filterDashboardRows')
+    expect(dashboardSource).not.toContain('listFeed,')
+    expect(dashboardSource).toContain('useInfiniteQuery')
+    expect(dashboardSource).toContain('dashboardFeedQueryKey(feedRequest)')
+    expect(dashboardSource).toContain('listFeedPage(feedRequest, pageParam)')
+    expect(dashboardSource).toContain('listDashboardCompanyOptions(feedRequest)')
+    expect(dashboardSource).toContain('hiddenCompanyKeys')
+    expect(dashboardSource).toContain('selectedTiers')
   })
 
   it('renders Location without restoring a Dashboard reason column', () => {
@@ -142,7 +171,7 @@ describe('Dashboard precision controls', () => {
       'Retry limit reached. Save preferences again to start a new update.',
     )
     expect(dashboardSource).toContain('Rankings updated.')
-    expect(dashboardSource).toContain("refetchQueries({ queryKey: ['feed'], exact: true })")
+    expect(dashboardSource).toContain("refetchQueries({ queryKey: ['dashboard-feed'] })")
     expect(dashboardSource).not.toContain('scoreFreshnessLabel')
   })
 
@@ -177,6 +206,66 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('No current companies match your search.')
     expect(dashboardSource).not.toContain('localStorage')
     expect(dashboardSource).not.toContain('savePreferences')
+  })
+
+  it('keeps Apply navigation separate from accessible lifecycle actions with no dialog', () => {
+    const markup = renderToStaticMarkup(<Dashboard />)
+    expect(markup).toContain('aria-label="Apply to Analyst in a new tab"')
+    expect(markup).toContain('aria-label="Mark Analyst applied"')
+    expect(markup).toContain('>Mark Applied</button>')
+    expect(markup).toContain('aria-label="Dismiss Analyst"')
+    expect(markup).toContain('>Dismiss</button>')
+    expect(dashboardSource).toContain('mutationFn: markJobApplied')
+    expect(dashboardSource).toContain('mutationFn: undoJobApplied')
+    expect(dashboardSource).toContain('mutationFn: dismissJob')
+    expect(dashboardSource).toContain('mutationFn: undismissJob')
+    expect(dashboardSource).not.toMatch(/onClick=\{[^}]*markJobApplied[^}]*\}[\s\S]*Apply/)
+    expect(dashboardSource).not.toContain('<dialog')
+    expect(dashboardSource).not.toContain('ConfirmDialog')
+  })
+
+  it('pins exact optimistic rollback, focus recovery, settled Undo target, and backfill failure isolation', () => {
+    expect(dashboardSource).toContain('getQueryData<DashboardInfiniteData>(feedKey)')
+    expect(dashboardSource).toContain('setQueryData<DashboardInfiniteData>(feedKey')
+    expect(dashboardSource).toContain('previous')
+    expect(dashboardSource).toContain('removeRowFromInfiniteData')
+    expect(dashboardSource).toContain('focusAfterRemoval')
+    expect(dashboardSource).toContain('tableRegionRef.current?.focus()')
+    expect(dashboardSource).toContain('setUndoTarget({ id: variables.id, title: variables.title })')
+    expect(dashboardSource).toContain('10_000')
+    expect(dashboardSource).toContain('role="status"')
+    expect(dashboardSource).toContain('aria-live="polite"')
+    expect(dashboardSource).toContain('Undoing…')
+    expect(dashboardSource).toContain('Moved back to Active.')
+    expect(dashboardSource).toContain('backfillDashboardFeedRow')
+    expect(dashboardSource).toContain('Couldn’t load the next job. Your current results are still shown.')
+    expect(dashboardSource).toContain('Couldn’t mark this job as applied. It remains in Active. Try again.')
+    expect(dashboardSource).toContain('Couldn’t undo Applied. Try again from Show applied.')
+  })
+
+  it('pins explicit 200-row continuation, retained-row retries, dedupe, and truthful exhaustion', () => {
+    expect(dashboardSource).toContain('fetchNextPage')
+    expect(dashboardSource).toContain('isFetchingNextPage')
+    expect(dashboardSource).toContain('Loading more…')
+    expect(dashboardSource).toContain('Load more')
+    expect(dashboardSource).toContain("You're all caught up")
+    expect(dashboardSource).toContain('Couldn’t load more jobs. Your current results are still shown.')
+    expect(dashboardSource).toContain('more jobs loaded.')
+    expect(dashboardSource).toContain('mergeDashboardFeedPages')
+    expect(dashboardSource).not.toContain('IntersectionObserver')
+    expect(dashboardSource).not.toMatch(/Page \{?\d/)
+    expect(dashboardSource).not.toContain('pageNumber')
+  })
+
+  it('renders lifecycle time semantically and locks review views to newest lifecycle order', () => {
+    expect(dashboardSource).toContain('dashboardLifecycleTimestamp(row, lifecycle)')
+    expect(dashboardSource).toContain('dateTime={timestamp}')
+    expect(dashboardSource).toContain('{lifecycleCopy.timeLabel}')
+    expect(dashboardSource).toContain("lifecycle === 'active'")
+    expect(dashboardSource).toContain('ariaSort={scoreAriaSort}')
+    expect(dashboardSource).toContain("ariaSort=\"none\"")
+    expect(dashboardSource).toContain('Undo applied')
+    expect(dashboardSource).toContain('Restore')
   })
 
   it('uses one native score checkbox group with immediate zero-to-three tier state', () => {
