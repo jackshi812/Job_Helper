@@ -209,8 +209,8 @@ describe('Dashboard precision controls', () => {
 
     expect(markup).toContain('<col style="width:80px"/>')
     expect(markup).toContain('<col style="width:280px"/>')
-    expect(markup).toContain('<col style="width:120px"/>')
-    expect(markup).toContain('style="min-width:1508px"')
+    expect(markup).toContain('<col style="width:228px"/>')
+    expect(markup).toContain('style="min-width:1616px"')
     expect(separators).toHaveLength(8)
     expect(markup).toContain('aria-label="Resize New column"')
     expect(markup).toContain('aria-label="Resize Score column"')

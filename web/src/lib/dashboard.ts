@@ -1,7 +1,12 @@
 import {
   companyName,
   deterministicVisible,
+  relativePostedTime,
+  type DashboardFeedOrder,
+  type DashboardFeedPage,
+  type DashboardFeedQuery,
   type FeedRow,
+  type LifecycleView,
   type Tier,
 } from './feed'
 
@@ -12,10 +17,43 @@ export interface CompanyOption {
   label: string
 }
 
-export interface DashboardFilterState {
-  showDismissed: boolean
+export interface DashboardFilterSelection {
   appliedHiddenKeys: ReadonlySet<string>
   selectedTiers: ReadonlySet<Tier>
+}
+
+// Transitional compatibility for the shipped pre-pagination Dashboard. Plan
+// 03.6-03 Task 2 removes this browser-owned lifecycle path in favor of
+// buildDashboardFeedQuery and listFeedPage.
+export interface DashboardFilterState extends DashboardFilterSelection {
+  showDismissed: boolean
+}
+
+export interface DashboardFeedQueryInput extends DashboardFilterSelection {
+  lifecycle: LifecycleView
+  activeOrder: DashboardFeedOrder
+}
+
+export interface DashboardLifecycleCopy {
+  description: string
+  resultNoun: string
+  timeLabel: 'Posted' | 'Applied' | 'Dismissed'
+  emptyHeading: string
+  emptyBody: string
+}
+
+export interface DashboardFeedRowSnapshot {
+  row: FeedRow
+  index: number
+}
+
+export interface DashboardFeedRemoval {
+  page: DashboardFeedPage
+  snapshot: DashboardFeedRowSnapshot | null
+}
+
+export interface DashboardFeedAppendResult extends DashboardFeedPage {
+  appendedCount: number
 }
 
 export function normalizedCompanyKey(name: string): string {
@@ -121,4 +159,160 @@ export function filterDashboardRows(
     return row.deterministic_tier !== null
       && state.selectedTiers.has(row.deterministic_tier)
   })
+}
+
+export function lifecycleViewFromToggles(
+  showApplied: boolean,
+  showDismissed: boolean,
+): LifecycleView {
+  if (showApplied === showDismissed) return 'active'
+  return showApplied ? 'applied' : 'dismissed'
+}
+
+export function toggleDashboardLifecycle(
+  current: LifecycleView,
+  target: Exclude<LifecycleView, 'active'>,
+): LifecycleView {
+  return current === target ? 'active' : target
+}
+
+export function dashboardLifecycleCopy(view: LifecycleView): DashboardLifecycleCopy {
+  if (view === 'applied') {
+    return {
+      description: "Jobs you've marked applied, newest applied first.",
+      resultNoun: 'applied jobs',
+      timeLabel: 'Applied',
+      emptyHeading: 'No applied jobs yet',
+      emptyBody: 'Jobs you mark applied will appear here.',
+    }
+  }
+  if (view === 'dismissed') {
+    return {
+      description: "Jobs you've dismissed, newest dismissed first.",
+      resultNoun: 'dismissed jobs',
+      timeLabel: 'Dismissed',
+      emptyHeading: 'No dismissed jobs',
+      emptyBody: 'Jobs you dismiss will appear here.',
+    }
+  }
+  return {
+    description: 'New postings ranked against your preferences, newest first.',
+    resultNoun: 'active jobs',
+    timeLabel: 'Posted',
+    emptyHeading: 'No matches yet',
+    emptyBody: 'New matches will appear here after your jobs are ranked.',
+  }
+}
+
+export function dashboardLifecycleTimestamp(
+  row: FeedRow,
+  view: LifecycleView,
+): string | null {
+  if (view === 'applied') return row.applied_at
+  if (view === 'dismissed') return row.dismissed_at
+  return relativePostedTime(row)
+}
+
+export function dashboardScoreSortAvailable(view: LifecycleView): boolean {
+  return view === 'active'
+}
+
+export function buildDashboardFeedQuery(
+  input: DashboardFeedQueryInput,
+): DashboardFeedQuery {
+  const tiers = ALL_SCORE_TIERS.filter((tier) => input.selectedTiers.has(tier))
+  const hiddenCompanyKeys = [...input.appliedHiddenKeys]
+    .map(normalizedCompanyKey)
+    .filter(Boolean)
+    .sort()
+
+  return {
+    lifecycle: input.lifecycle,
+    order: input.lifecycle === 'active' ? input.activeOrder : 'newest',
+    tiers,
+    hiddenCompanyKeys,
+  }
+}
+
+export function dashboardFeedQueryKey(query: DashboardFeedQuery) {
+  return [
+    'dashboard-feed',
+    query.lifecycle,
+    query.order,
+    [...query.tiers],
+    [...query.hiddenCompanyKeys],
+  ] as const
+}
+
+export function resetDashboardFeedQuery(
+  current: DashboardFeedQuery,
+  lifecycle: LifecycleView,
+  activeOrder: DashboardFeedOrder,
+): { query: DashboardFeedQuery; cursor: null } {
+  return {
+    query: {
+      lifecycle,
+      order: lifecycle === 'active' ? activeOrder : 'newest',
+      tiers: [...current.tiers],
+      hiddenCompanyKeys: [...current.hiddenCompanyKeys],
+    },
+    cursor: null,
+  }
+}
+
+export function appendDashboardFeedPage(
+  current: DashboardFeedPage,
+  incoming: DashboardFeedPage,
+): DashboardFeedAppendResult {
+  const seen = new Set(current.rows.map(({ id }) => id))
+  const rows = [...current.rows]
+  let appendedCount = 0
+  for (const row of incoming.rows) {
+    if (seen.has(row.id)) continue
+    seen.add(row.id)
+    rows.push(row)
+    appendedCount += 1
+  }
+  return {
+    rows,
+    nextCursor: incoming.nextCursor,
+    hasMore: incoming.hasMore,
+    caughtUp: incoming.caughtUp,
+    appendedCount,
+  }
+}
+
+export function backfillDashboardFeedPage(
+  current: DashboardFeedPage,
+  incoming: DashboardFeedPage,
+): DashboardFeedAppendResult {
+  return appendDashboardFeedPage(current, incoming)
+}
+
+export function removeDashboardFeedRow(
+  page: DashboardFeedPage,
+  rowId: string,
+): DashboardFeedRemoval {
+  const index = page.rows.findIndex(({ id }) => id === rowId)
+  if (index < 0) return { page, snapshot: null }
+  return {
+    page: {
+      ...page,
+      rows: page.rows.filter(({ id }) => id !== rowId),
+    },
+    snapshot: {
+      row: page.rows[index],
+      index,
+    },
+  }
+}
+
+export function restoreDashboardFeedRow(
+  page: DashboardFeedPage,
+  snapshot: DashboardFeedRowSnapshot | null,
+): DashboardFeedPage {
+  if (!snapshot || page.rows.some(({ id }) => id === snapshot.row.id)) return page
+  const rows = [...page.rows]
+  rows.splice(Math.min(Math.max(snapshot.index, 0), rows.length), 0, snapshot.row)
+  return { ...page, rows }
 }

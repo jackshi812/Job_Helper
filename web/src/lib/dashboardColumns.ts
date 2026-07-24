@@ -1,4 +1,4 @@
-export const DASHBOARD_COLUMN_STORAGE_KEY = 'job-copilot.dashboard.column-widths.v1'
+export const DASHBOARD_COLUMN_STORAGE_KEY = 'job-copilot.dashboard.column-widths.v2'
 
 export const DASHBOARD_COLUMNS = [
   { id: 'new', label: 'New', defaultWidth: 80, minWidth: 72, maxWidth: 112 },
@@ -9,7 +9,7 @@ export const DASHBOARD_COLUMNS = [
   { id: 'bestFit', label: 'Best fit', defaultWidth: 220, minWidth: 180, maxWidth: 360 },
   { id: 'posted', label: 'Posted', defaultWidth: 132, minWidth: 120, maxWidth: 220 },
   { id: 'apply', label: 'Apply', defaultWidth: 96, minWidth: 88, maxWidth: 140 },
-  { id: 'action', label: 'Action', defaultWidth: 120, minWidth: 104, maxWidth: 160 },
+  { id: 'action', label: 'Action', defaultWidth: 228, minWidth: 208, maxWidth: 280 },
 ] as const
 
 export type DashboardColumnId = (typeof DASHBOARD_COLUMNS)[number]['id']
@@ -47,7 +47,7 @@ function parseStoredWidths(raw: string | null): DashboardColumnWidths {
     const parsed: unknown = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object') return defaults
     const payload = parsed as { version?: unknown; widths?: unknown }
-    if (payload.version !== 1 || !payload.widths || typeof payload.widths !== 'object') {
+    if (payload.version !== 2 || !payload.widths || typeof payload.widths !== 'object') {
       return defaults
     }
 
@@ -105,7 +105,7 @@ export function persistDashboardColumnWidths(
     }
     target.setItem(
       DASHBOARD_COLUMN_STORAGE_KEY,
-      JSON.stringify({ version: 1, widths: safeWidths }),
+      JSON.stringify({ version: 2, widths: safeWidths }),
     )
   } catch {
     // Browser policy may deny storage; layout remains usable in memory.
