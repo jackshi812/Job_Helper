@@ -4,10 +4,23 @@ import {
   deterministicVisible,
   FEED_DETAIL_COLUMNS,
   FEED_LIST_COLUMNS,
+  backfillDashboardFeedRow,
+  decodeDashboardFeedCursor,
+  dismissJob,
+  encodeDashboardFeedCursor,
   listFeed,
+  listDashboardCompanyOptions,
+  listFeedPage,
+  markJobApplied,
+  mergeDashboardFeedPages,
   relativePostedTime,
   safeApplyUrl,
   tierPresentation,
+  undismissJob,
+  undoJobApplied,
+  type DashboardFeedCursor,
+  type DashboardFeedPage,
+  type DashboardFeedQuery,
   type FeedRow,
 } from './feed'
 
@@ -15,6 +28,7 @@ import { vi } from 'vitest'
 const queryMock = vi.hoisted(() => {
   const calls: Array<[string, ...unknown[]]> = []
   let rows: FeedRow[] = []
+  let rpcRows: unknown[] = []
   const builder = {
     select: vi.fn((...args: unknown[]) => {
       calls.push(['select', ...args])
@@ -22,6 +36,14 @@ const queryMock = vi.hoisted(() => {
     }),
     eq: vi.fn((...args: unknown[]) => {
       calls.push(['eq', ...args])
+      return builder
+    }),
+    is: vi.fn((...args: unknown[]) => {
+      calls.push(['is', ...args])
+      return builder
+    }),
+    update: vi.fn((...args: unknown[]) => {
+      calls.push(['update', ...args])
       return builder
     }),
     not: vi.fn((...args: unknown[]) => {
@@ -51,13 +73,23 @@ const queryMock = vi.hoisted(() => {
     builder,
     calls,
     from: vi.fn(() => builder),
+    rpc: vi.fn(async (...args: unknown[]) => {
+      calls.push(['rpc', ...args])
+      return { data: rpcRows, error: null }
+    }),
     setRows(next: FeedRow[]) {
       rows = next
       calls.length = 0
     },
+    setRpcRows(next: unknown[]) {
+      rpcRows = next
+      calls.length = 0
+    },
   }
 })
-vi.mock('./supabase', () => ({ supabase: { from: queryMock.from } }))
+vi.mock('./supabase', () => ({
+  supabase: { from: queryMock.from, rpc: queryMock.rpc },
+}))
 
 function feedRow(overrides: Partial<FeedRow> = {}): FeedRow {
   return {
@@ -81,6 +113,7 @@ function feedRow(overrides: Partial<FeedRow> = {}): FeedRow {
     deterministic_runner_up_resume_id: null,
     seen_at: null,
     dismissed_at: null,
+    applied_at: null,
     jobs: {
       id: '11111111-1111-4111-8111-111111111111',
       title: 'Data Scientist',
@@ -124,6 +157,7 @@ describe('deterministic feed projection', () => {
       expect(columns).toContain('deterministic_breakdown')
       expect(columns).toContain('deterministic_ranked_at')
       expect(columns).toContain('deterministic_best_fit_resume_id')
+      expect(columns).toContain('applied_at')
       expect(columns).not.toMatch(/(^|, )score(,|$)/)
       expect(columns).not.toMatch(/(^|, )tier(,|$)/)
       expect(columns).not.toContain('reasons')
@@ -151,6 +185,12 @@ describe('deterministic feed projection', () => {
   it('leaves dismissal as a separate Dashboard state dimension', () => {
     expect(deterministicVisible(feedRow({
       dismissed_at: '2026-07-20T00:00:00.000Z',
+    }))).toBe(true)
+  })
+
+  it('leaves applied state as a separate Dashboard state dimension', () => {
+    expect(deterministicVisible(feedRow({
+      applied_at: '2026-07-20T00:00:00.000Z',
     }))).toBe(true)
   })
 
@@ -217,5 +257,195 @@ describe('safeApplyUrl', () => {
     expect(safeApplyUrl('javascript:alert(1)')).toBeNull()
     expect(safeApplyUrl('https://user:pass@example.com')).toBeNull()
     expect(safeApplyUrl(null)).toBeNull()
+  })
+
+  it('is navigation-only and never performs a lifecycle mutation', () => {
+    queryMock.setRows([])
+    expect(safeApplyUrl('https://example.com/apply')).toBe('https://example.com/apply')
+    expect(queryMock.calls).toEqual([])
+  })
+})
+
+const ACTIVE_QUERY: DashboardFeedQuery = {
+  lifecycle: 'active',
+  order: 'newest',
+  tiers: ['Strong', 'Good', 'Weak'],
+  hiddenCompanyKeys: ['hidden co'],
+}
+
+function cursor(overrides: Partial<DashboardFeedCursor> = {}): DashboardFeedCursor {
+  return {
+    v: 1,
+    lifecycle: 'active',
+    order: 'newest',
+    signature: '0000000000000000',
+    id: '00000000-0000-4000-8000-000000000000',
+    posted_at: '2026-07-18T00:00:00.000Z',
+    first_seen_at: '2026-07-18T01:00:00.000Z',
+    score: 82,
+    lifecycle_at: null,
+    ...overrides,
+  }
+}
+
+describe('Dashboard lifecycle feed pages', () => {
+  it('requests a server-filtered 200-row page and exposes truthful continuation', async () => {
+    const lastCursor = cursor({ id: '00000000-0000-4000-8000-000000000099' })
+    queryMock.setRpcRows([
+      { row_data: feedRow(), cursor_data: lastCursor, has_more: true },
+    ])
+
+    const page = await listFeedPage(ACTIVE_QUERY)
+
+    expect(page.rows).toEqual([feedRow()])
+    expect(page.hasMore).toBe(true)
+    expect(page.caughtUp).toBe(false)
+    expect(page.nextCursor).not.toBeNull()
+    const call = queryMock.calls.find(([method]) => method === 'rpc')
+    expect(call?.[1]).toBe('dashboard_feed_page')
+    expect(call?.[2]).toMatchObject({
+      p_lifecycle: 'active',
+      p_order: 'newest',
+      p_tiers: ['Strong', 'Good', 'Weak'],
+      p_hidden_company_keys: ['hidden co'],
+      p_cursor: null,
+      p_limit: 200,
+    })
+  })
+
+  it('requests exactly one continuation row for backfill', async () => {
+    const continuation = cursor()
+    queryMock.setRpcRows([
+      { row_data: feedRow(), cursor_data: continuation, has_more: false },
+    ])
+
+    const page = await backfillDashboardFeedRow(ACTIVE_QUERY)
+
+    expect(page.rows).toHaveLength(1)
+    expect(page.caughtUp).toBe(true)
+    expect(queryMock.calls).toContainEqual([
+      'rpc',
+      'dashboard_feed_page',
+      expect.objectContaining({ p_limit: 1 }),
+    ])
+  })
+
+  it('returns explicit exhaustion when the RPC has no rows', async () => {
+    queryMock.setRpcRows([])
+    await expect(listFeedPage(ACTIVE_QUERY)).resolves.toEqual({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      caughtUp: true,
+    })
+  })
+
+  it('loads company options from the complete lifecycle/tier RPC scope', async () => {
+    queryMock.setRpcRows([
+      { company_key: 'acme', company_name: 'Acme', matching_count: 205 },
+    ])
+
+    await expect(listDashboardCompanyOptions(ACTIVE_QUERY)).resolves.toEqual([
+      { key: 'acme', label: 'Acme', count: 205 },
+    ])
+    expect(queryMock.calls).toContainEqual([
+      'rpc',
+      'dashboard_company_options',
+      {
+        p_lifecycle: 'active',
+        p_tiers: ['Strong', 'Good', 'Weak'],
+      },
+    ])
+  })
+})
+
+describe('Dashboard cursor validation and stable merge', () => {
+  it('round-trips only canonical base64url cursor state for the exact query', () => {
+    const provisional = cursor()
+    const encoded = encodeDashboardFeedCursor(provisional, ACTIVE_QUERY)
+    const decoded = decodeDashboardFeedCursor(encoded, ACTIVE_QUERY)
+
+    expect(decoded).toMatchObject({
+      v: 1,
+      lifecycle: 'active',
+      order: 'newest',
+      id: provisional.id,
+    })
+    expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/)
+    expect(encodeDashboardFeedCursor(decoded, ACTIVE_QUERY)).toBe(encoded)
+  })
+
+  it('rejects malformed, noncanonical, oversized, and query-drifted cursors', () => {
+    const encoded = encodeDashboardFeedCursor(cursor(), ACTIVE_QUERY)
+    expect(() => decodeDashboardFeedCursor(`${encoded}=`, ACTIVE_QUERY))
+      .toThrow('invalid_dashboard_cursor')
+    expect(() => decodeDashboardFeedCursor('not-json', ACTIVE_QUERY))
+      .toThrow('invalid_dashboard_cursor')
+    expect(() => decodeDashboardFeedCursor('a'.repeat(4097), ACTIVE_QUERY))
+      .toThrow('invalid_dashboard_cursor')
+    expect(() => decodeDashboardFeedCursor(encoded, {
+      ...ACTIVE_QUERY,
+      lifecycle: 'applied',
+      order: 'newest',
+    })).toThrow('dashboard_cursor_signature_mismatch')
+    expect(() => decodeDashboardFeedCursor(encoded, {
+      ...ACTIVE_QUERY,
+      hiddenCompanyKeys: [],
+    })).toThrow('dashboard_cursor_signature_mismatch')
+  })
+
+  it('deduplicates equal-tuple pages without reordering already rendered rows', () => {
+    const first = feedRow({ id: 'first' })
+    const duplicate = feedRow({ id: 'duplicate' })
+    const next = feedRow({ id: 'next' })
+    const current: DashboardFeedPage = {
+      rows: [first, duplicate],
+      nextCursor: 'old',
+      hasMore: true,
+      caughtUp: false,
+    }
+    const incoming: DashboardFeedPage = {
+      rows: [duplicate, next],
+      nextCursor: null,
+      hasMore: false,
+      caughtUp: true,
+    }
+
+    expect(mergeDashboardFeedPages(current, incoming)).toEqual({
+      rows: [first, duplicate, next],
+      nextCursor: null,
+      hasMore: false,
+      caughtUp: true,
+    })
+  })
+})
+
+describe('mutually exclusive lifecycle mutations', () => {
+  it('marks applied, undoes applied, dismisses, and restores with exact payloads', async () => {
+    queryMock.setRows([])
+    await markJobApplied('job-1')
+    await undoJobApplied('job-1')
+    await dismissJob('job-1')
+    await undismissJob('job-1')
+
+    const updates = queryMock.calls.filter(([method]) => method === 'update')
+    expect(updates[0]?.[1]).toMatchObject({
+      applied_at: expect.any(String),
+      dismissed_at: null,
+    })
+    expect(updates[1]).toEqual(['update', { applied_at: null }])
+    expect(updates[2]?.[1]).toMatchObject({
+      dismissed_at: expect.any(String),
+      applied_at: null,
+    })
+    expect(updates[3]).toEqual(['update', { dismissed_at: null }])
+    expect(queryMock.calls.filter(([method]) => method === 'eq')).toEqual([
+      ['eq', 'id', 'job-1'],
+      ['eq', 'id', 'job-1'],
+      ['eq', 'id', 'job-1'],
+      ['eq', 'id', 'job-1'],
+    ])
+    expect(queryMock.from).toHaveBeenCalledWith('user_jobs')
+    expect(queryMock.from).not.toHaveBeenCalledWith('jobs')
   })
 })
