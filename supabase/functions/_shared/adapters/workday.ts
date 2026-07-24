@@ -1,4 +1,12 @@
 import { type NormalizedJob, type PollObservation } from './types.ts'
+import {
+  CAPITAL_ONE_WORKDAY_IDENTITY,
+  CAPITAL_ONE_WORKDAY_SOURCE_KEY,
+  type WorkdayIdentity,
+} from '../workday-identities.ts'
+
+export { CAPITAL_ONE_WORKDAY_SOURCE_KEY }
+export { type WorkdayIdentity }
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 
@@ -10,7 +18,7 @@ interface WorkdayOptions {
   maxBytes?: number
 }
 
-interface CapitalOneRecentOptions {
+interface WorkdayRecentOptions {
   knownIds?: Set<string>
   recentDays?: number
   maxPages?: number
@@ -46,15 +54,6 @@ interface WorkdayDetail {
   }
 }
 
-export const CAPITAL_ONE_WORKDAY_SOURCE_KEY = 'workday:wd12:capitalone:Capital_One'
-
-const TENANT = 'capitalone'
-const REGION = 'wd12'
-const SITE = 'Capital_One'
-const PUBLIC_ORIGIN = `https://${TENANT}.${REGION}.myworkdayjobs.com`
-const PUBLIC_BOARD = `${PUBLIC_ORIGIN}/${SITE}`
-const CXS_ROOT = `${PUBLIC_ORIGIN}/wday/cxs/${TENANT}/${SITE}`
-const LIST_URL = `${CXS_ROOT}/jobs`
 const DEFAULT_PAGE_SIZE = 20
 const DEFAULT_MAX_PAGES = 100
 const DEFAULT_MAX_JOBS = 2_000
@@ -66,10 +65,6 @@ const DEFAULT_RECENT_DAYS = 7
 const DEFAULT_RECENT_MAX_PAGES = 30
 const DEFAULT_RECENT_MAX_LISTINGS = 600
 const DEFAULT_RECENT_MAX_DETAILS = 60
-const CAPITAL_ONE_CATEGORY_FACETS = Object.freeze({
-  Analysis: 'a12c70bf789e105802e9caf800542991',
-  Finance: 'a12c70bf789e105802e9de2c3b5f29a3',
-})
 
 class ProviderError extends Error {
   constructor(readonly code: string) {
@@ -158,7 +153,7 @@ function normalizedPostedAt(value: string | null | undefined) {
   return new Date(value).toISOString()
 }
 
-function safeDetailPath(value: unknown) {
+function safeDetailPath(value: unknown, identity: WorkdayIdentity) {
   if (
     typeof value !== 'string'
     || value.length < 6
@@ -180,11 +175,11 @@ function safeDetailPath(value: unknown) {
     return null
   }
 
-  const publicUrl = new URL(value, PUBLIC_ORIGIN)
-  const detailUrl = new URL(`${CXS_ROOT}${value}`)
+  const publicUrl = new URL(value, identity.origin)
+  const detailUrl = new URL(`${identity.cxsRoot}${value}`)
   if (
-    publicUrl.origin !== PUBLIC_ORIGIN
-    || detailUrl.origin !== PUBLIC_ORIGIN
+    publicUrl.origin !== identity.origin
+    || detailUrl.origin !== identity.origin
     || publicUrl.username
     || publicUrl.password
     || publicUrl.port
@@ -192,16 +187,16 @@ function safeDetailPath(value: unknown) {
 
   return {
     path: value,
-    publicUrl: `${PUBLIC_BOARD}${value}`,
+    publicUrl: `${identity.publicBoard}${value}`,
     detailUrl: detailUrl.toString(),
   }
 }
 
-function parseListPosting(value: unknown): WorkdayListPosting | null {
+function parseListPosting(value: unknown, identity: WorkdayIdentity): WorkdayListPosting | null {
   if (!value || typeof value !== 'object') return null
   const posting = value as Record<string, unknown>
   const title = stringValue(posting.title, 512)
-  const path = safeDetailPath(posting.externalPath)
+  const path = safeDetailPath(posting.externalPath, identity)
   if (!title?.trim() || !path) return null
   if (
     posting.locationsText !== undefined
@@ -251,8 +246,9 @@ function parseDetail(value: unknown): WorkdayDetail | null {
 export function mapWorkdayDetail(
   detail: WorkdayDetail,
   externalPath: string,
+  identity: WorkdayIdentity = CAPITAL_ONE_WORKDAY_IDENTITY,
 ): NormalizedJob {
-  const safePath = safeDetailPath(externalPath)
+  const safePath = safeDetailPath(externalPath, identity)
   if (!safePath) throw new ProviderError('unsafe_detail_path')
   const info = detail.jobPostingInfo
   return Object.freeze({
@@ -265,7 +261,7 @@ export function mapWorkdayDetail(
     descriptionHtml: info.jobDescription,
     descriptionText: htmlToText(info.jobDescription),
     snapshotPartial: false,
-    companyName: 'Capital One',
+    companyName: identity.companyName,
   })
 }
 
@@ -333,7 +329,9 @@ function incomplete(
 export async function pollWorkday(
   fetchImpl: FetchLike = fetch,
   options: WorkdayOptions = {},
+  identity: WorkdayIdentity = CAPITAL_ONE_WORKDAY_IDENTITY,
 ): Promise<PollObservation> {
+  const listUrl = `${identity.cxsRoot}/jobs`
   const pageSize = Math.min(Math.max(options.pageSize ?? DEFAULT_PAGE_SIZE, 1), 20)
   const maxPages = Math.min(options.maxPages ?? DEFAULT_MAX_PAGES, DEFAULT_MAX_PAGES)
   const maxJobs = Math.min(options.maxJobs ?? DEFAULT_MAX_JOBS, DEFAULT_MAX_JOBS)
@@ -346,7 +344,7 @@ export async function pollWorkday(
   while (pageCount < maxPages) {
     let payload: unknown
     try {
-      payload = await requestJson(LIST_URL, fetchImpl, maxBytes, {
+      payload = await requestJson(listUrl, fetchImpl, maxBytes, {
         method: 'POST',
         body: JSON.stringify({
           appliedFacets: {},
@@ -383,7 +381,7 @@ export async function pollWorkday(
       return incomplete([], 'detail_cap_exceeded', expectedCount, pageCount + 1)
     }
 
-    const parsed = page.jobPostings.map(parseListPosting)
+    const parsed = page.jobPostings.map((posting) => parseListPosting(posting, identity))
     const valid = parsed.filter((posting): posting is WorkdayListPosting => posting !== null)
     pageCount += 1
     if (valid.length !== page.jobPostings.length) {
@@ -391,7 +389,7 @@ export async function pollWorkday(
         posting
         && typeof posting === 'object'
         && 'externalPath' in posting
-        && !safeDetailPath((posting as { externalPath: unknown }).externalPath)
+        && !safeDetailPath((posting as { externalPath: unknown }).externalPath, identity)
       ))
       return incomplete([], unsafePath ? 'unsafe_detail_path' : 'provider_schema_invalid', expectedCount, pageCount)
     }
@@ -423,7 +421,7 @@ export async function pollWorkday(
 
   const jobs: NormalizedJob[] = []
   for (const posting of postings) {
-    const path = safeDetailPath(posting.externalPath)
+    const path = safeDetailPath(posting.externalPath, identity)
     if (!path) return incomplete(jobs, 'unsafe_detail_path', expectedCount, pageCount)
     let payload: unknown
     try {
@@ -440,7 +438,7 @@ export async function pollWorkday(
     if (!detail || detail.jobPostingInfo.title.trim() !== posting.title.trim()) {
       return incomplete(jobs, 'provider_schema_invalid', expectedCount, pageCount)
     }
-    jobs.push(mapWorkdayDetail(detail, path.path))
+    jobs.push(mapWorkdayDetail(detail, path.path, identity))
   }
 
   return {
@@ -456,8 +454,9 @@ export async function pollWorkday(
 function mapRecentListPosting(
   posting: WorkdayListPosting,
   nowMs: number,
+  identity: WorkdayIdentity,
 ): NormalizedJob {
-  const path = safeDetailPath(posting.externalPath)
+  const path = safeDetailPath(posting.externalPath, identity)
   if (!path) throw new ProviderError('unsafe_detail_path')
   const ageDays = postedAgeDays(posting.postedOn)
   return Object.freeze({
@@ -472,15 +471,16 @@ function mapRecentListPosting(
     descriptionHtml: null,
     descriptionText: null,
     snapshotPartial: true,
-    companyName: 'Capital One',
+    companyName: identity.companyName,
   })
 }
 
 function mapRecentDetail(
   detail: WorkdayDetail,
   posting: WorkdayListPosting,
+  identity: WorkdayIdentity,
 ): NormalizedJob {
-  const path = safeDetailPath(posting.externalPath)
+  const path = safeDetailPath(posting.externalPath, identity)
   if (!path) throw new ProviderError('unsafe_detail_path')
   const info = detail.jobPostingInfo
   const externalId = listExternalId(posting)
@@ -497,21 +497,97 @@ function mapRecentDetail(
     descriptionHtml: info.jobDescription,
     descriptionText: htmlToText(info.jobDescription),
     snapshotPartial: false,
-    companyName: 'Capital One',
+    companyName: identity.companyName,
   })
 }
 
 /**
- * Intentionally selective Capital One importer. It scans only the newest
- * Analysis and Finance listing window, performs detail requests for recent
- * candidates, keeps U.S. roles whose stated required experience is under three
- * years regardless of title, and never
- * treats absence from this selection as proof that a provider job closed.
+ * Discover the inclusion facet IDs to apply for an exclusion-scoped tenant
+ * (Fidelity). Workday facets are inclusion-only, so exclusion of the named
+ * jobFamilyGroup families is realized by applying the IDs of every OTHER family.
+ * The IDs are read live from the facets array (they differ per tenant and can
+ * drift), and the observation fails closed unless every named excluded family is
+ * present and kept+excluded counts reconcile to the provider total.
  */
-export async function pollCapitalOneRecent(
+async function discoverKeptFacetIds(
+  identity: WorkdayIdentity,
+  listUrl: string,
+  fetchImpl: FetchLike,
+  maxBytes: number,
+): Promise<{ ids: string[] } | { warning: string }> {
+  const excluded = new Set(identity.excludedJobFamilyGroups ?? [])
+  let payload: unknown
+  try {
+    payload = await requestJson(listUrl, fetchImpl, maxBytes, {
+      method: 'POST',
+      body: JSON.stringify({
+        appliedFacets: {},
+        limit: RECENT_PAGE_SIZE,
+        offset: 0,
+        searchText: '',
+      }),
+    })
+  } catch (error) {
+    return { warning: error instanceof ProviderError ? error.code : 'provider_error' }
+  }
+  if (!payload || typeof payload !== 'object') return { warning: 'provider_schema_invalid' }
+  const page = payload as Record<string, unknown>
+  if (!Number.isInteger(page.total) || (page.total as number) < 0) {
+    return { warning: 'provider_schema_invalid' }
+  }
+  const total = page.total as number
+  if (total === 0) return { warning: 'implausible_empty' }
+
+  const facets = Array.isArray(page.facets) ? page.facets : []
+  const familyFacet = facets.find((facet) => (
+    facet
+    && typeof facet === 'object'
+    && (facet as { facetParameter?: unknown }).facetParameter === 'jobFamilyGroup'
+  )) as { values?: unknown } | undefined
+  const rawValues = Array.isArray(familyFacet?.values) ? familyFacet.values : []
+  const values = rawValues.map((value) => {
+    if (!value || typeof value !== 'object') return null
+    const descriptor = stringValue((value as { descriptor?: unknown }).descriptor, 256)
+    const id = stringValue((value as { id?: unknown }).id, 256)
+    const count = (value as { count?: unknown }).count
+    if (!descriptor?.trim() || !id?.trim() || !Number.isInteger(count)) return null
+    return { descriptor, id, count: count as number }
+  })
+  if (values.length === 0 || values.some((value) => value === null)) {
+    return { warning: 'category_filter_unverified' }
+  }
+  const clean = values as { descriptor: string; id: string; count: number }[]
+  // Every named excluded family must actually appear, else exclusion is unproven.
+  const present = new Set(clean.map((value) => value.descriptor))
+  for (const family of excluded) {
+    if (!present.has(family)) return { warning: 'category_filter_unverified' }
+  }
+  const summed = clean.reduce<number>((sum, value) => sum + value.count, 0)
+  const kept = clean.filter((value) => !excluded.has(value.descriptor))
+  if (summed !== total || kept.length === 0) {
+    return { warning: 'category_filter_unverified' }
+  }
+  return { ids: kept.map((value) => value.id) }
+}
+
+/**
+ * Intentionally selective Workday recent importer, parameterized over a resolved
+ * WorkdayIdentity. It scans only the newest category-scoped listing window,
+ * performs detail requests for recent candidates, keeps U.S. roles whose stated
+ * required experience is under three years regardless of title, and never treats
+ * absence from this selection as proof that a provider job closed.
+ *
+ * Category scoping is identity-driven: an identity carrying `keptFacetIds`
+ * (Capital One) applies those IDs verbatim and reconciles their counts on page 0;
+ * an identity carrying `excludedJobFamilyGroups` (Fidelity) discovers the kept
+ * families' IDs live and reconciles kept+excluded counts before scanning.
+ */
+export async function pollWorkdayRecent(
+  identity: WorkdayIdentity,
   fetchImpl: FetchLike = fetch,
-  options: CapitalOneRecentOptions,
+  options: WorkdayRecentOptions = {},
 ): Promise<PollObservation> {
+  const listUrl = `${identity.cxsRoot}/jobs`
   const recentDays = Math.min(Math.max(options.recentDays ?? DEFAULT_RECENT_DAYS, 1), 7)
   const maxPages = Math.min(options.maxPages ?? DEFAULT_RECENT_MAX_PAGES, DEFAULT_RECENT_MAX_PAGES)
   const maxListings = Math.min(
@@ -526,6 +602,19 @@ export async function pollCapitalOneRecent(
   const nowMs = options.nowMs ?? Date.now()
   const knownIds = options.knownIds ?? new Set<string>()
 
+  // Resolve the inclusion facet IDs to apply on every list page.
+  let appliedFacetIds: string[]
+  if (identity.keptFacetIds) {
+    appliedFacetIds = Object.values(identity.keptFacetIds)
+  } else if (identity.excludedJobFamilyGroups) {
+    const discovered = await discoverKeptFacetIds(identity, listUrl, fetchImpl, maxBytes)
+    if ('warning' in discovered) return incomplete([], discovered.warning, undefined, 1)
+    appliedFacetIds = discovered.ids
+  } else {
+    // A recent poll with no category scoping cannot prove the filter applied.
+    return incomplete([], 'category_filter_unverified', undefined, 0)
+  }
+
   const candidates: WorkdayListPosting[] = []
   const seenPaths = new Set<string>()
   let providerTotal: number | undefined
@@ -535,11 +624,11 @@ export async function pollCapitalOneRecent(
   while (pageCount < maxPages && seenPaths.size < maxListings) {
     let payload: unknown
     try {
-      payload = await requestJson(LIST_URL, fetchImpl, maxBytes, {
+      payload = await requestJson(listUrl, fetchImpl, maxBytes, {
         method: 'POST',
         body: JSON.stringify({
           appliedFacets: {
-            jobFamilyGroup: Object.values(CAPITAL_ONE_CATEGORY_FACETS),
+            jobFamilyGroup: appliedFacetIds,
           },
           limit: RECENT_PAGE_SIZE,
           offset: seenPaths.size,
@@ -570,7 +659,7 @@ export async function pollCapitalOneRecent(
     if (providerTotal === 0) {
       return incomplete([], 'implausible_empty', 0, pageCount + 1)
     }
-    if (pageCount === 0) {
+    if (pageCount === 0 && identity.keptFacetIds) {
       const facets = Array.isArray(page.facets) ? page.facets : []
       const categoryFacet = facets.find((facet) => (
         facet
@@ -578,7 +667,7 @@ export async function pollCapitalOneRecent(
         && (facet as { facetParameter?: unknown }).facetParameter === 'jobFamilyGroup'
       )) as { values?: unknown } | undefined
       const values = Array.isArray(categoryFacet?.values) ? categoryFacet.values : []
-      const verifiedCounts = Object.entries(CAPITAL_ONE_CATEGORY_FACETS).map(([descriptor, id]) => {
+      const verifiedCounts = Object.entries(identity.keptFacetIds).map(([descriptor, id]) => {
         const value = values.find((candidate) => (
           candidate
           && typeof candidate === 'object'
@@ -595,7 +684,7 @@ export async function pollCapitalOneRecent(
       }
     }
 
-    const parsed = page.jobPostings.map(parseListPosting)
+    const parsed = page.jobPostings.map((posting) => parseListPosting(posting, identity))
     if (parsed.some((posting) => posting === null)) {
       return incomplete([], 'provider_schema_invalid', undefined, pageCount + 1)
     }
@@ -631,7 +720,7 @@ export async function pollCapitalOneRecent(
   for (const posting of candidates) {
     const externalId = listExternalId(posting)
     if (knownIds.has(externalId)) {
-      jobs.push(mapRecentListPosting(posting, nowMs))
+      jobs.push(mapRecentListPosting(posting, nowMs, identity))
       continue
     }
     if (details >= maxDetails) {
@@ -645,7 +734,7 @@ export async function pollCapitalOneRecent(
         warnings: ['detail_cap_exceeded'],
       }
     }
-    const path = safeDetailPath(posting.externalPath)
+    const path = safeDetailPath(posting.externalPath, identity)
     if (!path) return incomplete(jobs, 'unsafe_detail_path', candidates.length, pageCount)
     let payload: unknown
     try {
@@ -668,7 +757,7 @@ export async function pollCapitalOneRecent(
       || !isUnitedStatesDetail(detail)
       || !isEntryLevelWorkdayDetail(detail)
     ) continue
-    jobs.push(mapRecentDetail(detail, posting))
+    jobs.push(mapRecentDetail(detail, posting, identity))
   }
 
   return {
@@ -682,10 +771,24 @@ export async function pollCapitalOneRecent(
   }
 }
 
+/**
+ * Thin backward-compatible wrapper: the exact frozen Capital One recent importer,
+ * delegating to the identity-parameterized pollWorkdayRecent so untouched callers
+ * (connectors.ts) stay byte-behavior-identical this wave.
+ */
+export async function pollCapitalOneRecent(
+  fetchImpl: FetchLike = fetch,
+  options: WorkdayRecentOptions,
+): Promise<PollObservation> {
+  return pollWorkdayRecent(CAPITAL_ONE_WORKDAY_IDENTITY, fetchImpl, options)
+}
+
 export async function verifyWorkdayListing(
   fetchImpl: FetchLike = fetch,
   options: WorkdayOptions = {},
+  identity: WorkdayIdentity = CAPITAL_ONE_WORKDAY_IDENTITY,
 ) {
+  const listUrl = `${identity.cxsRoot}/jobs`
   const pageSize = Math.min(Math.max(options.pageSize ?? DEFAULT_PAGE_SIZE, 1), 20)
   const maxPages = Math.min(options.maxPages ?? DEFAULT_MAX_PAGES, DEFAULT_MAX_PAGES)
   const maxJobs = Math.min(options.maxJobs ?? DEFAULT_MAX_JOBS, DEFAULT_MAX_JOBS)
@@ -694,7 +797,7 @@ export async function verifyWorkdayListing(
   let pageCount = 0
 
   while (pageCount < maxPages) {
-    const payload = await requestJson(LIST_URL, fetchImpl, options.maxBytes ?? DEFAULT_MAX_BYTES, {
+    const payload = await requestJson(listUrl, fetchImpl, options.maxBytes ?? DEFAULT_MAX_BYTES, {
       method: 'POST',
       body: JSON.stringify({
         appliedFacets: {},
@@ -713,13 +816,13 @@ export async function verifyWorkdayListing(
     if (pageTotal !== expectedCount) throw new ProviderError('count_mismatch')
     if (expectedCount > maxJobs) throw new ProviderError('job_cap_exceeded')
 
-    const postings = page.jobPostings.map(parseListPosting)
+    const postings = page.jobPostings.map((posting) => parseListPosting(posting, identity))
     if (postings.some((posting) => posting === null)) {
       const unsafePath = page.jobPostings.some((posting) => (
         posting
         && typeof posting === 'object'
         && 'externalPath' in posting
-        && !safeDetailPath((posting as { externalPath: unknown }).externalPath)
+        && !safeDetailPath((posting as { externalPath: unknown }).externalPath, identity)
       ))
       throw new ProviderError(unsafePath ? 'unsafe_detail_path' : 'provider_schema_invalid')
     }
