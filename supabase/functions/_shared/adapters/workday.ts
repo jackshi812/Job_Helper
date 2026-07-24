@@ -249,6 +249,7 @@ function equivalentListPosting(
   right: WorkdayListPosting,
 ) {
   return left.externalPath === right.externalPath
+    && listExternalId(left) === listExternalId(right)
     && left.title === right.title
     && left.locationsText === right.locationsText
     && left.postedOn === right.postedOn

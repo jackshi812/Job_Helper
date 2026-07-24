@@ -1412,6 +1412,25 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
       )).rejects.toThrow('count_mismatch')
     })
 
+    it('rejects exact-path overlap with conflicting numeric requisition identity', async () => {
+      const numericPosting = {
+        ...fidVerifyPosting,
+        externalPath: '/job/Westlake-TX/Full-Stack-Developer_2130089-2',
+        bulletFields: ['2130089'],
+      }
+      await expect(verifyWorkdayListing(
+        vi.fn().mockResolvedValue(jsonResponse({
+          total: 2,
+          jobPostings: [
+            numericPosting,
+            { ...numericPosting, bulletFields: ['2130090'] },
+          ],
+        })),
+        {},
+        fidelityIdentity,
+      )).rejects.toThrow('provider_identity_drift')
+    })
+
     it('keeps contradictory totals and unaccounted rows fail-closed', async () => {
       const contradictoryFetch = vi.fn()
         .mockResolvedValueOnce(jsonResponse({
