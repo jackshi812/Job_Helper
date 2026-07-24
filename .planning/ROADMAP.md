@@ -213,12 +213,22 @@ Plans:
   6. Capital One ingestion, all other connectors, and the deterministic feed are unchanged; no push or deploy occurs without a new exact-release approval (production remains commit `7642fde8`)
 
 **Requirements**: (connector expansion — no new REQUIREMENTS.md IDs; extends Phase 02.1/03.1 source-coverage scope)
-**Plans**: TBD
+**Plans**: 4 plans
 **UI hint**: minimal (reuses existing Watchlist add-company UI)
 
 Plans:
+**Wave 1**
 
-- [ ] TBD (run /gsd-plan-phase 03.5 to break down)
+- [ ] 03.5-01-PLAN.md — Workday identity registry + adapter parameterization + Fidelity facet scoping
+- [ ] 03.5-03-PLAN.md — Forward-only migration 0035 (authored, not applied) + Fidelity health/filter note
+
+**Wave 2** *(blocked on 03.5-01)*
+
+- [ ] 03.5-02-PLAN.md — Both Workday URL shapes detected + registry-driven verify/dispatch (paste→verify→poll)
+
+**Wave 3** *(blocked on Wave 1 + Wave 2)*
+
+- [ ] 03.5-04-PLAN.md — [BLOCKING] Owner-gated production apply of 0035 + edge deploy + live verification
 
 ### Phase 03.1: SuccessFactors & Paylocity Connector Expansion (INSERTED)
 
