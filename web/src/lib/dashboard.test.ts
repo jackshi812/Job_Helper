@@ -3,17 +3,28 @@ import dashboardSource from './dashboard.ts?raw'
 import type { FeedRow, Tier } from './feed'
 import {
   ALL_SCORE_TIERS,
+  appendDashboardFeedPage,
   areAllCurrentCompaniesCleared,
   areAllCurrentCompaniesSelected,
+  backfillDashboardFeedPage,
+  buildDashboardFeedQuery,
   clearAllCompanies,
   copyHiddenCompanyKeys,
   dashboardCompanyOptions,
-  filterDashboardRows,
+  dashboardFeedQueryKey,
+  dashboardLifecycleCopy,
+  dashboardLifecycleTimestamp,
+  dashboardScoreSortAvailable,
+  lifecycleViewFromToggles,
   normalizedCompanyKey,
+  removeDashboardFeedRow,
+  resetDashboardFeedQuery,
   resetHiddenCompanyKeys,
+  restoreDashboardFeedRow,
   searchCompanyOptions,
   scoreTierSummary,
   selectAllCompanies,
+  toggleDashboardLifecycle,
   toggleHiddenCompanyKey,
   toggleScoreTier,
 } from './dashboard'
@@ -156,84 +167,28 @@ describe('Dashboard staged filters', () => {
   })
 
   it('shows a newly refreshed company by default because only hidden keys are stored', () => {
-    const hidden = new Set([normalizedCompanyKey('Acme')])
-    const rows = filterDashboardRows([feedRow('Acme', 80), feedRow('NewCo', 60)], {
-      showDismissed: false,
-      appliedHiddenKeys: hidden,
+    const query = buildDashboardFeedQuery({
+      lifecycle: 'active',
+      activeOrder: 'newest',
+      appliedHiddenKeys: new Set([normalizedCompanyKey('Acme')]),
       selectedTiers: allTiers,
     })
-    expect(rows.map((row) => row.jobs?.companies?.name)).toEqual(['NewCo'])
+    expect(query.hiddenCompanyKeys).toEqual(['acme'])
+    expect(query.hiddenCompanyKeys).not.toContain('newco')
   })
 
-  it('uses one preference-pass scope and composes company and tier filters with AND', () => {
-    const rows = [
-      feedRow('Acme', 85),
-      feedRow('Acme', 40),
-      feedRow('Walmart', 60),
-    ]
-    expect(filterDashboardRows(rows, {
-      showDismissed: false,
-      appliedHiddenKeys: new Set(),
-      selectedTiers: allTiers,
-    }).map((row) => row.id)).toEqual([
-      'Acme-85',
-      'Acme-40',
-      'Walmart-60',
-    ])
-
-    expect(filterDashboardRows(rows, {
-      showDismissed: false,
-      appliedHiddenKeys: new Set(['acme']),
-      selectedTiers: new Set<Tier>(['Good']),
-    }).map((row) => row.id)).toEqual(['Walmart-60'])
-
-    expect(filterDashboardRows(rows, {
-      showDismissed: false,
-      appliedHiddenKeys: new Set(),
-      selectedTiers: new Set<Tier>(['Strong', 'Good']),
-    }).map((row) => row.id)).toEqual(['Acme-85', 'Walmart-60'])
-  })
-
-  it('excludes rows outside the authorized current preference-pass feed contract', () => {
-    const rows = [
-      feedRow('Acme', 80, {
-        id: 'unknown',
-        deterministic_revision: null,
-        deterministic_eligible: null,
-        deterministic_score: null,
-        deterministic_tier: null,
-      }),
-      feedRow('Acme', 80, { id: 'filtered', deterministic_eligible: false }),
-      feedRow('Acme', 80, {
-        id: 'closed',
-        jobs: { ...feedRow('Acme', 80).jobs!, status: 'closed' },
-      }),
-      feedRow('Acme', 80, { id: 'pending-score', deterministic_score: null }),
-      feedRow('Acme', 80, { id: 'pending-tier', deterministic_tier: null }),
-      feedRow('Acme', 80, { id: 'identityless', jobs: null }),
-    ]
-    expect(filterDashboardRows(rows, {
-      showDismissed: false,
-      appliedHiddenKeys: new Set(),
-      selectedTiers: allTiers,
-    })).toEqual([])
-  })
-
-  it('keeps dismissed state separate while preserving company and tier filters', () => {
-    const dismissedWeak = feedRow('Acme', 40, {
-      id: 'dismissed-weak',
-      dismissed_at: '2026-07-22T02:00:00.000Z',
+  it('feeds company and tier filters to the complete server query with AND semantics', () => {
+    expect(buildDashboardFeedQuery({
+      lifecycle: 'active',
+      activeOrder: 'score_desc',
+      appliedHiddenKeys: new Set(['walmart', 'acme']),
+      selectedTiers: new Set<Tier>(['Good', 'Strong']),
+    })).toEqual({
+      lifecycle: 'active',
+      order: 'score_desc',
+      hiddenCompanyKeys: ['acme', 'walmart'],
+      tiers: ['Strong', 'Good'],
     })
-    expect(filterDashboardRows([dismissedWeak, feedRow('Walmart', 80)], {
-      showDismissed: true,
-      appliedHiddenKeys: new Set(),
-      selectedTiers: allTiers,
-    }).map((row) => row.id)).toEqual(['dismissed-weak'])
-    expect(filterDashboardRows([dismissedWeak], {
-      showDismissed: true,
-      appliedHiddenKeys: new Set(['acme']),
-      selectedTiers: allTiers,
-    })).toEqual([])
   })
 
   it('allows zero selected tiers and toggles without mutating the input', () => {
@@ -241,11 +196,163 @@ describe('Dashboard staged filters', () => {
     const empty = toggleScoreTier(selected, 'Weak')
     expect([...selected]).toEqual(['Weak'])
     expect(empty.size).toBe(0)
-    expect(filterDashboardRows([feedRow('Acme', 40)], {
-      showDismissed: false,
+    expect(buildDashboardFeedQuery({
+      lifecycle: 'active',
+      activeOrder: 'newest',
       appliedHiddenKeys: new Set(),
       selectedTiers: empty,
-    })).toEqual([])
+    }).tiers).toEqual([])
+  })
+})
+
+describe('Dashboard lifecycle state', () => {
+  it('defaults both toggles to Active and keeps them mutually exclusive', () => {
+    expect(lifecycleViewFromToggles(false, false)).toBe('active')
+    expect(lifecycleViewFromToggles(true, false)).toBe('applied')
+    expect(lifecycleViewFromToggles(false, true)).toBe('dismissed')
+    expect(lifecycleViewFromToggles(true, true)).toBe('active')
+
+    expect(toggleDashboardLifecycle('active', 'applied')).toBe('applied')
+    expect(toggleDashboardLifecycle('applied', 'applied')).toBe('active')
+    expect(toggleDashboardLifecycle('dismissed', 'applied')).toBe('applied')
+    expect(toggleDashboardLifecycle('active', 'dismissed')).toBe('dismissed')
+    expect(toggleDashboardLifecycle('dismissed', 'dismissed')).toBe('active')
+    expect(toggleDashboardLifecycle('applied', 'dismissed')).toBe('dismissed')
+  })
+
+  it('returns exact lifecycle copy, nouns, empty states, and time labels', () => {
+    expect(dashboardLifecycleCopy('active')).toEqual({
+      description: 'New postings ranked against your preferences, newest first.',
+      resultNoun: 'active jobs',
+      timeLabel: 'Posted',
+      emptyHeading: 'No matches yet',
+      emptyBody: 'New matches will appear here after your jobs are ranked.',
+    })
+    expect(dashboardLifecycleCopy('applied')).toEqual({
+      description: "Jobs you've marked applied, newest applied first.",
+      resultNoun: 'applied jobs',
+      timeLabel: 'Applied',
+      emptyHeading: 'No applied jobs yet',
+      emptyBody: 'Jobs you mark applied will appear here.',
+    })
+    expect(dashboardLifecycleCopy('dismissed')).toEqual({
+      description: "Jobs you've dismissed, newest dismissed first.",
+      resultNoun: 'dismissed jobs',
+      timeLabel: 'Dismissed',
+      emptyHeading: 'No dismissed jobs',
+      emptyBody: 'Jobs you dismiss will appear here.',
+    })
+  })
+
+  it('selects truthful lifecycle timestamps and permits Score sort only in Active', () => {
+    const row = feedRow('Acme', 80, {
+      applied_at: '2026-07-23T03:00:00.000Z',
+      dismissed_at: '2026-07-24T04:00:00.000Z',
+    })
+    expect(dashboardLifecycleTimestamp(row, 'active')).toBe('2026-07-22T00:00:00.000Z')
+    expect(dashboardLifecycleTimestamp(row, 'applied')).toBe('2026-07-23T03:00:00.000Z')
+    expect(dashboardLifecycleTimestamp(row, 'dismissed')).toBe('2026-07-24T04:00:00.000Z')
+    expect(dashboardScoreSortAvailable('active')).toBe(true)
+    expect(dashboardScoreSortAvailable('applied')).toBe(false)
+    expect(dashboardScoreSortAvailable('dismissed')).toBe(false)
+  })
+
+  it('retains filters, resets the cursor, fixes review ordering, and restores Active Score sort', () => {
+    const active = buildDashboardFeedQuery({
+      lifecycle: 'active',
+      activeOrder: 'score_asc',
+      appliedHiddenKeys: new Set(['acme']),
+      selectedTiers: new Set<Tier>(['Strong', 'Weak']),
+    })
+    const applied = resetDashboardFeedQuery(active, 'applied', 'score_asc')
+    expect(applied).toEqual({
+      query: {
+        lifecycle: 'applied',
+        order: 'newest',
+        hiddenCompanyKeys: ['acme'],
+        tiers: ['Strong', 'Weak'],
+      },
+      cursor: null,
+    })
+    expect(resetDashboardFeedQuery(applied.query, 'active', 'score_asc').query.order)
+      .toBe('score_asc')
+    expect(dashboardFeedQueryKey(active)).not.toEqual(dashboardFeedQueryKey(applied.query))
+  })
+})
+
+describe('Dashboard paging state', () => {
+  const emptyPage = {
+    rows: [] as FeedRow[],
+    nextCursor: null,
+    hasMore: false,
+    caughtUp: true,
+  }
+
+  it('appends stable cursor pages without duplicates or prior-row reordering', () => {
+    const first = feedRow('First', 90, { id: 'first' })
+    const duplicate = feedRow('Duplicate', 80, { id: 'duplicate' })
+    const next = feedRow('Next', 70, { id: 'next' })
+    const current = {
+      rows: [first, duplicate],
+      nextCursor: 'cursor-1',
+      hasMore: true,
+      caughtUp: false,
+    }
+    const incoming = {
+      rows: [duplicate, next, next],
+      nextCursor: null,
+      hasMore: false,
+      caughtUp: true,
+    }
+    expect(appendDashboardFeedPage(current, incoming)).toEqual({
+      rows: [first, duplicate, next],
+      nextCursor: null,
+      hasMore: false,
+      caughtUp: true,
+      appendedCount: 1,
+    })
+  })
+
+  it('removes and restores an exact optimistic snapshot at its original position', () => {
+    const first = feedRow('First', 90, { id: 'first' })
+    const target = feedRow('Target', 80, { id: 'target' })
+    const last = feedRow('Last', 70, { id: 'last' })
+    const page = { ...emptyPage, rows: [first, target, last], caughtUp: false, hasMore: true }
+    const removed = removeDashboardFeedRow(page, 'target')
+    expect(removed.page.rows.map(({ id }) => id)).toEqual(['first', 'last'])
+    expect(removed.snapshot).toEqual({ row: target, index: 1 })
+    expect(restoreDashboardFeedRow(removed.page, removed.snapshot).rows)
+      .toEqual([first, target, last])
+  })
+
+  it('backfills one eligible row defensively and truthfully marks exhaustion', () => {
+    const current = {
+      ...emptyPage,
+      rows: [feedRow('First', 90, { id: 'first' })],
+      nextCursor: 'cursor-1',
+      hasMore: true,
+      caughtUp: false,
+    }
+    const replacement = feedRow('Next', 80, { id: 'next' })
+    expect(backfillDashboardFeedPage(current, {
+      rows: [replacement],
+      nextCursor: null,
+      hasMore: false,
+      caughtUp: true,
+    })).toEqual({
+      rows: [current.rows[0], replacement],
+      nextCursor: null,
+      hasMore: false,
+      caughtUp: true,
+      appendedCount: 1,
+    })
+    expect(backfillDashboardFeedPage(current, emptyPage)).toMatchObject({
+      rows: current.rows,
+      nextCursor: null,
+      hasMore: false,
+      caughtUp: true,
+      appendedCount: 0,
+    })
   })
 })
 
@@ -278,26 +385,40 @@ describe('Dashboard column widths', () => {
       bestFit: 220,
       posted: 132,
       apply: 96,
-      action: 120,
+      action: 228,
     })
-    expect(dashboardTableWidth(defaults)).toBe(1508)
+    expect(dashboardTableWidth(defaults)).toBe(1616)
+    expect(DASHBOARD_COLUMNS.find(({ id }) => id === 'action')).toMatchObject({
+      defaultWidth: 228,
+      minWidth: 208,
+      maxWidth: 280,
+    })
   })
 
   it('hydrates valid known values and ignores unknown keys', () => {
     const storage = memoryStorage(JSON.stringify({
-      version: 1,
+      version: 2,
       widths: { job: 340, score: 220, invented: 999 },
     }))
     expect(hydrateDashboardColumnWidths(storage)).toMatchObject({ job: 340, score: 220 })
     expect(hydrateDashboardColumnWidths(storage)).not.toHaveProperty('invented')
   })
 
+  it('rejects the legacy 120px Action width under the explicit v2 storage policy', () => {
+    const legacy = memoryStorage(JSON.stringify({
+      version: 1,
+      widths: { action: 120 },
+    }))
+    expect(hydrateDashboardColumnWidths(legacy).action).toBe(228)
+  })
+
   it.each([
     ['malformed JSON', '{'],
-    ['wrong version', JSON.stringify({ version: 2, widths: { job: 340 } })],
-    ['non-finite width', JSON.stringify({ version: 1, widths: { job: null } })],
-    ['below-minimum width', JSON.stringify({ version: 1, widths: { job: 10 } })],
-    ['above-maximum width', JSON.stringify({ version: 1, widths: { job: 900 } })],
+    ['legacy version', JSON.stringify({ version: 1, widths: { action: 120 } })],
+    ['wrong version', JSON.stringify({ version: 3, widths: { job: 340 } })],
+    ['non-finite width', JSON.stringify({ version: 2, widths: { job: null } })],
+    ['below-minimum width', JSON.stringify({ version: 2, widths: { job: 10 } })],
+    ['above-maximum width', JSON.stringify({ version: 2, widths: { job: 900 } })],
   ])('falls back to defaults for %s', (_label, raw) => {
     expect(hydrateDashboardColumnWidths(memoryStorage(raw)).job).toBe(280)
   })
@@ -317,10 +438,11 @@ describe('Dashboard column widths', () => {
     persistDashboardColumnWidths(widths, storage)
     const payload = JSON.parse(storage.value ?? '{}')
     expect(Object.keys(payload).sort()).toEqual(['version', 'widths'])
-    expect(payload.version).toBe(1)
+    expect(payload.version).toBe(2)
     expect(Object.keys(payload.widths)).toEqual(DASHBOARD_COLUMNS.map((column) => column.id))
     expect(payload.widths.job).toBe(520)
     expect(payload.widths.score).toBe(180)
+    expect(payload.widths.action).toBe(228)
   })
 
   it('clamps pointer widths and supports every keyboard increment', () => {
