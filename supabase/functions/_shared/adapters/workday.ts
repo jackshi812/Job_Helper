@@ -994,7 +994,7 @@ export async function pollWorkdayRecent(
         pageCount,
       )
     }
-    if (knownIds.has(externalId)) {
+    if (knownIds.has(externalId) && !identity.countryScope) {
       try {
         jobs.push(mapRecentListPosting(posting, nowMs, identity))
       } catch (error) {
@@ -1035,6 +1035,9 @@ export async function pollWorkdayRecent(
     const detail = parseDetail(payload)
     if (!detail || detail.jobPostingInfo.title.trim() !== posting.title.trim()) {
       return incomplete(jobs, 'provider_schema_invalid', candidates.length, pageCount)
+    }
+    if (identity.countryScope && !isUnitedStatesDetail(detail)) {
+      return incomplete(jobs, 'country_filter_unverified', candidates.length, pageCount)
     }
     let mapped: NormalizedJob
     try {

@@ -736,6 +736,27 @@ function phase036Posting(sequence: number, location = 'New York, NY') {
   }
 }
 
+function phase036Detail(
+  posting: ReturnType<typeof phase036Posting>,
+  country = UNITED_STATES_WORKDAY_DESCRIPTOR,
+  alpha2Code = 'US',
+) {
+  return {
+    jobPostingInfo: {
+      id: `opaque-${posting.externalPath}`,
+      jobReqId: posting.externalPath.match(/_(R\d+)/)?.[1],
+      title: posting.title,
+      jobDescription: '<p>Build reliable financial systems.</p>',
+      location: posting.locationsText,
+      postedOn: posting.postedOn,
+      startDate: new Date().toISOString().slice(0, 10),
+      jobRequisitionLocation: {
+        country: { descriptor: country, alpha2Code },
+      },
+    },
+  }
+}
+
 describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
   it('resolves all four exact Phase 03.6 identities', () => {
     const resolved = phase036Identities.map((expected) => {
@@ -812,7 +833,13 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
         appliedFacets: Record<string, string[]>
         offset: number
       }> = []
-      const providerFetch = vi.fn((_input: string | URL | Request, init?: RequestInit) => {
+      const providerFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input)
+        if (url !== `${expected.cxsRoot}/jobs`) {
+          const posting = postings.find((candidate) => url.endsWith(candidate.externalPath))
+          if (!posting) throw new Error(`unexpected detail request: ${url}`)
+          return Promise.resolve(jsonResponse(phase036Detail(posting)))
+        }
         const body = JSON.parse(String(init?.body)) as {
           appliedFacets: Record<string, string[]>
           offset: number
@@ -1035,6 +1062,43 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
     })
   })
 
+  it('rejects a non-U.S. detail even when the scoped provider count reconciles', async () => {
+    const expected = phase036Identities[0]
+    const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
+    const posting = phase036Posting(6, 'Toronto, Canada')
+    const providerFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url !== `${expected.cxsRoot}/jobs`) {
+        expect(url.endsWith(posting.externalPath)).toBe(true)
+        return Promise.resolve(jsonResponse(phase036Detail(
+          posting,
+          'Canada',
+          'CA',
+        )))
+      }
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: Record<string, string[]>
+      }
+      return Promise.resolve(body.appliedFacets.locationCountry === undefined
+        ? jsonResponse({
+            total: 2,
+            jobPostings: [],
+            facets: countryFacets(expected.route, 1),
+          })
+        : jsonResponse({ total: 1, jobPostings: [posting] }))
+    })
+
+    await expect(pollWorkdayRecent(identity, providerFetch, {
+      knownIds: new Set(['R360006']),
+    })).resolves.toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      allowMissingClosure: false,
+      jobs: [],
+      warnings: ['country_filter_unverified'],
+    })
+  })
+
   it('keeps scoped later-page drift, contradictory totals, and caps closure-ineligible', async () => {
     const identity = resolveWorkdayIdentity(
       'spgi',
@@ -1111,7 +1175,13 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       jobPostings: [],
       facets: [],
     }))
-    const successfulFetch = vi.fn((_input: string | URL | Request, init?: RequestInit) => {
+    const successfulFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      const posting = phase036Posting(50)
+      if (url !== `${phase036Identities[2].cxsRoot}/jobs`) {
+        if (!url.endsWith(posting.externalPath)) throw new Error(`unexpected detail request: ${url}`)
+        return Promise.resolve(jsonResponse(phase036Detail(posting)))
+      }
       const body = JSON.parse(String(init?.body)) as {
         appliedFacets: Record<string, string[]>
       }
@@ -1121,7 +1191,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
             jobPostings: [],
             facets: countryFacets(['locationMainGroup', 'locationCountry'], 1),
           })
-        : jsonResponse({ total: 1, jobPostings: [phase036Posting(50)] }))
+        : jsonResponse({ total: 1, jobPostings: [posting] }))
     })
 
     const settled = await Promise.allSettled([
