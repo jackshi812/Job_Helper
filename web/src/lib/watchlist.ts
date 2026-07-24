@@ -261,13 +261,20 @@ export function activationPresentation(row: WatchlistRow): ActivationPresentatio
     ? ['Workday filter: Analysis and Finance roles posted in the last 7 days; U.S. only; required experience below 3 years (job title does not exclude a role).']
     : null
 
+  const fidelityFilterNote = row.company_id
+    && row.source_key === 'workday:wd1:fmr:FidelityCareers'
+    ? ['Workday filter: excludes Sales, Customer Service, and Sales Support roles; required experience is applied by the dashboard filters, not the connector.']
+    : null
+
+  const filterNote = capitalOneFilterNote ?? fidelityFilterNote
+
   if (row.activation_state === 'active') {
-    return { label: 'Active', details: capitalOneFilterNote ?? [] }
+    return { label: 'Active', details: filterNote ?? [] }
   }
   if (row.activation_state === 'experimental') {
     return {
       label: 'Experimental',
-      details: capitalOneFilterNote
+      details: filterNote
         ?? [`${row.activation_successes} of 3 checks passed`, 'Scheduled polling off'],
     }
   }
