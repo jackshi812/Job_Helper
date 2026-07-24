@@ -4,9 +4,9 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 03.6
 current_phase_name: US-Only Workday Expansion & Dashboard Queue
-status: planning
-stopped_at: Phase 03.6 context gathered
-last_updated: "2026-07-24T22:08:31.529Z"
+status: executing
+stopped_at: Phase 03.6 UI-SPEC approved
+last_updated: "2026-07-24T23:01:54.996Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 03.6 inserted for four U.S.-only Workday employers
 progress:
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 Phase: 03.6 — US-Only Workday Expansion & Dashboard Queue
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-07-24 — Phase 03.6 inserted for four U.S.-only Workday employers
 
 Progress: [███████████████░░░░░] 59/60 plans complete; milestone 8/11 phases complete (73%)
@@ -271,7 +271,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-24T22:08:31.496Z
-Stopped at: Phase 03.6 context gathered
-Resume file: .planning/phases/03.6-us-only-workday-expansion-nasdaq-s-p-global-morningstar-stat/03.6-CONTEXT.md
+Last session: 2026-07-24T22:19:05.283Z
+Stopped at: Phase 03.6 UI-SPEC approved
+Resume file: .planning/phases/03.6-us-only-workday-expansion-nasdaq-s-p-global-morningstar-stat/03.6-UI-SPEC.md
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

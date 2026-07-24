@@ -213,22 +213,29 @@ Plans:
   4. The normal Dashboard excludes dismissed and applied rows in the database query before applying the active 200-row limit, so those lifecycle states do not consume active-job slots
   5. A user can mark a job applied, undo that action, and review applied or dismissed jobs separately; the state is per-user, reversible, RLS-protected, and does not delete the shared job
   6. The Dashboard can retrieve eligible jobs beyond the first 200 through cursor pagination or a Load more interaction without duplicates or unstable ordering
-**Plans:** 4 plans
+**Plans:** 5 plans
 
 Plans:
 
 **Wave 1**
 
 - [ ] 03.6-01-PLAN.md — Exact four-source Workday registry, U.S. facet discovery, and fail-closed isolation
+
+**Wave 2** *(blocked on 03.6-01)*
+
 - [ ] 03.6-02-PLAN.md — Forward-only lifecycle/source schema and server-authoritative Dashboard paging
 
-**Wave 2** *(blocked on 03.6-02)*
+**Wave 3** *(blocked on 03.6-02)*
 
 - [ ] 03.6-03-PLAN.md — Accessible Active/Applied/Dismissed queue, Load more, Undo, backfill, and caught-up UI
 
-**Wave 3** *(blocked on all implementation plans)*
+**Wave 4** *(blocked on all implementation plans)*
 
 - [ ] 03.6-04-PLAN.md — [BLOCKING] Exact-release schema/function/web approval and hosted verification
+
+**Wave 5** *(blocked on exact-release hosted verification)*
+
+- [ ] 03.6-05-PLAN.md — [BLOCKING] Signed-in desktop and narrow-width deployed UAT
 
 ### Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)
 
