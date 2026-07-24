@@ -1,28 +1,44 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from '@tanstack/react-query'
 import { Link } from 'react-router'
 import {
+  backfillDashboardFeedRow,
   companyName,
   dismissJob,
-  listFeed,
-  relativePostedTime,
+  listDashboardCompanyOptions,
+  listFeedPage,
+  markJobApplied,
+  mergeDashboardFeedPages,
   safeApplyUrl,
   tierPresentation,
   undismissJob,
+  undoJobApplied,
+  type DashboardFeedOrder,
+  type DashboardFeedPage,
   type FeedRow,
+  type LifecycleView,
   type Tier,
 } from '../lib/feed'
 import {
   ALL_SCORE_TIERS,
   areAllCurrentCompaniesCleared,
   areAllCurrentCompaniesSelected,
+  buildDashboardFeedQuery,
   clearAllCompanies,
   copyHiddenCompanyKeys,
-  dashboardCompanyOptions,
-  filterDashboardRows,
+  dashboardFeedQueryKey,
+  dashboardLifecycleCopy,
+  dashboardLifecycleTimestamp,
   searchCompanyOptions,
   scoreTierSummary,
   selectAllCompanies,
+  toggleDashboardLifecycle,
   toggleHiddenCompanyKey,
   toggleScoreTier,
 } from '../lib/dashboard'
@@ -89,8 +105,8 @@ function TierBadge({ tier }: { tier: Tier | null }) {
   )
 }
 
-function PostedTime({ row }: { row: FeedRow }) {
-  const timestamp = relativePostedTime(row)
+function LifecycleTime({ row, lifecycle }: { row: FeedRow; lifecycle: LifecycleView }) {
+  const timestamp = dashboardLifecycleTimestamp(row, lifecycle)
   if (!timestamp || !Number.isFinite(new Date(timestamp).getTime())) {
     return <span className="text-zinc-500">—</span>
   }
@@ -100,6 +116,73 @@ function PostedTime({ row }: { row: FeedRow }) {
       {relativeTime(timestamp)}
     </time>
   )
+}
+
+type DashboardInfiniteData = InfiniteData<DashboardFeedPage, string | null>
+
+interface LifecycleMutationContext {
+  previous: DashboardInfiniteData | undefined
+  title: string
+  continuationCursor: string | null
+  nextFocusId: string | null
+  previousFocusId: string | null
+}
+
+interface UndoTarget {
+  id: string
+  title: string
+}
+
+interface BackfillRetry {
+  cursor: string
+}
+
+const EMPTY_DASHBOARD_PAGE: DashboardFeedPage = {
+  rows: [],
+  nextCursor: null,
+  hasMore: false,
+  caughtUp: true,
+}
+
+function mergedInfinitePage(data: DashboardInfiniteData | undefined): DashboardFeedPage {
+  return (data?.pages ?? []).reduce(
+    (current, page) => mergeDashboardFeedPages(current, page),
+    EMPTY_DASHBOARD_PAGE,
+  )
+}
+
+function removeRowFromInfiniteData(
+  data: DashboardInfiniteData | undefined,
+  rowId: string,
+): DashboardInfiniteData | undefined {
+  if (!data) return data
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      rows: page.rows.filter(({ id }) => id !== rowId),
+    })),
+  }
+}
+
+function appendBackfillPage(
+  data: DashboardInfiniteData | undefined,
+  page: DashboardFeedPage,
+  cursor: string,
+): DashboardInfiniteData | undefined {
+  if (!data) return data
+  if (page.rows.length === 0) {
+    const pages = [...data.pages]
+    const last = pages.at(-1)
+    if (last) pages[pages.length - 1] = { ...last, ...page, rows: last.rows }
+    return { ...data, pages }
+  }
+  const existingIds = new Set(mergedInfinitePage(data).rows.map(({ id }) => id))
+  const rows = page.rows.filter(({ id }) => !existingIds.has(id))
+  return {
+    pages: [...data.pages, { ...page, rows }],
+    pageParams: [...data.pageParams, cursor],
+  }
 }
 
 const filterButtonBase =
@@ -154,7 +237,7 @@ function DashboardHeaderCell({
 
 export function Dashboard() {
   const queryClient = useQueryClient()
-  const [showDismissed, setShowDismissed] = useState(false)
+  const [lifecycle, setLifecycle] = useState<LifecycleView>('active')
   const [sortByScore, setSortByScore] = useState(false)
   const [scoreAscending, setScoreAscending] = useState(false)
   const [companyPanelOpen, setCompanyPanelOpen] = useState(false)
@@ -165,6 +248,12 @@ export function Dashboard() {
   const [selectedTiers, setSelectedTiers] = useState(() => new Set(ALL_SCORE_TIERS))
   const [rankingAnnouncement, setRankingAnnouncement] = useState('')
   const [retryError, setRetryError] = useState('')
+  const [lifecycleError, setLifecycleError] = useState('')
+  const [queueAnnouncement, setQueueAnnouncement] = useState('')
+  const [loadMoreError, setLoadMoreError] = useState('')
+  const [backfillError, setBackfillError] = useState('')
+  const [backfillRetry, setBackfillRetry] = useState<BackfillRetry | null>(null)
+  const [undoTarget, setUndoTarget] = useState<UndoTarget | null>(null)
   const [columnWidths, setColumnWidths] = useState(loadDashboardColumnWidths)
   const columnWidthsRef = useRef(columnWidths)
   const resizeCoordinator = useRef<ColumnResizeCoordinator>({ activeColumnId: null })
@@ -173,6 +262,8 @@ export function Dashboard() {
   const scoreTierPopoverRef = useRef<HTMLDivElement>(null)
   const firstScoreTierCheckboxRef = useRef<HTMLInputElement>(null)
   const observedActiveRevisionRef = useRef<number | null>(null)
+  const tableRegionRef = useRef<HTMLDivElement>(null)
+  const actionRefs = useRef(new Map<string, HTMLButtonElement>())
 
   useEffect(() => {
     if (!scoreTierPopoverOpen) return
@@ -193,10 +284,39 @@ export function Dashboard() {
     return () => document.removeEventListener('pointerdown', handleOutsidePointerDown)
   }, [scoreTierPopoverOpen])
 
-  const feedQuery = useQuery({
-    queryKey: ['feed'],
-    queryFn: listFeed,
+  const activeOrder: DashboardFeedOrder = sortByScore
+    ? (scoreAscending ? 'score_asc' : 'score_desc')
+    : 'newest'
+  const feedRequest = useMemo(
+    () => buildDashboardFeedQuery({
+      lifecycle,
+      activeOrder,
+      appliedHiddenKeys,
+      selectedTiers,
+    }),
+    [lifecycle, activeOrder, appliedHiddenKeys, selectedTiers],
+  )
+  const feedKey = dashboardFeedQueryKey(feedRequest)
+  const feedIdentity = JSON.stringify(feedKey)
+  const feedEnabled = selectedTiers.size > 0
+  const feedQuery = useInfiniteQuery<
+    DashboardFeedPage,
+    Error,
+    DashboardInfiniteData,
+    ReturnType<typeof dashboardFeedQueryKey>,
+    string | null
+  >({
+    queryKey: feedKey,
+    queryFn: ({ pageParam }) => listFeedPage(feedRequest, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: feedEnabled,
     refetchInterval: 60_000,
+  })
+  const companyOptionsQuery = useQuery({
+    queryKey: ['dashboard-companies', lifecycle, [...feedRequest.tiers]],
+    queryFn: () => listDashboardCompanyOptions(feedRequest),
+    enabled: feedEnabled,
   })
   const rankingStateQuery = useQuery({
     queryKey: ['ranking-state'],
@@ -206,6 +326,13 @@ export function Dashboard() {
   })
   const resumesQuery = useQuery({ queryKey: ['resumes'], queryFn: listResumes })
   const preferencesQuery = useQuery({ queryKey: ['preferences'], queryFn: loadPreferences })
+
+  useEffect(() => {
+    setLifecycleError('')
+    setLoadMoreError('')
+    setBackfillError('')
+    setBackfillRetry(null)
+  }, [feedIdentity])
 
   useEffect(() => {
     const state = rankingStateQuery.data
@@ -218,7 +345,7 @@ export function Dashboard() {
 
     observedActiveRevisionRef.current = state.activeRevision
     setRankingAnnouncement('Rankings updated.')
-    void queryClient.refetchQueries({ queryKey: ['feed'], exact: true })
+    void queryClient.refetchQueries({ queryKey: ['dashboard-feed'] })
   }, [queryClient, rankingStateQuery.data])
 
   const retryRankingMutation = useMutation({
@@ -244,76 +371,159 @@ export function Dashboard() {
     return map
   }, [resumesQuery.data])
 
+  const rows = useMemo(
+    () => mergedInfinitePage(feedQuery.data).rows,
+    [feedQuery.data],
+  )
+  const finalPage = feedQuery.data?.pages.at(-1) ?? EMPTY_DASHBOARD_PAGE
+
+  function focusAfterRemoval(
+    nextFocusId: string | null,
+    previousFocusId: string | null,
+  ) {
+    queueMicrotask(() => {
+      if (nextFocusId && actionRefs.current.get(nextFocusId)) {
+        actionRefs.current.get(nextFocusId)?.focus()
+        return
+      }
+      if (previousFocusId && actionRefs.current.get(previousFocusId)) {
+        actionRefs.current.get(previousFocusId)?.focus()
+        return
+      }
+      tableRegionRef.current?.focus()
+    })
+  }
+
+  async function snapshotAndRemove(rowId: string): Promise<LifecycleMutationContext> {
+    setLifecycleError('')
+    await queryClient.cancelQueries({ queryKey: feedKey })
+    const previous = queryClient.getQueryData<DashboardInfiniteData>(feedKey)
+    const currentRows = mergedInfinitePage(previous).rows
+    const index = currentRows.findIndex(({ id }) => id === rowId)
+    const row = index >= 0 ? currentRows[index] : null
+    const title = row?.jobs?.title ?? 'Untitled role'
+    const nextFocusId = currentRows[index + 1]?.id ?? null
+    const previousFocusId = index > 0 ? currentRows[index - 1]?.id ?? null : null
+    const continuationCursor = previous?.pages.at(-1)?.nextCursor ?? null
+    queryClient.setQueryData<DashboardInfiniteData>(
+      feedKey,
+      (current) => removeRowFromInfiniteData(current, rowId),
+    )
+    if (index >= 0) focusAfterRemoval(nextFocusId, previousFocusId)
+    return {
+      previous,
+      title,
+      continuationCursor,
+      nextFocusId,
+      previousFocusId,
+    }
+  }
+
+  async function runBackfill(cursor: string | null) {
+    setBackfillError('')
+    setBackfillRetry(null)
+    if (cursor === null) return
+    try {
+      const page = await backfillDashboardFeedRow(feedRequest, cursor)
+      queryClient.setQueryData<DashboardInfiniteData>(
+        feedKey,
+        (current) => appendBackfillPage(current, page, cursor),
+      )
+    } catch {
+      setBackfillError('Couldn’t load the next job. Your current results are still shown.')
+      setBackfillRetry({ cursor })
+    }
+  }
+
   const dismissMutation = useMutation({
     mutationFn: dismissJob,
-    onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: ['feed'] })
-      const previous = queryClient.getQueryData<FeedRow[]>(['feed'])
-      queryClient.setQueryData<FeedRow[]>(['feed'], (rows) =>
-        (rows ?? []).map((row) =>
-          row.id === id ? { ...row, dismissed_at: new Date().toISOString() } : row,
-        ),
-      )
-      return { previous }
-    },
+    onMutate: snapshotAndRemove,
     onError: (_error, _id, context) => {
-      if (context?.previous) queryClient.setQueryData(['feed'], context.previous)
+      if (context?.previous) {
+        queryClient.setQueryData<DashboardInfiniteData>(feedKey, context.previous)
+      }
+      setLifecycleError('Couldn’t dismiss this job. It remains in Active. Try again.')
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
+    onSuccess: async (_data, _id, context) => {
+      if (lifecycle === 'active') await runBackfill(context.continuationCursor)
+    },
+    onSettled: () => queryClient.invalidateQueries({
+      queryKey: ['dashboard-feed'],
+      refetchType: 'inactive',
+    }),
   })
 
   const restoreMutation = useMutation({
     mutationFn: undismissJob,
-    onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: ['feed'] })
-      const previous = queryClient.getQueryData<FeedRow[]>(['feed'])
-      queryClient.setQueryData<FeedRow[]>(['feed'], (rows) =>
-        (rows ?? []).map((row) => (row.id === id ? { ...row, dismissed_at: null } : row)),
-      )
-      return { previous }
-    },
+    onMutate: snapshotAndRemove,
     onError: (_error, _id, context) => {
-      if (context?.previous) queryClient.setQueryData(['feed'], context.previous)
+      if (context?.previous) {
+        queryClient.setQueryData<DashboardInfiniteData>(feedKey, context.previous)
+      }
+      setLifecycleError('Couldn’t restore this job. Try again from Show dismissed.')
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
+    onSettled: () => queryClient.invalidateQueries({
+      queryKey: ['dashboard-feed'],
+      refetchType: 'inactive',
+    }),
   })
 
+  const markAppliedMutation = useMutation({
+    mutationFn: markJobApplied,
+    onMutate: snapshotAndRemove,
+    onError: (_error, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData<DashboardInfiniteData>(feedKey, context.previous)
+      }
+      setLifecycleError(
+        'Couldn’t mark this job as applied. It remains in Active. Try again.',
+      )
+    },
+    onSuccess: async (_data, id, context) => {
+      await runBackfill(context.continuationCursor)
+      setQueueAnnouncement(`Marked ${context.title} as applied.`)
+      setUndoTarget({ id, title: context.title })
+    },
+    onSettled: () => queryClient.invalidateQueries({
+      queryKey: ['dashboard-feed'],
+      refetchType: 'inactive',
+    }),
+  })
+
+  const undoAppliedMutation = useMutation({
+    mutationFn: undoJobApplied,
+    onMutate: snapshotAndRemove,
+    onError: (_error, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData<DashboardInfiniteData>(feedKey, context.previous)
+      }
+      setLifecycleError('Couldn’t undo Applied. Try again from Show applied.')
+    },
+    onSuccess: () => {
+      setUndoTarget(null)
+      setQueueAnnouncement('Moved back to Active.')
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['dashboard-feed'] }),
+  })
+  const lifecycleMutationPending = dismissMutation.isPending
+    || restoreMutation.isPending
+    || markAppliedMutation.isPending
+    || undoAppliedMutation.isPending
+
+  useEffect(() => {
+    if (!undoTarget) return
+    const timeout = window.setTimeout(() => setUndoTarget(null), 10_000)
+    return () => window.clearTimeout(timeout)
+  }, [undoTarget])
+
   const companyOptions = useMemo(
-    () => dashboardCompanyOptions(feedQuery.data ?? []),
-    [feedQuery.data],
+    () => companyOptionsQuery.data ?? [],
+    [companyOptionsQuery.data],
   )
   const searchedCompanyOptions = useMemo(
     () => searchCompanyOptions(companyOptions, companySearch),
     [companyOptions, companySearch],
   )
-
-  const rows = useMemo(() => {
-    const all = feedQuery.data ?? []
-    const filtered = filterDashboardRows(all, {
-      showDismissed,
-      appliedHiddenKeys,
-      selectedTiers,
-    })
-    const sorted = [...filtered]
-    sorted.sort((a, b) => {
-      if (sortByScore) {
-        const sa = a.deterministic_score ?? -1
-        const sb = b.deterministic_score ?? -1
-        return scoreAscending ? sa - sb : sb - sa
-      }
-      const ta = relativePostedTime(a)
-      const tb = relativePostedTime(b)
-      return (tb ? Date.parse(tb) : 0) - (ta ? Date.parse(ta) : 0)
-    })
-    return sorted
-  }, [
-    feedQuery.data,
-    showDismissed,
-    appliedHiddenKeys,
-    selectedTiers,
-    sortByScore,
-    scoreAscending,
-  ])
 
   function openCompanyPanel() {
     setScoreTierPopoverOpen(false)
@@ -358,6 +568,7 @@ export function Dashboard() {
   const selectAllDisabled = areAllCurrentCompaniesSelected(companyOptions, draftHiddenKeys)
 
   function toggleScoreSort() {
+    if (lifecycle !== 'active') return
     if (!sortByScore) {
       setSortByScore(true)
       setScoreAscending(false)
@@ -366,10 +577,34 @@ export function Dashboard() {
     setScoreAscending((ascending) => !ascending)
   }
 
-  const scoreAriaSort = sortByScore ? (scoreAscending ? 'ascending' : 'descending') : 'none'
+  async function loadMore() {
+    if (feedQuery.isFetchingNextPage || !feedQuery.hasNextPage) return
+    setLoadMoreError('')
+    const previousCount = rows.length
+    const result = await feedQuery.fetchNextPage({ cancelRefetch: false })
+    if (result.isFetchNextPageError || result.error) {
+      setLoadMoreError('Couldn’t load more jobs. Your current results are still shown.')
+      return
+    }
+    const total = mergedInfinitePage(result.data).rows.length
+    const appended = Math.max(0, total - previousCount)
+    setQueueAnnouncement(
+      `${appended} more jobs loaded. ${total} ${lifecycle} jobs shown.`,
+    )
+  }
+
+  const lifecycleCopy = dashboardLifecycleCopy(lifecycle)
+  const scoreAriaSort = lifecycle === 'active' && sortByScore
+    ? (scoreAscending ? 'ascending' : 'descending')
+    : 'none'
   const hasPreferences = preferencesQuery.data !== null && preferencesQuery.data !== undefined
   const rankingState = rankingStateQuery.data
   const tableWidth = dashboardTableWidth(columnWidths)
+  const feedLoading = feedEnabled && feedQuery.isPending
+  const feedError = feedEnabled && !feedQuery.data ? feedQuery.error : null
+  const caughtUp = !feedLoading
+    && !feedError
+    && (!feedQuery.hasNextPage || finalPage.caughtUp)
 
   function updateColumnWidth(columnId: DashboardColumnId, width: number) {
     const next = {
@@ -394,15 +629,33 @@ export function Dashboard() {
     <section>
       <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        New postings ranked against your preferences, newest first.
+        {lifecycleCopy.description}
       </p>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div
+        role="group"
+        aria-label="Lifecycle view"
+        className="mt-6 flex flex-wrap gap-2"
+      >
         <button
           type="button"
-          aria-pressed={showDismissed}
-          onClick={() => setShowDismissed((value) => !value)}
-          className={`${filterButtonBase} ${showDismissed ? filterActive : filterInactive}`}
+          aria-pressed={lifecycle === 'applied'}
+          onClick={() => setLifecycle((current) =>
+            toggleDashboardLifecycle(current, 'applied'))}
+          className={`${filterButtonBase} ${
+            lifecycle === 'applied' ? filterActive : filterInactive
+          }`}
+        >
+          Show applied
+        </button>
+        <button
+          type="button"
+          aria-pressed={lifecycle === 'dismissed'}
+          onClick={() => setLifecycle((current) =>
+            toggleDashboardLifecycle(current, 'dismissed'))}
+          className={`${filterButtonBase} ${
+            lifecycle === 'dismissed' ? filterActive : filterInactive
+          }`}
         >
           Show dismissed
         </button>
@@ -608,31 +861,38 @@ export function Dashboard() {
       ) : null}
 
       <p aria-live="polite" className="sr-only">
-        {rankingAnnouncement}
+        {rankingAnnouncement || queueAnnouncement}
       </p>
 
-      {!feedQuery.isPending && !feedQuery.error ? (
+      {lifecycleError ? (
+        <p role="alert" className="mt-4 text-sm text-red-700 dark:text-red-400">
+          {lifecycleError}
+        </p>
+      ) : null}
+
+      {!feedLoading && !feedError ? (
         <p role="status" aria-live="polite" className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
-          {rows.length} jobs shown
+          {rows.length} {lifecycleCopy.resultNoun} shown
         </p>
       ) : null}
 
       <div
+        ref={tableRegionRef}
         role="region"
         aria-label="Job matches; scroll horizontally to view all columns"
         tabIndex={0}
         className="mt-8 overflow-x-auto rounded-lg border border-zinc-200 bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:focus-visible:outline-zinc-100"
       >
-        {feedQuery.isPending ? (
+        {feedLoading ? (
           <p className="p-4 text-sm text-zinc-600 dark:text-zinc-400">Loading…</p>
-        ) : feedQuery.error ? (
+        ) : feedError ? (
           <div className="p-4">
             <p role="alert" className="text-sm text-red-700 dark:text-red-400">
               Couldn’t load your matches. Check your connection and retry.
             </p>
             <button
               type="button"
-              onClick={() => feedQuery.refetch()}
+              onClick={() => void feedQuery.refetch()}
               className="mt-3 min-h-9 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
             >
               Retry
@@ -647,7 +907,7 @@ export function Dashboard() {
                   Select more companies or score tiers, or use Select all in Companies.
                 </p>
               </>
-            ) : (
+            ) : lifecycle === 'active' ? (
               <>
                 <h2 className="text-base font-semibold">No matches yet</h2>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -665,6 +925,13 @@ export function Dashboard() {
                       .
                     </>
                   ) : null}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-base font-semibold">{lifecycleCopy.emptyHeading}</h2>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                  {lifecycleCopy.emptyBody}
                 </p>
               </>
             )}
@@ -701,18 +968,22 @@ export function Dashboard() {
                   onWidthCommit={commitColumnWidth}
                   ariaSort={scoreAriaSort}
                 >
-                  <button
-                    type="button"
-                    onClick={toggleScoreSort}
-                    className="inline-flex items-center gap-1 rounded-sm uppercase focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
-                  >
-                    Score
-                    <span aria-hidden="true">
-                      {sortByScore ? (scoreAscending ? '↑' : '↓') : '↕'}
-                    </span>
-                  </button>
+                  {lifecycle === 'active' ? (
+                    <button
+                      type="button"
+                      onClick={toggleScoreSort}
+                      className="inline-flex items-center gap-1 rounded-sm uppercase focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
+                    >
+                      Score
+                      <span aria-hidden="true">
+                        {sortByScore ? (scoreAscending ? '↑' : '↓') : '↕'}
+                      </span>
+                    </button>
+                  ) : (
+                    'Score'
+                  )}
                 </DashboardHeaderCell>
-                {DASHBOARD_COLUMNS.slice(5, 8).map((column) => (
+                {DASHBOARD_COLUMNS.slice(5, 6).map((column) => (
                   <DashboardHeaderCell
                     key={column.id}
                     column={column}
@@ -724,6 +995,24 @@ export function Dashboard() {
                     {column.label}
                   </DashboardHeaderCell>
                 ))}
+                <DashboardHeaderCell
+                  column={DASHBOARD_COLUMNS[6]}
+                  widths={columnWidths}
+                  resizeCoordinator={resizeCoordinator.current}
+                  onWidthChange={updateColumnWidth}
+                  onWidthCommit={commitColumnWidth}
+                >
+                  {lifecycleCopy.timeLabel}
+                </DashboardHeaderCell>
+                <DashboardHeaderCell
+                  column={DASHBOARD_COLUMNS[7]}
+                  widths={columnWidths}
+                  resizeCoordinator={resizeCoordinator.current}
+                  onWidthChange={updateColumnWidth}
+                  onWidthCommit={commitColumnWidth}
+                >
+                  Apply
+                </DashboardHeaderCell>
                 <DashboardHeaderCell
                   column={DASHBOARD_COLUMNS[8]}
                   widths={columnWidths}
@@ -810,7 +1099,7 @@ export function Dashboard() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <PostedTime row={row} />
+                      <LifecycleTime row={row} lifecycle={lifecycle} />
                     </td>
                     <td className="px-4 py-3">
                       {applyUrl ? (
@@ -828,24 +1117,59 @@ export function Dashboard() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex justify-end">
-                        {row.dismissed_at !== null ? (
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {lifecycle === 'active' ? (
+                          <>
+                            <button
+                              ref={(node) => {
+                                if (node) actionRefs.current.set(row.id, node)
+                                else actionRefs.current.delete(row.id)
+                              }}
+                              type="button"
+                              disabled={lifecycleMutationPending}
+                              aria-label={`Mark ${jobTitle} applied`}
+                              onClick={() => markAppliedMutation.mutate(row.id)}
+                              className="min-h-9 rounded-md border border-zinc-900 bg-zinc-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-60 [@media(pointer:coarse)]:min-h-11 dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:focus-visible:outline-zinc-100"
+                            >
+                              Mark Applied
+                            </button>
+                            <button
+                              type="button"
+                              disabled={lifecycleMutationPending}
+                              aria-label={`Dismiss ${jobTitle}`}
+                              onClick={() => dismissMutation.mutate(row.id)}
+                              className="min-h-9 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-60 [@media(pointer:coarse)]:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
+                            >
+                              Dismiss
+                            </button>
+                          </>
+                        ) : lifecycle === 'applied' ? (
                           <button
+                            ref={(node) => {
+                              if (node) actionRefs.current.set(row.id, node)
+                              else actionRefs.current.delete(row.id)
+                            }}
                             type="button"
-                            aria-label={`Restore ${jobTitle}`}
-                            onClick={() => restoreMutation.mutate(row.id)}
-                            className="min-h-9 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
+                            disabled={lifecycleMutationPending}
+                            aria-label={`Undo applied for ${jobTitle}`}
+                            onClick={() => undoAppliedMutation.mutate(row.id)}
+                            className="min-h-9 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-60 [@media(pointer:coarse)]:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
                           >
-                            Restore
+                            Undo applied
                           </button>
                         ) : (
                           <button
+                            ref={(node) => {
+                              if (node) actionRefs.current.set(row.id, node)
+                              else actionRefs.current.delete(row.id)
+                            }}
                             type="button"
-                            aria-label={`Dismiss ${jobTitle}`}
-                            onClick={() => dismissMutation.mutate(row.id)}
-                            className="min-h-9 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
+                            disabled={lifecycleMutationPending}
+                            aria-label={`Restore ${jobTitle}`}
+                            onClick={() => restoreMutation.mutate(row.id)}
+                            className="min-h-9 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-60 [@media(pointer:coarse)]:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
                           >
-                            Dismiss
+                            Restore
                           </button>
                         )}
                       </div>
@@ -857,6 +1181,71 @@ export function Dashboard() {
           </table>
         )}
       </div>
+
+      <div className="mt-4 grid justify-items-center gap-2">
+        {backfillError ? (
+          <div className="text-center">
+            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+              {backfillError}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                if (backfillRetry) void runBackfill(backfillRetry.cursor)
+              }}
+              className={`mt-2 ${filterButtonBase} ${filterInactive}`}
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {loadMoreError ? (
+          <div className="text-center">
+            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+              {loadMoreError}
+            </p>
+            <button
+              type="button"
+              disabled={feedQuery.isFetchingNextPage}
+              onClick={() => void loadMore()}
+              className={`mt-2 ${filterButtonBase} ${filterInactive} disabled:cursor-wait disabled:opacity-60`}
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
+        <button
+          type="button"
+          disabled={feedQuery.isFetchingNextPage || !feedQuery.hasNextPage}
+          onClick={() => void loadMore()}
+          className={`${filterButtonBase} ${filterInactive} disabled:cursor-not-allowed disabled:opacity-50`}
+        >
+          {feedQuery.isFetchingNextPage ? 'Loading more…' : 'Load more'}
+        </button>
+        {caughtUp ? (
+          <p role="status" aria-live="polite" className="text-sm text-zinc-600 dark:text-zinc-400">
+            You're all caught up
+          </p>
+        ) : null}
+      </div>
+
+      {undoTarget ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-4 left-1/2 z-30 flex w-[min(448px,calc(100vw-32px))] -translate-x-1/2 flex-wrap items-center gap-3 rounded-lg border border-zinc-300 bg-white p-4 text-sm text-zinc-900 shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+        >
+          <span className="min-w-0 flex-1">Marked {undoTarget.title} as applied.</span>
+          <button
+            type="button"
+            disabled={undoAppliedMutation.isPending}
+            onClick={() => undoAppliedMutation.mutate(undoTarget.id)}
+            className={`${filterButtonBase} ${filterActive} disabled:cursor-wait disabled:opacity-60`}
+          >
+            {undoAppliedMutation.isPending ? 'Undoing…' : 'Undo'}
+          </button>
+        </div>
+      ) : null}
     </section>
   )
 }

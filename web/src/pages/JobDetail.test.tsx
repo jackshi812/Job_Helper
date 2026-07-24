@@ -56,6 +56,7 @@ const row: FeedRow = {
   deterministic_runner_up_resume_id: null,
   seen_at: null,
   dismissed_at: null,
+  applied_at: null,
   jobs: {
     id: 'job-1',
     title: 'Equity Research Analyst',

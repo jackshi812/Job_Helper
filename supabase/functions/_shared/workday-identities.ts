@@ -19,8 +19,23 @@
 
 export const CAPITAL_ONE_WORKDAY_SOURCE_KEY = 'workday:wd12:capitalone:Capital_One'
 export const FIDELITY_WORKDAY_SOURCE_KEY = 'workday:wd1:fmr:FidelityCareers'
+export const NASDAQ_WORKDAY_SOURCE_KEY = 'workday:wd1:nasdaq:Global_External_Site'
+export const SP_GLOBAL_WORKDAY_SOURCE_KEY = 'workday:wd5:spgi:SPGI_Careers'
+export const MORNINGSTAR_WORKDAY_SOURCE_KEY = 'workday:wd5:morningstar:morningstar'
+export const STATE_STREET_WORKDAY_SOURCE_KEY = 'workday:wd1:statestreet:Global'
+export const UNITED_STATES_WORKDAY_FACET_ID = 'bc33aa3152ec42d4995f4791a106ed09'
 
 export type WorkdayHostForm = 'jobs' | 'site'
+export type WorkdayCountryFacetRoute =
+  | readonly ['locationCountry']
+  | readonly ['locationMainGroup', 'locationCountry']
+
+export interface WorkdayCountryScope {
+  readonly descriptor: 'United States of America'
+  readonly id: typeof UNITED_STATES_WORKDAY_FACET_ID
+  readonly facetParameter: 'locationCountry'
+  readonly route: WorkdayCountryFacetRoute
+}
 
 export interface WorkdayIdentity {
   readonly origin: string
@@ -38,6 +53,17 @@ export interface WorkdayIdentity {
   readonly keptFacetIds?: Readonly<Record<string, string>>
   /** jobFamilyGroup descriptors to exclude via live-discovered inclusion facets (Fidelity). */
   readonly excludedJobFamilyGroups?: readonly string[]
+  /** Exact server-owned country facet contract for U.S.-scoped identities. */
+  readonly countryScope?: WorkdayCountryScope
+}
+
+function unitedStatesScope(route: WorkdayCountryFacetRoute): WorkdayCountryScope {
+  return Object.freeze({
+    descriptor: 'United States of America',
+    id: UNITED_STATES_WORKDAY_FACET_ID,
+    facetParameter: 'locationCountry',
+    route: Object.freeze([...route]) as WorkdayCountryFacetRoute,
+  })
 }
 
 const capitalOneIdentity: WorkdayIdentity = Object.freeze({
@@ -71,13 +97,77 @@ const fidelityIdentity: WorkdayIdentity = Object.freeze({
   excludedJobFamilyGroups: Object.freeze(['Sales', 'Customer Service', 'Sales Support']),
 })
 
+const nasdaqIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://nasdaq.wd1.myworkdayjobs.com',
+  cxsRoot: 'https://nasdaq.wd1.myworkdayjobs.com/wday/cxs/nasdaq/Global_External_Site',
+  publicBoard: 'https://nasdaq.wd1.myworkdayjobs.com/Global_External_Site',
+  tenant: 'nasdaq',
+  site: 'Global_External_Site',
+  region: 'wd1',
+  hostForm: 'jobs',
+  sourceKey: NASDAQ_WORKDAY_SOURCE_KEY,
+  companyName: 'Nasdaq',
+  applyCapitalOneEligibility: false,
+  countryScope: unitedStatesScope(['locationCountry']),
+})
+
+const spGlobalIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://spgi.wd5.myworkdayjobs.com',
+  cxsRoot: 'https://spgi.wd5.myworkdayjobs.com/wday/cxs/spgi/SPGI_Careers',
+  publicBoard: 'https://spgi.wd5.myworkdayjobs.com/SPGI_Careers',
+  tenant: 'spgi',
+  site: 'SPGI_Careers',
+  region: 'wd5',
+  hostForm: 'jobs',
+  sourceKey: SP_GLOBAL_WORKDAY_SOURCE_KEY,
+  companyName: 'S&P Global',
+  applyCapitalOneEligibility: false,
+  countryScope: unitedStatesScope(['locationCountry']),
+})
+
+const morningstarIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://morningstar.wd5.myworkdayjobs.com',
+  cxsRoot: 'https://morningstar.wd5.myworkdayjobs.com/wday/cxs/morningstar/morningstar',
+  publicBoard: 'https://morningstar.wd5.myworkdayjobs.com/morningstar',
+  tenant: 'morningstar',
+  site: 'morningstar',
+  region: 'wd5',
+  hostForm: 'jobs',
+  sourceKey: MORNINGSTAR_WORKDAY_SOURCE_KEY,
+  companyName: 'Morningstar',
+  applyCapitalOneEligibility: false,
+  countryScope: unitedStatesScope(['locationMainGroup', 'locationCountry']),
+})
+
+const stateStreetIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://statestreet.wd1.myworkdayjobs.com',
+  cxsRoot: 'https://statestreet.wd1.myworkdayjobs.com/wday/cxs/statestreet/Global',
+  publicBoard: 'https://statestreet.wd1.myworkdayjobs.com/Global',
+  tenant: 'statestreet',
+  site: 'Global',
+  region: 'wd1',
+  hostForm: 'jobs',
+  sourceKey: STATE_STREET_WORKDAY_SOURCE_KEY,
+  companyName: 'State Street',
+  applyCapitalOneEligibility: false,
+  countryScope: unitedStatesScope(['locationCountry']),
+})
+
 export const WORKDAY_IDENTITIES = Object.freeze({
   [CAPITAL_ONE_WORKDAY_SOURCE_KEY]: capitalOneIdentity,
   [FIDELITY_WORKDAY_SOURCE_KEY]: fidelityIdentity,
+  [NASDAQ_WORKDAY_SOURCE_KEY]: nasdaqIdentity,
+  [SP_GLOBAL_WORKDAY_SOURCE_KEY]: spGlobalIdentity,
+  [MORNINGSTAR_WORKDAY_SOURCE_KEY]: morningstarIdentity,
+  [STATE_STREET_WORKDAY_SOURCE_KEY]: stateStreetIdentity,
 })
 
 export const CAPITAL_ONE_WORKDAY_IDENTITY = capitalOneIdentity
 export const FIDELITY_WORKDAY_IDENTITY = fidelityIdentity
+export const NASDAQ_WORKDAY_IDENTITY = nasdaqIdentity
+export const SP_GLOBAL_WORKDAY_IDENTITY = spGlobalIdentity
+export const MORNINGSTAR_WORKDAY_IDENTITY = morningstarIdentity
+export const STATE_STREET_WORKDAY_IDENTITY = stateStreetIdentity
 
 /**
  * Pure, fail-closed resolver. Returns an admitted identity only when ALL four

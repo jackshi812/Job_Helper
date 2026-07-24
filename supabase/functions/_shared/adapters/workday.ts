@@ -652,6 +652,122 @@ async function discoverKeptFacetIds(
   return { ids: kept.map((value) => value.id), expectedKeptCount }
 }
 
+interface CountryFacetValue {
+  descriptor: string
+  id: string
+  count: number
+}
+
+function parseCountryFacetValues(value: unknown): CountryFacetValue[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null
+  const parsed = value.map((candidate) => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null
+    const descriptor = stringValue(
+      (candidate as { descriptor?: unknown }).descriptor,
+      256,
+    )?.trim()
+    const id = stringValue((candidate as { id?: unknown }).id, 256)?.trim()
+    const count = (candidate as { count?: unknown }).count
+    if (
+      !descriptor
+      || !id
+      || !Number.isSafeInteger(count)
+      || (count as number) < 0
+    ) return null
+    return { descriptor, id, count: count as number }
+  })
+  if (parsed.some((candidate) => candidate === null)) return null
+  const clean = parsed as CountryFacetValue[]
+  if (
+    new Set(clean.map((candidate) => candidate.descriptor)).size !== clean.length
+    || new Set(clean.map((candidate) => candidate.id)).size !== clean.length
+  ) return null
+  return clean
+}
+
+function countryFacetAtRoute(
+  facets: unknown,
+  route: readonly string[],
+): { values?: unknown } | null {
+  let candidates = facets
+  for (const [index, facetParameter] of route.entries()) {
+    if (!Array.isArray(candidates)) return null
+    const matches = candidates.filter((candidate) => (
+      candidate
+      && typeof candidate === 'object'
+      && !Array.isArray(candidate)
+      && (candidate as { facetParameter?: unknown }).facetParameter === facetParameter
+    ))
+    if (matches.length !== 1) return null
+    const match = matches[0] as { values?: unknown }
+    if (index === route.length - 1) return match
+    candidates = match.values
+  }
+  return null
+}
+
+/**
+ * Prove the identity-local country facet route against an unfiltered response.
+ * Morningstar's live payload nests a locationCountry facet object inside the
+ * locationMainGroup facet's `values`; the other admitted identities expose
+ * locationCountry directly in the top-level facets array.
+ */
+async function discoverCountryScope(
+  identity: WorkdayIdentity,
+  listUrl: string,
+  fetchImpl: FetchLike,
+  maxBytes: number,
+): Promise<{ expectedCountryCount: number } | { warning: string }> {
+  const scope = identity.countryScope
+  if (!scope) return { warning: 'country_filter_unverified' }
+  if (
+    scope.facetParameter !== 'locationCountry'
+    || (scope.route.length !== 1 && scope.route.length !== 2)
+    || scope.route.at(-1) !== scope.facetParameter
+    || new Set(scope.route).size !== scope.route.length
+  ) {
+    return { warning: 'country_filter_unverified' }
+  }
+  let payload: unknown
+  try {
+    payload = await requestJson(listUrl, fetchImpl, maxBytes, {
+      method: 'POST',
+      body: JSON.stringify({
+        appliedFacets: {},
+        limit: RECENT_PAGE_SIZE,
+        offset: 0,
+        searchText: '',
+      }),
+    })
+  } catch (error) {
+    return { warning: error instanceof ProviderError ? error.code : 'provider_error' }
+  }
+  if (!payload || typeof payload !== 'object') return { warning: 'provider_schema_invalid' }
+  const page = payload as Record<string, unknown>
+  if (!Number.isSafeInteger(page.total) || (page.total as number) <= 0) {
+    return {
+      warning: page.total === 0 ? 'implausible_empty' : 'provider_schema_invalid',
+    }
+  }
+
+  const facet = countryFacetAtRoute(page.facets, scope.route)
+  if (!facet) return { warning: 'country_filter_unverified' }
+  const values = parseCountryFacetValues(facet.values)
+  if (!values) return { warning: 'country_filter_unverified' }
+  const total = values.reduce<number>((sum, value) => sum + value.count, 0)
+  if (!Number.isSafeInteger(total) || total !== page.total) {
+    return { warning: 'country_filter_unverified' }
+  }
+  const matches = values.filter((value) => (
+    value.descriptor === scope.descriptor
+    && value.id === scope.id
+  ))
+  if (matches.length !== 1 || matches[0].count <= 0) {
+    return { warning: 'country_filter_unverified' }
+  }
+  return { expectedCountryCount: matches[0].count }
+}
+
 /**
  * Intentionally selective Workday recent importer, parameterized over a resolved
  * WorkdayIdentity. It scans only the newest category-scoped listing window,
@@ -661,7 +777,8 @@ async function discoverKeptFacetIds(
  * job closed. Fidelity retains every recent kept-family detail for downstream
  * filtering.
  *
- * Category scoping is identity-driven: an identity carrying `keptFacetIds`
+ * Scoping is identity-driven: an identity carrying `countryScope` discovers and
+ * applies its exact country route; an identity carrying `keptFacetIds`
  * (Capital One) applies those IDs verbatim and reconciles their counts on page 0;
  * an identity carrying `excludedJobFamilyGroups` (Fidelity) discovers the kept
  * families' IDs live and reconciles kept+excluded counts before scanning.
@@ -686,18 +803,27 @@ export async function pollWorkdayRecent(
   const nowMs = options.nowMs ?? Date.now()
   const knownIds = options.knownIds ?? new Set<string>()
 
-  // Resolve the inclusion facet IDs to apply on every list page.
-  let appliedFacetIds: string[]
+  // Resolve identity-local inclusion facets to apply on every list page.
+  const appliedFacets: Record<string, string[]> = {}
   let expectedScopedCount: number | undefined
+  let scopedCountWarning = 'category_filter_unverified'
+  if (identity.countryScope) {
+    const discovered = await discoverCountryScope(identity, listUrl, fetchImpl, maxBytes)
+    if ('warning' in discovered) return incomplete([], discovered.warning, undefined, 1)
+    appliedFacets[identity.countryScope.facetParameter] = [identity.countryScope.id]
+    expectedScopedCount = discovered.expectedCountryCount
+    scopedCountWarning = 'country_filter_unverified'
+  }
   if (identity.keptFacetIds) {
-    appliedFacetIds = Object.values(identity.keptFacetIds)
+    appliedFacets.jobFamilyGroup = Object.values(identity.keptFacetIds)
   } else if (identity.excludedJobFamilyGroups) {
     const discovered = await discoverKeptFacetIds(identity, listUrl, fetchImpl, maxBytes)
     if ('warning' in discovered) return incomplete([], discovered.warning, undefined, 1)
-    appliedFacetIds = discovered.ids
+    appliedFacets.jobFamilyGroup = discovered.ids
     expectedScopedCount = discovered.expectedKeptCount
-  } else {
-    // A recent poll with no category scoping cannot prove the filter applied.
+    scopedCountWarning = 'category_filter_unverified'
+  } else if (!identity.countryScope) {
+    // A recent poll with no registered scope cannot prove the filter applied.
     return incomplete([], 'category_filter_unverified', undefined, 0)
   }
 
@@ -716,9 +842,7 @@ export async function pollWorkdayRecent(
       payload = await requestJson(listUrl, fetchImpl, maxBytes, {
         method: 'POST',
         body: JSON.stringify({
-          appliedFacets: {
-            jobFamilyGroup: appliedFacetIds,
-          },
+          appliedFacets,
           limit: RECENT_PAGE_SIZE,
           offset: rawCount,
           searchText: '',
@@ -742,7 +866,7 @@ export async function pollWorkdayRecent(
     }
     const pageTotal = page.total as number
     if (pageCount === 0 && expectedScopedCount !== undefined && pageTotal !== expectedScopedCount) {
-      return incomplete([], 'category_filter_unverified', undefined, 1)
+      return incomplete([], scopedCountWarning, undefined, 1)
     }
     if (providerTotal === undefined) providerTotal = pageTotal
     const laterPageTotalSentinel = pageCount > 0
@@ -842,11 +966,14 @@ export async function pollWorkdayRecent(
     if (page.jobPostings.length === 0 && rawCount < providerTotal) {
       return incomplete([], 'count_mismatch', undefined, pageCount)
     }
-    if (reachedOlderPage || rawCount >= providerTotal) break
+    // Existing category-scoped importers may stop once ordering proves the
+    // remaining rows are old. Country-scoped sources must still account for
+    // every scoped provider row before their observation can be credible.
+    if ((!identity.countryScope && reachedOlderPage) || rawCount >= providerTotal) break
   }
 
   if (
-    !reachedOlderPage
+    (identity.countryScope || !reachedOlderPage)
     && rawCount < (providerTotal ?? 0)
     && (rawCount >= maxListings || pageCount >= maxPages)
   ) {
@@ -867,7 +994,7 @@ export async function pollWorkdayRecent(
         pageCount,
       )
     }
-    if (knownIds.has(externalId)) {
+    if (knownIds.has(externalId) && !identity.countryScope) {
       try {
         jobs.push(mapRecentListPosting(posting, nowMs, identity))
       } catch (error) {
@@ -908,6 +1035,9 @@ export async function pollWorkdayRecent(
     const detail = parseDetail(payload)
     if (!detail || detail.jobPostingInfo.title.trim() !== posting.title.trim()) {
       return incomplete(jobs, 'provider_schema_invalid', candidates.length, pageCount)
+    }
+    if (identity.countryScope && !isUnitedStatesDetail(detail)) {
+      return incomplete(jobs, 'country_filter_unverified', candidates.length, pageCount)
     }
     let mapped: NormalizedJob
     try {
@@ -958,6 +1088,8 @@ export async function verifyWorkdayListing(
   const pageSize = Math.min(Math.max(options.pageSize ?? DEFAULT_PAGE_SIZE, 1), 20)
   const maxPages = Math.min(options.maxPages ?? DEFAULT_MAX_PAGES, DEFAULT_MAX_PAGES)
   const maxJobs = Math.min(options.maxJobs ?? DEFAULT_MAX_JOBS, DEFAULT_MAX_JOBS)
+  const maxBytes = Math.min(options.maxBytes ?? DEFAULT_MAX_BYTES, DEFAULT_MAX_BYTES)
+  const appliedFacets: Record<string, string[]> = {}
   const seenPaths = new Map<string, WorkdayListPosting>()
   const seenTombstones = new Set<string>()
   const seenListingIdentifiers = new Set<string>()
@@ -965,11 +1097,18 @@ export async function verifyWorkdayListing(
   let rawCount = 0
   let pageCount = 0
 
+  if (identity.countryScope) {
+    const discovered = await discoverCountryScope(identity, listUrl, fetchImpl, maxBytes)
+    if ('warning' in discovered) throw new ProviderError(discovered.warning)
+    expectedCount = discovered.expectedCountryCount
+    appliedFacets[identity.countryScope.facetParameter] = [identity.countryScope.id]
+  }
+
   while (pageCount < maxPages) {
-    const payload = await requestJson(listUrl, fetchImpl, options.maxBytes ?? DEFAULT_MAX_BYTES, {
+    const payload = await requestJson(listUrl, fetchImpl, maxBytes, {
       method: 'POST',
       body: JSON.stringify({
-        appliedFacets: {},
+        appliedFacets,
         limit: pageSize,
         offset: rawCount,
         searchText: '',
@@ -983,6 +1122,9 @@ export async function verifyWorkdayListing(
     const pageTotal = page.total as number
     if (expectedCount === undefined) expectedCount = pageTotal
     if (expectedCount > maxJobs) throw new ProviderError('job_cap_exceeded')
+    if (pageCount === 0 && identity.countryScope && pageTotal !== expectedCount) {
+      throw new ProviderError('country_filter_unverified')
+    }
 
     const laterPageTotalSentinel = pageCount > 0
       && pageTotal === 0
