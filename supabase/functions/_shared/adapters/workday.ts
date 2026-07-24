@@ -33,6 +33,7 @@ interface WorkdayListPosting {
   externalPath: string
   locationsText?: string | null
   postedOn?: string | null
+  bulletFields?: unknown
 }
 
 interface WorkdayDetail {
@@ -60,7 +61,7 @@ const DEFAULT_MAX_JOBS = 2_000
 const DEFAULT_MAX_DETAILS = 2_000
 const DEFAULT_MAX_BYTES = 2_000_000
 const MAX_STRING = 500_000
-const MAX_TOMBSTONE_IDENTIFIER = 256
+const MAX_REQUISITION_IDENTIFIER = 256
 const RECENT_PAGE_SIZE = 20
 const DEFAULT_RECENT_DAYS = 7
 const DEFAULT_RECENT_MAX_PAGES = 30
@@ -144,9 +145,40 @@ function recentStartDate(value: string | null | undefined, nowMs: number, recent
   return parsed >= cutoff && parsed <= nowMs
 }
 
+function legacyListExternalId(externalPath: string) {
+  return externalPath.match(/_(R[0-9A-Za-z]+)(?:-\d+)?$/)?.[1] ?? null
+}
+
+function safeRequisitionIdentifier(value: unknown) {
+  if (
+    typeof value !== 'string'
+    || value.length === 0
+    || value.length > MAX_REQUISITION_IDENTIFIER
+    || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)
+  ) return null
+  return value
+}
+
+function singleBulletIdentifier(value: unknown) {
+  if (!Array.isArray(value) || value.length !== 1) return null
+  return safeRequisitionIdentifier(value[0])
+}
+
 function listExternalId(posting: WorkdayListPosting) {
-  const suffix = posting.externalPath.match(/_(R[0-9A-Za-z]+)(?:-\d+)?$/)?.[1]
-  return suffix ?? posting.externalPath
+  const legacy = legacyListExternalId(posting.externalPath)
+  if (legacy) return legacy
+
+  const identifier = singleBulletIdentifier(posting.bulletFields)
+  if (!identifier) throw new ProviderError('provider_identity_drift')
+  if (posting.externalPath.endsWith(`_${identifier}`)) return identifier
+
+  const marker = `_${identifier}-`
+  const markerIndex = posting.externalPath.lastIndexOf(marker)
+  const numericSuffix = markerIndex < 0
+    ? ''
+    : posting.externalPath.slice(markerIndex + marker.length)
+  if (/^[1-9]\d*$/.test(numericSuffix)) return identifier
+  throw new ProviderError('provider_identity_drift')
 }
 
 function normalizedPostedAt(value: string | null | undefined) {
@@ -232,14 +264,7 @@ function parseListingTombstone(value: unknown) {
     || !Array.isArray(fields.bulletFields)
     || fields.bulletFields.length !== 1
   ) return null
-  const identifier = fields.bulletFields[0]
-  if (
-    typeof identifier !== 'string'
-    || identifier.length === 0
-    || identifier.length > MAX_TOMBSTONE_IDENTIFIER
-    || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(identifier)
-  ) return null
-  return identifier
+  return singleBulletIdentifier(fields.bulletFields)
 }
 
 function listingRequisitionIdentifier(externalPath: string) {
@@ -519,7 +544,12 @@ function mapRecentDetail(
   if (!path) throw new ProviderError('unsafe_detail_path')
   const info = detail.jobPostingInfo
   const externalId = listExternalId(posting)
-  if (info.jobReqId?.trim() && info.jobReqId.trim() !== externalId) {
+  const detailExternalId = info.jobReqId?.trim()
+  const requiresDetailIdentity = legacyListExternalId(posting.externalPath) === null
+  if (
+    (requiresDetailIdentity && detailExternalId !== externalId)
+    || (!requiresDetailIdentity && detailExternalId && detailExternalId !== externalId)
+  ) {
     throw new ProviderError('provider_identity_drift')
   }
   return Object.freeze({
