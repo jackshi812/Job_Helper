@@ -213,18 +213,18 @@ Plans:
   6. Capital One ingestion, all other connectors, and the deterministic feed are unchanged; no push or deploy occurs without a new exact-release approval (production remains commit `7642fde8`)
 
 **Requirements**: (connector expansion — no new REQUIREMENTS.md IDs; extends Phase 02.1/03.1 source-coverage scope)
-**Plans**: 4 plans
+**Plans**: 3/4 plans executed
 **UI hint**: minimal (reuses existing Watchlist add-company UI)
 
 Plans:
 **Wave 1**
 
-- [ ] 03.5-01-PLAN.md — Workday identity registry + adapter parameterization + Fidelity facet scoping
-- [ ] 03.5-03-PLAN.md — Forward-only migration 0035 (authored, not applied) + Fidelity health/filter note
+- [x] 03.5-01-PLAN.md — Workday identity registry + adapter parameterization + Fidelity facet scoping
+- [x] 03.5-03-PLAN.md — Forward-only migration 0035 (authored, not applied) + Fidelity health/filter note
 
 **Wave 2** *(blocked on 03.5-01)*
 
-- [ ] 03.5-02-PLAN.md — Both Workday URL shapes detected + registry-driven verify/dispatch (paste→verify→poll)
+- [x] 03.5-02-PLAN.md — Both Workday URL shapes detected + registry-driven verify/dispatch (paste→verify→poll)
 
 **Wave 3** *(blocked on Wave 1 + Wave 2)*
 

@@ -1,42 +1,35 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-24T04:20:25.051Z",
+  "timestamp": "2026-07-24T15:14:12.249Z",
   "phase": "03.5",
   "phase_name": "generic-workday-connector-fidelity",
   "phase_dir": ".planning/phases/03.5-generic-workday-connector-fidelity",
-  "plan": null,
-  "task": null,
-  "total_tasks": 0,
+  "plan": 4,
+  "task": 0,
+  "total_tasks": 3,
   "status": "paused",
   "completed_tasks": [
-    {"id": "03.5-insert", "name": "Insert Phase 03.5 into roadmap, fill goal + success criteria", "status": "done", "commit": "6d48abf"},
-    {"id": "03.5-discuss", "name": "Discuss phase, write CONTEXT.md + DISCUSSION-LOG.md", "status": "done", "commit": "6d48abf"},
-    {"id": "03.5-research", "name": "Spawn gsd-phase-researcher, write RESEARCH.md (HIGH confidence)", "status": "done"},
-    {"id": "03.5-patterns", "name": "Spawn gsd-pattern-mapper, write PATTERNS.md", "status": "done"}
+    {"id": 1, "name": "03.5-01 Workday identity registry + parameterized adapter + Fidelity facet scoping", "status": "done", "commit": "f5638e9"},
+    {"id": 2, "name": "03.5-03 Author migration 0035 (region wd1, catalog UPDATE, auto-promotion) + watchlist note", "status": "done", "commit": "bf5c7c9"},
+    {"id": 3, "name": "03.5-02 Wire detect/verify-board/poll-tick to registry (both URL shapes, wd1 region)", "status": "done", "commit": "dd06431"}
   ],
   "remaining_tasks": [
-    {"id": "03.5-plan", "name": "Spawn gsd-planner (RESEARCH + PATTERNS ready), then gsd-plan-checker verify loop", "status": "not_started"},
-    {"id": "03.5-execute", "name": "Execute Phase 03.5 plans after owner approval", "status": "not_started"}
+    {"id": 4, "name": "03.5-04 Wave 3 — apply migration 0035 + deploy verify-board/poll-tick + live-verify Fidelity/Capital One (autonomous:false, DEPLOY CHECKPOINT)", "status": "not_started"},
+    {"id": 5, "name": "Phase verification — spawn gsd-verifier after 03.5-04 completes (or verify waves 1-2 code-only if deploy deferred)", "status": "not_started"}
   ],
-  "blockers": [],
+  "blockers": [
+    {"description": "03.5-04 crosses the production exact-release boundary (prod commit 7642fde8). Applying migration 0035 + deploying edge functions requires a NEW exact-release owner approval that has NOT been granted.", "type": "human_action", "workaround": "None — deploy is intentionally gated. Do not apply/push/deploy without explicit fresh owner go-ahead."}
+  ],
   "async_jobs": [],
-  "human_actions_pending": [],
+  "human_actions_pending": [
+    {"action": "Owner grants a NEW exact-release approval to apply migration 0035 and deploy verify-board + poll-tick edge functions", "context": "Wave 3 plan 03.5-04 is autonomous:false; the deploy boundary is a hard blocking constraint from .continue-here.md", "blocking": true}
+  ],
   "decisions": [
-    {"decision": "Generalize adapter to the two known Workday URL shapes only (myworkdayjobs.com subdomain-tenant + myworkdaysite.com path-tenant); reject unresolvable URLs. No proxy/vanity domains.", "rationale": "D-01/D-02 in CONTEXT.md; covers Fidelity + most direct boards without edge-case cost.", "phase": "03.5"},
-    {"decision": "Adds via existing Watchlist paste-URL UI; verify-board auto-detects Workday and parses tenant/region/site. verify-board stays authoritative SSRF boundary.", "rationale": "D-03/D-04; makes future Workday adds a runtime action.", "phase": "03.5"},
-    {"decision": "Fidelity ingestion is category-scoped: exclude jobFamilyGroup Sales, Customer Service, Sales Support. Experience-<3yr rule enforced by existing downstream dashboard filters, NOT the connector.", "rationale": "D-05/D-07; research decided facet INCLUSION (Option b) — list rows carry no jobFamilyGroup so post-fetch exclusion would need 706 detail fetches/poll, violating egress + wall-clock budgets.", "phase": "03.5"},
-    {"decision": "Fidelity follows Capital One activation model (Experimental -> Active after clean observation windows), reuses existing health badges. New forward-only migration 0035 admits non-Capital-One Workday identities.", "rationale": "D-08; migrations 0016/0028 restrict Workday to only workday:wd12:capitalone:Capital_One. 0035 must relax that AND UPDATE (not INSERT) the pre-existing Fidelity unsupported catalog row (0013 L176), AND widen the wd12/eu region check to admit wd1.", "phase": "03.5"},
-    {"decision": "Plan with --skip-ui (UI-SPEC gate skipped).", "rationale": "No new UI; Workday URLs flow through the existing Watchlist add-company form.", "phase": "03.5"}
+    {"decision": "Ran phase sequentially on main working tree (no worktree isolation)", "rationale": "origin/HEAD unresolved -> worktree.base-check shouldDegrade=true (#683); parallel worktrees would risk a base mismatch", "phase": "03.5"},
+    {"decision": "Stayed on branch main", "rationale": "branching_strategy=none in config", "phase": "03.5"},
+    {"decision": "Paused after Wave 2 (before Wave 3 deploy)", "rationale": "User requested pause at a clean boundary; Wave 3 is the owner-approval-gated deploy - natural stop", "phase": "03.5"}
   ],
-  "uncommitted_files": [
-    {"path": ".planning/ROADMAP.md", "ownership": "this session — Phase 03.5 goal + success criteria fill; commit with handoff"},
-    {"path": ".planning/phases/03.5-generic-workday-connector-fidelity/03.5-RESEARCH.md", "ownership": "this session — researcher output; commit with handoff"},
-    {"path": ".planning/phases/03.5-generic-workday-connector-fidelity/03.5-PATTERNS.md", "ownership": "this session — pattern-mapper output; commit with handoff"},
-    {"path": ".DS_Store", "ownership": "pre-existing user file; do not stage"},
-    {"path": ".planning/phases/03.3-dashboard-filter-refinements/03.3-04-ROLLOUT-EVIDENCE.md", "ownership": "pre-existing; do not stage"},
-    {"path": "scripts/agent-dashboard.mjs", "ownership": "pre-existing user file; do not stage"},
-    {"path": "scripts/agent-dashboard.test.mjs", "ownership": "pre-existing user file; do not stage"}
-  ],
-  "next_action": "Resume with /gsd-plan-phase 03.5 --skip-ui. RESEARCH.md + PATTERNS.md already exist so it skips research/pattern-mapper and goes straight to gsd-planner. The --skip-ui is REQUIRED: it will otherwise re-trip the blocking UI-SPEC gate (frontend detected, no UI-SPEC). Then let the gsd-planner -> gsd-plan-checker verify loop run.",
-  "context_notes": "Phase 03.5 is a lift-literals-to-parameters refactor of the existing Capital One Workday connector, not new mechanism-building (research + pattern-mapper both HIGH confidence, findings corroborated). All 5 hardcoded seams located by line number. Landmines: (1) companies_region_check + TS region type 'eu'|'wd12'|null (connectors.ts L29/L38, poll-tick L18, DB) both reject Fidelity's wd1 — must widen, silent-failure risk; (2) Fidelity source_coverage_catalog row already exists as unsupported_with_reason (0013 L176-184) with UNIQUE company_name + truthful_disposition_check, so migration 0035 must UPDATE not INSERT; (3) facet exclusion resolved to INCLUSION facets (Option b), IDs discovered live + count-verified, reusing Capital One category_filter_unverified fail-closed; (4) latest migration 0034 so new is 0035 forward-only, mirrors 0029 create-or-replace RPC + parity DO-block minus 0028's now-invalid zero-workday-jobs guard; (5) CENTRAL OPEN DESIGN POINT A1: source-key workday:{region}:{tenant}:{site} cannot disambiguate Form A myworkdayjobs vs Form B myworkdaysite from region alone — registry must key on full tuple and carry hostForm/origin, else Fidelity polls 404; planner must resolve. provider-identities.ts (Paylocity) is the exact template: frozen source-key const + frozen keyed map + resolveX() pure resolver; add Fidelity workday:wd1:fmr:FidelityCareers as a second entry, Capital One's tuple stays byte-identical (frozen across 6 files + migration parity + tests — do not touch). companyName recommended null so poll-tick L233 ?? company.name supplies DB name. PRODUCTION BOUNDARY: no supabase functions deploy / no push without a new exact-release approval; production stays commit 7642fde8. Planner not yet spawned — user asked to pause after research."
+  "uncommitted_files": [],
+  "next_action": "Obtain fresh owner exact-release approval, then run /gsd-execute-phase 03.5 --wave 3 to execute 03.5-04 (apply migration 0035 + deploy). If deploy stays deferred, optionally spawn gsd-verifier to verify the code-only waves 1-2. Do NOT deploy/push without approval.",
+  "context_notes": "Waves 1-2 complete: 3 of 4 plans done, 13 commits total (daef547..dd06431), full web suite green at 996 tests, tsc -b clean. All 4 blocking constraints honored across plans (frozen Capital One tuple, explicit hostForm/origin - no re-derivation from region, region widened to admit wd1 at DB + all 4 TS sites, inclusion facets with fail-closed reconciliation, migration 0035 forward-only UPDATE not INSERT). ROADMAP updated to 3/4 In Progress. Migration 0035 is AUTHORED but NOT applied to any DB. Nothing deployed. Only remaining work is the deploy checkpoint (03.5-04) + phase verification."
 }
