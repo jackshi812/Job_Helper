@@ -267,8 +267,8 @@ function parseListingTombstone(value: unknown) {
   return singleBulletIdentifier(fields.bulletFields)
 }
 
-function listingRequisitionIdentifier(externalPath: string) {
-  return externalPath.match(/_([A-Za-z0-9][A-Za-z0-9._-]*)$/)?.[1] ?? null
+function listingRequisitionIdentifier(posting: WorkdayListPosting) {
+  return listExternalId(posting)
 }
 
 function parseDetail(value: unknown): WorkdayDetail | null {
@@ -802,7 +802,7 @@ export async function pollWorkdayRecent(
       if (seenPaths.has(posting.externalPath)) {
         return incomplete([], 'count_mismatch', undefined, pageCount)
       }
-      const identifier = listingRequisitionIdentifier(posting.externalPath)
+      const identifier = listingRequisitionIdentifier(posting)
       if (identifier && seenTombstones.has(identifier)) {
         return incomplete([], 'count_mismatch', undefined, pageCount)
       }
@@ -974,7 +974,7 @@ export async function verifyWorkdayListing(
 
     pageCount += 1
     for (const posting of pagePostings) {
-      const identifier = listingRequisitionIdentifier(posting.externalPath)
+      const identifier = listingRequisitionIdentifier(posting)
       if (identifier && seenTombstones.has(identifier)) throw new ProviderError('count_mismatch')
       const prior = seenPaths.get(posting.externalPath)
       if (prior && !equivalentListPosting(prior, posting)) {

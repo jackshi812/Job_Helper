@@ -1004,8 +1004,20 @@ describe('Fidelity category-scoped recent import', () => {
   it.each([
     ['duplicate tombstones', [liveTombstone, liveTombstone]],
     ['listing identifier collision', [
-      { ...fidPostingA, externalPath: '/job/Boston-MA/Software-Engineer_2131450' },
+      {
+        ...fidPostingA,
+        externalPath: '/job/Boston-MA/Software-Engineer_2131450',
+        bulletFields: ['2131450'],
+      },
       liveTombstone,
+    ]],
+    ['legacy occurrence-suffix collision', [
+      fidPostingA,
+      { bulletFields: ['R200001'] },
+    ]],
+    ['numeric occurrence-suffix collision', [
+      liveNumericPosting,
+      { bulletFields: ['2130089'] },
     ]],
     ['duplicate listing paths', [fidPostingA, fidPostingA]],
   ])('rejects polling %s', async (_name, jobPostings) => {
@@ -1354,6 +1366,7 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
       const collidingPosting = {
         ...fidVerifyPosting,
         externalPath: '/job/Boston-MA/Software-Engineer_2131450',
+        bulletFields: ['2131450'],
       }
       const collisionFetch = vi.fn().mockResolvedValue(jsonResponse({
         total: 2,
@@ -1361,6 +1374,24 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
       }))
       await expect(verifyWorkdayListing(
         collisionFetch,
+        {},
+        fidelityIdentity,
+      )).rejects.toThrow('count_mismatch')
+    })
+
+    it.each([
+      ['legacy occurrence suffix', fidVerifyPosting, { bulletFields: ['R200001'] }],
+      ['numeric occurrence suffix', {
+        ...fidVerifyPosting,
+        externalPath: '/job/Westlake-TX/Full-Stack-Developer_2130089-2',
+        bulletFields: ['2130089'],
+      }, { bulletFields: ['2130089'] }],
+    ])('rejects a listing/tombstone collision with %s', async (_name, posting, tombstone) => {
+      await expect(verifyWorkdayListing(
+        vi.fn().mockResolvedValue(jsonResponse({
+          total: 2,
+          jobPostings: [posting, tombstone],
+        })),
         {},
         fidelityIdentity,
       )).rejects.toThrow('count_mismatch')
