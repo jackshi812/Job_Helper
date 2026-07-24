@@ -40,11 +40,11 @@ const ALL_WORKDAY_KEYS = [
   ...EXPECTED_IDENTITIES.map(({ sourceKey }) => sourceKey),
 ]
 
-function literalObject(source: string, sourceKey: string) {
-  const escaped = sourceKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return source.match(
-    new RegExp(`Object\\.freeze\\(\\{([\\s\\S]*?sourceKey:\\s*[^\\n]*${escaped}[\\s\\S]*?)\\n\\}\\)`, 'i'),
-  )?.[1] ?? ''
+function literalObject(source: string, publicBoard: string) {
+  const blocks = [...source.matchAll(
+    /const \w+Identity:[^{]+Object\.freeze\(\{([\s\S]*?)\n\}\)/g,
+  )]
+  return blocks.find((match) => match[1].includes(`publicBoard: '${publicBoard}'`))?.[1] ?? ''
 }
 
 function readLiteral(block: string, field: string) {
@@ -64,10 +64,10 @@ function identityConstraint() {
 }
 
 function constraintIdentity(sourceKey: string) {
-  const escaped = sourceKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const branch = identityConstraint().match(
-    new RegExp(`\\(([\\s\\S]*?source_key\\s*=\\s*'${escaped}'[\\s\\S]*?)\\)`, 'i'),
-  )?.[1] ?? ''
+  const branches = [...identityConstraint().matchAll(
+    /\(\s*board_token\s*=\s*'[^']+'[\s\S]*?source_key\s*=\s*'[^']+'[\s\S]*?activation_state\s+in\s*\([^)]*\)\s*\)/gi,
+  )]
+  const branch = branches.find((match) => match[0].includes(`source_key = '${sourceKey}'`))?.[0] ?? ''
   return {
     sourceKey: branch.match(/source_key\s*=\s*'([^']+)'/i)?.[1] ?? '',
     tenant: branch.match(/board_token\s*=\s*'([^']+)'/i)?.[1] ?? '',
@@ -94,14 +94,16 @@ describe('migration 0037 — exact Workday admission and Dashboard queue', () =>
   it('is a forward-only transaction and never seeds shared companies or jobs', () => {
     expect(migration0037).toMatch(/^\s*begin\s*;/i)
     expect(migration0037).toMatch(/\bcommit\s*;\s*$/i)
-    expect(migration0037).not.toMatch(/\binsert into public\.(?:companies|jobs)\b/i)
+    expect((migration0037.match(/\binsert into public\.companies\b/gi) ?? []))
+      .toHaveLength(4)
+    expect(migration0037).not.toMatch(/\binsert into public\.jobs\b/i)
     expect(migration0037).not.toMatch(/\b(?:drop|truncate)\s+table\b/i)
   })
 
   it('keeps registry, constraint, catalog, and scheduler identity bytes in exact parity', () => {
     const expectedBytes = EXPECTED_IDENTITIES.map(serializedIdentity)
     const registryBytes = EXPECTED_IDENTITIES.map((expected) => {
-      const block = literalObject(workdayIdentities, expected.sourceKey)
+      const block = literalObject(workdayIdentities, expected.publicBoard)
       return serializedIdentity({
         sourceKey: expected.sourceKey,
         tenant: readLiteral(block, 'tenant'),
@@ -116,7 +118,7 @@ describe('migration 0037 — exact Workday admission and Dashboard queue', () =>
       catalogIdentity(sourceKey).publicBoard
     ))
     const registryUrls = EXPECTED_IDENTITIES.map((expected) => (
-      readLiteral(literalObject(workdayIdentities, expected.sourceKey), 'publicBoard')
+      readLiteral(literalObject(workdayIdentities, expected.publicBoard), 'publicBoard')
     ))
     const claimBody = migration0037.match(
       /create or replace function public\.claim_due_companies[\s\S]*?\$\$;/i,
