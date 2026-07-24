@@ -13,6 +13,7 @@ import {
   SOURCE_COVERAGE_CATALOG_COLUMNS,
   type SourceCoverageCatalogRecord,
   type CompanyRecord,
+  type WatchlistRow,
 } from './watchlist'
 import { supabase } from './supabase'
 
@@ -373,6 +374,50 @@ describe('finance coverage presentation', () => {
       ],
     })
     expect(healthPresentation(experimental)).toEqual({
+      label: 'OK',
+      detail: null,
+      retention: null,
+    })
+  })
+
+  it('shows a Fidelity filter note keyed on the Fidelity source key and reuses existing badges', () => {
+    const FIDELITY_SOURCE_KEY = 'workday:wd1:fmr:FidelityCareers'
+    const fidelity: WatchlistRow = {
+      key: 'company-fidelity',
+      company_id: '22222222-2222-4222-8222-222222222222',
+      catalog_id: 'catalog-fidelity',
+      name: 'Fidelity',
+      careers_url: 'https://wd1.myworkdaysite.com/en-US/recruiting/fmr/FidelityCareers',
+      source_key: FIDELITY_SOURCE_KEY,
+      provider: 'Workday',
+      access_evidence: null,
+      disposition: 'experimental',
+      activation_state: 'experimental',
+      activation_successes: 1,
+      health_state: 'ok',
+      last_success_at: now.toISOString(),
+      last_error_code: null,
+      unsupported_reason: null,
+      created_at: now.toISOString(),
+      scheduled: false,
+      monitored: true,
+    }
+
+    const fidelityNote =
+      'Workday filter: excludes Sales, Customer Service, and Sales Support roles; required experience is applied by the dashboard filters, not the connector.'
+
+    expect(activationPresentation(fidelity)).toEqual({
+      label: 'Experimental',
+      details: [fidelityNote],
+    })
+    expect(activationPresentation({ ...fidelity, activation_state: 'active' })).toEqual({
+      label: 'Active',
+      details: [fidelityNote],
+    })
+    // Capital One note must stay byte-identical (not shared with Fidelity).
+    expect(fidelityNote).not.toContain('Analysis and Finance')
+    // Reuses existing health presentation — no new badge logic.
+    expect(healthPresentation(fidelity)).toEqual({
       label: 'OK',
       detail: null,
       retention: null,
