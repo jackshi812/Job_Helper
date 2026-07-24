@@ -425,6 +425,23 @@ describe('recent Capital One Analysis and Finance import', () => {
     }
   }
 
+  it('keeps legacy Capital One R-suffix identity authoritative over bullet fields', async () => {
+    const providerFetch = vi.fn().mockResolvedValue(jsonResponse({
+      total: 1,
+      jobPostings: [{ ...recentPosting, bulletFields: ['9999999'] }],
+      facets: categoryFacets(1, 0),
+    }))
+
+    await expect(pollCapitalOneRecent(providerFetch, {
+      knownIds: new Set(['R100001']),
+      nowMs,
+    })).resolves.toMatchObject({
+      completeness: 'complete',
+      jobs: [{ externalId: 'R100001', snapshotPartial: true }],
+    })
+    expect(providerFetch).toHaveBeenCalledTimes(1)
+  })
+
   it('uses required experience rather than seniority words in the title', async () => {
     const titleOnlyCandidates = [
       ['Senior Data Scientist', 'R100002'],
@@ -642,6 +659,13 @@ describe('Fidelity category-scoped recent import', () => {
     locationsText: 'Boston, MA',
     postedOn: 'Posted Today',
   }
+  const liveNumericPosting = {
+    title: 'Full Stack Developer',
+    externalPath: '/job/Westlake-TX/Full-Stack-Developer_2130089-2',
+    locationsText: 'Westlake, TX',
+    postedOn: 'Posted Today',
+    bulletFields: ['2130089'],
+  }
 
   function fidDetail(posting: typeof fidPostingA) {
     return {
@@ -659,6 +683,109 @@ describe('Fidelity category-scoped recent import', () => {
       },
     }
   }
+
+  function numericDetail(jobReqId: string | null = '2130089') {
+    return {
+      jobPostingInfo: {
+        id: 'opaque-2130089',
+        ...(jobReqId === null ? {} : { jobReqId }),
+        title: liveNumericPosting.title,
+        jobDescription: '<p>Basic Qualifications</p><p>1 year of experience</p>',
+        location: liveNumericPosting.locationsText,
+        postedOn: liveNumericPosting.postedOn,
+        startDate: '2026-07-20',
+        jobRequisitionLocation: {
+          country: { descriptor: 'United States of America', alpha2Code: 'US' },
+        },
+      },
+    }
+  }
+
+  function numericPostingFetch(
+    posting: Record<string, unknown> = liveNumericPosting,
+    detail: unknown = numericDetail(),
+  ) {
+    return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input) === fidelityListUrl) {
+        const body = JSON.parse(String(init?.body)) as {
+          appliedFacets: { jobFamilyGroup?: string[] }
+        }
+        return body.appliedFacets.jobFamilyGroup === undefined
+          ? jsonResponse({
+              total: 1,
+              jobPostings: [],
+              facets: fidelityFacets({ it: 1, rm: 0, sales: 0, customerService: 0, salesSupport: 0 }),
+            })
+          : jsonResponse({
+              total: 1,
+              jobPostings: [posting],
+            })
+      }
+      return jsonResponse(detail)
+    })
+  }
+
+  it('uses the exact live numeric requisition ID on the known-ID fast path', async () => {
+    const providerFetch = numericPostingFetch()
+    const observation = await pollWorkdayRecent(fidelityIdentity, providerFetch, {
+      knownIds: new Set(['2130089']),
+      nowMs,
+    })
+
+    expect(providerFetch).toHaveBeenCalledTimes(2)
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      allowMissingClosure: false,
+      jobs: [{
+        externalId: '2130089',
+        title: 'Full Stack Developer',
+        snapshotPartial: true,
+      }],
+    })
+  })
+
+  it('maps a live numeric requisition only when detail identity agrees', async () => {
+    const providerFetch = numericPostingFetch()
+    const observation = await pollWorkdayRecent(fidelityIdentity, providerFetch, { nowMs })
+
+    expect(providerFetch).toHaveBeenCalledTimes(3)
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      jobs: [{
+        externalId: '2130089',
+        title: 'Full Stack Developer',
+        snapshotPartial: false,
+      }],
+    })
+  })
+
+  it.each([
+    ['missing bullet fields', { bulletFields: undefined }],
+    ['multiple bullet fields', { bulletFields: ['2130089', '2130090'] }],
+    ['unsafe bullet identifier', { bulletFields: ['213\u00000089'] }],
+    ['mismatched bullet identifier', { bulletFields: ['2130090'] }],
+    ['zero path suffix', { externalPath: '/job/Westlake-TX/Full-Stack-Developer_2130089-0' }],
+    ['nonnumeric path suffix', { externalPath: '/job/Westlake-TX/Full-Stack-Developer_2130089-copy' }],
+    ['nonterminal path identifier', { externalPath: '/job/Westlake-TX/Full-Stack-Developer_x2130089-2' }],
+  ])('rejects numeric listing identity with %s', async (_name, override) => {
+    const posting = { ...liveNumericPosting, ...override }
+    await expect(pollWorkdayRecent(
+      fidelityIdentity,
+      numericPostingFetch(posting),
+      { nowMs },
+    )).rejects.toThrow('provider_identity_drift')
+  })
+
+  it.each([
+    ['missing', null],
+    ['inconsistent', '2130090'],
+  ])('rejects %s numeric detail jobReqId', async (_name, jobReqId) => {
+    await expect(pollWorkdayRecent(
+      fidelityIdentity,
+      numericPostingFetch(liveNumericPosting, numericDetail(jobReqId)),
+      { nowMs },
+    )).rejects.toThrow('provider_identity_drift')
+  })
 
   it('counts a strict tombstone as a raw row without mapping, fetching, or closing it', async () => {
     const offsets: number[] = []
