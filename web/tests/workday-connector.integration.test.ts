@@ -4,6 +4,7 @@ import {
   pollCapitalOneRecent,
   pollWorkday,
   pollWorkdayRecent,
+  verifyWorkdayListing,
 } from '../../supabase/functions/_shared/adapters/workday.ts'
 import {
   resolveWorkdayIdentity,
@@ -732,6 +733,130 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
     locationsText: 'Boston, MA',
     postedOn: 'Posted Today',
   }
+
+  describe('listing tombstone accounting', () => {
+    const fidelityIdentity = resolveWorkdayIdentity(
+      'fmr',
+      'wd1',
+      'FidelityCareers',
+      'site',
+    ) as WorkdayIdentity
+    const liveTombstone = { bulletFields: ['2131450'] }
+
+    it('counts the exact live tombstone as a provider row while advancing by raw rows', async () => {
+      const offsets: number[] = []
+      const secondPosting = {
+        ...fidVerifyPosting,
+        title: 'Data Engineer',
+        externalPath: '/job/Chicago-IL/Data-Engineer_R654321',
+      }
+      const providerFetch = vi.fn((_input: string | URL | Request, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { offset: number }
+        offsets.push(body.offset)
+        return Promise.resolve(body.offset === 0
+          ? jsonResponse({
+              total: 3,
+              jobPostings: [fidVerifyPosting, liveTombstone],
+            })
+          : jsonResponse({
+              total: 0,
+              jobPostings: [secondPosting],
+            }))
+      })
+
+      await expect(verifyWorkdayListing(
+        providerFetch,
+        { pageSize: 2 },
+        fidelityIdentity,
+      )).resolves.toEqual({
+        jobCount: 3,
+        pageCount: 2,
+      })
+      expect(offsets).toEqual([0, 2])
+    })
+
+    it.each([
+      ['empty fields', { bulletFields: [] }],
+      ['multiple fields', { bulletFields: ['2131450', '2131451'] }],
+      ['non-string field', { bulletFields: [2131450] }],
+      ['empty identifier', { bulletFields: [''] }],
+      ['oversized identifier', { bulletFields: ['a'.repeat(257)] }],
+      ['control-character identifier', { bulletFields: ['213\u00001450'] }],
+      ['extra externalPath', { bulletFields: ['2131450'], externalPath: fidVerifyPosting.externalPath }],
+      ['extra field', { bulletFields: ['2131450'], title: 'Not a job' }],
+      ['malformed fields', { bulletFields: '2131450' }],
+    ])('rejects a tombstone with %s', async (_name, tombstone) => {
+      await expect(verifyWorkdayListing(
+        vi.fn().mockResolvedValue(jsonResponse({
+          total: 1,
+          jobPostings: [tombstone],
+        })),
+        {},
+        fidelityIdentity,
+      )).rejects.toThrow('provider_schema_invalid')
+    })
+
+    it('rejects duplicate tombstone identifiers and collisions with a listed requisition', async () => {
+      const duplicateFetch = vi.fn().mockResolvedValue(jsonResponse({
+        total: 2,
+        jobPostings: [liveTombstone, liveTombstone],
+      }))
+      await expect(verifyWorkdayListing(
+        duplicateFetch,
+        {},
+        fidelityIdentity,
+      )).rejects.toThrow('count_mismatch')
+
+      const collidingPosting = {
+        ...fidVerifyPosting,
+        externalPath: '/job/Boston-MA/Software-Engineer_2131450',
+      }
+      const collisionFetch = vi.fn().mockResolvedValue(jsonResponse({
+        total: 2,
+        jobPostings: [collidingPosting, liveTombstone],
+      }))
+      await expect(verifyWorkdayListing(
+        collisionFetch,
+        {},
+        fidelityIdentity,
+      )).rejects.toThrow('count_mismatch')
+    })
+
+    it('keeps duplicate paths, contradictory totals, and unaccounted rows fail-closed', async () => {
+      await expect(verifyWorkdayListing(
+        vi.fn().mockResolvedValue(jsonResponse({
+          total: 2,
+          jobPostings: [fidVerifyPosting, fidVerifyPosting],
+        })),
+        {},
+        fidelityIdentity,
+      )).rejects.toThrow('count_mismatch')
+
+      const contradictoryFetch = vi.fn()
+        .mockResolvedValueOnce(jsonResponse({
+          total: 2,
+          jobPostings: [fidVerifyPosting],
+        }))
+        .mockResolvedValueOnce(jsonResponse({
+          total: 1,
+          jobPostings: [liveTombstone],
+        }))
+      await expect(verifyWorkdayListing(
+        contradictoryFetch,
+        { pageSize: 1 },
+        fidelityIdentity,
+      )).rejects.toThrow('count_mismatch')
+
+      await expect(verifyWorkdayListing(
+        vi.fn().mockResolvedValue(jsonResponse({
+          total: 1,
+          jobPostings: [fidVerifyPosting, liveTombstone],
+        })),
+        {},
+        fidelityIdentity,
+      )).rejects.toThrow('count_mismatch')
+    })
+  })
 
   it('accepts the live later-page total sentinel and stages the complete Fidelity listing', async () => {
     // Form B detection resolves the Fidelity identity with its own source key.
