@@ -1,4 +1,5 @@
 import { resolvePaylocityIdentity } from './provider-identities.ts'
+import { resolveWorkdayIdentity } from './workday-identities.ts'
 
 export type DetectResult =
   | {
@@ -7,15 +8,20 @@ export type DetectResult =
       region?: 'eu'
     }
   | {
+      // Values are still validated by the frozen identity registry (allowlist +
+      // anchored host/region regexes), never accepted as free strings. hostForm
+      // disambiguates the two real Workday URL shapes (Form A myworkdayjobs vs
+      // Form B myworkdaysite) so the pollable origin is never inferred from region.
       ats: 'workday'
-      slug: 'capitalone'
-      region: 'wd12'
-      site: 'Capital_One'
+      slug: string
+      region: string
+      site: string
+      hostForm: 'jobs' | 'site'
     }
   | { ats: 'unsupported' }
 
 export const UNSUPPORTED_URL_MESSAGE =
-  "This URL isn't a supported job board. Job Copilot works with Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, and the allowlisted Capital One Workday board. Use the exact public careers-board URL — usually where the careers page's Apply buttons point."
+  "This URL isn't a supported job board. Job Copilot works with Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, and allowlisted Workday boards. Use the exact public careers-board URL — usually where the careers page's Apply buttons point."
 
 const supportedHosts = {
   // Exact hosts only. Never match by suffix/wildcard/endsWith against
@@ -34,8 +40,15 @@ const supportedHosts = {
   smartrecruiters: 'jobs.smartrecruiters.com',
   recruiteeSuffix: '.recruitee.com',
   paylocity: 'recruiting.paylocity.com',
-  capitalOneWorkday: 'capitalone.wd12.myworkdayjobs.com',
 }
+
+// Anchored, exact-host Workday matchers. NEVER endsWith/suffix — the `^`/`$`
+// anchors plus a literal `.myworkday{jobs,site}.com` are the SSRF gate:
+//   Form A: {tenant}.{region}.myworkdayjobs.com   (Capital One)
+//   Form B: {region}.myworkdaysite.com            (Fidelity)
+// so a lookalike like wd1.myworkdaysite.com.evil.example can never match.
+const workdayFormAHost = /^([a-z0-9-]+)\.(wd\d{1,3})\.myworkdayjobs\.com$/
+const workdayFormBHost = /^(wd\d{1,3})\.myworkdaysite\.com$/
 
 const strictSlug = /^[A-Za-z0-9_-]+$/
 const unsupported: DetectResult = { ats: 'unsupported' }
@@ -70,14 +83,45 @@ export function detectAts(href: string): DetectResult {
       || url.hash
     ) return unsupported
 
-    if (rawHost === supportedHosts.capitalOneWorkday) {
+    // Workday Form A: {tenant}.{region}.myworkdayjobs.com/{site}
+    const formA = workdayFormAHost.exec(rawHost)
+    if (formA) {
+      if (url.search) return unsupported
+      const [, tenant, region] = formA
       const site = singlePathSegment(url)
-      return site === 'Capital_One' && !url.search
+      if (!site || !strictSlug.test(site) || !strictSlug.test(tenant)) return unsupported
+      // Fail-closed: only tuples admitted by the frozen registry become pollable.
+      const identity = resolveWorkdayIdentity(tenant, region, site, 'jobs')
+      return identity
         ? {
             ats: 'workday',
-            slug: 'capitalone',
-            region: 'wd12',
-            site: 'Capital_One',
+            slug: identity.tenant,
+            region: identity.region,
+            site: identity.site,
+            hostForm: 'jobs',
+          }
+        : unsupported
+    }
+
+    // Workday Form B: {region}.myworkdaysite.com/{locale}/recruiting/{tenant}/{site}
+    const formB = workdayFormBHost.exec(rawHost)
+    if (formB) {
+      if (url.search) return unsupported
+      const [, region] = formB
+      const segments = url.pathname.split('/').filter(Boolean)
+      if (segments.length !== 4 || segments[1] !== 'recruiting') return unsupported
+      const tenant = segments[2]
+      const site = segments[3]
+      if (!strictSlug.test(tenant) || !strictSlug.test(site)) return unsupported
+      // Fail-closed: only tuples admitted by the frozen registry become pollable.
+      const identity = resolveWorkdayIdentity(tenant, region, site, 'site')
+      return identity
+        ? {
+            ats: 'workday',
+            slug: identity.tenant,
+            region: identity.region,
+            site: identity.site,
+            hostForm: 'site',
           }
         : unsupported
     }
@@ -181,7 +225,14 @@ export function buildEndpoint(detected: DetectResult): string {
     return `https://recruiting.paylocity.com/recruiting/v2/api/feed/jobs/${identity.feedKey}`
   }
   if (detected.ats === 'workday') {
-    return 'https://capitalone.wd12.myworkdayjobs.com/wday/cxs/capitalone/Capital_One/jobs'
+    const identity = resolveWorkdayIdentity(
+      detected.slug,
+      detected.region,
+      detected.site,
+      detected.hostForm,
+    )
+    if (!identity) throw new Error(UNSUPPORTED_URL_MESSAGE)
+    return `${identity.cxsRoot}/jobs`
   }
   return `https://${detected.slug.toLowerCase()}.recruitee.com/api/offers/`
 }
