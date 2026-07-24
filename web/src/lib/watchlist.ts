@@ -282,7 +282,7 @@ export function activationPresentation(row: WatchlistRow): ActivationPresentatio
 }
 
 function degradedDetail(code: string | null) {
-  if (code === 'timeout') return 'Timed out while syncing.'
+  if (code === 'timeout' || code === 'provider_timeout') return 'Timed out while syncing.'
   if (code && /^(http_401|http_403|invalid_provider_content)$/.test(code)) {
     return 'Access blocked by source.'
   }
