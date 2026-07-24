@@ -1,77 +1,42 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-23T23:31:50.783Z",
-  "phase": "4",
-  "phase_name": "resume-tailoring-and-tracker",
-  "phase_dir": null,
+  "timestamp": "2026-07-24T04:20:25.051Z",
+  "phase": "03.5",
+  "phase_name": "generic-workday-connector-fidelity",
+  "phase_dir": ".planning/phases/03.5-generic-workday-connector-fidelity",
   "plan": null,
   "task": null,
   "total_tasks": 0,
   "status": "paused",
   "completed_tasks": [
-    {
-      "id": "03.4",
-      "name": "Replace automatic AI scoring with deterministic ranking",
-      "status": "done",
-      "commit": "7a2c843"
-    },
-    {
-      "id": "03.4-production",
-      "name": "Release deterministic ranking and Retry repair",
-      "status": "done",
-      "commit": "7642fde8"
-    }
+    {"id": "03.5-insert", "name": "Insert Phase 03.5 into roadmap, fill goal + success criteria", "status": "done", "commit": "6d48abf"},
+    {"id": "03.5-discuss", "name": "Discuss phase, write CONTEXT.md + DISCUSSION-LOG.md", "status": "done", "commit": "6d48abf"},
+    {"id": "03.5-research", "name": "Spawn gsd-phase-researcher, write RESEARCH.md (HIGH confidence)", "status": "done"},
+    {"id": "03.5-patterns", "name": "Spawn gsd-pattern-mapper, write PATTERNS.md", "status": "done"}
   ],
   "remaining_tasks": [
-    {
-      "id": "4-planning",
-      "name": "Discuss and plan Phase 4 Resume Tailoring & Tracker",
-      "status": "not_started"
-    },
-    {
-      "id": "4-execution",
-      "name": "Execute Phase 4 plans after owner approval",
-      "status": "not_started"
-    }
+    {"id": "03.5-plan", "name": "Spawn gsd-planner (RESEARCH + PATTERNS ready), then gsd-plan-checker verify loop", "status": "not_started"},
+    {"id": "03.5-execute", "name": "Execute Phase 03.5 plans after owner approval", "status": "not_started"}
   ],
   "blockers": [],
   "async_jobs": [],
   "human_actions_pending": [],
   "decisions": [
-    {
-      "decision": "Automatic/background paid AI scoring is retired; ranking is deterministic, reproducible, and stored with evidence.",
-      "rationale": "Phase 03.4 passed 13/13 verification truths, 966/966 tests, 52/52 security checks, and 6/6 production UAT.",
-      "phase": "03.4"
-    },
-    {
-      "decision": "Production remains bound to exact commit 7642fde8bdc55112f50f847a7e65fd39af1d7f64.",
-      "rationale": "The owner approved this exact repaired release and Cloudflare/Supabase evidence matched it.",
-      "phase": "03.4"
-    },
-    {
-      "decision": "Phase 4 must preserve truthful resume edits, require explicit review, preserve DOCX formatting, and link tailored artifacts into the manual tracker.",
-      "rationale": "These are the locked Phase 4 roadmap and RESU-02..05/TRAK-01..04 requirement boundaries.",
-      "phase": "4"
-    }
+    {"decision": "Generalize adapter to the two known Workday URL shapes only (myworkdayjobs.com subdomain-tenant + myworkdaysite.com path-tenant); reject unresolvable URLs. No proxy/vanity domains.", "rationale": "D-01/D-02 in CONTEXT.md; covers Fidelity + most direct boards without edge-case cost.", "phase": "03.5"},
+    {"decision": "Adds via existing Watchlist paste-URL UI; verify-board auto-detects Workday and parses tenant/region/site. verify-board stays authoritative SSRF boundary.", "rationale": "D-03/D-04; makes future Workday adds a runtime action.", "phase": "03.5"},
+    {"decision": "Fidelity ingestion is category-scoped: exclude jobFamilyGroup Sales, Customer Service, Sales Support. Experience-<3yr rule enforced by existing downstream dashboard filters, NOT the connector.", "rationale": "D-05/D-07; research decided facet INCLUSION (Option b) — list rows carry no jobFamilyGroup so post-fetch exclusion would need 706 detail fetches/poll, violating egress + wall-clock budgets.", "phase": "03.5"},
+    {"decision": "Fidelity follows Capital One activation model (Experimental -> Active after clean observation windows), reuses existing health badges. New forward-only migration 0035 admits non-Capital-One Workday identities.", "rationale": "D-08; migrations 0016/0028 restrict Workday to only workday:wd12:capitalone:Capital_One. 0035 must relax that AND UPDATE (not INSERT) the pre-existing Fidelity unsupported catalog row (0013 L176), AND widen the wd12/eu region check to admit wd1.", "phase": "03.5"},
+    {"decision": "Plan with --skip-ui (UI-SPEC gate skipped).", "rationale": "No new UI; Workday URLs flow through the existing Watchlist add-company form.", "phase": "03.5"}
   ],
   "uncommitted_files": [
-    {
-      "path": ".DS_Store",
-      "ownership": "pre-existing user file; do not stage"
-    },
-    {
-      "path": ".planning/phases/03.3-dashboard-filter-refinements/03.3-04-ROLLOUT-EVIDENCE.md",
-      "ownership": "pre-existing Phase 03.3 evidence; do not stage"
-    },
-    {
-      "path": "scripts/agent-dashboard.mjs",
-      "ownership": "pre-existing user file; do not stage"
-    },
-    {
-      "path": "scripts/agent-dashboard.test.mjs",
-      "ownership": "pre-existing user file; do not stage"
-    }
+    {"path": ".planning/ROADMAP.md", "ownership": "this session — Phase 03.5 goal + success criteria fill; commit with handoff"},
+    {"path": ".planning/phases/03.5-generic-workday-connector-fidelity/03.5-RESEARCH.md", "ownership": "this session — researcher output; commit with handoff"},
+    {"path": ".planning/phases/03.5-generic-workday-connector-fidelity/03.5-PATTERNS.md", "ownership": "this session — pattern-mapper output; commit with handoff"},
+    {"path": ".DS_Store", "ownership": "pre-existing user file; do not stage"},
+    {"path": ".planning/phases/03.3-dashboard-filter-refinements/03.3-04-ROLLOUT-EVIDENCE.md", "ownership": "pre-existing; do not stage"},
+    {"path": "scripts/agent-dashboard.mjs", "ownership": "pre-existing user file; do not stage"},
+    {"path": "scripts/agent-dashboard.test.mjs", "ownership": "pre-existing user file; do not stage"}
   ],
-  "next_action": "Run $gsd-resume-work, confirm Phase 03.4 remains complete, then start Phase 4 discovery with $gsd-discuss-phase 4.",
-  "context_notes": "Phase 03.4 is fully closed: 9/9 plans, formal verification 13/13, review clean, security 52/52, UAT 6/6, tests 966/966. Production has migration 0034 and exact release SHA 7642fde8; both owners are complete/idle, the updated preference revision shows 9 dashboard jobs, and the paid score ledger was unchanged. Local HEAD 7a2c843 is 11 commits ahead of origin/main because closeout evidence and planning metadata were intentionally not pushed. Do not push or deploy a new commit without a new exact-release approval. No async jobs or human actions remain. Colima was used for disposable local protocol verification and may still be running, but no project server or watcher is required."
+  "next_action": "Resume with /gsd-plan-phase 03.5 --skip-ui. RESEARCH.md + PATTERNS.md already exist so it skips research/pattern-mapper and goes straight to gsd-planner. The --skip-ui is REQUIRED: it will otherwise re-trip the blocking UI-SPEC gate (frontend detected, no UI-SPEC). Then let the gsd-planner -> gsd-plan-checker verify loop run.",
+  "context_notes": "Phase 03.5 is a lift-literals-to-parameters refactor of the existing Capital One Workday connector, not new mechanism-building (research + pattern-mapper both HIGH confidence, findings corroborated). All 5 hardcoded seams located by line number. Landmines: (1) companies_region_check + TS region type 'eu'|'wd12'|null (connectors.ts L29/L38, poll-tick L18, DB) both reject Fidelity's wd1 — must widen, silent-failure risk; (2) Fidelity source_coverage_catalog row already exists as unsupported_with_reason (0013 L176-184) with UNIQUE company_name + truthful_disposition_check, so migration 0035 must UPDATE not INSERT; (3) facet exclusion resolved to INCLUSION facets (Option b), IDs discovered live + count-verified, reusing Capital One category_filter_unverified fail-closed; (4) latest migration 0034 so new is 0035 forward-only, mirrors 0029 create-or-replace RPC + parity DO-block minus 0028's now-invalid zero-workday-jobs guard; (5) CENTRAL OPEN DESIGN POINT A1: source-key workday:{region}:{tenant}:{site} cannot disambiguate Form A myworkdayjobs vs Form B myworkdaysite from region alone — registry must key on full tuple and carry hostForm/origin, else Fidelity polls 404; planner must resolve. provider-identities.ts (Paylocity) is the exact template: frozen source-key const + frozen keyed map + resolveX() pure resolver; add Fidelity workday:wd1:fmr:FidelityCareers as a second entry, Capital One's tuple stays byte-identical (frozen across 6 files + migration parity + tests — do not touch). companyName recommended null so poll-tick L233 ?? company.name supplies DB name. PRODUCTION BOUNDARY: no supabase functions deploy / no push without a new exact-release approval; production stays commit 7642fde8. Planner not yet spawned — user asked to pause after research."
 }

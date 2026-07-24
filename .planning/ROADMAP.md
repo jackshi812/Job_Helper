@@ -198,6 +198,28 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)
+
+**Goal**: Generalize the single-tenant (Capital One) Workday connector so additional Workday employers can be ingested through the normal watchlist paste-URL flow, and onboard Fidelity as the first new tenant with category-scoped ingestion — without disturbing the exact-approved production release
+**Mode:** mvp
+**Depends on**: Phase 03.4
+**Success Criteria** (what must be TRUE):
+
+  1. The Workday adapter is parameterized over origin/tenant/site and correctly polls both real Workday URL shapes (`{tenant}.{region}.myworkdayjobs.com/{site}` and `{region}.myworkdaysite.com/.../recruiting/{tenant}/{site}`), verified against Capital One (unchanged) and Fidelity
+  2. A user can paste the Fidelity board URL into the Watchlist UI and `verify-board` detects Workday, parses tenant/region/site, and admits it as a valid source — while still rejecting any URL that does not resolve to a live CXS endpoint
+  3. A new forward-only migration admits non–Capital-One Workday identities (relaxing the 0028 single-identity guardrail to an allowlist/general model) without editing any deployed migration
+  4. Fidelity ingestion is category-scoped to exclude the Sales, Customer Service, and Sales Support job families; the existing downstream dashboard filters (not the connector) enforce the experience rule
+  5. Fidelity follows the Capital One activation model (Experimental, auto-promoting to Active after clean observation windows) and reports health via the existing OK/Degraded/Unsupported badges
+  6. Capital One ingestion, all other connectors, and the deterministic feed are unchanged; no push or deploy occurs without a new exact-release approval (production remains commit `7642fde8`)
+
+**Requirements**: (connector expansion — no new REQUIREMENTS.md IDs; extends Phase 02.1/03.1 source-coverage scope)
+**Plans**: TBD
+**UI hint**: minimal (reuses existing Watchlist add-company UI)
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 03.5 to break down)
+
 ### Phase 03.1: SuccessFactors & Paylocity Connector Expansion (INSERTED)
 
 **Goal:** Add Paylocity Recruiting through its documented public feed and establish a bounded, allowlisted SAP SuccessFactors employer contract that either proves safe recurring ingestion or records an honest unsupported disposition, with staged activation, deduplication, non-destructive failures, scheduled polling, scoring, and dashboard delivery
