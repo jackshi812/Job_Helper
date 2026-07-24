@@ -813,7 +813,6 @@ export async function verifyWorkdayListing(
     }
     const pageTotal = page.total as number
     if (expectedCount === undefined) expectedCount = pageTotal
-    if (pageTotal !== expectedCount) throw new ProviderError('count_mismatch')
     if (expectedCount > maxJobs) throw new ProviderError('job_cap_exceeded')
 
     const postings = page.jobPostings.map((posting) => parseListPosting(posting, identity))
@@ -825,6 +824,12 @@ export async function verifyWorkdayListing(
         && !safeDetailPath((posting as { externalPath: unknown }).externalPath, identity)
       ))
       throw new ProviderError(unsafePath ? 'unsafe_detail_path' : 'provider_schema_invalid')
+    }
+    const laterPageTotalSentinel = pageCount > 0
+      && pageTotal === 0
+      && postings.length > 0
+    if (pageTotal !== expectedCount && !laterPageTotalSentinel) {
+      throw new ProviderError('count_mismatch')
     }
     pageCount += 1
     for (const posting of postings as WorkdayListPosting[]) {
