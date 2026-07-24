@@ -455,6 +455,7 @@ describe('finance coverage presentation', () => {
 
   it.each([
     ['timeout', 'Timed out while syncing.'],
+    ['provider_timeout', 'Timed out while syncing.'],
     ['http_403', 'Access blocked by source.'],
     ['malformed_response', 'Source response changed.'],
     ['detail_failure', 'Source returned an incomplete job list.'],
