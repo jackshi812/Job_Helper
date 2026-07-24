@@ -18,6 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 02.1: Source Coverage Expansion (INSERTED)** - Prove representative ATS/portal connectors and direct ingestion from major branded finance career sites with safe degraded-source behavior (13/13 plans executed; user-deferred UAT gap)
 - [x] **Phase 3: Scoring & Feed** - Preferences + cheap filters + AI scoring produce a focused match feed (completed 2026-07-20)
 - [x] **Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)** - Reusable, fail-closed Workday identities with Fidelity admitted through the Watchlist flow and scheduled ingestion (completed 2026-07-24)
+- [ ] **Phase 03.6: US-Only Workday Expansion & Dashboard Queue (INSERTED)** - Add four exact U.S.-only Workday sources while preventing dismissed and applied jobs from consuming the active Dashboard window
 - [ ] **Phase 4: Resume Tailoring & Tracker** - Truthful DOCX-preserving tailoring to PDF with mandatory review, plus a manual application tracker
 
 ## Phase Details
@@ -198,6 +199,36 @@ Plans:
 - Production verification is one-shot, two-fixture scoped, exact-release bound, and separately approved from rollout.
 
 **UI hint**: yes
+
+### Phase 03.6: US-Only Workday Expansion & Dashboard Queue (INSERTED)
+
+**Goal:** Add Nasdaq, S&P Global, Morningstar, and State Street as exact U.S.-only Workday sources while ensuring dismissed and applied jobs do not consume the active 200-job Dashboard window.
+**Requirements**: Source-coverage extension with a bounded precursor to Phase 4 application tracking; no formal requirement IDs are remapped
+**Depends on:** Phase 03.5
+**Success Criteria** (what must be TRUE):
+
+  1. Nasdaq, S&P Global, Morningstar, and State Street are admitted only through their exact validated Workday tenant/region/site identities; malformed, lookalike, and unregistered identities remain fail-closed
+  2. Each new source ingests only United States jobs using live provider country-facet evidence, including Morningstar's nested country facet, with complete-count reconciliation before closure is credible
+  3. The four sources follow the existing Experimental-to-Active observation model, while Capital One, Fidelity, other connectors, deterministic ranking, and source health remain unchanged
+  4. The normal Dashboard excludes dismissed and applied rows in the database query before applying the active 200-row limit, so those lifecycle states do not consume active-job slots
+  5. A user can mark a job applied, undo that action, and review applied or dismissed jobs separately; the state is per-user, reversible, RLS-protected, and does not delete the shared job
+  6. The Dashboard can retrieve eligible jobs beyond the first 200 through cursor pagination or a Load more interaction without duplicates or unstable ordering
+**Plans:** 4 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 03.6-01-PLAN.md — Exact four-source Workday registry, U.S. facet discovery, and fail-closed isolation
+- [ ] 03.6-02-PLAN.md — Forward-only lifecycle/source schema and server-authoritative Dashboard paging
+
+**Wave 2** *(blocked on 03.6-02)*
+
+- [ ] 03.6-03-PLAN.md — Accessible Active/Applied/Dismissed queue, Load more, Undo, backfill, and caught-up UI
+
+**Wave 3** *(blocked on all implementation plans)*
+
+- [ ] 03.6-04-PLAN.md — [BLOCKING] Exact-release schema/function/web approval and hosted verification
 
 ### Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)
 
@@ -396,7 +427,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03.3 → 03.4 → 03.5 → 4
+Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03.3 → 03.4 → 03.5 → 03.6 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -409,6 +440,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.3 Dashboard Filter Refinements | 3/4 | In Progress|  |
 | 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 9/9 | Complete    | 2026-07-23 |
 | 03.5 Generic Workday Connector & Fidelity | 4/4 | Complete | 2026-07-24 |
+| 03.6 US-Only Workday Expansion & Dashboard Queue | 0/4 | Planned | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
