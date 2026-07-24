@@ -579,7 +579,7 @@ async function discoverKeptFacetIds(
   listUrl: string,
   fetchImpl: FetchLike,
   maxBytes: number,
-): Promise<{ ids: string[] } | { warning: string }> {
+): Promise<{ ids: string[]; expectedKeptCount: number } | { warning: string }> {
   const excluded = new Set(identity.excludedJobFamilyGroups ?? [])
   let payload: unknown
   try {
@@ -615,13 +615,24 @@ async function discoverKeptFacetIds(
     const descriptor = stringValue((value as { descriptor?: unknown }).descriptor, 256)
     const id = stringValue((value as { id?: unknown }).id, 256)
     const count = (value as { count?: unknown }).count
-    if (!descriptor?.trim() || !id?.trim() || !Number.isInteger(count)) return null
-    return { descriptor, id, count: count as number }
+    if (
+      !descriptor?.trim()
+      || !id?.trim()
+      || !Number.isSafeInteger(count)
+      || (count as number) < 0
+    ) return null
+    return { descriptor: descriptor.trim(), id: id.trim(), count: count as number }
   })
   if (values.length === 0 || values.some((value) => value === null)) {
     return { warning: 'category_filter_unverified' }
   }
   const clean = values as { descriptor: string; id: string; count: number }[]
+  if (
+    new Set(clean.map((value) => value.descriptor)).size !== clean.length
+    || new Set(clean.map((value) => value.id)).size !== clean.length
+  ) {
+    return { warning: 'category_filter_unverified' }
+  }
   // Every named excluded family must actually appear, else exclusion is unproven.
   const present = new Set(clean.map((value) => value.descriptor))
   for (const family of excluded) {
@@ -632,7 +643,11 @@ async function discoverKeptFacetIds(
   if (summed !== total || kept.length === 0) {
     return { warning: 'category_filter_unverified' }
   }
-  return { ids: kept.map((value) => value.id) }
+  const expectedKeptCount = kept.reduce<number>((sum, value) => sum + value.count, 0)
+  if (!Number.isSafeInteger(expectedKeptCount) || expectedKeptCount <= 0) {
+    return { warning: 'category_filter_unverified' }
+  }
+  return { ids: kept.map((value) => value.id), expectedKeptCount }
 }
 
 /**
@@ -669,12 +684,14 @@ export async function pollWorkdayRecent(
 
   // Resolve the inclusion facet IDs to apply on every list page.
   let appliedFacetIds: string[]
+  let expectedScopedCount: number | undefined
   if (identity.keptFacetIds) {
     appliedFacetIds = Object.values(identity.keptFacetIds)
   } else if (identity.excludedJobFamilyGroups) {
     const discovered = await discoverKeptFacetIds(identity, listUrl, fetchImpl, maxBytes)
     if ('warning' in discovered) return incomplete([], discovered.warning, undefined, 1)
     appliedFacetIds = discovered.ids
+    expectedScopedCount = discovered.expectedKeptCount
   } else {
     // A recent poll with no category scoping cannot prove the filter applied.
     return incomplete([], 'category_filter_unverified', undefined, 0)
@@ -720,6 +737,9 @@ export async function pollWorkdayRecent(
       return incomplete([], 'provider_schema_invalid', undefined, pageCount)
     }
     const pageTotal = page.total as number
+    if (pageCount === 0 && expectedScopedCount !== undefined && pageTotal !== expectedScopedCount) {
+      return incomplete([], 'category_filter_unverified', undefined, 1)
+    }
     if (providerTotal === undefined) providerTotal = pageTotal
     const laterPageTotalSentinel = pageCount > 0
       && pageTotal === 0

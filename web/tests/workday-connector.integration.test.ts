@@ -896,7 +896,7 @@ describe('Fidelity category-scoped recent import', () => {
   it.each([
     ['first-page zero', 1, [
       { total: 0, jobPostings: [fidPostingA] },
-    ], 'implausible_empty'],
+    ], 'category_filter_unverified'],
     ['later empty zero', 2, [
       { total: 2, jobPostings: [fidPostingA] },
       { total: 0, jobPostings: [] },
@@ -1069,6 +1069,90 @@ describe('Fidelity category-scoped recent import', () => {
         { externalId: 'R200001', companyName: null },
         { externalId: 'R200002', companyName: null },
       ],
+    })
+  })
+
+  it('fails closed when Workday ignores the discovered Fidelity inclusion facets', async () => {
+    const postings = Array.from({ length: 5 }, (_, index) => ({
+      ...fidPostingA,
+      title: `Scoped role ${index + 1}`,
+      externalPath: `/job/Boston-MA/Scoped-role-${index + 1}_R30000${index + 1}-1`,
+    }))
+    const providerFetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: { jobFamilyGroup?: string[] }
+      }
+      return body.appliedFacets.jobFamilyGroup === undefined
+        ? jsonResponse({
+            total: 5,
+            jobPostings: [],
+            facets: fidelityFacets({
+              it: 1,
+              rm: 1,
+              sales: 1,
+              customerService: 1,
+              salesSupport: 1,
+            }),
+          })
+        : jsonResponse({
+            // The provider ignored the two kept-family IDs and returned the
+            // unfiltered total. List rows cannot reveal which family leaked.
+            total: 5,
+            jobPostings: postings,
+          })
+    })
+
+    await expect(pollWorkdayRecent(fidelityIdentity, providerFetch, {
+      knownIds: new Set(postings.map((posting) => (
+        posting.externalPath.match(/_(R\d+)/)?.[1] ?? ''
+      ))),
+      nowMs,
+    })).resolves.toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: ['category_filter_unverified'],
+    })
+  })
+
+  it.each([
+    ['negative counts', [
+      { descriptor: 'Information Technology', id: 'fmr-it', count: 3 },
+      { descriptor: 'Relationship Management', id: 'fmr-rm', count: -1 },
+      { descriptor: 'Sales', id: 'fmr-sales', count: 0 },
+      { descriptor: 'Customer Service', id: 'fmr-cs', count: 0 },
+      { descriptor: 'Sales Support', id: 'fmr-ss', count: 0 },
+    ]],
+    ['duplicate descriptors', [
+      { descriptor: 'Information Technology', id: 'fmr-it', count: 1 },
+      { descriptor: 'Information Technology', id: 'fmr-other', count: 1 },
+      { descriptor: 'Sales', id: 'fmr-sales', count: 0 },
+      { descriptor: 'Customer Service', id: 'fmr-cs', count: 0 },
+      { descriptor: 'Sales Support', id: 'fmr-ss', count: 0 },
+    ]],
+    ['duplicate IDs', [
+      { descriptor: 'Information Technology', id: 'fmr-kept', count: 1 },
+      { descriptor: 'Relationship Management', id: 'fmr-kept', count: 1 },
+      { descriptor: 'Sales', id: 'fmr-sales', count: 0 },
+      { descriptor: 'Customer Service', id: 'fmr-cs', count: 0 },
+      { descriptor: 'Sales Support', id: 'fmr-ss', count: 0 },
+    ]],
+  ])('fails closed on Fidelity facet discovery with %s', async (_name, values) => {
+    const providerFetch = vi.fn().mockResolvedValue(jsonResponse({
+      total: 2,
+      jobPostings: [],
+      facets: [{ facetParameter: 'jobFamilyGroup', values }],
+    }))
+
+    await expect(pollWorkdayRecent(
+      fidelityIdentity,
+      providerFetch,
+      { nowMs },
+    )).resolves.toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: ['category_filter_unverified'],
     })
   })
 
