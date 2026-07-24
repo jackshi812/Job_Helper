@@ -709,6 +709,136 @@ describe('Fidelity category-scoped recent import', () => {
     expect(observation.jobs.some((job) => job.externalId === '2131450')).toBe(false)
   })
 
+  it('accepts the live nonempty later-page zero sentinel with raw tombstone offsets', async () => {
+    const makePosting = (sequence: number, postedOn = 'Posted Today') => ({
+      ...fidPostingA,
+      title: `Software Engineer ${sequence}`,
+      externalPath: `/job/Boston-MA/Software-Engineer-${sequence}_R${String(sequence).padStart(6, '0')}-1`,
+      postedOn,
+    })
+    const recentPostings = Array.from({ length: 59 }, (_, index) => makePosting(index + 1))
+    const filteredPages = new Map<number, unknown[]>([
+      [0, [...recentPostings.slice(0, 18), liveTombstone, recentPostings[18]]],
+      [20, recentPostings.slice(19, 39)],
+      [40, recentPostings.slice(39, 59)],
+      [60, Array.from({ length: 20 }, (_, index) => makePosting(index + 60, 'Posted 8 Days Ago'))],
+    ])
+    const offsets: number[] = []
+    const providerFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      expect(String(input)).toBe(fidelityListUrl)
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: { jobFamilyGroup?: string[] }
+        offset: number
+      }
+      if (body.appliedFacets.jobFamilyGroup === undefined) {
+        return jsonResponse({
+          total: 506,
+          jobPostings: [],
+          facets: fidelityFacets({ it: 506, rm: 0, sales: 0, customerService: 0, salesSupport: 0 }),
+        })
+      }
+      offsets.push(body.offset)
+      const jobPostings = filteredPages.get(body.offset)
+      if (!jobPostings) throw new Error(`unexpected offset: ${body.offset}`)
+      return jsonResponse({
+        total: body.offset === 0 ? 506 : 0,
+        jobPostings,
+      })
+    })
+
+    const observation = await pollWorkdayRecent(fidelityIdentity, providerFetch, {
+      knownIds: new Set(recentPostings.map((posting) => (
+        posting.externalPath.match(/_(R\d+)/)?.[1] ?? ''
+      ))),
+      nowMs,
+    })
+
+    expect(offsets).toEqual([0, 20, 40, 60])
+    expect(providerFetch).toHaveBeenCalledTimes(5)
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure: false,
+      expectedCount: 59,
+      warnings: [],
+    })
+    expect(observation.jobs).toHaveLength(59)
+    expect(observation.jobs.some((job) => job.externalId === '2131450')).toBe(false)
+  })
+
+  it.each([
+    ['first-page zero', 1, [
+      { total: 0, jobPostings: [fidPostingA] },
+    ], 'implausible_empty'],
+    ['later empty zero', 2, [
+      { total: 2, jobPostings: [fidPostingA] },
+      { total: 0, jobPostings: [] },
+    ], 'count_mismatch'],
+    ['later nonzero drift', 2, [
+      { total: 2, jobPostings: [fidPostingA] },
+      { total: 1, jobPostings: [{ ...fidPostingB, postedOn: 'Posted 8 Days Ago' }] },
+    ], 'count_mismatch'],
+    ['raw overcount', 1, [
+      { total: 1, jobPostings: [fidPostingA, liveTombstone] },
+    ], 'count_mismatch'],
+  ])('keeps polling %s fail-closed', async (_name, discoveryTotal, pages, warning) => {
+    let filteredPage = 0
+    const providerFetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: { jobFamilyGroup?: string[] }
+      }
+      if (body.appliedFacets.jobFamilyGroup === undefined) {
+        return jsonResponse({
+          total: discoveryTotal,
+          jobPostings: [],
+          facets: fidelityFacets({
+            it: discoveryTotal,
+            rm: 0,
+            sales: 0,
+            customerService: 0,
+            salesSupport: 0,
+          }),
+        })
+      }
+      return jsonResponse(pages[filteredPage++])
+    })
+
+    await expect(pollWorkdayRecent(fidelityIdentity, providerFetch, { nowMs })).resolves.toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: [warning],
+    })
+  })
+
+  it('counts a tombstone toward the raw recent-listing cap', async () => {
+    const providerFetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: { jobFamilyGroup?: string[] }
+      }
+      return body.appliedFacets.jobFamilyGroup === undefined
+        ? jsonResponse({
+            total: 2,
+            jobPostings: [],
+            facets: fidelityFacets({ it: 2, rm: 0, sales: 0, customerService: 0, salesSupport: 0 }),
+          })
+        : jsonResponse({
+            total: 2,
+            jobPostings: [liveTombstone],
+          })
+    })
+
+    await expect(pollWorkdayRecent(fidelityIdentity, providerFetch, {
+      maxListings: 1,
+      nowMs,
+    })).resolves.toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: ['recent_window_cap_exceeded'],
+    })
+  })
+
   it.each([
     ['empty fields', { bulletFields: [] }],
     ['control-character identifier', { bulletFields: ['213\u00001450'] }],
