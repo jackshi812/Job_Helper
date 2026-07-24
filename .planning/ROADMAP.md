@@ -17,6 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Watchlist Ingestion & Monitoring** - New postings from 100+ watched sites land deduplicated within 5–15 minutes, with visible pipeline health (completed 2026-07-17)
 - [ ] **Phase 02.1: Source Coverage Expansion (INSERTED)** - Prove representative ATS/portal connectors and direct ingestion from major branded finance career sites with safe degraded-source behavior (13/13 plans executed; user-deferred UAT gap)
 - [x] **Phase 3: Scoring & Feed** - Preferences + cheap filters + AI scoring produce a focused match feed (completed 2026-07-20)
+- [x] **Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)** - Reusable, fail-closed Workday identities with Fidelity admitted through the Watchlist flow and scheduled ingestion (completed 2026-07-24)
 - [ ] **Phase 4: Resume Tailoring & Tracker** - Truthful DOCX-preserving tailoring to PDF with mandatory review, plus a manual application tracker
 
 ## Phase Details
@@ -200,7 +201,7 @@ Plans:
 
 ### Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)
 
-**Goal**: Generalize the single-tenant (Capital One) Workday connector so additional Workday employers can be ingested through the normal watchlist paste-URL flow, and onboard Fidelity as the first new tenant with category-scoped ingestion — without disturbing the exact-approved production release
+**Goal:** As a job seeker, I want to paste a Workday career URL and be able to receive job opportunities from the URL's company, so that I can monitor that company's opportunities without repeatedly checking its career site.
 **Mode:** mvp
 **Depends on**: Phase 03.4
 **Success Criteria** (what must be TRUE):
@@ -395,7 +396,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03.3 → 03.4 → 4
+Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03.3 → 03.4 → 03.5 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -407,6 +408,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.2 Dashboard Precision & Company Visibility | 4/4 | Complete | 2026-07-22 |
 | 03.3 Dashboard Filter Refinements | 3/4 | In Progress|  |
 | 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 9/9 | Complete    | 2026-07-23 |
+| 03.5 Generic Workday Connector & Fidelity | 4/4 | Complete | 2026-07-24 |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage

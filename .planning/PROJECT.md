@@ -19,6 +19,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 - ✓ Per-user job preferences for target titles, locations, and include/exclude keywords — Phase 3 (8/8 UAT; own-row RLS)
 - ✓ Transparent deterministic ranking after owner-controlled title, location, and keyword filters, with stored score evidence and no automatic/background paid AI scoring — Phase 03.4 (13/13 verification truths; 6/6 production UAT; paid score ledger unchanged)
 - ✓ Unified dashboard and job detail: one current preference-pass scope stays inspectable, explicit Strong/Good/Weak selection owns score boundaries, and job descriptions/apply links render safely — Phase 3 and Phase 03.2
+- ✓ Bounded generic Workday connector with exact, fail-closed employer identities and scheduled Fidelity ingestion through the existing Watchlist paste-URL flow — Phase 03.5 (6/6 verification truths; Capital One unchanged)
 
 ### Active
 
@@ -92,4 +93,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-23 after Phase 03.4 completion*
+*Last updated: 2026-07-24 after Phase 03.5 completion*
