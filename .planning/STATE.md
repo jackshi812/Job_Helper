@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03.6
 current_phase_name: US-Only Workday Expansion & Dashboard Queue
 status: executing
-stopped_at: Completed 03.6-02-PLAN.md
-last_updated: "2026-07-24T23:35:10.887Z"
+stopped_at: Completed 03.6-03-PLAN.md
+last_updated: "2026-07-24T23:51:15.093Z"
 last_activity: 2026-07-24
 last_activity_desc: Completed 03.6-02; ready for 03.6-03
 progress:
   total_phases: 11
   completed_phases: 8
   total_plans: 65
-  completed_plans: 61
+  completed_plans: 62
   percent: 73
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 03.6 (US-Only Workday Expansion & Dashboard Queue) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-07-24 — Completed 03.6-02; ready for 03.6-03
 
@@ -106,6 +106,7 @@ Progress: [███████████████████░] 61/65 p
 | Phase 03.5 P04 | 3h 8m | 3 tasks | 7 files |
 | Phase 03.6 P01 | 9min | 3 tasks | 3 files |
 | Phase 03.6 P02 | 13min | 2 tasks | 7 files |
+| Phase 03.6 P03 | 12min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -244,6 +245,9 @@ Recent decisions affecting current work:
 - [Phase 03.6]: Return row_data plus cursor_data from dashboard_feed_page so SQL owns filtering/order while FeedRow remains stable.
 - [Phase 03.6]: Bind canonical base64url keyset cursors to lifecycle, order, tiers, and hidden-company state while RLS remains the independent authority.
 - [Phase 03.6]: Derive company options from complete lifecycle/tier scope without hidden-company selection so hidden companies remain re-selectable.
+- [Phase 03.6]: Use the complete lifecycle, filter, and order signature as the Dashboard infinite-query cache identity. — Server ownership applies lifecycle and filters before the 200-row limit, so limited browser pages cannot hide or displace eligible rows.
+- [Phase 03.6]: Snapshot and update only the exact current lifecycle cache, invalidate inactive lifecycle caches, and backfill Active without replacing loaded rows. — This preserves immediate optimistic feedback and scroll position while allowing persisted truth and review views to reconcile safely.
+- [Phase 03.6]: Serialize lifecycle mutations and permit only one settled Mark Applied undo target. — Single-flight lifecycle snapshots and a bound undo target prevent cache races and ensure Undo can never act on a different row.
 
 ### Pending Todos
 
@@ -281,7 +285,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-24T23:35:10.792Z
-Stopped at: Completed 03.6-02-PLAN.md
+Last session: 2026-07-24T23:51:15.085Z
+Stopped at: Completed 03.6-03-PLAN.md
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
