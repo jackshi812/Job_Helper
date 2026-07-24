@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 4
-current_phase_name: Resume Tailoring & Tracker
+current_phase: 03.6
+current_phase_name: US-Only Workday Expansion & Dashboard Queue
 status: planning
-stopped_at: Phase 03.5 complete; ready to plan Phase 4
-last_updated: "2026-07-24T21:21:27.119Z"
+stopped_at: Phase 03.6 context gathered
+last_updated: "2026-07-24T22:08:31.529Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 03.5 complete, transitioned to Phase 4
+last_activity_desc: Phase 03.6 inserted for four U.S.-only Workday employers
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 8
   total_plans: 60
   completed_plans: 59
-  percent: 80
+  percent: 73
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 4 — Resume Tailoring & Tracker
+**Current focus:** Phase 03.6 — US-Only Workday Expansion & Dashboard Queue
 
 ## Current Position
 
-Phase: 4 — Resume Tailoring & Tracker
+Phase: 03.6 — US-Only Workday Expansion & Dashboard Queue
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-07-24 — Phase 03.5 complete, transitioned to Phase 4
+Last activity: 2026-07-24 — Phase 03.6 inserted for four U.S.-only Workday employers
 
-Progress: [████████████████░░░░] 59/60 plans complete; milestone 8/10 phases complete (80%)
+Progress: [███████████████░░░░░] 59/60 plans complete; milestone 8/11 phases complete (73%)
 
 ## Performance Metrics
 
@@ -266,10 +266,12 @@ Recent decisions affecting current work:
 - Phase 03.3 inserted after Phase 3: Dashboard Filter Refinements (URGENT)
 - Phase 03.4 inserted after Phase 03.3: Replace automatic AI scoring with deterministic ranking; defer AI scoring to explicit job-detail actions after Phase 4 (URGENT)
 - Phase 03.5 inserted after Phase 3: Generic Workday Connector & Fidelity (URGENT)
+- Phase 03.6 inserted after Phase 3: US-only Workday expansion for Nasdaq, S&P Global, Morningstar, and State Street (URGENT)
+- Phase 03.6 edited: edited fields: title, goal, requirements, success_criteria
 
 ## Session Continuity
 
-Last session: 2026-07-24T21:06:07Z
-Stopped at: Final Phase 03.5 release and focused re-review complete; awaiting verifier
-Resume file: None
+Last session: 2026-07-24T22:08:31.496Z
+Stopped at: Phase 03.6 context gathered
+Resume file: .planning/phases/03.6-us-only-workday-expansion-nasdaq-s-p-global-morningstar-stat/03.6-CONTEXT.md
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
