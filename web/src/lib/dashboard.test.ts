@@ -46,6 +46,7 @@ function feedRow(company: string, score: number, overrides: Partial<FeedRow> = {
     deterministic_runner_up_resume_id: null,
     seen_at: null,
     dismissed_at: null,
+    applied_at: null,
     jobs: {
       id: `job-${company}-${score}`,
       title: 'Analyst',

@@ -290,7 +290,13 @@ function cursor(overrides: Partial<DashboardFeedCursor> = {}): DashboardFeedCurs
 
 describe('Dashboard lifecycle feed pages', () => {
   it('requests a server-filtered 200-row page and exposes truthful continuation', async () => {
-    const lastCursor = cursor({ id: '00000000-0000-4000-8000-000000000099' })
+    const lastCursor = decodeDashboardFeedCursor(
+      encodeDashboardFeedCursor(
+        cursor({ id: '00000000-0000-4000-8000-000000000099' }),
+        ACTIVE_QUERY,
+      ),
+      ACTIVE_QUERY,
+    )
     queryMock.setRpcRows([
       { row_data: feedRow(), cursor_data: lastCursor, has_more: true },
     ])
@@ -314,7 +320,10 @@ describe('Dashboard lifecycle feed pages', () => {
   })
 
   it('requests exactly one continuation row for backfill', async () => {
-    const continuation = cursor()
+    const continuation = decodeDashboardFeedCursor(
+      encodeDashboardFeedCursor(cursor(), ACTIVE_QUERY),
+      ACTIVE_QUERY,
+    )
     queryMock.setRpcRows([
       { row_data: feedRow(), cursor_data: continuation, has_more: false },
     ])
