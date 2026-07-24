@@ -213,13 +213,14 @@ Plans:
   4. The normal Dashboard excludes dismissed and applied rows in the database query before applying the active 200-row limit, so those lifecycle states do not consume active-job slots
   5. A user can mark a job applied, undo that action, and review applied or dismissed jobs separately; the state is per-user, reversible, RLS-protected, and does not delete the shared job
   6. The Dashboard can retrieve eligible jobs beyond the first 200 through cursor pagination or a Load more interaction without duplicates or unstable ordering
-**Plans:** 5 plans
+
+**Plans:** 1/5 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 03.6-01-PLAN.md — Exact four-source Workday registry, U.S. facet discovery, and fail-closed isolation
+- [x] 03.6-01-PLAN.md — Exact four-source Workday registry, U.S. facet discovery, and fail-closed isolation
 
 **Wave 2** *(blocked on 03.6-01)*
 
@@ -447,7 +448,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.3 Dashboard Filter Refinements | 3/4 | In Progress|  |
 | 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 9/9 | Complete    | 2026-07-23 |
 | 03.5 Generic Workday Connector & Fidelity | 4/4 | Complete | 2026-07-24 |
-| 03.6 US-Only Workday Expansion & Dashboard Queue | 0/4 | Planned | - |
+| 03.6 US-Only Workday Expansion & Dashboard Queue | 1/5 | In Progress|  |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage

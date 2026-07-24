@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03.6
 current_phase_name: US-Only Workday Expansion & Dashboard Queue
 status: executing
-stopped_at: Phase 03.6 UI-SPEC approved
-last_updated: "2026-07-24T23:01:54.996Z"
+stopped_at: Completed 03.6-01-PLAN.md
+last_updated: "2026-07-24T23:18:04.767Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 03.6 inserted for four U.S.-only Workday employers
+last_activity_desc: Completed 03.6-01; ready for 03.6-02
 progress:
   total_phases: 11
   completed_phases: 8
-  total_plans: 60
-  completed_plans: 59
+  total_plans: 65
+  completed_plans: 60
   percent: 73
 ---
 
@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 03.6 — US-Only Workday Expansion & Dashboard Queue
-Plan: Not started
+Phase: 03.6 (US-Only Workday Expansion & Dashboard Queue) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-07-24 — Phase 03.6 inserted for four U.S.-only Workday employers
+Last activity: 2026-07-24 — Completed 03.6-01; ready for 03.6-02
 
-Progress: [███████████████░░░░░] 59/60 plans complete; milestone 8/11 phases complete (73%)
+Progress: [██████████████████░░] 60/65 plans complete; milestone 8/11 phases complete (73%)
 
 ## Performance Metrics
 
@@ -104,6 +104,7 @@ Progress: [███████████████░░░░░] 59/60 p
 | Phase 03.4 P08 | 34 min | 3 tasks | 10 files |
 | Phase 03.4 P09 | 2h 5m | 3 tasks | 9 files |
 | Phase 03.5 P04 | 3h 8m | 3 tasks | 7 files |
+| Phase 03.6 P01 | 9min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -234,6 +235,11 @@ Recent decisions affecting current work:
 - [Phase 03.5]: Accept exactly three distinct server-timed Fidelity observations for activation and do not collect a fourth or manipulate timestamps. — Three complete, credible, warning-free windows satisfied the activation contract.
 - [Phase 03.5]: Preserve the intermediate provider_timeout as truthful Degraded history, then require a later natural scheduled success to clear it. — Final pg_cron succeeded with 113 exact-identity Fidelity jobs; no manual invocation or timestamp manipulation was used.
 - [Phase 03.5]: Repair deployed migration 0035 only through forward migration 0036 with NULL-safe allowlist checks and exact guarded Fidelity identity/fingerprint repair. — Deployed migrations remain immutable and hosted rows are never manually repaired.
+- [Phase 03.6]: Keep Workday country scope identity-local and immutable — Callers cannot supply or infer country IDs or facet routes.
+- [Phase 03.6]: Require complete U.S.-scoped pagination plus detail-country proof — Ignored filters and old-page shortcuts must never authorize closure or materialize non-U.S. jobs.
+- [Phase 03.6]: Morningstar uses locationMainGroup.values to reach its registered locationCountry facet; the other three new identities use flat locationCountry. — Matches the verified public CXS shape while keeping every route immutable and identity-local.
+- [Phase 03.6]: Country-scoped Workday polling reconciles the complete scoped provider population even after an all-old page. — Credible scope evidence requires raw pagination accounting to equal the discovered U.S. count.
+- [Phase 03.6]: Country-scoped known jobs still receive bounded detail-country verification. — Prevents a provider from materializing a non-U.S. row while preserving an apparently valid scoped count.
 
 ### Pending Todos
 
@@ -271,7 +277,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-24T22:19:05.283Z
-Stopped at: Phase 03.6 UI-SPEC approved
-Resume file: .planning/phases/03.6-us-only-workday-expansion-nasdaq-s-p-global-morningstar-stat/03.6-UI-SPEC.md
+Last session: 2026-07-24T23:17:28.069Z
+Stopped at: Completed 03.6-01-PLAN.md
+Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
