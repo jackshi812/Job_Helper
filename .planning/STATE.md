@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03.6
 current_phase_name: US-Only Workday Expansion & Dashboard Queue
 status: executing
-stopped_at: Completed 03.6-01-PLAN.md
-last_updated: "2026-07-24T23:18:04.767Z"
+stopped_at: Completed 03.6-02-PLAN.md
+last_updated: "2026-07-24T23:35:10.887Z"
 last_activity: 2026-07-24
-last_activity_desc: Completed 03.6-01; ready for 03.6-02
+last_activity_desc: Completed 03.6-02; ready for 03.6-03
 progress:
   total_phases: 11
   completed_phases: 8
   total_plans: 65
-  completed_plans: 60
+  completed_plans: 61
   percent: 73
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 03.6 (US-Only Workday Expansion & Dashboard Queue) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
-Last activity: 2026-07-24 — Completed 03.6-01; ready for 03.6-02
+Last activity: 2026-07-24 — Completed 03.6-02; ready for 03.6-03
 
-Progress: [██████████████████░░] 60/65 plans complete; milestone 8/11 phases complete (73%)
+Progress: [███████████████████░] 61/65 plans complete; milestone 8/11 phases complete (73%)
 
 ## Performance Metrics
 
@@ -105,6 +105,7 @@ Progress: [██████████████████░░] 60/65 p
 | Phase 03.4 P09 | 2h 5m | 3 tasks | 9 files |
 | Phase 03.5 P04 | 3h 8m | 3 tasks | 7 files |
 | Phase 03.6 P01 | 9min | 3 tasks | 3 files |
+| Phase 03.6 P02 | 13min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -240,6 +241,9 @@ Recent decisions affecting current work:
 - [Phase 03.6]: Morningstar uses locationMainGroup.values to reach its registered locationCountry facet; the other three new identities use flat locationCountry. — Matches the verified public CXS shape while keeping every route immutable and identity-local.
 - [Phase 03.6]: Country-scoped Workday polling reconciles the complete scoped provider population even after an all-old page. — Credible scope evidence requires raw pagination accounting to equal the discovered U.S. count.
 - [Phase 03.6]: Country-scoped known jobs still receive bounded detail-country verification. — Prevents a provider from materializing a non-U.S. row while preserving an apparently valid scoped count.
+- [Phase 03.6]: Return row_data plus cursor_data from dashboard_feed_page so SQL owns filtering/order while FeedRow remains stable.
+- [Phase 03.6]: Bind canonical base64url keyset cursors to lifecycle, order, tiers, and hidden-company state while RLS remains the independent authority.
+- [Phase 03.6]: Derive company options from complete lifecycle/tier scope without hidden-company selection so hidden companies remain re-selectable.
 
 ### Pending Todos
 
@@ -277,7 +281,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-24T23:17:28.069Z
-Stopped at: Completed 03.6-01-PLAN.md
+Last session: 2026-07-24T23:35:10.792Z
+Stopped at: Completed 03.6-02-PLAN.md
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
