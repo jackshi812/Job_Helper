@@ -628,6 +628,7 @@ describe('Workday identity registry', () => {
 describe('Fidelity category-scoped recent import', () => {
   const nowMs = Date.parse('2026-07-20T12:00:00.000Z')
   const fidelityIdentity = resolveWorkdayIdentity('fmr', 'wd1', 'FidelityCareers', 'site') as WorkdayIdentity
+  const liveTombstone = { bulletFields: ['2131450'] }
 
   const fidPostingA = {
     title: 'Software Engineer',
@@ -658,6 +659,116 @@ describe('Fidelity category-scoped recent import', () => {
       },
     }
   }
+
+  it('counts a strict tombstone as a raw row without mapping, fetching, or closing it', async () => {
+    const offsets: number[] = []
+    const oldPosting = {
+      ...fidPostingB,
+      postedOn: 'Posted 8 Days Ago',
+    }
+    const providerFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      expect(String(input)).toBe(fidelityListUrl)
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: { jobFamilyGroup?: string[] }
+        offset: number
+      }
+      if (body.appliedFacets.jobFamilyGroup === undefined) {
+        return jsonResponse({
+          total: 3,
+          jobPostings: [],
+          facets: fidelityFacets({ it: 3, rm: 0, sales: 0, customerService: 0, salesSupport: 0 }),
+        })
+      }
+      offsets.push(body.offset)
+      return body.offset === 0
+        ? jsonResponse({
+            total: 3,
+            jobPostings: [fidPostingA, liveTombstone],
+          })
+        : jsonResponse({
+            total: 3,
+            jobPostings: [oldPosting],
+          })
+    })
+
+    const observation = await pollWorkdayRecent(fidelityIdentity, providerFetch, {
+      knownIds: new Set(['R200001', '2131450']),
+      nowMs,
+    })
+
+    expect(offsets).toEqual([0, 2])
+    expect(providerFetch).toHaveBeenCalledTimes(3)
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure: false,
+      expectedCount: 1,
+      jobs: [{ externalId: 'R200001', snapshotPartial: true }],
+      warnings: [],
+    })
+    expect(observation.jobs.some((job) => job.externalId === '2131450')).toBe(false)
+  })
+
+  it.each([
+    ['empty fields', { bulletFields: [] }],
+    ['control-character identifier', { bulletFields: ['213\u00001450'] }],
+    ['extra field', { bulletFields: ['2131450'], title: 'Not a job' }],
+  ])('fails closed on a polling tombstone with %s', async (_name, tombstone) => {
+    const providerFetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: { jobFamilyGroup?: string[] }
+      }
+      return body.appliedFacets.jobFamilyGroup === undefined
+        ? jsonResponse({
+            total: 1,
+            jobPostings: [],
+            facets: fidelityFacets({ it: 1, rm: 0, sales: 0, customerService: 0, salesSupport: 0 }),
+          })
+        : jsonResponse({
+            total: 1,
+            jobPostings: [tombstone],
+          })
+    })
+
+    await expect(pollWorkdayRecent(fidelityIdentity, providerFetch, { nowMs })).resolves.toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: ['provider_schema_invalid'],
+    })
+  })
+
+  it.each([
+    ['duplicate tombstones', [liveTombstone, liveTombstone]],
+    ['listing identifier collision', [
+      { ...fidPostingA, externalPath: '/job/Boston-MA/Software-Engineer_2131450' },
+      liveTombstone,
+    ]],
+    ['duplicate listing paths', [fidPostingA, fidPostingA]],
+  ])('rejects polling %s', async (_name, jobPostings) => {
+    const providerFetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: { jobFamilyGroup?: string[] }
+      }
+      return body.appliedFacets.jobFamilyGroup === undefined
+        ? jsonResponse({
+            total: 2,
+            jobPostings: [],
+            facets: fidelityFacets({ it: 2, rm: 0, sales: 0, customerService: 0, salesSupport: 0 }),
+          })
+        : jsonResponse({
+            total: 2,
+            jobPostings,
+          })
+    })
+
+    await expect(pollWorkdayRecent(fidelityIdentity, providerFetch, { nowMs })).resolves.toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: ['count_mismatch'],
+    })
+  })
 
   it('applies live-discovered kept-family inclusion facets and excludes Sales families', async () => {
     let filteredBody: { appliedFacets: { jobFamilyGroup?: string[] } } | null = null
