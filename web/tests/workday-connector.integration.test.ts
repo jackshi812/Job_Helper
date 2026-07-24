@@ -3,7 +3,13 @@ import {
   CAPITAL_ONE_WORKDAY_SOURCE_KEY,
   pollCapitalOneRecent,
   pollWorkday,
+  pollWorkdayRecent,
 } from '../../supabase/functions/_shared/adapters/workday.ts'
+import {
+  resolveWorkdayIdentity,
+  WORKDAY_IDENTITIES,
+  type WorkdayIdentity,
+} from '../../supabase/functions/_shared/workday-identities.ts'
 import {
   pollConnector,
   providerRegistry,
@@ -557,5 +563,160 @@ describe('recent Capital One Analysis and Finance import', () => {
     expect(activationSql).not.toMatch(/drop constraint companies_workday_identity_check/i)
     expect(activationSql).not.toMatch(/create or replace function public\.promote_capital_one_after_observation/i)
     expect(activationSql).not.toMatch(/drop trigger if exists promote_capital_one_after_observation/i)
+  })
+})
+
+const fidelityListUrl = 'https://wd1.myworkdaysite.com/wday/cxs/fmr/FidelityCareers/jobs'
+
+function fidelityFacets(counts: {
+  it: number
+  rm: number
+  sales: number
+  customerService: number
+  salesSupport: number
+}) {
+  return [{
+    facetParameter: 'jobFamilyGroup',
+    values: [
+      { descriptor: 'Information Technology', id: 'fmr-it', count: counts.it },
+      { descriptor: 'Relationship Management', id: 'fmr-rm', count: counts.rm },
+      { descriptor: 'Sales', id: 'fmr-sales', count: counts.sales },
+      { descriptor: 'Customer Service', id: 'fmr-cs', count: counts.customerService },
+      { descriptor: 'Sales Support', id: 'fmr-ss', count: counts.salesSupport },
+    ],
+  }]
+}
+
+describe('Workday identity registry', () => {
+  it('resolves the frozen Capital One identity byte-identically', () => {
+    const identity = resolveWorkdayIdentity('capitalone', 'wd12', 'Capital_One', 'jobs')
+    expect(identity).not.toBeNull()
+    expect(identity?.sourceKey).toBe('workday:wd12:capitalone:Capital_One')
+    expect(identity?.origin).toBe('https://capitalone.wd12.myworkdayjobs.com')
+    expect(identity?.cxsRoot).toBe('https://capitalone.wd12.myworkdayjobs.com/wday/cxs/capitalone/Capital_One')
+    expect(identity?.companyName).toBe('Capital One')
+    expect(identity?.keptFacetIds).toEqual({
+      Analysis: 'a12c70bf789e105802e9caf800542991',
+      Finance: 'a12c70bf789e105802e9de2c3b5f29a3',
+    })
+    expect(identity?.excludedJobFamilyGroups).toBeUndefined()
+  })
+
+  it('resolves the Fidelity Form B identity with the myworkdaysite origin', () => {
+    const identity = resolveWorkdayIdentity('fmr', 'wd1', 'FidelityCareers', 'site')
+    expect(identity).not.toBeNull()
+    expect(identity?.sourceKey).toBe('workday:wd1:fmr:FidelityCareers')
+    expect(identity?.origin).toBe('https://wd1.myworkdaysite.com')
+    expect(identity?.cxsRoot).toBe('https://wd1.myworkdaysite.com/wday/cxs/fmr/FidelityCareers')
+    expect(identity?.hostForm).toBe('site')
+    expect(identity?.companyName).toBeNull()
+    expect(identity?.excludedJobFamilyGroups).toEqual(['Sales', 'Customer Service', 'Sales Support'])
+    expect(identity?.keptFacetIds).toBeUndefined()
+  })
+
+  it('fails closed for any unadmitted tuple', () => {
+    expect(resolveWorkdayIdentity('evil', 'wd1', 'X', 'site')).toBeNull()
+    expect(resolveWorkdayIdentity('capitalone', 'wd12', 'Capital_One', 'site')).toBeNull()
+    expect(resolveWorkdayIdentity('fmr', 'wd12', 'FidelityCareers', 'site')).toBeNull()
+    expect(Object.isFrozen(WORKDAY_IDENTITIES)).toBe(true)
+  })
+})
+
+describe('Fidelity category-scoped recent import', () => {
+  const nowMs = Date.parse('2026-07-20T12:00:00.000Z')
+  const fidelityIdentity = resolveWorkdayIdentity('fmr', 'wd1', 'FidelityCareers', 'site') as WorkdayIdentity
+
+  const fidPostingA = {
+    title: 'Software Engineer',
+    externalPath: '/job/Boston-MA/Software-Engineer_R200001-1',
+    locationsText: 'Boston, MA',
+    postedOn: 'Posted Today',
+  }
+  const fidPostingB = {
+    title: 'Investment Operations Analyst',
+    externalPath: '/job/Boston-MA/Investment-Operations-Analyst_R200002-1',
+    locationsText: 'Boston, MA',
+    postedOn: 'Posted Today',
+  }
+
+  function fidDetail(posting: typeof fidPostingA) {
+    return {
+      jobPostingInfo: {
+        id: `opaque-${posting.externalPath}`,
+        jobReqId: posting.externalPath.match(/_(R\d+)/)?.[1],
+        title: posting.title,
+        jobDescription: '<p>Basic Qualifications</p><p>At least 1 years of experience</p><p>Preferred Qualifications</p><p>5 years preferred</p>',
+        location: posting.locationsText,
+        postedOn: posting.postedOn,
+        startDate: '2026-07-20',
+        jobRequisitionLocation: {
+          country: { descriptor: 'United States of America', alpha2Code: 'US' },
+        },
+      },
+    }
+  }
+
+  it('applies live-discovered kept-family inclusion facets and excludes Sales families', async () => {
+    let filteredBody: { appliedFacets: { jobFamilyGroup?: string[] } } | null = null
+    const providerFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url === fidelityListUrl) {
+        const body = JSON.parse(String(init?.body)) as {
+          appliedFacets: { jobFamilyGroup?: string[] }
+          offset: number
+        }
+        if (body.appliedFacets.jobFamilyGroup === undefined) {
+          // discovery request: unfiltered, returns the live facets array
+          return jsonResponse({
+            total: 5,
+            jobPostings: [],
+            facets: fidelityFacets({ it: 1, rm: 1, sales: 1, customerService: 1, salesSupport: 1 }),
+          })
+        }
+        filteredBody = body
+        return jsonResponse({
+          total: 2,
+          jobPostings: [fidPostingA, fidPostingB],
+          facets: fidelityFacets({ it: 1, rm: 1, sales: 0, customerService: 0, salesSupport: 0 }),
+        })
+      }
+      if (url.endsWith(fidPostingA.externalPath)) return jsonResponse(fidDetail(fidPostingA))
+      if (url.endsWith(fidPostingB.externalPath)) return jsonResponse(fidDetail(fidPostingB))
+      throw new Error(`unexpected request: ${url}`)
+    })
+
+    const observation = await pollWorkdayRecent(fidelityIdentity, providerFetch, { nowMs })
+
+    // The inclusion facet list is exactly the kept families (IT + Relationship Management),
+    // never the excluded Sales / Customer Service / Sales Support families.
+    expect(filteredBody).not.toBeNull()
+    expect(filteredBody!.appliedFacets.jobFamilyGroup).toEqual(['fmr-it', 'fmr-rm'])
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      jobs: [
+        { externalId: 'R200001', companyName: null },
+        { externalId: 'R200002', companyName: null },
+      ],
+    })
+  })
+
+  it('fails closed when kept+excluded facet counts do not equal the provider total', async () => {
+    const observation = await pollWorkdayRecent(
+      fidelityIdentity,
+      vi.fn().mockResolvedValue(jsonResponse({
+        total: 5,
+        jobPostings: [],
+        // counts sum to 4, not the declared total of 5 -> cannot prove the filter applied
+        facets: fidelityFacets({ it: 1, rm: 1, sales: 1, customerService: 1, salesSupport: 0 }),
+      })),
+      { nowMs },
+    )
+    expect(observation).toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: ['category_filter_unverified'],
+    })
   })
 })
