@@ -653,9 +653,11 @@ async function discoverKeptFacetIds(
 /**
  * Intentionally selective Workday recent importer, parameterized over a resolved
  * WorkdayIdentity. It scans only the newest category-scoped listing window,
- * performs detail requests for recent candidates, keeps U.S. roles whose stated
- * required experience is under three years regardless of title, and never treats
- * absence from this selection as proof that a provider job closed.
+ * performs detail requests for recent candidates, applies the legacy U.S./under-
+ * three-years eligibility policy only when the identity opts into Capital One's
+ * behavior, and never treats absence from this selection as proof that a provider
+ * job closed. Fidelity retains every recent kept-family detail for downstream
+ * filtering.
  *
  * Category scoping is identity-driven: an identity carrying `keptFacetIds`
  * (Capital One) applies those IDs verbatim and reconciles their counts on page 0;
@@ -876,11 +878,9 @@ export async function pollWorkdayRecent(
     if (!detail || detail.jobPostingInfo.title.trim() !== posting.title.trim()) {
       return incomplete(jobs, 'provider_schema_invalid', candidates.length, pageCount)
     }
-    if (
-      !recentStartDate(detail.jobPostingInfo.startDate, nowMs, recentDays)
-      || !isUnitedStatesDetail(detail)
-      || !isEntryLevelWorkdayDetail(detail)
-    ) continue
+    const eligible = !identity.applyCapitalOneEligibility
+      || (isUnitedStatesDetail(detail) && isEntryLevelWorkdayDetail(detail))
+    if (!recentStartDate(detail.jobPostingInfo.startDate, nowMs, recentDays) || !eligible) continue
     jobs.push(mapRecentDetail(detail, posting, identity))
   }
 

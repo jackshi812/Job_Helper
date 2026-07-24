@@ -1072,6 +1072,60 @@ describe('Fidelity category-scoped recent import', () => {
     })
   })
 
+  it('retains recent kept-family Fidelity roles for downstream location and experience filtering', async () => {
+    const nonUsDetail = fidDetail(fidPostingA)
+    nonUsDetail.jobPostingInfo.jobDescription =
+      '<p>Basic Qualifications</p><p>At least 4 years of experience</p>'
+    nonUsDetail.jobPostingInfo.jobRequisitionLocation.country = {
+      descriptor: 'Canada',
+      alpha2Code: 'CA',
+    }
+    const experiencedUsDetail = fidDetail(fidPostingB)
+    experiencedUsDetail.jobPostingInfo.jobDescription =
+      '<p>Required Qualifications</p><p>5+ years of experience</p>'
+
+    const providerFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url === fidelityListUrl) {
+        const body = JSON.parse(String(init?.body)) as {
+          appliedFacets: { jobFamilyGroup?: string[] }
+        }
+        return body.appliedFacets.jobFamilyGroup === undefined
+          ? jsonResponse({
+              total: 2,
+              jobPostings: [],
+              facets: fidelityFacets({
+                it: 1,
+                rm: 1,
+                sales: 0,
+                customerService: 0,
+                salesSupport: 0,
+              }),
+            })
+          : jsonResponse({
+              total: 2,
+              jobPostings: [fidPostingA, fidPostingB],
+            })
+      }
+      if (url.endsWith(fidPostingA.externalPath)) return jsonResponse(nonUsDetail)
+      if (url.endsWith(fidPostingB.externalPath)) return jsonResponse(experiencedUsDetail)
+      throw new Error(`unexpected request: ${url}`)
+    })
+
+    await expect(pollWorkdayRecent(
+      fidelityIdentity,
+      providerFetch,
+      { nowMs },
+    )).resolves.toMatchObject({
+      completeness: 'complete',
+      jobs: [
+        { externalId: 'R200001', location: 'Boston, MA' },
+        { externalId: 'R200002', location: 'Boston, MA' },
+      ],
+      warnings: [],
+    })
+  })
+
   it('fails closed when Workday ignores the discovered Fidelity inclusion facets', async () => {
     const postings = Array.from({ length: 5 }, (_, index) => ({
       ...fidPostingA,

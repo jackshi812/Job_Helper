@@ -32,6 +32,8 @@ export interface WorkdayIdentity {
   readonly hostForm: WorkdayHostForm
   readonly sourceKey: string
   readonly companyName: string | null
+  /** Preserve the legacy Capital One-only U.S. and <3-year ingestion policy. */
+  readonly applyCapitalOneEligibility: boolean
   /** Inclusion facet IDs applied verbatim (Capital One). Byte-frozen. */
   readonly keptFacetIds?: Readonly<Record<string, string>>
   /** jobFamilyGroup descriptors to exclude via live-discovered inclusion facets (Fidelity). */
@@ -48,6 +50,7 @@ const capitalOneIdentity: WorkdayIdentity = Object.freeze({
   hostForm: 'jobs',
   sourceKey: CAPITAL_ONE_WORKDAY_SOURCE_KEY,
   companyName: 'Capital One',
+  applyCapitalOneEligibility: true,
   keptFacetIds: Object.freeze({
     Analysis: 'a12c70bf789e105802e9caf800542991',
     Finance: 'a12c70bf789e105802e9de2c3b5f29a3',
@@ -64,6 +67,7 @@ const fidelityIdentity: WorkdayIdentity = Object.freeze({
   hostForm: 'site',
   sourceKey: FIDELITY_WORKDAY_SOURCE_KEY,
   companyName: null,
+  applyCapitalOneEligibility: false,
   excludedJobFamilyGroups: Object.freeze(['Sales', 'Customer Service', 'Sales Support']),
 })
 
