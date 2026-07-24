@@ -652,11 +652,14 @@ export async function pollWorkdayRecent(
 
   const candidates: WorkdayListPosting[] = []
   const seenPaths = new Set<string>()
+  const seenTombstones = new Set<string>()
+  const seenListingIdentifiers = new Set<string>()
   let providerTotal: number | undefined
+  let rawCount = 0
   let pageCount = 0
   let reachedOlderPage = false
 
-  while (pageCount < maxPages && seenPaths.size < maxListings) {
+  while (pageCount < maxPages && rawCount < maxListings) {
     let payload: unknown
     try {
       payload = await requestJson(listUrl, fetchImpl, maxBytes, {
@@ -666,7 +669,7 @@ export async function pollWorkdayRecent(
             jobFamilyGroup: appliedFacetIds,
           },
           limit: RECENT_PAGE_SIZE,
-          offset: seenPaths.size,
+          offset: rawCount,
           searchText: '',
         }),
       })
@@ -719,33 +722,66 @@ export async function pollWorkdayRecent(
       }
     }
 
-    const parsed = page.jobPostings.map((posting) => parseListPosting(posting, identity))
-    if (parsed.some((posting) => posting === null)) {
+    if (rawCount + page.jobPostings.length > providerTotal) {
+      return incomplete([], 'count_mismatch', undefined, pageCount + 1)
+    }
+
+    const postings: WorkdayListPosting[] = []
+    const tombstones: string[] = []
+    for (const entry of page.jobPostings) {
+      const posting = parseListPosting(entry, identity)
+      if (posting) {
+        postings.push(posting)
+        continue
+      }
+      const tombstone = parseListingTombstone(entry)
+      if (tombstone) {
+        tombstones.push(tombstone)
+        continue
+      }
       return incomplete([], 'provider_schema_invalid', undefined, pageCount + 1)
     }
-    const postings = parsed as WorkdayListPosting[]
+
     pageCount += 1
     for (const posting of postings) {
       if (seenPaths.has(posting.externalPath)) {
         return incomplete([], 'count_mismatch', undefined, pageCount)
       }
+      const identifier = listingRequisitionIdentifier(posting.externalPath)
+      if (identifier && seenTombstones.has(identifier)) {
+        return incomplete([], 'count_mismatch', undefined, pageCount)
+      }
       seenPaths.add(posting.externalPath)
+      if (identifier) seenListingIdentifiers.add(identifier)
       const age = postedAgeDays(posting.postedOn)
       if (age === null || age <= recentDays) candidates.push(posting)
     }
+    for (const identifier of tombstones) {
+      if (
+        seenTombstones.has(identifier)
+        || seenListingIdentifiers.has(identifier)
+      ) {
+        return incomplete([], 'count_mismatch', undefined, pageCount)
+      }
+      seenTombstones.add(identifier)
+    }
+    rawCount += page.jobPostings.length
 
     reachedOlderPage = postings.length > 0
       && postings.every((posting) => {
         const age = postedAgeDays(posting.postedOn)
         return age !== null && age > recentDays
       })
-    if (reachedOlderPage || postings.length === 0 || seenPaths.size >= providerTotal) break
+    if (page.jobPostings.length === 0 && rawCount < providerTotal) {
+      return incomplete([], 'count_mismatch', undefined, pageCount)
+    }
+    if (reachedOlderPage || rawCount >= providerTotal) break
   }
 
   if (
     !reachedOlderPage
-    && seenPaths.size < (providerTotal ?? 0)
-    && (seenPaths.size >= maxListings || pageCount >= maxPages)
+    && rawCount < (providerTotal ?? 0)
+    && (rawCount >= maxListings || pageCount >= maxPages)
   ) {
     return incomplete([], 'recent_window_cap_exceeded', undefined, pageCount)
   }
