@@ -44,6 +44,17 @@ describe('detectAts', () => {
         slug: 'capitalone',
         region: 'wd12',
         site: 'Capital_One',
+        hostForm: 'jobs',
+      },
+    ],
+    [
+      'https://wd1.myworkdaysite.com/en-US/recruiting/fmr/FidelityCareers',
+      {
+        ats: 'workday',
+        slug: 'fmr',
+        region: 'wd1',
+        site: 'FidelityCareers',
+        hostForm: 'site',
       },
     ],
   ])('detects %s', (url, expected) => {
@@ -61,6 +72,19 @@ describe('detectAts', () => {
     'https://capitalone.wd12.myworkdayjobs.com/Capital_One/jobs',
     'https://capitalone.wd12.myworkdayjobs.com/Capital%2FOne',
     'https://capitalone.wd12.myworkdayjobs.com.evil.example/Capital_One',
+    // Workday Form B (myworkdaysite) negatives — SSRF exact-host gate + fail-closed registry
+    'https://wd1.myworkdaysite.com.evil.example/en-US/recruiting/fmr/FidelityCareers',
+    'https://wd1.myworkdaysite.com/en-US/recruiting/fmr',
+    'https://wd1.myworkdaysite.com/en-US/recruiting/fmr/FidelityCareers/extra',
+    'https://wd1.myworkdaysite.com/en-US/careers/fmr/FidelityCareers',
+    'https://wd1.myworkdaysite.com/en-US/recruiting/fmr/FidelityCareers?q=finance',
+    'https://wd1.myworkdaysite.com/en-US/recruiting/fmr/FidelityCareers#jobs',
+    'http://wd1.myworkdaysite.com/en-US/recruiting/fmr/FidelityCareers',
+    'https://user:password@wd1.myworkdaysite.com/en-US/recruiting/fmr/FidelityCareers',
+    'https://wd1.myworkdaysite.com:444/en-US/recruiting/fmr/FidelityCareers',
+    'https://wd1.myworkdaysite.com/en-US/recruiting/fmr/FidelityCareers%2Fextra',
+    'https://wd1.myworkdaysite.com/en-US/recruiting/evil/Evil',
+    'https://wd2.myworkdaysite.com/en-US/recruiting/fmr/FidelityCareers',
     'https://careers.example.com/jobs',
     'https://boards.greenhouse.io/acme/jobs/123',
     'https://boards.greenhouse.io/bad.slug',
@@ -98,7 +122,7 @@ describe('detectAts', () => {
 
   it('exports the exact unsupported URL guidance', () => {
     expect(UNSUPPORTED_URL_MESSAGE).toBe(
-      "This URL isn't a supported job board. Job Copilot works with Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, and the allowlisted Capital One Workday board. Use the exact public careers-board URL — usually where the careers page's Apply buttons point.",
+      "This URL isn't a supported job board. Job Copilot works with Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, and allowlisted Workday boards. Use the exact public careers-board URL — usually where the careers page's Apply buttons point.",
     )
   })
 })
@@ -135,8 +159,19 @@ describe('buildEndpoint', () => {
         slug: 'capitalone',
         region: 'wd12',
         site: 'Capital_One',
+        hostForm: 'jobs',
       } as const,
       'https://capitalone.wd12.myworkdayjobs.com/wday/cxs/capitalone/Capital_One/jobs',
+    ],
+    [
+      {
+        ats: 'workday',
+        slug: 'fmr',
+        region: 'wd1',
+        site: 'FidelityCareers',
+        hostForm: 'site',
+      } as const,
+      'https://wd1.myworkdaysite.com/wday/cxs/fmr/FidelityCareers/jobs',
     ],
   ])('constructs an allowlisted endpoint', (detected, expected) => {
     expect(buildEndpoint(detected)).toBe(expected)

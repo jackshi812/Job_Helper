@@ -13,6 +13,7 @@ import {
 import {
   pollConnector,
   providerRegistry,
+  type SupportedDetection,
   verifyConnector,
 } from '../../supabase/functions/_shared/connectors.ts'
 import { detectAts } from '../../supabase/functions/_shared/detect.ts'
@@ -85,6 +86,7 @@ describe('Capital One Workday identity contract', () => {
       slug: 'capitalone',
       region: 'wd12',
       site: 'Capital_One',
+      hostForm: 'jobs',
     })
     if (detected.ats === 'unsupported') throw new Error('expected Workday detection')
 
@@ -718,5 +720,120 @@ describe('Fidelity category-scoped recent import', () => {
       jobs: [],
       warnings: ['category_filter_unverified'],
     })
+  })
+})
+
+describe('Fidelity paste -> verify -> experimental staging', () => {
+  const fidelityBoardUrl = 'https://wd1.myworkdaysite.com/en-US/recruiting/fmr/FidelityCareers'
+  const fidelitySourceKey = 'workday:wd1:fmr:FidelityCareers'
+  const fidVerifyPosting = {
+    title: 'Software Engineer',
+    externalPath: '/job/Boston-MA/Software-Engineer_R200001-1',
+    locationsText: 'Boston, MA',
+    postedOn: 'Posted Today',
+  }
+
+  it('auto-detects Form B, verifies list-only, and stages the company as experimental', async () => {
+    // Form B detection resolves the Fidelity identity with its own source key.
+    const detected = detectAts(fidelityBoardUrl)
+    expect(detected).toEqual({
+      ats: 'workday',
+      slug: 'fmr',
+      region: 'wd1',
+      site: 'FidelityCareers',
+      hostForm: 'site',
+    })
+
+    let insertArg: Record<string, unknown> | null = null
+    const persisted = {
+      id: 'fidelity-company-1',
+      name: 'fmr',
+      source_key: fidelitySourceKey,
+      activation_state: 'experimental',
+    }
+    const single = vi.fn().mockResolvedValue({ data: { ...persisted }, error: null })
+    const insertSelect = vi.fn(() => ({ single }))
+    const insert = vi.fn((value: Record<string, unknown>) => {
+      insertArg = value
+      return { select: insertSelect }
+    })
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { ...persisted }, error: null })
+    const selectEq = vi.fn(() => ({ maybeSingle }))
+    const select = vi.fn(() => ({ eq: selectEq }))
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        accepted: true,
+        reason: 'accepted',
+        progress: 1,
+        window_start: null,
+        next_eligible_at: null,
+        result_activation_state: 'experimental',
+      },
+      error: null,
+    })
+
+    const handler = createVerifyBoardHandler({
+      createAuthClient: () => ({
+        auth: {
+          getUser: vi.fn().mockResolvedValue({
+            data: { user: { id: 'user-1', role: 'authenticated' } },
+            error: null,
+          }),
+        },
+      }),
+      createServiceClient: () => ({
+        from: vi.fn(() => ({ insert, select })),
+        rpc,
+      }),
+      providerFetch: vi.fn().mockResolvedValue(
+        jsonResponse({ total: 1, jobPostings: [fidVerifyPosting] }),
+      ),
+      digestEvidence: async () => 'digest',
+      randomUUID: () => 'observation-1',
+    })
+
+    const response = await handler(new Request('https://example.test/functions/v1/verify-board', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer real-user-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ url: fidelityBoardUrl }),
+    }))
+
+    expect(response.status).toBe(200)
+    const payload = await response.json() as { ok: boolean; company: { source_key: string } }
+    expect(payload.ok).toBe(true)
+    expect(payload.company.source_key).toBe(fidelitySourceKey)
+
+    // Verification derived the Fidelity source key + jobCount and staged experimental.
+    expect(insertArg).not.toBeNull()
+    expect(insertArg).toMatchObject({
+      ats_type: 'workday',
+      board_token: 'fmr',
+      region: 'wd1',
+      site_token: 'FidelityCareers',
+      source_key: fidelitySourceKey,
+      activation_state: 'experimental',
+      last_observation_count: 1,
+    })
+  })
+
+  it('rejects a non-allowlisted Workday tenant at verify and poll', async () => {
+    // verify (defense-in-depth): an unadmitted tuple that bypassed detection fails closed.
+    await expect(verifyConnector(
+      { ats: 'workday', slug: 'evil', region: 'wd1', site: 'Evil', hostForm: 'site' } as SupportedDetection,
+      vi.fn(),
+    )).rejects.toThrow('invalid_identity')
+
+    // poll (dispatch re-check): a company whose source key is not admitted is rejected.
+    await expect(pollConnector({
+      ats_type: 'workday',
+      board_token: 'evil',
+      region: 'wd1',
+      site_token: 'Evil',
+      source_key: 'workday:wd1:evil:Evil',
+      activation_state: 'active',
+    }, new Set())).rejects.toThrow('inactive_connector:workday_identity_not_allowed')
   })
 })
