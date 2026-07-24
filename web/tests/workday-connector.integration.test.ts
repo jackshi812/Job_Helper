@@ -733,7 +733,7 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
     postedOn: 'Posted Today',
   }
 
-  it('auto-detects Form B, verifies list-only, and stages the company as experimental', async () => {
+  it('accepts the live later-page total sentinel and stages the complete Fidelity listing', async () => {
     // Form B detection resolves the Fidelity identity with its own source key.
     const detected = detectAts(fidelityBoardUrl)
     expect(detected).toEqual({
@@ -771,6 +771,25 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
       },
       error: null,
     })
+    const providerFetch = vi.fn((_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { limit: number; offset: number }
+      const remaining = Math.max(704 - body.offset, 0)
+      const count = Math.min(body.limit, remaining)
+      const jobPostings = Array.from({ length: count }, (_, index) => {
+        const sequence = body.offset + index + 1
+        return {
+          ...fidVerifyPosting,
+          title: `Software Engineer ${sequence}`,
+          externalPath: `/job/Boston-MA/Software-Engineer-${sequence}_R${String(sequence).padStart(6, '0')}-1`,
+        }
+      })
+      return Promise.resolve(jsonResponse({
+        // Fidelity CXS reports the authoritative count only on page 0. Later
+        // non-empty pages carry zero as a pagination sentinel.
+        total: body.offset === 0 ? 704 : 0,
+        jobPostings,
+      }))
+    })
 
     const handler = createVerifyBoardHandler({
       createAuthClient: () => ({
@@ -785,9 +804,7 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
         from: vi.fn(() => ({ insert, select })),
         rpc,
       }),
-      providerFetch: vi.fn().mockResolvedValue(
-        jsonResponse({ total: 1, jobPostings: [fidVerifyPosting] }),
-      ),
+      providerFetch,
       digestEvidence: async () => 'digest',
       randomUUID: () => 'observation-1',
     })
@@ -805,8 +822,10 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
     const payload = await response.json() as { ok: boolean; company: { source_key: string } }
     expect(payload.ok).toBe(true)
     expect(payload.company.source_key).toBe(fidelitySourceKey)
+    expect(providerFetch).toHaveBeenCalledTimes(36)
+    expect(rpc).toHaveBeenCalledTimes(1)
 
-    // Verification derived the Fidelity source key + jobCount and staged experimental.
+    // Verification reconciled all 704 unique list rows before staging experimental.
     expect(insertArg).not.toBeNull()
     expect(insertArg).toMatchObject({
       ats_type: 'workday',
@@ -815,7 +834,7 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
       site_token: 'FidelityCareers',
       source_key: fidelitySourceKey,
       activation_state: 'experimental',
-      last_observation_count: 1,
+      last_observation_count: 704,
     })
   })
 
