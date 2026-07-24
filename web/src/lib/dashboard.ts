@@ -1,6 +1,5 @@
 import {
   companyName,
-  deterministicVisible,
   relativePostedTime,
   type DashboardFeedOrder,
   type DashboardFeedPage,
@@ -20,13 +19,6 @@ export interface CompanyOption {
 export interface DashboardFilterSelection {
   appliedHiddenKeys: ReadonlySet<string>
   selectedTiers: ReadonlySet<Tier>
-}
-
-// Transitional compatibility for the shipped pre-pagination Dashboard. Plan
-// 03.6-03 Task 2 removes this browser-owned lifecycle path in favor of
-// buildDashboardFeedQuery and listFeedPage.
-export interface DashboardFilterState extends DashboardFilterSelection {
-  showDismissed: boolean
 }
 
 export interface DashboardFeedQueryInput extends DashboardFilterSelection {
@@ -137,28 +129,6 @@ export function scoreTierSummary(selected: ReadonlySet<Tier>): string {
   ) return 'Score tiers: All'
   if (selected.size === 0) return 'Score tiers: None'
   return `Score tiers: ${selected.size} selected`
-}
-
-export function baseDashboardVisible(
-  row: FeedRow,
-  showDismissed: boolean,
-): boolean {
-  if (showDismissed) return row.dismissed_at !== null
-  if (row.dismissed_at !== null) return false
-  return deterministicVisible(row)
-}
-
-export function filterDashboardRows(
-  rows: readonly FeedRow[],
-  state: DashboardFilterState,
-): FeedRow[] {
-  return rows.filter((row) => {
-    if (!baseDashboardVisible(row, state.showDismissed)) return false
-    const name = companyName(row)
-    if (!name || state.appliedHiddenKeys.has(normalizedCompanyKey(name))) return false
-    return row.deterministic_tier !== null
-      && state.selectedTiers.has(row.deterministic_tier)
-  })
 }
 
 export function lifecycleViewFromToggles(
