@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03.5
 current_phase_name: generic-workday-connector-fidelity
 status: executing
-stopped_at: Phase 03.5 context gathered
-last_updated: "2026-07-24T14:40:38.170Z"
+stopped_at: Completed 03.5-04-PLAN.md; awaiting phase review and verification
+last_updated: "2026-07-24T20:21:37.691Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 03.5 execution started
+last_activity_desc: Plan 03.5-04 closed; phase review pending
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 60
-  completed_plans: 55
+  completed_plans: 59
   percent: 70
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 ## Current Position
 
 Phase: 03.5 (generic-workday-connector-fidelity) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 03.5
-Last activity: 2026-07-24 — Phase 03.5 execution started
+Plan: 4 of 4
+Status: Awaiting phase review and verification
+Last activity: 2026-07-24 — Plan 03.5-04 closed; phase review pending
 
-Progress: [████████████████████] 55/56 plans complete; milestone 7/9 phases complete (98%)
+Progress: [████████████████████] 59/60 plans complete; milestone 7/9 phases complete (98%)
 
 ## Performance Metrics
 
@@ -102,6 +102,7 @@ Progress: [████████████████████] 55/56 p
 | Phase 03.4 P07 | 7 min | 2 tasks | 2 files |
 | Phase 03.4 P08 | 34 min | 3 tasks | 10 files |
 | Phase 03.4 P09 | 2h 5m | 3 tasks | 9 files |
+| Phase 03.5 P04 | 2h 25m | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -228,6 +229,9 @@ Recent decisions affecting current work:
 - [Phase 03.4]: Use one worker AbortController with a one-second response-cleanup margin; deadline aborts remain lease-reclaimable. — Every awaited network operation must obey the scheduler-safe invocation bound without fabricating failure or publication.
 - [Phase 03.4]: Preserve superseded failed source items as immutable history and prove zero actionable, active, visible, and current-open work instead of deleting evidence. — Historical failure rows are audit evidence and cannot affect current publication.
 - [Phase 03.4]: Repair authenticated Retry through forward-only migration 0034 and a second exact approval; never rewrite deployed migrations or manually repair rows. — Keeps release identity and production mutation scope fail-closed.
+- [Phase 03.5]: Pin production acceptance to exact git release f817061932346d97d3540167be8e0291d8c9d1a2, Supabase function versions, Cloudflare deployment ID, and immutable asset bytes. — Every production boundary received direct owner approval before execution.
+- [Phase 03.5]: Accept exactly three distinct server-timed Fidelity observations for activation and do not collect a fourth or manipulate timestamps. — Three complete, credible, warning-free windows satisfied the activation contract.
+- [Phase 03.5]: Keep Fidelity Degraded on provider_timeout after 44 safe jobs, with closure disabled/partial. — Scheduled health must describe the provider failure truthfully rather than report false success.
 
 ### Pending Todos
 
@@ -263,7 +267,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-24T03:57:40.364Z
-Stopped at: Phase 03.5 context gathered
-Resume file: .planning/phases/03.5-generic-workday-connector-fidelity/03.5-CONTEXT.md
+Last session: 2026-07-24T20:21:37.685Z
+Stopped at: Completed 03.5-04-PLAN.md; awaiting phase review and verification
+Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

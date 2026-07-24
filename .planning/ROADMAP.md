@@ -213,7 +213,7 @@ Plans:
   6. Capital One ingestion, all other connectors, and the deterministic feed are unchanged; no push or deploy occurs without a new exact-release approval (production remains commit `7642fde8`)
 
 **Requirements**: (connector expansion — no new REQUIREMENTS.md IDs; extends Phase 02.1/03.1 source-coverage scope)
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans complete
 **UI hint**: minimal (reuses existing Watchlist add-company UI)
 
 Plans:
@@ -228,7 +228,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 1 + Wave 2)*
 
-- [ ] 03.5-04-PLAN.md — [BLOCKING] Owner-gated production apply of 0035 + edge deploy + live verification
+- [x] 03.5-04-PLAN.md — [BLOCKING] Owner-gated production apply of 0035 + edge deploy + live verification
 
 ### Phase 03.1: SuccessFactors & Paylocity Connector Expansion (INSERTED)
 
