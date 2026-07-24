@@ -60,6 +60,7 @@ const DEFAULT_MAX_JOBS = 2_000
 const DEFAULT_MAX_DETAILS = 2_000
 const DEFAULT_MAX_BYTES = 2_000_000
 const MAX_STRING = 500_000
+const MAX_TOMBSTONE_IDENTIFIER = 256
 const RECENT_PAGE_SIZE = 20
 const DEFAULT_RECENT_DAYS = 7
 const DEFAULT_RECENT_MAX_PAGES = 30
@@ -209,6 +210,30 @@ function parseListPosting(value: unknown, identity: WorkdayIdentity): WorkdayLis
     && stringValue(posting.postedOn, 256) === null
   ) return null
   return posting as unknown as WorkdayListPosting
+}
+
+function parseListingTombstone(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const fields = value as Record<string, unknown>
+  if (
+    Object.getPrototypeOf(value) !== Object.prototype
+    || Object.keys(fields).length !== 1
+    || !Object.prototype.hasOwnProperty.call(fields, 'bulletFields')
+    || !Array.isArray(fields.bulletFields)
+    || fields.bulletFields.length !== 1
+  ) return null
+  const identifier = fields.bulletFields[0]
+  if (
+    typeof identifier !== 'string'
+    || identifier.length === 0
+    || identifier.length > MAX_TOMBSTONE_IDENTIFIER
+    || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(identifier)
+  ) return null
+  return identifier
+}
+
+function listingRequisitionIdentifier(externalPath: string) {
+  return externalPath.match(/_([A-Za-z0-9][A-Za-z0-9._-]*)$/)?.[1] ?? null
 }
 
 function parseDetail(value: unknown): WorkdayDetail | null {
@@ -793,7 +818,10 @@ export async function verifyWorkdayListing(
   const maxPages = Math.min(options.maxPages ?? DEFAULT_MAX_PAGES, DEFAULT_MAX_PAGES)
   const maxJobs = Math.min(options.maxJobs ?? DEFAULT_MAX_JOBS, DEFAULT_MAX_JOBS)
   const seenPaths = new Set<string>()
+  const seenTombstones = new Set<string>()
+  const seenListingIdentifiers = new Set<string>()
   let expectedCount: number | undefined
+  let rawCount = 0
   let pageCount = 0
 
   while (pageCount < maxPages) {
@@ -802,7 +830,7 @@ export async function verifyWorkdayListing(
       body: JSON.stringify({
         appliedFacets: {},
         limit: pageSize,
-        offset: seenPaths.size,
+        offset: rawCount,
         searchText: '',
       }),
     })
@@ -815,34 +843,59 @@ export async function verifyWorkdayListing(
     if (expectedCount === undefined) expectedCount = pageTotal
     if (expectedCount > maxJobs) throw new ProviderError('job_cap_exceeded')
 
-    const postings = page.jobPostings.map((posting) => parseListPosting(posting, identity))
-    if (postings.some((posting) => posting === null)) {
-      const unsafePath = page.jobPostings.some((posting) => (
-        posting
-        && typeof posting === 'object'
-        && 'externalPath' in posting
-        && !safeDetailPath((posting as { externalPath: unknown }).externalPath, identity)
-      ))
-      throw new ProviderError(unsafePath ? 'unsafe_detail_path' : 'provider_schema_invalid')
-    }
     const laterPageTotalSentinel = pageCount > 0
       && pageTotal === 0
-      && postings.length > 0
+      && page.jobPostings.length > 0
     if (pageTotal !== expectedCount && !laterPageTotalSentinel) {
       throw new ProviderError('count_mismatch')
     }
-    pageCount += 1
-    for (const posting of postings as WorkdayListPosting[]) {
-      if (seenPaths.has(posting.externalPath)) throw new ProviderError('count_mismatch')
-      seenPaths.add(posting.externalPath)
+    if (rawCount + page.jobPostings.length > expectedCount) {
+      throw new ProviderError('count_mismatch')
     }
-    if (seenPaths.size >= expectedCount) break
+
+    const pagePostings: WorkdayListPosting[] = []
+    const pageTombstones: string[] = []
+    for (const entry of page.jobPostings) {
+      const posting = parseListPosting(entry, identity)
+      if (posting) {
+        pagePostings.push(posting)
+        continue
+      }
+      const tombstone = parseListingTombstone(entry)
+      if (tombstone) {
+        pageTombstones.push(tombstone)
+        continue
+      }
+      const unsafePath = entry
+        && typeof entry === 'object'
+        && 'externalPath' in entry
+        && !safeDetailPath((entry as { externalPath: unknown }).externalPath, identity)
+      throw new ProviderError(unsafePath ? 'unsafe_detail_path' : 'provider_schema_invalid')
+    }
+
+    pageCount += 1
+    for (const posting of pagePostings) {
+      if (seenPaths.has(posting.externalPath)) throw new ProviderError('count_mismatch')
+      const identifier = listingRequisitionIdentifier(posting.externalPath)
+      if (identifier && seenTombstones.has(identifier)) throw new ProviderError('count_mismatch')
+      seenPaths.add(posting.externalPath)
+      if (identifier) seenListingIdentifiers.add(identifier)
+    }
+    for (const identifier of pageTombstones) {
+      if (
+        seenTombstones.has(identifier)
+        || seenListingIdentifiers.has(identifier)
+      ) throw new ProviderError('count_mismatch')
+      seenTombstones.add(identifier)
+    }
+    rawCount += page.jobPostings.length
+    if (rawCount >= expectedCount) break
     if (page.jobPostings.length === 0) throw new ProviderError('count_mismatch')
   }
 
   if (expectedCount === undefined) throw new ProviderError('provider_schema_invalid')
   if (expectedCount === 0) throw new ProviderError('implausible_empty')
-  if (seenPaths.size !== expectedCount) {
+  if (rawCount !== expectedCount) {
     throw new ProviderError(pageCount >= maxPages ? 'page_cap_exceeded' : 'count_mismatch')
   }
   return { jobCount: expectedCount, pageCount }
