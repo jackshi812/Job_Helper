@@ -779,7 +779,12 @@ describe('Fidelity category-scoped recent import', () => {
       fidelityIdentity,
       numericPostingFetch(posting),
       { nowMs },
-    )).rejects.toThrow('provider_identity_drift')
+    )).resolves.toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: ['provider_identity_drift'],
+    })
   })
 
   it.each([
@@ -790,7 +795,54 @@ describe('Fidelity category-scoped recent import', () => {
       fidelityIdentity,
       numericPostingFetch(liveNumericPosting, numericDetail(jobReqId)),
       { nowMs },
-    )).rejects.toThrow('provider_identity_drift')
+    )).resolves.toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: ['provider_identity_drift'],
+    })
+  })
+
+  it('retains safe partial rows when a later detail has provider identity drift', async () => {
+    const providerFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url === fidelityListUrl) {
+        const body = JSON.parse(String(init?.body)) as {
+          appliedFacets: { jobFamilyGroup?: string[] }
+        }
+        return body.appliedFacets.jobFamilyGroup === undefined
+          ? jsonResponse({
+              total: 2,
+              jobPostings: [],
+              facets: fidelityFacets({
+                it: 2,
+                rm: 0,
+                sales: 0,
+                customerService: 0,
+                salesSupport: 0,
+              }),
+            })
+          : jsonResponse({
+              total: 2,
+              jobPostings: [fidPostingA, liveNumericPosting],
+            })
+      }
+      if (url.endsWith(fidPostingA.externalPath)) return jsonResponse(fidDetail(fidPostingA))
+      if (url.endsWith(liveNumericPosting.externalPath)) return jsonResponse(numericDetail('2130090'))
+      throw new Error(`unexpected request: ${url}`)
+    })
+
+    await expect(pollWorkdayRecent(
+      fidelityIdentity,
+      providerFetch,
+      { nowMs },
+    )).resolves.toMatchObject({
+      completeness: 'partial',
+      credibleForClosure: false,
+      allowMissingClosure: false,
+      jobs: [{ externalId: 'R200001' }],
+      warnings: ['provider_identity_drift'],
+    })
   })
 
   it('counts a strict tombstone as a raw row without mapping, fetching, or closing it', async () => {

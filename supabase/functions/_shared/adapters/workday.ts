@@ -381,6 +381,7 @@ function incomplete(
     jobs: Object.freeze([...jobs]) as NormalizedJob[],
     completeness: jobs.length > 0 ? 'partial' : 'unknown',
     credibleForClosure: false,
+    allowMissingClosure: false,
     pageCount,
     ...(expectedCount === undefined ? {} : { expectedCount }),
     warnings: [warning.slice(0, 64)],
@@ -803,7 +804,17 @@ export async function pollWorkdayRecent(
       if (seenPaths.has(posting.externalPath)) {
         return incomplete([], 'count_mismatch', undefined, pageCount)
       }
-      const identifier = listingRequisitionIdentifier(posting)
+      let identifier: string
+      try {
+        identifier = listingRequisitionIdentifier(posting)
+      } catch (error) {
+        return incomplete(
+          [],
+          error instanceof ProviderError ? error.code : 'provider_error',
+          undefined,
+          pageCount,
+        )
+      }
       if (identifier && seenTombstones.has(identifier)) {
         return incomplete([], 'count_mismatch', undefined, pageCount)
       }
@@ -845,9 +856,28 @@ export async function pollWorkdayRecent(
   const jobs: NormalizedJob[] = []
   let details = 0
   for (const posting of candidates) {
-    const externalId = listExternalId(posting)
+    let externalId: string
+    try {
+      externalId = listExternalId(posting)
+    } catch (error) {
+      return incomplete(
+        jobs,
+        error instanceof ProviderError ? error.code : 'provider_error',
+        candidates.length,
+        pageCount,
+      )
+    }
     if (knownIds.has(externalId)) {
-      jobs.push(mapRecentListPosting(posting, nowMs, identity))
+      try {
+        jobs.push(mapRecentListPosting(posting, nowMs, identity))
+      } catch (error) {
+        return incomplete(
+          jobs,
+          error instanceof ProviderError ? error.code : 'provider_error',
+          candidates.length,
+          pageCount,
+        )
+      }
       continue
     }
     if (details >= maxDetails) {
@@ -879,10 +909,21 @@ export async function pollWorkdayRecent(
     if (!detail || detail.jobPostingInfo.title.trim() !== posting.title.trim()) {
       return incomplete(jobs, 'provider_schema_invalid', candidates.length, pageCount)
     }
+    let mapped: NormalizedJob
+    try {
+      mapped = mapRecentDetail(detail, posting, identity)
+    } catch (error) {
+      return incomplete(
+        jobs,
+        error instanceof ProviderError ? error.code : 'provider_error',
+        candidates.length,
+        pageCount,
+      )
+    }
     const eligible = !identity.applyCapitalOneEligibility
       || (isUnitedStatesDetail(detail) && isEntryLevelWorkdayDetail(detail))
     if (!recentStartDate(detail.jobPostingInfo.startDate, nowMs, recentDays) || !eligible) continue
-    jobs.push(mapRecentDetail(detail, posting, identity))
+    jobs.push(mapped)
   }
 
   return {
