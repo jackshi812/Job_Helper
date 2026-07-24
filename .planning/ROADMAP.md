@@ -210,7 +210,7 @@ Plans:
   3. A new forward-only migration admits non–Capital-One Workday identities (relaxing the 0028 single-identity guardrail to an allowlist/general model) without editing any deployed migration
   4. Fidelity ingestion is category-scoped to exclude the Sales, Customer Service, and Sales Support job families; the existing downstream dashboard filters (not the connector) enforce the experience rule
   5. Fidelity follows the Capital One activation model (Experimental, auto-promoting to Active after clean observation windows) and reports health via the existing OK/Degraded/Unsupported badges
-  6. Capital One ingestion, all other connectors, and the deterministic feed are unchanged; no push or deploy occurs without a new exact-release approval (production remains commit `7642fde8`)
+  6. Capital One ingestion, all other connectors, and the deterministic feed are unchanged; every push or deploy receives a new exact-release approval, with final accepted release `edccac2dd1728a86a8ffa431f4d36bb1e10bff5c`
 
 **Requirements**: (connector expansion — no new REQUIREMENTS.md IDs; extends Phase 02.1/03.1 source-coverage scope)
 **Plans**: 4/4 plans complete
@@ -220,7 +220,7 @@ Plans:
 **Wave 1**
 
 - [x] 03.5-01-PLAN.md — Workday identity registry + adapter parameterization + Fidelity facet scoping
-- [x] 03.5-03-PLAN.md — Forward-only migration 0035 (authored, not applied) + Fidelity health/filter note
+- [x] 03.5-03-PLAN.md — Forward-only migration 0035 DB admission + Fidelity health/filter note
 
 **Wave 2** *(blocked on 03.5-01)*
 
@@ -228,7 +228,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 1 + Wave 2)*
 
-- [x] 03.5-04-PLAN.md — [BLOCKING] Owner-gated production apply of 0035 + edge deploy + live verification
+- [x] 03.5-04-PLAN.md — Exact-approved 0035/0036 production release, clean review closure, and natural live verification
 
 ### Phase 03.1: SuccessFactors & Paylocity Connector Expansion (INSERTED)
 

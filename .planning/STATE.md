@@ -5,10 +5,10 @@ milestone_name: milestone
 current_phase: 03.5
 current_phase_name: generic-workday-connector-fidelity
 status: executing
-stopped_at: Completed 03.5-04-PLAN.md; awaiting phase review and verification
-last_updated: "2026-07-24T20:21:37.691Z"
+stopped_at: Final Phase 03.5 release and focused re-review complete; awaiting verifier
+last_updated: "2026-07-24T21:06:07Z"
 last_activity: 2026-07-24
-last_activity_desc: Plan 03.5-04 closed; phase review pending
+last_activity_desc: Final Phase 03.5 release verified; focused re-review clean
 progress:
   total_phases: 10
   completed_phases: 7
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 
 Phase: 03.5 (generic-workday-connector-fidelity) — EXECUTING
 Plan: 4 of 4
-Status: Awaiting phase review and verification
-Last activity: 2026-07-24 — Plan 03.5-04 closed; phase review pending
+Status: Awaiting GSD verifier and phase completion
+Last activity: 2026-07-24 — Final exact release verified; focused re-review clean
 
 Progress: [████████████████████] 59/60 plans complete; milestone 7/9 phases complete (98%)
 
@@ -102,7 +102,7 @@ Progress: [████████████████████] 59/60 p
 | Phase 03.4 P07 | 7 min | 2 tasks | 2 files |
 | Phase 03.4 P08 | 34 min | 3 tasks | 10 files |
 | Phase 03.4 P09 | 2h 5m | 3 tasks | 9 files |
-| Phase 03.5 P04 | 2h 25m | 3 tasks | 2 files |
+| Phase 03.5 P04 | 3h 8m | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -229,9 +229,10 @@ Recent decisions affecting current work:
 - [Phase 03.4]: Use one worker AbortController with a one-second response-cleanup margin; deadline aborts remain lease-reclaimable. — Every awaited network operation must obey the scheduler-safe invocation bound without fabricating failure or publication.
 - [Phase 03.4]: Preserve superseded failed source items as immutable history and prove zero actionable, active, visible, and current-open work instead of deleting evidence. — Historical failure rows are audit evidence and cannot affect current publication.
 - [Phase 03.4]: Repair authenticated Retry through forward-only migration 0034 and a second exact approval; never rewrite deployed migrations or manually repair rows. — Keeps release identity and production mutation scope fail-closed.
-- [Phase 03.5]: Pin production acceptance to exact git release f817061932346d97d3540167be8e0291d8c9d1a2, Supabase function versions, Cloudflare deployment ID, and immutable asset bytes. — Every production boundary received direct owner approval before execution.
+- [Phase 03.5]: Pin final production acceptance to exact git release edccac2dd1728a86a8ffa431f4d36bb1e10bff5c, migration parity 0001..0036, Supabase function versions, Cloudflare deployment ID, immutable asset bytes, and a natural scheduled run. — Every production boundary received direct owner approval before execution.
 - [Phase 03.5]: Accept exactly three distinct server-timed Fidelity observations for activation and do not collect a fourth or manipulate timestamps. — Three complete, credible, warning-free windows satisfied the activation contract.
-- [Phase 03.5]: Keep Fidelity Degraded on provider_timeout after 44 safe jobs, with closure disabled/partial. — Scheduled health must describe the provider failure truthfully rather than report false success.
+- [Phase 03.5]: Preserve the intermediate provider_timeout as truthful Degraded history, then require a later natural scheduled success to clear it. — Final pg_cron succeeded with 113 exact-identity Fidelity jobs; no manual invocation or timestamp manipulation was used.
+- [Phase 03.5]: Repair deployed migration 0035 only through forward migration 0036 with NULL-safe allowlist checks and exact guarded Fidelity identity/fingerprint repair. — Deployed migrations remain immutable and hosted rows are never manually repaired.
 
 ### Pending Todos
 
@@ -267,7 +268,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-24T20:21:37.685Z
-Stopped at: Completed 03.5-04-PLAN.md; awaiting phase review and verification
+Last session: 2026-07-24T21:06:07Z
+Stopped at: Final Phase 03.5 release and focused re-review complete; awaiting verifier
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
