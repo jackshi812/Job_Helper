@@ -5,10 +5,14 @@ import { pollPaylocity } from './adapters/paylocity.ts'
 import { pollRecruitee } from './adapters/recruitee.ts'
 import { pollSmartRecruiters } from './adapters/smartrecruiters.ts'
 import {
-  CAPITAL_ONE_WORKDAY_SOURCE_KEY,
-  pollCapitalOneRecent,
+  pollWorkdayRecent,
   verifyWorkdayListing,
 } from './adapters/workday.ts'
+import {
+  resolveWorkdayIdentity,
+  WORKDAY_IDENTITIES,
+  type WorkdayIdentity,
+} from './workday-identities.ts'
 import { type PollObservation } from './adapters/types.ts'
 import { buildEndpoint, type DetectResult } from './detect.ts'
 import { resolvePaylocityIdentity } from './provider-identities.ts'
@@ -26,7 +30,7 @@ export type SupportedDetection = Exclude<DetectResult, { ats: 'unsupported' }>
 export interface PollConnectorCompany {
   ats_type: string
   board_token: string
-  region: 'eu' | 'wd12' | null
+  region: string | null
   site_token?: string | null
   source_key?: string
   activation_state: string
@@ -35,7 +39,7 @@ export interface PollConnectorCompany {
 export interface ConnectorVerification {
   ats: ProviderId
   boardToken: string
-  region: 'eu' | 'wd12' | null
+  region: string | null
   siteToken: string | null
   companyName: string
   jobCount: number
@@ -48,6 +52,27 @@ type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<
 export interface ProviderConnector {
   verify: (detected: SupportedDetection, fetchImpl: FetchLike) => Promise<ConnectorVerification>
   poll: (company: PollConnectorCompany, knownIds: Set<string>) => Promise<PollObservation>
+}
+
+// Reconstruct the full frozen identity (origin/hostForm/cxsRoot) from the
+// persisted source key. No hostForm DB column and no region-implies-hostForm
+// inference — the source key IS the exact admitted tuple (A1 disambiguation).
+function workdayIdentityForCompany(company: PollConnectorCompany): WorkdayIdentity | undefined {
+  const key = company.source_key ?? ''
+  return (WORKDAY_IDENTITIES as Record<string, WorkdayIdentity | undefined>)[key]
+}
+
+// Resolve the admitted identity for a detected Workday tuple; fail closed.
+function workdayIdentityForDetection(detected: SupportedDetection): WorkdayIdentity {
+  if (detected.ats !== 'workday') throw new Error('invalid_identity')
+  const identity = resolveWorkdayIdentity(
+    detected.slug,
+    detected.region,
+    detected.site,
+    detected.hostForm,
+  )
+  if (!identity) throw new Error('invalid_identity')
+  return identity
 }
 
 function canonicalCareersUrl(detected: SupportedDetection) {
@@ -67,13 +92,13 @@ function canonicalCareersUrl(detected: SupportedDetection) {
     return identity.canonicalUrl
   }
   if (detected.ats === 'workday') {
-    return 'https://capitalone.wd12.myworkdayjobs.com/Capital_One'
+    return workdayIdentityForDetection(detected).publicBoard
   }
   return `https://${detected.slug.toLowerCase()}.recruitee.com`
 }
 
 function deterministicSourceKey(detected: SupportedDetection) {
-  if (detected.ats === 'workday') return CAPITAL_ONE_WORKDAY_SOURCE_KEY
+  if (detected.ats === 'workday') return workdayIdentityForDetection(detected).sourceKey
   if (detected.ats === 'paylocity') {
     const identity = resolvePaylocityIdentity(detected.slug)
     if (!identity) throw new Error('invalid_identity')
@@ -178,14 +203,9 @@ async function verifyWorkday(
   detected: SupportedDetection,
   fetchImpl: FetchLike,
 ) {
-  if (
-    detected.ats !== 'workday'
-    || detected.slug !== 'capitalone'
-    || detected.region !== 'wd12'
-    || detected.site !== 'Capital_One'
-  ) throw new Error('invalid_identity')
-  const listing = await verifyWorkdayListing(fetchImpl)
-  return verification(detected, 'Capital One', listing.jobCount)
+  const identity = workdayIdentityForDetection(detected)
+  const listing = await verifyWorkdayListing(fetchImpl, {}, identity)
+  return verification(detected, identity.companyName ?? detected.slug, listing.jobCount)
 }
 
 function complete(jobs: PollObservation['jobs']): PollObservation {
@@ -230,7 +250,13 @@ export const providerRegistry = {
   },
   workday: {
     verify: verifyWorkday,
-    poll: async (_company, knownIds) => pollCapitalOneRecent(fetch, { knownIds }),
+    poll: async (company, knownIds) => {
+      // The persisted source key reconstructs the full identity (origin/hostForm/
+      // cxsRoot) — the CXS origin is never re-derived from region.
+      const identity = workdayIdentityForCompany(company)
+      if (!identity) throw new Error('invalid_identity')
+      return pollWorkdayRecent(identity, fetch, { knownIds })
+    },
   },
 } satisfies Record<ProviderId, ProviderConnector>
 
@@ -252,11 +278,14 @@ export async function pollConnector(
     throw new Error(`unsupported_provider:${company.ats_type}`)
   }
   if (company.ats_type === 'workday') {
+    // Allowlist check via the registry: the persisted source key must resolve to
+    // an admitted identity and its board_token/region/site must match that tuple.
+    const identity = workdayIdentityForCompany(company)
     if (
-      company.board_token !== 'capitalone'
-      || company.region !== 'wd12'
-      || company.site_token !== 'Capital_One'
-      || company.source_key !== CAPITAL_ONE_WORKDAY_SOURCE_KEY
+      !identity
+      || company.board_token !== identity.tenant
+      || company.region !== identity.region
+      || company.site_token !== identity.site
     ) throw new Error('inactive_connector:workday_identity_not_allowed')
   }
   if (company.ats_type === 'paylocity') {

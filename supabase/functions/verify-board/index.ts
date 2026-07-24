@@ -2,7 +2,7 @@ import { detectAts, UNSUPPORTED_URL_MESSAGE } from '../_shared/detect.ts'
 import {
   verifyConnector,
 } from '../_shared/connectors.ts'
-import { CAPITAL_ONE_WORKDAY_SOURCE_KEY } from '../_shared/adapters/workday.ts'
+import { resolveWorkdayIdentity } from '../_shared/workday-identities.ts'
 import { resolvePaylocityIdentity } from '../_shared/provider-identities.ts'
 
 const VERIFICATION_FAILED_MESSAGE =
@@ -109,7 +109,10 @@ function duplicateMessage(companyName: string) {
 }
 
 function sourceKeyForDetection(detected: Exclude<ReturnType<typeof detectAts>, { ats: 'unsupported' }>) {
-  if (detected.ats === 'workday') return CAPITAL_ONE_WORKDAY_SOURCE_KEY
+  if (detected.ats === 'workday') {
+    return resolveWorkdayIdentity(detected.slug, detected.region, detected.site, detected.hostForm)?.sourceKey
+      ?? `workday:${detected.region}:${detected.slug}:${detected.site}`
+  }
   if (detected.ats === 'paylocity') {
     return resolvePaylocityIdentity(detected.slug)?.sourceKey ?? `${detected.ats}:${detected.region ?? 'global'}:${detected.slug}`
   }
