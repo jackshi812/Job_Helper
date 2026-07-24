@@ -853,6 +853,48 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
     },
   )
 
+  it('reconciles the complete country-scoped population beyond an all-old page', async () => {
+    const identity = resolveWorkdayIdentity(
+      'nasdaq',
+      'wd1',
+      'Global_External_Site',
+      'jobs',
+    ) as WorkdayIdentity
+    const scopedOffsets: number[] = []
+    const providerFetch = vi.fn((_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: Record<string, string[]>
+        offset: number
+      }
+      if (body.appliedFacets.locationCountry === undefined) {
+        return Promise.resolve(jsonResponse({
+          total: 4,
+          jobPostings: [],
+          facets: countryFacets(['locationCountry'], 3),
+        }))
+      }
+      scopedOffsets.push(body.offset)
+      return Promise.resolve(jsonResponse({
+        total: 3,
+        jobPostings: [{
+          ...phase036Posting(body.offset + 70),
+          postedOn: 'Posted 8 Days Ago',
+        }],
+      }))
+    })
+
+    await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure: false,
+      pageCount: 3,
+      expectedCount: 0,
+      jobs: [],
+      warnings: [],
+    })
+    expect(scopedOffsets).toEqual([0, 1, 2])
+  })
+
   it.each(phase036Identities)(
     'verifies $companyName against the reconciled U.S. count rather than the global total',
     async (expected) => {
