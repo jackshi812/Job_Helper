@@ -775,6 +775,38 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
       expect(offsets).toEqual([0, 2])
     })
 
+    it('counts exact-equivalent listing duplicates across adjacent raw pages', async () => {
+      const offsets: number[] = []
+      const secondPosting = {
+        ...fidVerifyPosting,
+        title: 'Data Engineer',
+        externalPath: '/job/Chicago-IL/Data-Engineer_R654321',
+      }
+      const providerFetch = vi.fn((_input: string | URL | Request, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { offset: number }
+        offsets.push(body.offset)
+        return Promise.resolve(body.offset === 0
+          ? jsonResponse({
+              total: 3,
+              jobPostings: [fidVerifyPosting, secondPosting],
+            })
+          : jsonResponse({
+              total: 0,
+              jobPostings: [secondPosting],
+            }))
+      })
+
+      await expect(verifyWorkdayListing(
+        providerFetch,
+        { pageSize: 2 },
+        fidelityIdentity,
+      )).resolves.toEqual({
+        jobCount: 3,
+        pageCount: 2,
+      })
+      expect(offsets).toEqual([0, 2])
+    })
+
     it.each([
       ['empty fields', { bulletFields: [] }],
       ['multiple fields', { bulletFields: ['2131450', '2131451'] }],
@@ -822,16 +854,22 @@ describe('Fidelity paste -> verify -> experimental staging', () => {
       )).rejects.toThrow('count_mismatch')
     })
 
-    it('keeps duplicate paths, contradictory totals, and unaccounted rows fail-closed', async () => {
+    it.each([
+      ['title', { title: 'Conflicting title' }],
+      ['location', { locationsText: 'Chicago, IL' }],
+      ['posted age', { postedOn: 'Posted Yesterday' }],
+    ])('rejects duplicate paths with conflicting %s', async (_field, override) => {
       await expect(verifyWorkdayListing(
         vi.fn().mockResolvedValue(jsonResponse({
           total: 2,
-          jobPostings: [fidVerifyPosting, fidVerifyPosting],
+          jobPostings: [fidVerifyPosting, { ...fidVerifyPosting, ...override }],
         })),
         {},
         fidelityIdentity,
       )).rejects.toThrow('count_mismatch')
+    })
 
+    it('keeps contradictory totals and unaccounted rows fail-closed', async () => {
       const contradictoryFetch = vi.fn()
         .mockResolvedValueOnce(jsonResponse({
           total: 2,
