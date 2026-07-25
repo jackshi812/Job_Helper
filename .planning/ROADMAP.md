@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 02.1: Source Coverage Expansion (INSERTED)** - Prove representative ATS/portal connectors and direct ingestion from major branded finance career sites with safe degraded-source behavior (13/13 plans executed; user-deferred UAT gap)
 - [x] **Phase 3: Scoring & Feed** - Preferences + cheap filters + AI scoring produce a focused match feed (completed 2026-07-20)
 - [x] **Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)** - Reusable, fail-closed Workday identities with Fidelity admitted through the Watchlist flow and scheduled ingestion (completed 2026-07-24)
-- [ ] **Phase 03.6: US-Only Workday Expansion & Dashboard Queue (INSERTED)** - Add four exact U.S.-only Workday sources while preventing dismissed and applied jobs from consuming the active Dashboard window
+- [x] **Phase 03.6: US-Only Workday Expansion & Dashboard Queue (INSERTED)** - Add four exact U.S.-only Workday sources while preventing dismissed and applied jobs from consuming the active Dashboard window (completed 2026-07-25)
 - [ ] **Phase 4: Resume Tailoring & Tracker** - Truthful DOCX-preserving tailoring to PDF with mandatory review, plus a manual application tracker
 
 ## Phase Details
@@ -214,7 +214,7 @@ Plans:
   5. A user can mark a job applied, undo that action, and review applied or dismissed jobs separately; the state is per-user, reversible, RLS-protected, and does not delete the shared job
   6. The Dashboard can retrieve eligible jobs beyond the first 200 through cursor pagination or a Load more interaction without duplicates or unstable ordering
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 
@@ -236,7 +236,7 @@ Plans:
 
 **Wave 5** *(blocked on exact-release hosted verification)*
 
-- [ ] 03.6-05-PLAN.md — [BLOCKING] Signed-in desktop and narrow-width deployed UAT
+- [x] 03.6-05-PLAN.md — [BLOCKING] Signed-in desktop and narrow-width deployed UAT
 
 ### Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)
 
@@ -448,7 +448,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.3 Dashboard Filter Refinements | 3/4 | In Progress|  |
 | 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 9/9 | Complete    | 2026-07-23 |
 | 03.5 Generic Workday Connector & Fidelity | 4/4 | Complete | 2026-07-24 |
-| 03.6 US-Only Workday Expansion & Dashboard Queue | 4/5 | Awaiting human UAT |  |
+| 03.6 US-Only Workday Expansion & Dashboard Queue | 5/5 | Complete   | 2026-07-25 |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
