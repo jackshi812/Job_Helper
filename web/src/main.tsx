@@ -60,7 +60,8 @@ createRoot(document.getElementById('root')!).render(
                 </RequireAuth>
               }
             >
-              <Route index element={<Dashboard />} />
+              <Route index element={<Dashboard scope="watchlist" />} />
+              <Route path="all-jobs" element={<Dashboard scope="all" />} />
               <Route path="jobs/:id" element={<JobDetail />} />
               <Route path="preferences" element={<Preferences />} />
               <Route path="watchlist" element={<Watchlist />} />

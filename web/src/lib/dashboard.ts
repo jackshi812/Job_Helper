@@ -11,6 +11,8 @@ import {
 
 export const ALL_SCORE_TIERS: readonly Tier[] = ['Strong', 'Good', 'Weak']
 
+export type DashboardSourceScope = 'watchlist' | 'all'
+
 export interface CompanyOption {
   key: string
   label: string
@@ -50,6 +52,19 @@ export interface DashboardFeedAppendResult extends DashboardFeedPage {
 
 export function normalizedCompanyKey(name: string): string {
   return name.normalize('NFKC').trim().toLowerCase()
+}
+
+export function isWatchlistJob(row: FeedRow): boolean {
+  return row.jobs?.companies != null
+}
+
+export function dashboardSourceRows(
+  rows: readonly FeedRow[],
+  scope: DashboardSourceScope,
+): FeedRow[] {
+  return scope === 'watchlist'
+    ? rows.filter(isWatchlistJob)
+    : [...rows]
 }
 
 export function dashboardCompanyOptions(rows: readonly FeedRow[]): CompanyOption[] {

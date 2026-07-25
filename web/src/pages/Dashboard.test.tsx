@@ -47,6 +47,18 @@ const row: FeedRow = {
   },
 }
 
+const externalRow: FeedRow = {
+  ...row,
+  id: 'user-job-external',
+  jobs: {
+    ...row.jobs!,
+    id: 'job-external',
+    title: 'External Analyst',
+    source_company_name: 'External Co',
+    companies: null,
+  },
+}
+
 vi.mock('../lib/supabase', () => ({ supabase: {} }))
 
 vi.mock('react-router', () => ({
@@ -60,7 +72,7 @@ vi.mock('@tanstack/react-query', () => ({
   useInfiniteQuery: () => ({
     data: {
       pages: [{
-        rows: [row],
+        rows: [row, externalRow],
         nextCursor: 'cursor-1',
         hasMore: true,
         caughtUp: false,
@@ -112,10 +124,13 @@ describe('Dashboard precision controls', () => {
     const markup = renderToStaticMarkup(<Dashboard />)
 
     expect(markup).not.toContain('All jobs')
+    expect(markup).toContain('>Watchlist Jobs</h1>')
     expect(markup).toContain('role="group"')
     expect(markup).toContain('aria-label="Lifecycle view"')
     expect(markup).toMatch(/aria-pressed="false"[^>]*>Show applied<\/button>[\s\S]*aria-pressed="false"[^>]*>Show dismissed<\/button>/)
-    expect(markup).toContain('New postings ranked against your preferences, newest first.')
+    expect(markup).toContain(
+      'New postings from watched companies ranked against your preferences, newest first.',
+    )
     expect(markup).toContain('aria-expanded="false"')
     expect(markup).toContain('>Companies</button>')
     expect(markup).toContain('aria-controls="dashboard-score-tier-popover"')
@@ -125,6 +140,17 @@ describe('Dashboard precision controls', () => {
     expect(markup).not.toMatch(/aria-pressed="true"[^>]*>Weak<\/button>/)
     expect(markup).toContain('1 active jobs shown')
     expect(markup).toContain('Analyst')
+    expect(markup).not.toContain('External Analyst')
+  })
+
+  it('preserves the combined feed as the secondary All Jobs view', () => {
+    const markup = renderToStaticMarkup(<Dashboard scope="all" />)
+
+    expect(markup).toContain('>All Jobs</h1>')
+    expect(markup).toContain('New postings ranked against your preferences, newest first.')
+    expect(markup).toContain('2 active jobs shown')
+    expect(markup).toContain('Analyst')
+    expect(markup).toContain('External Analyst')
   })
 
   it('keys the server-authoritative paged query by lifecycle, filters, and Active order', () => {
@@ -136,6 +162,8 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('dashboardFeedQueryKey(feedRequest)')
     expect(dashboardSource).toContain('listFeedPage(feedRequest, pageParam)')
     expect(dashboardSource).toContain('listDashboardCompanyOptions(feedRequest)')
+    expect(dashboardSource).toContain("scope === 'watchlist'")
+    expect(dashboardSource).toContain('dashboardSourceRows(allRows, scope)')
     expect(dashboardSource).toContain('appliedHiddenKeys')
     expect(dashboardSource).toContain('selectedTiers')
   })
