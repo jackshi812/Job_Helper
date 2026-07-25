@@ -448,7 +448,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.3 Dashboard Filter Refinements | 3/4 | In Progress|  |
 | 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 9/9 | Complete    | 2026-07-23 |
 | 03.5 Generic Workday Connector & Fidelity | 4/4 | Complete | 2026-07-24 |
-| 03.6 US-Only Workday Expansion & Dashboard Queue | 5/5 | Complete   | 2026-07-25 |
+| 03.6 US-Only Workday Expansion & Dashboard Queue | 5/5 | Complete    | 2026-07-25 |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
