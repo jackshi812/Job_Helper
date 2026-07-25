@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 import {
+  adminRequestAuth,
   assertUnrelatedSnapshotUnchanged,
   cleanupFixtures,
   deleteSubjectsExactly,
@@ -156,6 +157,21 @@ test('PASS wrapper cannot be overwritten by hosted ACTIVE metadata', () => {
     passCheck({ status: 'ACTIVE', version: 27 }),
     { status: 'PASS', hosted_status: 'ACTIVE', version: 27 },
   )
+})
+
+test('Auth admin headers support secret API keys without invalid Bearer JWTs', () => {
+  assert.deepEqual(
+    adminRequestAuth('sb_secret_example-123'),
+    { apikey: 'sb_secret_example-123' },
+  )
+  assert.deepEqual(
+    adminRequestAuth('header.payload.signature'),
+    {
+      token: 'header.payload.signature',
+      apikey: 'header.payload.signature',
+    },
+  )
+  assert.throws(() => adminRequestAuth('malformed'), /format is unsupported/)
 })
 
 test('AggregateError diagnostics are bounded, cause-aware, and secret-redacted', () => {

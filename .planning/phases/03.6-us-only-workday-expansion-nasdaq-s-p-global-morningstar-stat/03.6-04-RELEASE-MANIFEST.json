@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "phase": "03.6",
-  "created_at": "2026-07-25T13:32:11Z",
+  "created_at": "2026-07-25T13:37:21Z",
   "accepted_production_source": "95caf9bb65e8266e20352aa5e955c74fc9a9645b",
   "candidate": {
     "git_sha": "0e24023b09771144e3b6c3374cdbc7d65ea0c947",
@@ -155,19 +155,19 @@
     }
   ],
   "verifier": {
-    "script_sha256": "b6c32f1841921b5ab0be0626e51a44ffb23f9920468207fe6a2f1bade93cdd38",
-    "run_namespace": "phase036-660ec9a4-eb5b-4267-921f-c603f76839c6",
-    "fixture_namespace_uuid": "660ec9a4-eb5b-4267-921f-c603f76839c6",
+    "script_sha256": "c9af4e7e8476feb478dfa019d910369d246c9c35905e60814c651a085f549321",
+    "run_namespace": "phase036-7ee53d3c-03c5-48de-bb37-d612500d4fa3",
+    "fixture_namespace_uuid": "7ee53d3c-03c5-48de-bb37-d612500d4fa3",
     "page_size": 200,
     "subject_count": 2,
     "subjects": [
       {
         "label": "subject-1",
-        "email": "phase036-660ec9a4-eb5b-4267-921f-c603f76839c6+subject-1@example.invalid"
+        "email": "phase036-7ee53d3c-03c5-48de-bb37-d612500d4fa3+subject-1@example.invalid"
       },
       {
         "label": "subject-2",
-        "email": "phase036-660ec9a4-eb5b-4267-921f-c603f76839c6+subject-2@example.invalid"
+        "email": "phase036-7ee53d3c-03c5-48de-bb37-d612500d4fa3+subject-2@example.invalid"
       }
     ],
     "activation": {
@@ -183,9 +183,9 @@
       "user_jobs": 810
     },
     "deterministic_id_ranges": {
-      "jobs": "uuid-v5(660ec9a4-eb5b-4267-921f-c603f76839c6,job:000..404)",
-      "subject_1_user_jobs": "uuid-v5(660ec9a4-eb5b-4267-921f-c603f76839c6,subject-1:000..404)",
-      "subject_2_user_jobs": "uuid-v5(660ec9a4-eb5b-4267-921f-c603f76839c6,subject-2:000..404)"
+      "jobs": "uuid-v5(7ee53d3c-03c5-48de-bb37-d612500d4fa3,job:000..404)",
+      "subject_1_user_jobs": "uuid-v5(7ee53d3c-03c5-48de-bb37-d612500d4fa3,subject-1:000..404)",
+      "subject_2_user_jobs": "uuid-v5(7ee53d3c-03c5-48de-bb37-d612500d4fa3,subject-2:000..404)"
     }
   },
   "baselines": {

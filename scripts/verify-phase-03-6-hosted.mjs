@@ -418,6 +418,16 @@ function requiredEnvironment(name) {
   return value
 }
 
+function adminRequestAuth(secretKey) {
+  if (/^sb_secret_[A-Za-z0-9_-]+$/.test(secretKey)) {
+    return { apikey: secretKey }
+  }
+  if (secretKey.split('.').length === 3) {
+    return { token: secretKey, apikey: secretKey }
+  }
+  throw new Error('SUPABASE_SECRET_KEY format is unsupported')
+}
+
 function sqlLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`
 }
@@ -499,8 +509,7 @@ async function createDisposableSubject(manifest, ordinal) {
   const subject = manifest.verifier.subjects[ordinal - 1]
   const password = `Phase036-${randomBytes(24).toString('base64url')}!9a`
   const created = await httpJson(`${apiUrl}/auth/v1/admin/users`, {
-    token: secretKey,
-    apikey: secretKey,
+    ...adminRequestAuth(secretKey),
     method: 'POST',
     body: {
       email: subject.email,
@@ -533,8 +542,7 @@ async function deleteDisposableSubject(subject) {
   const apiUrl = requiredEnvironment('SUPABASE_URL').replace(/\/$/, '')
   const secretKey = requiredEnvironment('SUPABASE_SECRET_KEY')
   await httpJson(`${apiUrl}/auth/v1/admin/users/${subject.id}`, {
-    token: secretKey,
-    apikey: secretKey,
+    ...adminRequestAuth(secretKey),
     method: 'DELETE',
     expected: [200, 204],
   })
@@ -1864,6 +1872,7 @@ if (direct) {
 export {
   REQUIRED_CHECKS,
   UAT_CASES,
+  adminRequestAuth,
   assertUnrelatedSnapshotUnchanged,
   assertEvidence,
   assertUat,
