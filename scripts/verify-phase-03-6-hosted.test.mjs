@@ -190,13 +190,19 @@ test('exact-subject deletion retries are bounded and continue in reverse order',
 })
 
 test('guarded cleanup continues exact SQL cleanup after auth deletion exhausts retries', async () => {
-  const subject = { id: '11111111-1111-4111-8111-111111111111' }
+  const subject = {
+    id: '11111111-1111-4111-8111-111111111111',
+    email: 'phase-03-6-exact+subject-1@example.invalid',
+  }
   const sqlCalls = []
   let deletes = 0
   const result = await cleanupFixtures(
     {
       targets: { supabase: { project_ref: 'exact-project' } },
-      verifier: { run_namespace: 'phase-03-6-exact' },
+      verifier: {
+        run_namespace: 'phase-03-6-exact',
+        subjects: [{ label: 'subject-1', email: subject.email }],
+      },
     },
     [subject],
     {
@@ -211,22 +217,73 @@ test('guarded cleanup continues exact SQL cleanup after auth deletion exhausts r
       sleep: async () => {},
       sql: async (projectRef, statement) => {
         sqlCalls.push({ projectRef, statement })
-        return sqlCalls.length === 1
+        if (sqlCalls.length === 1) {
+          return [{ id: subject.id, email: subject.email }]
+        }
+        return sqlCalls.length === 2
           ? []
           : [{ users: 0, jobs: 0, user_jobs: 0, ranking_states: 0 }]
       },
     },
   )
   assert.equal(deletes, 3)
-  assert.equal(sqlCalls.length, 2)
+  assert.equal(sqlCalls.length, 3)
   assert.ok(sqlCalls.every(({ projectRef }) => projectRef === 'exact-project'))
-  assert.match(sqlCalls[0].statement, /aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/)
-  assert.match(sqlCalls[1].statement, /phase-03-6-exact/)
-  assert.equal(result.subjectDeletions[0].status, 'failed')
+  assert.match(sqlCalls[0].statement, /11111111-1111-4111-8111-111111111111/)
+  assert.match(sqlCalls[0].statement, /phase-03-6-exact\+subject-1@example\.invalid/)
+  assert.match(sqlCalls[1].statement, /aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/)
+  assert.match(sqlCalls[2].statement, /phase-03-6-exact/)
+  assert.equal(result.subjectDeletions[0].status, 'deleted_sql_fallback')
   assert.deepEqual(result.residue, {
     users: 0,
     jobs: 0,
     user_jobs: 0,
     ranking_states: 0,
   })
+})
+
+test('management SQL subject fallback requires the exact returned UUID and email', async () => {
+  const subject = {
+    id: '11111111-1111-4111-8111-111111111111',
+    email: 'phase-03-6-exact+subject-1@example.invalid',
+  }
+  const sqlCalls = []
+  await assert.rejects(
+    cleanupFixtures(
+      {
+        targets: { supabase: { project_ref: 'exact-project' } },
+        verifier: {
+          run_namespace: 'phase-03-6-exact',
+          subjects: [{ label: 'subject-1', email: subject.email }],
+        },
+      },
+      [subject],
+      {
+        jobs: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
+        userJobs: [['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']],
+      },
+      {
+        deleteSubject: async () => {
+          throw new Error('bad_jwt')
+        },
+        sleep: async () => {},
+        sql: async (_projectRef, statement) => {
+          sqlCalls.push(statement)
+          if (sqlCalls.length === 1) {
+            return [{ id: subject.id, email: 'wrong@example.invalid' }]
+          }
+          return sqlCalls.length === 2
+            ? []
+            : [{ users: 0, jobs: 0, user_jobs: 0, ranking_states: 0 }]
+        },
+      },
+    ),
+    (error) => (
+      error instanceof AggregateError
+      && /guarded cleanup failed/.test(error.message)
+    ),
+  )
+  assert.equal(sqlCalls.length, 3)
+  assert.match(sqlCalls[1], /delete from public\.jobs/)
+  assert.match(sqlCalls[2], /select count\(\*\)::integer from auth\.users/)
 })
