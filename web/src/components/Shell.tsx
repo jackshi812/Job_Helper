@@ -5,7 +5,8 @@ import { deriveHeartbeatBanner, fetchHeartbeat } from '../lib/pipeline'
 import { supabase } from '../lib/supabase'
 
 const navigation = [
-  { label: 'Dashboard', to: '/' },
+  { label: 'Watchlist Jobs', to: '/' },
+  { label: 'All Jobs', to: '/all-jobs' },
   { label: 'Preferences', to: '/preferences' },
   { label: 'Watchlist', to: '/watchlist' },
   { label: 'Resumes', to: '/resumes' },
@@ -14,7 +15,7 @@ const navigation = [
 ]
 
 function shellMainClass(pathname: string): string {
-  return pathname === '/'
+  return pathname === '/' || pathname === '/all-jobs'
     ? 'w-full px-4 py-8 sm:px-6'
     : 'mx-auto max-w-6xl px-4 py-8 sm:px-6'
 }

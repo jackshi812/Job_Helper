@@ -32,15 +32,18 @@ import {
   buildDashboardFeedQuery,
   clearAllCompanies,
   copyHiddenCompanyKeys,
+  dashboardCompanyOptions,
   dashboardFeedQueryKey,
   dashboardLifecycleCopy,
   dashboardLifecycleTimestamp,
+  dashboardSourceRows,
   searchCompanyOptions,
   scoreTierSummary,
   selectAllCompanies,
   toggleDashboardLifecycle,
   toggleHiddenCompanyKey,
   toggleScoreTier,
+  type DashboardSourceScope,
 } from '../lib/dashboard'
 import { listResumes, resumeLabel } from '../lib/resumes'
 import {
@@ -235,7 +238,11 @@ function DashboardHeaderCell({
   )
 }
 
-export function Dashboard() {
+interface DashboardProps {
+  scope?: DashboardSourceScope
+}
+
+export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
   const queryClient = useQueryClient()
   const [lifecycle, setLifecycle] = useState<LifecycleView>('active')
   const [sortByScore, setSortByScore] = useState(false)
@@ -297,7 +304,7 @@ export function Dashboard() {
     [lifecycle, activeOrder, appliedHiddenKeys, selectedTiers],
   )
   const feedKey = dashboardFeedQueryKey(feedRequest)
-  const feedIdentity = JSON.stringify(feedKey)
+  const feedIdentity = JSON.stringify([scope, ...feedKey])
   const feedEnabled = selectedTiers.size > 0
   const feedQuery = useInfiniteQuery<
     DashboardFeedPage,
@@ -314,9 +321,9 @@ export function Dashboard() {
     refetchInterval: 60_000,
   })
   const companyOptionsQuery = useQuery({
-    queryKey: ['dashboard-companies', lifecycle, [...feedRequest.tiers]],
+    queryKey: ['dashboard-companies', scope, lifecycle, [...feedRequest.tiers]],
     queryFn: () => listDashboardCompanyOptions(feedRequest),
-    enabled: feedEnabled,
+    enabled: feedEnabled && scope === 'all',
   })
   const rankingStateQuery = useQuery({
     queryKey: ['ranking-state'],
@@ -371,9 +378,13 @@ export function Dashboard() {
     return map
   }, [resumesQuery.data])
 
-  const rows = useMemo(
+  const allRows = useMemo(
     () => mergedInfinitePage(feedQuery.data).rows,
     [feedQuery.data],
+  )
+  const rows = useMemo(
+    () => dashboardSourceRows(allRows, scope),
+    [allRows, scope],
   )
   const finalPage = feedQuery.data?.pages.at(-1) ?? EMPTY_DASHBOARD_PAGE
 
@@ -435,6 +446,18 @@ export function Dashboard() {
     }
   }
 
+  async function refillVisibleQueue(cursor: string | null) {
+    if (scope === 'all') {
+      await runBackfill(cursor)
+      return
+    }
+
+    const result = await feedQuery.refetch()
+    if (result.isError) {
+      setBackfillError('Couldn’t load the next job. Your current results are still shown.')
+    }
+  }
+
   const dismissMutation = useMutation({
     mutationFn: dismissJob,
     onMutate: snapshotAndRemove,
@@ -445,7 +468,7 @@ export function Dashboard() {
       setLifecycleError('Couldn’t dismiss this job. It remains in Active. Try again.')
     },
     onSuccess: async (_data, _id, context) => {
-      if (lifecycle === 'active') await runBackfill(context.continuationCursor)
+      if (lifecycle === 'active') await refillVisibleQueue(context.continuationCursor)
     },
     onSettled: () => queryClient.invalidateQueries({
       queryKey: ['dashboard-feed'],
@@ -480,7 +503,7 @@ export function Dashboard() {
       )
     },
     onSuccess: async (_data, id, context) => {
-      await runBackfill(context.continuationCursor)
+      await refillVisibleQueue(context.continuationCursor)
       setQueueAnnouncement(`Marked ${context.title} as applied.`)
       setUndoTarget({ id, title: context.title })
     },
@@ -517,8 +540,10 @@ export function Dashboard() {
   }, [undoTarget])
 
   const companyOptions = useMemo(
-    () => companyOptionsQuery.data ?? [],
-    [companyOptionsQuery.data],
+    () => scope === 'watchlist'
+      ? dashboardCompanyOptions(rows)
+      : (companyOptionsQuery.data ?? []),
+    [companyOptionsQuery.data, rows, scope],
   )
   const searchedCompanyOptions = useMemo(
     () => searchCompanyOptions(companyOptions, companySearch),
@@ -586,7 +611,10 @@ export function Dashboard() {
       setLoadMoreError('Couldn’t load more jobs. Your current results are still shown.')
       return
     }
-    const total = mergedInfinitePage(result.data).rows.length
+    const total = dashboardSourceRows(
+      mergedInfinitePage(result.data).rows,
+      scope,
+    ).length
     const appended = Math.max(0, total - previousCount)
     setQueueAnnouncement(
       `${appended} more jobs loaded. ${total} ${lifecycle} jobs shown.`,
@@ -594,6 +622,10 @@ export function Dashboard() {
   }
 
   const lifecycleCopy = dashboardLifecycleCopy(lifecycle)
+  const pageTitle = scope === 'watchlist' ? 'Watchlist Jobs' : 'All Jobs'
+  const pageDescription = scope === 'watchlist' && lifecycle === 'active'
+    ? 'New postings from watched companies ranked against your preferences, newest first.'
+    : lifecycleCopy.description
   const scoreAriaSort = lifecycle === 'active' && sortByScore
     ? (scoreAscending ? 'ascending' : 'descending')
     : 'none'
@@ -627,9 +659,9 @@ export function Dashboard() {
 
   return (
     <section>
-      <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+      <h1 className="text-xl font-semibold tracking-tight">{pageTitle}</h1>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        {lifecycleCopy.description}
+        {pageDescription}
       </p>
 
       <div
@@ -909,9 +941,13 @@ export function Dashboard() {
               </>
             ) : lifecycle === 'active' ? (
               <>
-                <h2 className="text-base font-semibold">No matches yet</h2>
+                <h2 className="text-base font-semibold">
+                  {scope === 'watchlist' ? 'No watchlist matches yet' : 'No matches yet'}
+                </h2>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  New postings are ranked against your preferences within minutes of discovery.
+                  {scope === 'watchlist'
+                    ? 'New postings from watched companies appear here after they are ranked.'
+                    : 'New postings are ranked against your preferences within minutes of discovery.'}
                   Set your preferences to start matching.
                   {!hasPreferences ? (
                     <>

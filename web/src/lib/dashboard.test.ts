@@ -15,6 +15,8 @@ import {
   dashboardLifecycleCopy,
   dashboardLifecycleTimestamp,
   dashboardScoreSortAvailable,
+  dashboardSourceRows,
+  isWatchlistJob,
   lifecycleViewFromToggles,
   normalizedCompanyKey,
   removeDashboardFeedRow,
@@ -76,6 +78,28 @@ function feedRow(company: string, score: number, overrides: Partial<FeedRow> = {
 const allTiers = new Set<Tier>(ALL_SCORE_TIERS)
 
 describe('Dashboard company options', () => {
+  it('separates watched jobs by normalized company relationship without guessing from names', () => {
+    const watched = feedRow('Acme', 80)
+    const external = feedRow('External Co', 70, {
+      jobs: {
+        id: 'job-external',
+        title: 'Analyst',
+        location: 'Chicago',
+        absolute_url: 'https://example.com/external',
+        posted_at: '2026-07-22T00:00:00.000Z',
+        first_seen_at: '2026-07-22T00:00:00.000Z',
+        status: 'open',
+        source_company_name: 'External Co',
+        companies: null,
+      },
+    })
+
+    expect(isWatchlistJob(watched)).toBe(true)
+    expect(isWatchlistJob(external)).toBe(false)
+    expect(dashboardSourceRows([watched, external], 'watchlist')).toEqual([watched])
+    expect(dashboardSourceRows([watched, external], 'all')).toEqual([watched, external])
+  })
+
   it('derives only truthful normalized feed companies in case-insensitive order', () => {
     const rows = [
       feedRow('Walmart', 80),
