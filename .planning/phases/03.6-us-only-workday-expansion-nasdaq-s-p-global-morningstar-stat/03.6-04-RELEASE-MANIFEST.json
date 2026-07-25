@@ -1,16 +1,15 @@
 {
   "schema_version": 1,
   "phase": "03.6",
-  "created_at": "2026-07-25T03:10:00Z",
-  "accepted_production_source": "9a8a11457b4e7b2113a51ed2e39698393ed877fe",
+  "created_at": "2026-07-25T03:30:00Z",
+  "accepted_production_source": "29020ec8b58446254bd755b31b05ce3c9eaab460",
   "candidate": {
-    "git_sha": "29020ec8b58446254bd755b31b05ce3c9eaab460",
-    "commit_object_sha256": "9e0fc8e7b409465048556b86ce6ce897ce253493728556c1cb35bbae4c4c1d39",
-    "parent_sha": "9a8a11457b4e7b2113a51ed2e39698393ed877fe",
+    "git_sha": "5d128278b513475f18a85ebeb9c7f08f45a2f5e0",
+    "commit_object_sha256": "b409e68aa5cf67b97376f512c0c74846ca0107337e8867f1e1e687a451a7c899",
+    "parent_sha": "29020ec8b58446254bd755b31b05ce3c9eaab460",
     "worktree_path": "/private/tmp/job-copilot-036-release.L00kxB",
     "changed_files": [
       "supabase/functions/_shared/adapters/workday.ts",
-      "supabase/functions/_shared/workday-identities.ts",
       "web/tests/workday-connector.integration.test.ts"
     ]
   },
@@ -23,7 +22,7 @@
     "verify-board": {
       "entry_path": "supabase/functions/verify-board/index.ts",
       "entry_sha256": "08a98d06f400f3c2b03352cf837a8f6564557a63ace487736e041c4603368591",
-      "bundle_manifest_sha256": "ab5aa0a77e887b16308a0527d596ee7f943276b58f3bde28eaedc54c1e72b715",
+      "bundle_manifest_sha256": "0c4f156add435825dc9c3ed963be1e77159deba3b22a1a24090ef78a1e957aa0",
       "bundle_files": [
         { "path": "supabase/functions/_shared/adapters/ashby.ts", "sha256": "d4e77ed191510398fab132106fd31c2a930afdebe74ec96f0840bc640a862eae" },
         { "path": "supabase/functions/_shared/adapters/greenhouse.ts", "sha256": "6d456b757ef39b18435609c1f1833e39f41fb1469321642917247c1d7f337edf" },
@@ -32,7 +31,7 @@
         { "path": "supabase/functions/_shared/adapters/recruitee.ts", "sha256": "934e23c9371d1a57fd273fddcd3ae3cf3c3876e5914cd215996104e45d39287c" },
         { "path": "supabase/functions/_shared/adapters/smartrecruiters.ts", "sha256": "83ea42f88e53e327a9dd0f9ba58774e474f517f7fd703f5c6cb2ae35b2a1c496" },
         { "path": "supabase/functions/_shared/adapters/types.ts", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" },
-        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "45bebca5f6cf09ec0dfca762fc2c0319cbb0e838cec77c706128d8bf535d6b8c" },
+        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "6baa8777435cbcd5a61330be0efcd9c8edf0ad0ecb6942609827ab4f26dc475c" },
         { "path": "supabase/functions/_shared/connectors.ts", "sha256": "33c7bdb68add427136922f0b2599cfed85744d4bacb88c956d4ca64026b50ee6" },
         { "path": "supabase/functions/_shared/detect.ts", "sha256": "59b549d77be9ab4c14cd68a5beaf2a240ec1416c907b3dff9caba36a73bc7b6c" },
         { "path": "supabase/functions/_shared/provider-identities.ts", "sha256": "6f060429cec31ac258baecee1b71bbacba8309bbaf41359847de5e1511dbcd14" },
@@ -42,7 +41,7 @@
       "verify_jwt": true,
       "current_hosted": {
         "id": "b1f7f9ea-4423-49c9-97bc-946b374b5a1d",
-        "version": 23,
+        "version": 24,
         "status": "ACTIVE",
         "verify_jwt": true
       }
@@ -50,7 +49,7 @@
     "poll-tick": {
       "entry_path": "supabase/functions/poll-tick/index.ts",
       "entry_sha256": "c4d1caaf945dc39e091594e959e6e7009240f7901f3339372ed738e6285efba4",
-      "bundle_manifest_sha256": "bfaa5fec5d47bdf86c7880c899cc03bb893f274bc8a0f6adc557bf81a0c5bf60",
+      "bundle_manifest_sha256": "66995ecbbe2bc61fe43ed182efc9c22c08c337fd74745c343e45a76dc39c488e",
       "bundle_files": [
         { "path": "supabase/functions/_shared/adapters/ashby.ts", "sha256": "d4e77ed191510398fab132106fd31c2a930afdebe74ec96f0840bc640a862eae" },
         { "path": "supabase/functions/_shared/adapters/greenhouse.ts", "sha256": "6d456b757ef39b18435609c1f1833e39f41fb1469321642917247c1d7f337edf" },
@@ -59,7 +58,7 @@
         { "path": "supabase/functions/_shared/adapters/recruitee.ts", "sha256": "934e23c9371d1a57fd273fddcd3ae3cf3c3876e5914cd215996104e45d39287c" },
         { "path": "supabase/functions/_shared/adapters/smartrecruiters.ts", "sha256": "83ea42f88e53e327a9dd0f9ba58774e474f517f7fd703f5c6cb2ae35b2a1c496" },
         { "path": "supabase/functions/_shared/adapters/types.ts", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" },
-        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "45bebca5f6cf09ec0dfca762fc2c0319cbb0e838cec77c706128d8bf535d6b8c" },
+        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "6baa8777435cbcd5a61330be0efcd9c8edf0ad0ecb6942609827ab4f26dc475c" },
         { "path": "supabase/functions/_shared/connectors.ts", "sha256": "33c7bdb68add427136922f0b2599cfed85744d4bacb88c956d4ca64026b50ee6" },
         { "path": "supabase/functions/_shared/dedup.ts", "sha256": "dbdbf8e0e3eeec990b0bc8de9acd5d606b562d9b64aebc899cc915d97c75c82b" },
         { "path": "supabase/functions/_shared/detect.ts", "sha256": "59b549d77be9ab4c14cd68a5beaf2a240ec1416c907b3dff9caba36a73bc7b6c" },
@@ -71,7 +70,7 @@
       "verify_jwt": false,
       "current_hosted": {
         "id": "623f09fa-9ff8-4736-a1ae-69b052cf20a9",
-        "version": 26,
+        "version": 27,
         "status": "ACTIVE",
         "verify_jwt": false
       }
@@ -150,7 +149,7 @@
     }
   ],
   "verifier": {
-    "script_sha256": "f75cc8ae42b2956f399e0feac7acd743a8566b73039c5c184184dd05e13318f9",
+    "script_sha256": "f807c0b7158f5d628a1a164cd42dbc4464048f06a9c9b55e0cb07c982954e9a2",
     "run_namespace": "phase036-c42d4d62-1038-4ee7-8d7c-5581c5e79a49",
     "fixture_namespace_uuid": "c42d4d62-1038-4ee7-8d7c-5581c5e79a49",
     "page_size": 200,
