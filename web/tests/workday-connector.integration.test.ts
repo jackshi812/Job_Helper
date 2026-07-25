@@ -927,7 +927,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
   })
 
   it.each(phase036Identities)(
-    'verifies $companyName against the reconciled U.S. count rather than the global total',
+    'verifies $companyName when overlapping country counts exceed the global unique-job total',
     async (expected) => {
       const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
       const bodies: Array<Record<string, string[]>> = []
@@ -938,7 +938,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
         bodies.push(body.appliedFacets)
         return Promise.resolve(body.appliedFacets[expected.facetParameter] === undefined
           ? jsonResponse({
-              total: 4,
+              total: 3,
               jobPostings: [],
               facets: countryFacets(expected.route, 1, 3),
             })
@@ -953,6 +953,31 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
         {},
         { [expected.facetParameter]: [UNITED_STATES_WORKDAY_FACET_ID] },
       ])
+    },
+  )
+
+  it.each(phase036Identities)(
+    'fails $companyName closed when the filtered total differs from its discovered U.S. count',
+    async (expected) => {
+      const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
+      const providerFetch = vi.fn((_input: string | URL | Request, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as {
+          appliedFacets: Record<string, string[]>
+        }
+        return Promise.resolve(body.appliedFacets[expected.facetParameter] === undefined
+          ? jsonResponse({
+              total: 2,
+              jobPostings: [],
+              facets: countryFacets(expected.route, 1, 2),
+            })
+          : jsonResponse({
+              total: 2,
+              jobPostings: [phase036Posting(301), phase036Posting(302)],
+            }))
+      })
+
+      await expect(verifyWorkdayListing(providerFetch, {}, identity))
+        .rejects.toThrow('country_filter_unverified')
     },
   )
 
