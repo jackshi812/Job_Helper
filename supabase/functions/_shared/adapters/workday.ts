@@ -791,13 +791,13 @@ async function discoverCountryScope(
 }
 
 /**
- * Intentionally selective Workday recent importer, parameterized over a resolved
- * WorkdayIdentity. It scans only the newest category-scoped listing window,
- * performs detail requests for recent candidates, applies the legacy U.S./under-
- * three-years eligibility policy only when the identity opts into Capital One's
- * behavior, and never treats absence from this selection as proof that a provider
- * job closed. Fidelity retains every recent kept-family detail for downstream
- * filtering.
+ * Workday importer parameterized over a resolved WorkdayIdentity. Existing
+ * category-scoped identities retain their intentionally selective recent/detail
+ * behavior and never treat absence as closure evidence. Country-scoped identities
+ * instead reconcile and map the complete exact-filtered listing population. Their
+ * listing contract already proves U.S. membership through the immutable facet
+ * route/ID, exact filtered count, and complete pagination, so provider-specific
+ * detail aliases cannot truncate or poison that complete observation.
  *
  * Scoping is identity-driven: an identity carrying `countryScope` discovers and
  * applies its exact country route; an identity carrying `keptFacetIds`
@@ -967,7 +967,9 @@ export async function pollWorkdayRecent(
       seenPaths.add(posting.externalPath)
       if (identifier) seenListingIdentifiers.add(identifier)
       const age = postedAgeDays(posting.postedOn)
-      if (age === null || age <= recentDays) candidates.push(posting)
+      if (identity.countryScope || age === null || age <= recentDays) {
+        candidates.push(posting)
+      }
     }
     for (const identifier of tombstones) {
       if (
@@ -1015,6 +1017,19 @@ export async function pollWorkdayRecent(
         candidates.length,
         pageCount,
       )
+    }
+    if (identity.countryScope) {
+      try {
+        jobs.push(mapRecentListPosting(posting, nowMs, identity))
+      } catch (error) {
+        return incomplete(
+          jobs,
+          error instanceof ProviderError ? error.code : 'provider_error',
+          candidates.length,
+          pageCount,
+        )
+      }
+      continue
     }
     if (knownIds.has(externalId) && !identity.countryScope) {
       try {
@@ -1082,7 +1097,7 @@ export async function pollWorkdayRecent(
     jobs: Object.freeze([...jobs]) as NormalizedJob[],
     completeness: 'complete',
     credibleForClosure: true,
-    allowMissingClosure: false,
+    allowMissingClosure: Boolean(identity.countryScope),
     pageCount,
     expectedCount: jobs.length,
     warnings: [],
