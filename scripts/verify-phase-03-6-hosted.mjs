@@ -1425,6 +1425,39 @@ async function proveQueue(manifest, subjects, ids) {
   })
 }
 
+async function deleteDisposableSubjectWithManagementSql(
+  manifest,
+  subject,
+  sql = managementSql,
+) {
+  const namespace = manifest.verifier.run_namespace
+  const approvedEmails = manifest.verifier.subjects
+    .filter(({ email }) => email === subject?.email)
+  if (
+    !UUID.test(String(subject?.id))
+    || typeof subject?.email !== 'string'
+    || !subject.email.startsWith(`${namespace}+`)
+    || approvedEmails.length !== 1
+  ) {
+    throw new Error('refusing non-exact management SQL subject cleanup')
+  }
+  const rows = await sql(manifest.targets.supabase.project_ref, `
+    delete from auth.users
+    where id = ${sqlLiteral(subject.id)}::uuid
+      and email = ${sqlLiteral(subject.email)}
+      and email like ${sqlLiteral(`${namespace}+%`)}
+    returning id::text as id, email
+  `)
+  if (
+    !Array.isArray(rows)
+    || rows.length !== 1
+    || rows[0]?.id !== subject.id
+    || rows[0]?.email !== subject.email
+  ) {
+    throw new Error('management SQL subject cleanup returned non-exact identity')
+  }
+}
+
 async function cleanupFixtures(manifest, subjects, ids, {
   deleteSubject = deleteDisposableSubject,
   sleep = delay,
@@ -1434,9 +1467,20 @@ async function cleanupFixtures(manifest, subjects, ids, {
     deleteSubject,
     sleep,
   })
-  const cleanupErrors = subjectDeletions
-    .filter(({ status }) => status === 'failed')
-    .map(({ error }) => error)
+  const cleanupErrors = []
+  for (const deletion of subjectDeletions.filter(({ status }) => status === 'failed')) {
+    const subject = subjects.find(({ id }) => id === deletion.id)
+    try {
+      await deleteDisposableSubjectWithManagementSql(manifest, subject, sql)
+      deletion.status = 'deleted_sql_fallback'
+      delete deletion.error
+    } catch (fallbackError) {
+      cleanupErrors.push(new AggregateError(
+        [deletion.error, fallbackError].filter(Boolean),
+        `exact subject cleanup failed for ${deletion.id}`,
+      ))
+    }
+  }
   try {
     await sql(manifest.targets.supabase.project_ref, `
       delete from public.jobs
@@ -1468,6 +1512,8 @@ async function cleanupFixtures(manifest, subjects, ids, {
   if (!residue || residue.length !== 1
     || Object.values(residue[0]).some((value) => Number(value) !== 0)) {
     cleanupErrors.push(new Error('verifier fixture residue remains after guarded cleanup'))
+  }
+  if (cleanupErrors.length > 0) {
     throw new AggregateError(
       cleanupErrors,
       'guarded cleanup failed after bounded exact-subject retries',
