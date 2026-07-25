@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "phase": "03.6",
-  "created_at": "2026-07-25T03:30:00Z",
-  "accepted_production_source": "29020ec8b58446254bd755b31b05ce3c9eaab460",
+  "created_at": "2026-07-25T04:49:06Z",
+  "accepted_production_source": "5d128278b513475f18a85ebeb9c7f08f45a2f5e0",
   "candidate": {
-    "git_sha": "5d128278b513475f18a85ebeb9c7f08f45a2f5e0",
-    "commit_object_sha256": "b409e68aa5cf67b97376f512c0c74846ca0107337e8867f1e1e687a451a7c899",
-    "parent_sha": "29020ec8b58446254bd755b31b05ce3c9eaab460",
+    "git_sha": "f7376b7c86906b7f669aa221835066c1a241fc65",
+    "commit_object_sha256": "e33092019d3c028307d2b0bfc4abb15b30fc322527b8d0e9078746dad976b624",
+    "parent_sha": "5d128278b513475f18a85ebeb9c7f08f45a2f5e0",
     "worktree_path": "/private/tmp/job-copilot-036-release.L00kxB",
     "changed_files": [
       "supabase/functions/_shared/adapters/workday.ts",
@@ -22,7 +22,7 @@
     "verify-board": {
       "entry_path": "supabase/functions/verify-board/index.ts",
       "entry_sha256": "08a98d06f400f3c2b03352cf837a8f6564557a63ace487736e041c4603368591",
-      "bundle_manifest_sha256": "0c4f156add435825dc9c3ed963be1e77159deba3b22a1a24090ef78a1e957aa0",
+      "bundle_manifest_sha256": "8a972567522b1f130699890b8d79a2624483b964d0c021982d9d3abfde3ed45e",
       "bundle_files": [
         { "path": "supabase/functions/_shared/adapters/ashby.ts", "sha256": "d4e77ed191510398fab132106fd31c2a930afdebe74ec96f0840bc640a862eae" },
         { "path": "supabase/functions/_shared/adapters/greenhouse.ts", "sha256": "6d456b757ef39b18435609c1f1833e39f41fb1469321642917247c1d7f337edf" },
@@ -31,9 +31,11 @@
         { "path": "supabase/functions/_shared/adapters/recruitee.ts", "sha256": "934e23c9371d1a57fd273fddcd3ae3cf3c3876e5914cd215996104e45d39287c" },
         { "path": "supabase/functions/_shared/adapters/smartrecruiters.ts", "sha256": "83ea42f88e53e327a9dd0f9ba58774e474f517f7fd703f5c6cb2ae35b2a1c496" },
         { "path": "supabase/functions/_shared/adapters/types.ts", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" },
-        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "6baa8777435cbcd5a61330be0efcd9c8edf0ad0ecb6942609827ab4f26dc475c" },
+        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "cd89d4dcb6759b7bab6a5b48780f52f05caaf5ed36f386ca1038c9e9e2952777" },
         { "path": "supabase/functions/_shared/connectors.ts", "sha256": "33c7bdb68add427136922f0b2599cfed85744d4bacb88c956d4ca64026b50ee6" },
         { "path": "supabase/functions/_shared/detect.ts", "sha256": "59b549d77be9ab4c14cd68a5beaf2a240ec1416c907b3dff9caba36a73bc7b6c" },
+        { "path": "supabase/functions/_shared/deterministic-ranking.ts", "sha256": "b7a64106ffc3228677643a1eb581eef94bc3ab59a82fed57ff7a8d8615aaee7d" },
+        { "path": "supabase/functions/_shared/filters.ts", "sha256": "0ec9d113983d6ea661106d55e2d42991af97f8ac351870d7240bcd7393fae708" },
         { "path": "supabase/functions/_shared/provider-identities.ts", "sha256": "6f060429cec31ac258baecee1b71bbacba8309bbaf41359847de5e1511dbcd14" },
         { "path": "supabase/functions/_shared/workday-identities.ts", "sha256": "840d59e74759c0e6fa934c8fc7f48e4ed95279f7f3e7c0d2b6992b5a2844f76a" },
         { "path": "supabase/functions/verify-board/index.ts", "sha256": "08a98d06f400f3c2b03352cf837a8f6564557a63ace487736e041c4603368591" }
@@ -41,7 +43,7 @@
       "verify_jwt": true,
       "current_hosted": {
         "id": "b1f7f9ea-4423-49c9-97bc-946b374b5a1d",
-        "version": 24,
+        "version": 25,
         "status": "ACTIVE",
         "verify_jwt": true
       }
@@ -49,7 +51,7 @@
     "poll-tick": {
       "entry_path": "supabase/functions/poll-tick/index.ts",
       "entry_sha256": "c4d1caaf945dc39e091594e959e6e7009240f7901f3339372ed738e6285efba4",
-      "bundle_manifest_sha256": "66995ecbbe2bc61fe43ed182efc9c22c08c337fd74745c343e45a76dc39c488e",
+      "bundle_manifest_sha256": "05a692d715927c635bdd485936906a40d50c3e3360bd1984ad788b065bb4b593",
       "bundle_files": [
         { "path": "supabase/functions/_shared/adapters/ashby.ts", "sha256": "d4e77ed191510398fab132106fd31c2a930afdebe74ec96f0840bc640a862eae" },
         { "path": "supabase/functions/_shared/adapters/greenhouse.ts", "sha256": "6d456b757ef39b18435609c1f1833e39f41fb1469321642917247c1d7f337edf" },
@@ -58,10 +60,12 @@
         { "path": "supabase/functions/_shared/adapters/recruitee.ts", "sha256": "934e23c9371d1a57fd273fddcd3ae3cf3c3876e5914cd215996104e45d39287c" },
         { "path": "supabase/functions/_shared/adapters/smartrecruiters.ts", "sha256": "83ea42f88e53e327a9dd0f9ba58774e474f517f7fd703f5c6cb2ae35b2a1c496" },
         { "path": "supabase/functions/_shared/adapters/types.ts", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" },
-        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "6baa8777435cbcd5a61330be0efcd9c8edf0ad0ecb6942609827ab4f26dc475c" },
+        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "cd89d4dcb6759b7bab6a5b48780f52f05caaf5ed36f386ca1038c9e9e2952777" },
         { "path": "supabase/functions/_shared/connectors.ts", "sha256": "33c7bdb68add427136922f0b2599cfed85744d4bacb88c956d4ca64026b50ee6" },
         { "path": "supabase/functions/_shared/dedup.ts", "sha256": "dbdbf8e0e3eeec990b0bc8de9acd5d606b562d9b64aebc899cc915d97c75c82b" },
         { "path": "supabase/functions/_shared/detect.ts", "sha256": "59b549d77be9ab4c14cd68a5beaf2a240ec1416c907b3dff9caba36a73bc7b6c" },
+        { "path": "supabase/functions/_shared/deterministic-ranking.ts", "sha256": "b7a64106ffc3228677643a1eb581eef94bc3ab59a82fed57ff7a8d8615aaee7d" },
+        { "path": "supabase/functions/_shared/filters.ts", "sha256": "0ec9d113983d6ea661106d55e2d42991af97f8ac351870d7240bcd7393fae708" },
         { "path": "supabase/functions/_shared/lifecycle.ts", "sha256": "b6db7c8a1d05d99b7385f3d4538da064c75f131f89b0e820fe419c8d7562a446" },
         { "path": "supabase/functions/_shared/provider-identities.ts", "sha256": "6f060429cec31ac258baecee1b71bbacba8309bbaf41359847de5e1511dbcd14" },
         { "path": "supabase/functions/_shared/workday-identities.ts", "sha256": "840d59e74759c0e6fa934c8fc7f48e4ed95279f7f3e7c0d2b6992b5a2844f76a" },
@@ -70,7 +74,7 @@
       "verify_jwt": false,
       "current_hosted": {
         "id": "623f09fa-9ff8-4736-a1ae-69b052cf20a9",
-        "version": 27,
+        "version": 28,
         "status": "ACTIVE",
         "verify_jwt": false
       }
@@ -98,11 +102,11 @@
       "production_branch": "main",
       "production_domain": "job-helper-qs9.pages.dev",
       "current_deployment": {
-        "id": "b76da9e5-ae92-4fa8-a46f-9945820d53d3",
+        "id": "7054f45f-e6ec-4b82-87e3-6fb2cbf53508",
         "status": "success",
         "branch": "main",
-        "git_sha": "29020ec8b58446254bd755b31b05ce3c9eaab460",
-        "url": "https://b76da9e5.job-helper-qs9.pages.dev"
+        "git_sha": "5d128278b513475f18a85ebeb9c7f08f45a2f5e0",
+        "url": "https://7054f45f.job-helper-qs9.pages.dev"
       }
     }
   },
