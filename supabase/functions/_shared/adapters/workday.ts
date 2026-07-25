@@ -4,6 +4,7 @@ import {
   CAPITAL_ONE_WORKDAY_SOURCE_KEY,
   type WorkdayIdentity,
 } from '../workday-identities.ts'
+import { classifyUsLocation } from '../deterministic-ranking.ts'
 
 export { CAPITAL_ONE_WORKDAY_SOURCE_KEY }
 export { type WorkdayIdentity }
@@ -42,9 +43,11 @@ interface WorkdayDetail {
     title: string
     jobDescription: string
     location?: string | null
+    additionalLocations?: unknown
     postedOn?: string | null
     startDate?: string | null
     jobReqId?: string | null
+    jobPostingId?: string | null
     country?: { descriptor?: string | null } | null
     jobRequisitionLocation?: {
       country?: {
@@ -117,10 +120,21 @@ export function isEntryLevelWorkdayDetail(detail: WorkdayDetail) {
 }
 
 function isUnitedStatesDetail(detail: WorkdayDetail) {
-  const country = detail.jobPostingInfo.jobRequisitionLocation?.country
+  const info = detail.jobPostingInfo
+  const country = info.jobRequisitionLocation?.country
   if (country?.alpha2Code?.toUpperCase() === 'US') return true
-  const descriptor = country?.descriptor ?? detail.jobPostingInfo.country?.descriptor
-  return /^(?:united states|united states of america|usa)$/i.test(descriptor?.trim() ?? '')
+  const descriptor = country?.descriptor ?? info.country?.descriptor
+  if (/^(?:united states|united states of america|usa)$/i.test(descriptor?.trim() ?? '')) {
+    return true
+  }
+
+  const secondaryLocations = Array.isArray(info.additionalLocations)
+    ? info.additionalLocations
+      .map((value) => stringValue(value, 512)?.trim() ?? null)
+      .filter((value): value is string => Boolean(value))
+    : []
+  return [info.location?.trim() || null, ...secondaryLocations]
+    .some((location) => classifyUsLocation(location) === 'us')
 }
 
 function postedAgeDays(value: string | null | undefined) {
@@ -548,8 +562,12 @@ function mapRecentDetail(
   const externalId = listExternalId(posting)
   const detailExternalId = info.jobReqId?.trim()
   const requiresDetailIdentity = legacyListExternalId(posting.externalPath) === null
+  const pathPostingId = decodeURIComponent(posting.externalPath.slice(
+    posting.externalPath.lastIndexOf('/') + 1,
+  ))
+  const exactPostingAlias = info.jobPostingId?.trim() === pathPostingId
   if (
-    (requiresDetailIdentity && detailExternalId !== externalId)
+    (requiresDetailIdentity && detailExternalId !== externalId && !exactPostingAlias)
     || (!requiresDetailIdentity && detailExternalId && detailExternalId !== externalId)
   ) {
     throw new ProviderError('provider_identity_drift')
