@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "phase": "03.6",
-  "created_at": "2026-07-25T02:15:00Z",
+  "created_at": "2026-07-25T02:40:00Z",
   "accepted_production_source": "9a8a11457b4e7b2113a51ed2e39698393ed877fe",
   "candidate": {
     "git_sha": "29020ec8b58446254bd755b31b05ce3c9eaab460",
@@ -42,7 +42,7 @@
       "verify_jwt": true,
       "current_hosted": {
         "id": "b1f7f9ea-4423-49c9-97bc-946b374b5a1d",
-        "version": 23,
+        "version": 24,
         "status": "ACTIVE",
         "verify_jwt": true
       }
@@ -71,16 +71,16 @@
       "verify_jwt": false,
       "current_hosted": {
         "id": "623f09fa-9ff8-4736-a1ae-69b052cf20a9",
-        "version": 26,
+        "version": 27,
         "status": "ACTIVE",
         "verify_jwt": false
       }
     }
   },
   "web": {
-    "asset_path": "/assets/index-Ducegdfu.js",
-    "asset_sha256": "b803f3f1e6f1164ab4337c5dc91e80f24eab79609b23e27273c7e1154e681ebf",
-    "asset_bytes": 621381
+    "asset_path": "/assets/index-Cs8STXP0.js",
+    "asset_sha256": "fb5719c20447b555d2d8b6bd878cc637a4ca7f71ed2191913c891db1838259b5",
+    "asset_bytes": 621375
   },
   "targets": {
     "supabase": {
@@ -99,11 +99,11 @@
       "production_branch": "main",
       "production_domain": "job-helper-qs9.pages.dev",
       "current_deployment": {
-        "id": "e9d417c4-a612-419b-8d80-9cc92920d8da",
+        "id": "b76da9e5-ae92-4fa8-a46f-9945820d53d3",
         "status": "success",
         "branch": "main",
-        "git_sha": "9a8a11457b4e7b2113a51ed2e39698393ed877fe",
-        "url": "https://e9d417c4.job-helper-qs9.pages.dev"
+        "git_sha": "29020ec8b58446254bd755b31b05ce3c9eaab460",
+        "url": "https://b76da9e5.job-helper-qs9.pages.dev"
       }
     }
   },
