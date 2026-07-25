@@ -12,6 +12,7 @@ import {
   fixtureSql,
   formatVerificationError,
   pageBody,
+  passCheck,
   requirePassChecks,
   sha256,
   uuidV5,
@@ -148,6 +149,13 @@ test('PASS evidence requires every named check and exact cleanup counts', () => 
   assert.doesNotThrow(() => requirePassChecks(document))
   document.checks.fixture_cleanup.status = 'FAIL'
   assert.throws(() => requirePassChecks(document), /fixture_cleanup is not PASS/)
+})
+
+test('PASS wrapper cannot be overwritten by hosted ACTIVE metadata', () => {
+  assert.deepEqual(
+    passCheck({ status: 'ACTIVE', version: 27 }),
+    { status: 'PASS', hosted_status: 'ACTIVE', version: 27 },
+  )
 })
 
 test('AggregateError diagnostics are bounded, cause-aware, and secret-redacted', () => {

@@ -1612,6 +1612,15 @@ function requirePassChecks(document) {
   }
 }
 
+function passCheck(evidence = {}) {
+  const { status: hostedStatus, ...rest } = evidence
+  return {
+    status: 'PASS',
+    ...rest,
+    ...(hostedStatus === undefined ? {} : { hosted_status: hostedStatus }),
+  }
+}
+
 async function assertEvidence(path, rolloutPath) {
   const evidence = JSON.parse(await readFile(path, 'utf8'))
   requirePassChecks(evidence)
@@ -1720,7 +1729,7 @@ async function runHosted(manifestPath, outputPath, rolloutPath) {
     throw new Error('hosted verification did not produce complete cleanup-bound proof')
   }
 
-  const pass = (evidence = {}) => ({ status: 'PASS', ...evidence })
+  const pass = passCheck
   const evidence = {
     generated_at: new Date().toISOString(),
     status: 'PASS',
@@ -1868,6 +1877,7 @@ export {
   fixtureSql,
   formatVerificationError,
   pageBody,
+  passCheck,
   requirePassChecks,
   secretScan,
   sha256,
