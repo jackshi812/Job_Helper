@@ -372,13 +372,25 @@ async function command(cwd, executable, args) {
   return `${result.stdout}\n${result.stderr}`.trim()
 }
 
+async function commandBytes(cwd, executable, args) {
+  const result = await execFile(executable, args, {
+    cwd,
+    encoding: null,
+    maxBuffer: 20 * 1024 * 1024,
+    env: { ...process.env, SUPABASE_TELEMETRY_DISABLED: '1' },
+  })
+  return Buffer.isBuffer(result.stdout)
+    ? result.stdout
+    : Buffer.from(result.stdout)
+}
+
 async function assertLocalCandidate(root, manifest) {
   const worktree = manifest.candidate.worktree_path
   const sha = await command(worktree, 'git', ['rev-parse', 'HEAD'])
   if (sha !== manifest.candidate.git_sha) throw new Error('candidate HEAD drift')
   const parent = await command(worktree, 'git', ['rev-parse', 'HEAD^'])
   if (parent !== manifest.candidate.parent_sha) throw new Error('candidate parent drift')
-  const commit = await command(worktree, 'git', ['cat-file', 'commit', sha])
+  const commit = await commandBytes(worktree, 'git', ['cat-file', 'commit', sha])
   if (sha256(commit) !== manifest.candidate.commit_object_sha256) {
     throw new Error('candidate commit-object drift')
   }
@@ -1738,6 +1750,7 @@ export {
   assertEvidence,
   assertUat,
   canonical,
+  commandBytes,
   cleanupFixtures,
   collectBaseline,
   deleteSubjectsExactly,
