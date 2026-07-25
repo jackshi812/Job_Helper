@@ -1,0 +1,98 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-25T15:26:19.828Z",
+  "phase": "03.7",
+  "phase_name": "Category-Scoped US Source Expansion for PwC, Citi, Google, Amazon, and Microsoft",
+  "phase_dir": ".planning/phases/03.7-category-scoped-us-source-expansion-for-pwc-citi-google-amaz",
+  "plan": null,
+  "task": null,
+  "total_tasks": 0,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Insert Phase 03.7 and capture its source boundary",
+      "status": "done"
+    },
+    {
+      "id": 2,
+      "name": "Validate PwC, Bank of America, and Citi public Workday listing compatibility",
+      "status": "done"
+    },
+    {
+      "id": 3,
+      "name": "Collect owner category preferences",
+      "status": "done"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 4,
+      "name": "Validate stable public listing contracts for Google, Amazon, and Microsoft",
+      "status": "not_started"
+    },
+    {
+      "id": 5,
+      "name": "Write Phase 03.7 CONTEXT.md and discussion log",
+      "status": "not_started"
+    },
+    {
+      "id": 6,
+      "name": "Research, plan, implement, deploy, and verify the five approved sources",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {
+      "action": "Explicitly resume Phase 03.7 when source expansion should continue",
+      "context": "The owner asked to hold off this phase before planning or ingestion.",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Include PwC and Citi; exclude Bank of America.",
+      "rationale": "Owner-selected company scope.",
+      "phase": "03.7"
+    },
+    {
+      "decision": "Ingest only United States jobs from every Phase 03.7 source.",
+      "rationale": "Owner-selected geographic scope.",
+      "phase": "03.7"
+    },
+    {
+      "decision": "PwC categories are Data and Analytics plus Data and Analytics Engineering.",
+      "rationale": "Owner-selected source categories.",
+      "phase": "03.7"
+    },
+    {
+      "decision": "Citi categories are Technology, Risk Management, and categories containing Finance or Institutional.",
+      "rationale": "Owner-selected source categories.",
+      "phase": "03.7"
+    },
+    {
+      "decision": "Google categories are Data Science and Analytics, Finance, and Risk/Compliance/Trust and Safety.",
+      "rationale": "Owner-selected source categories.",
+      "phase": "03.7"
+    },
+    {
+      "decision": "Amazon categories are Business Intelligence, Data Science, and Finance and Global Business Services.",
+      "rationale": "Owner-selected source categories.",
+      "phase": "03.7"
+    },
+    {
+      "decision": "Microsoft categories are Analytics, Finance, Governance/Risk/Compliance, and Research/Applied/Data Sciences.",
+      "rationale": "Owner-selected source categories.",
+      "phase": "03.7"
+    }
+  ],
+  "uncommitted_files": [
+    ".planning/ROADMAP.md",
+    ".planning/STATE.md",
+    ".planning/phases/03.7-category-scoped-us-source-expansion-for-pwc-citi-google-amaz/.gitkeep"
+  ],
+  "next_action": "Confirm the owner wants to resume Phase 03.7, then run read-only contract validation for Google, Amazon, and Microsoft before completing context and planning.",
+  "context_notes": "No ingestion or production mutation occurred. Read-only probes confirmed PwC US_Experienced_Careers (478 jobs), Bank of America lateral-us (1879 jobs, now excluded), and Citi site 2 (1456 U.S.-facet jobs) expose public Workday CXS listings. Google, Amazon, and Microsoft use custom public career platforms and require separate connector research."
+}
