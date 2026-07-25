@@ -16,6 +16,7 @@ import {
   sha256,
   uuidV5,
   validateManifest,
+  verifyBoardFailureMessage,
 } from './verify-phase-03-6-hosted.mjs'
 
 const manifestPath = new URL(
@@ -145,6 +146,21 @@ test('AggregateError diagnostics are bounded, cause-aware, and secret-redacted',
   assert.match(detail, /cleanup rejected/)
   assert.ok(!detail.includes(token))
   assert.ok(detail.length <= 1_200)
+})
+
+test('verify-board failure diagnostics identify bounded stage and reason without secrets', () => {
+  assert.equal(
+    verifyBoardFailureMessage('S&P Global', 'authenticated', 'error'),
+    'S&P Global exact live verification failed closed (stage=authenticated, reason=error)',
+  )
+  const unsafe = verifyBoardFailureMessage(
+    `Nasdaq\n${'x'.repeat(200)}`,
+    'Bearer secret-token',
+    'access_token=secret-token',
+  )
+  assert.ok(!unsafe.includes('secret-token'))
+  assert.ok(!unsafe.includes('\n'))
+  assert.ok(unsafe.length <= 160)
 })
 
 test('snapshot comparison is skipped when release identity failed before baseline', () => {
