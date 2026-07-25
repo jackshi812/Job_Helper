@@ -1,0 +1,82 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-25T20:00:49.824Z",
+  "phase": "4",
+  "phase_name": "Resume Tailoring & Tracker",
+  "phase_dir": null,
+  "plan": null,
+  "task": null,
+  "total_tasks": 0,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Resolve the historical Phase 03.3 Plan 04 anomaly without replay",
+      "status": "done",
+      "commit": "5487a04"
+    },
+    {
+      "id": 2,
+      "name": "Implement and verify the watchlist-first Phase 03.7 dashboard",
+      "status": "done",
+      "commit": "0403362"
+    },
+    {
+      "id": 3,
+      "name": "Deploy the byte-identical clean Phase 03.7 production release",
+      "status": "done",
+      "commit": "baf81fc"
+    },
+    {
+      "id": 4,
+      "name": "Record exact-release evidence and owner-approved signed-in UAT",
+      "status": "done",
+      "commit": "06792e1"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 5,
+      "name": "Discuss Phase 4 Resume Tailoring & Tracker",
+      "status": "not_started"
+    },
+    {
+      "id": 6,
+      "name": "Research and plan Phase 4 after owner decisions are locked",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [],
+  "async_jobs": [],
+  "human_actions_pending": [],
+  "decisions": [
+    {
+      "decision": "The default route is Watchlist Jobs; the existing combined feed is preserved at All Jobs.",
+      "rationale": "The owner prioritizes watched companies while retaining discovery coverage.",
+      "phase": "03.7"
+    },
+    {
+      "decision": "Phase 03.7 introduced no database, ingestion, provider, or persistence changes.",
+      "rationale": "Reusing the existing Dashboard and feed was the fastest safe implementation.",
+      "phase": "03.7"
+    },
+    {
+      "decision": "The earlier Phase 03.7 source-expansion scope was replaced, not resumed.",
+      "rationale": "The owner explicitly replaced it with the watchlist-first dashboard.",
+      "phase": "03.7"
+    },
+    {
+      "decision": "Phase 03.3 Plan 04 is superseded with missing historical UAT disclosed and no production replay.",
+      "rationale": "The owner selected mark-and-skip after later releases made replay obsolete.",
+      "phase": "03.3"
+    }
+  ],
+  "uncommitted_files": [
+    ".DS_Store",
+    "scripts/agent-dashboard.mjs",
+    "scripts/agent-dashboard.test.mjs",
+    "web/zh"
+  ],
+  "next_action": "Run $gsd-discuss-phase 4 and gather owner decisions for resume tailoring, truthful-edit review, PDF generation, and the application tracker before planning.",
+  "context_notes": "Phase 03.7 is fully complete on production release baf81fcaa72443995f227b118d10eec90da25679 with 1,127 tests, byte-identical hosted assets, and 3/3 owner-approved UAT checks. Local main HEAD is 06792e16bddef1358aac70b8153a484ebeacc11b. Production origin/main intentionally uses a separate clean release history. Never force-push local main: create an isolated fast-forward candidate from origin/main, apply only approved source changes, verify tree identity and tests, request exact approval, then fast-forward push. Cloudflare API credentials are unavailable in the non-interactive environment, so Pages releases use the GitHub production branch and live asset hashes. The listed uncommitted files predate this work and belong to the user; preserve them."
+}
