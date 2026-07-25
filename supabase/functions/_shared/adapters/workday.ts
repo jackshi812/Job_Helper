@@ -759,10 +759,9 @@ async function discoverCountryScope(
   if (!facet) return { warning: 'country_filter_unverified' }
   const values = parseCountryFacetValues(facet.values)
   if (!values) return { warning: 'country_filter_unverified' }
-  const total = values.reduce<number>((sum, value) => sum + value.count, 0)
-  if (!Number.isSafeInteger(total) || total !== page.total) {
-    return { warning: 'country_filter_unverified' }
-  }
+  // Country facets count location assignments, not globally unique jobs. A
+  // multi-location posting can appear in more than one country bucket, so the
+  // bucket sum may exceed the unfiltered unique-job total.
   const matches = values.filter((value) => (
     value.descriptor === scope.descriptor
     && value.id === scope.id
