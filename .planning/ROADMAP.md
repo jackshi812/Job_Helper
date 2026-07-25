@@ -19,6 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Scoring & Feed** - Preferences + cheap filters + AI scoring produce a focused match feed (completed 2026-07-20)
 - [x] **Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)** - Reusable, fail-closed Workday identities with Fidelity admitted through the Watchlist flow and scheduled ingestion (completed 2026-07-24)
 - [x] **Phase 03.6: US-Only Workday Expansion & Dashboard Queue (INSERTED)** - Add four exact U.S.-only Workday sources while preventing dismissed and applied jobs from consuming the active Dashboard window (completed 2026-07-25)
+- [x] **Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)** - Default watchlist-only jobs view with the combined feed preserved as All Jobs (completed 2026-07-25)
 - [ ] **Phase 4: Resume Tailoring & Tracker** - Truthful DOCX-preserving tailoring to PDF with mandatory review, plus a manual application tracker
 
 ## Phase Details
@@ -213,7 +214,7 @@ Plans:
 4. The watchlist-only restriction is derived from the existing normalized job-to-company relationship and fails closed: externally discovered jobs without a watched-company relationship never appear there.
 5. The implementation reuses the current feed and Dashboard components and introduces no database migration, ingestion/provider change, company directory, external-only page, or new persistence contract.
 
-**Plans:** 1/1 plan complete; exact release deployed and hosted UAT pending
+**Plans:** 1/1 plan complete; exact release deployed and hosted UAT passed
 
 Plans:
 
@@ -454,7 +455,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03.3 → 03.4 → 03.5 → 03.6 → 4
+Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03.3 → 03.4 → 03.5 → 03.6 → 03.7 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -464,10 +465,11 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 3. Scoring & Feed | 11/11 | Complete    | 2026-07-20 |
 | 03.1 SuccessFactors & Paylocity Connector Expansion | 5/5 | Complete | 2026-07-22 |
 | 03.2 Dashboard Precision & Company Visibility | 4/4 | Complete | 2026-07-22 |
-| 03.3 Dashboard Filter Refinements | 3/4 | In Progress|  |
+| 03.3 Dashboard Filter Refinements | 4/4 | Resolved (one superseded) | 2026-07-25 |
 | 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 9/9 | Complete    | 2026-07-23 |
 | 03.5 Generic Workday Connector & Fidelity | 4/4 | Complete | 2026-07-24 |
 | 03.6 US-Only Workday Expansion & Dashboard Queue | 5/5 | Complete    | 2026-07-25 |
+| 03.7 Watchlist-First Jobs Dashboard | 1/1 | Complete | 2026-07-25 |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
