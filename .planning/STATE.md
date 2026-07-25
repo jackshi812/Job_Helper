@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 4
-current_phase_name: Resume Tailoring & Tracker
-status: ready_for_discussion
-stopped_at: Phase 03.6 complete; ready to discuss Phase 4
-last_updated: "2026-07-25T13:58:31.427Z"
+current_phase: 03.7
+current_phase_name: Watchlist-First Jobs Dashboard
+status: awaiting_release_approval
+stopped_at: Phase 03.7 local implementation complete at 0403362; exact release and signed-in UAT pending
+last_updated: "2026-07-25T17:14:00Z"
 last_activity: 2026-07-25
-last_activity_desc: Phase 03.6 complete, transitioned to Phase 4
+last_activity_desc: Phase 03.7 local implementation and automated verification complete
 progress:
-  total_phases: 11
+  total_phases: 12
   completed_phases: 9
-  total_plans: 65
-  completed_plans: 64
-  percent: 82
+  total_plans: 66
+  completed_plans: 66
+  percent: 75
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 4 — Resume Tailoring & Tracker
+**Current focus:** Phase 03.7 — Watchlist-First Jobs Dashboard
 
 ## Current Position
 
-Phase: 4 — Resume Tailoring & Tracker
-Plan: Not started
-Status: Ready for discussion
-Last activity: 2026-07-25 — Phase 03.6 complete, transitioned to Phase 4
+Phase: 03.7 (Watchlist-First Jobs Dashboard)
+Plan: 1 of 1 complete
+Status: Awaiting exact release approval and signed-in UAT
+Last activity: 2026-07-25 — Phase 03.7 local implementation and automated verification complete
 
-Progress: [████████████████████] 64/65 plans complete; milestone 9/11 phases complete (82%)
+Progress: [███████████████░░░░░] 66/66 plans resolved; milestone 9/12 phases complete (75%)
 
 ## Performance Metrics
 
@@ -285,11 +285,14 @@ Recent decisions affecting current work:
 - Phase 03.5 inserted after Phase 3: Generic Workday Connector & Fidelity (URGENT)
 - Phase 03.6 inserted after Phase 3: US-only Workday expansion for Nasdaq, S&P Global, Morningstar, and State Street (URGENT)
 - Phase 03.6 edited: edited fields: title, goal, requirements, success_criteria
+- Phase 03.7 inserted after Phase 03.6: Category-scoped US ingestion for PwC, Citi, Google, Amazon, and Microsoft (URGENT)
+- Phase 03.7 edited: edited fields: title, goal, requirements, success_criteria
+- Phase 03.7 edited: rescoped to a default watchlist-only jobs dashboard while preserving the combined All Jobs view
 
 ## Session Continuity
 
-Last session: 2026-07-25T13:58:31.427Z
-Stopped at: Phase 03.6 complete; ready to discuss Phase 4
+Last session: 2026-07-25T17:14:00Z
+Stopped at: Phase 03.7 local implementation complete at `0403362`; exact release and signed-in UAT pending
 Resume file: None
 Last session (2026-07-25): Phase 03.6 passed 6/6 formal truths, 20/20 hosted checks, 30/30 security threats, 24/24 UI review checks, and 12/12 owner-approved UAT interactions on exact release `70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b`; no Phase 03.6 gaps remain.
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

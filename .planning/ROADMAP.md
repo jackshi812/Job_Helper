@@ -200,6 +200,25 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)
+
+**Goal:** Prioritize postings from explicitly watched companies by making a watchlist-only jobs dashboard the default destination while preserving the existing combined watchlist-plus-external Dashboard as a secondary All Jobs view.
+**Requirements**: SCOR-04; reuse the existing feed, deterministic-ranking, lifecycle, and watchlist contracts without schema, ingestion, or provider changes
+**Depends on:** Phase 3
+**Success Criteria** (what must be TRUE):
+
+1. The default jobs destination shows only current preference-eligible postings linked to companies explicitly present in the Watchlist.
+2. The existing combined watchlist-plus-external Dashboard remains available as a clearly labeled secondary All Jobs view rather than being duplicated or removed.
+3. The watchlist-only view retains the existing company filter, deterministic score and tier controls, sorting, lifecycle actions, job details, safe apply links, active queue behavior, accessibility, responsive layout, and table interactions.
+4. The watchlist-only restriction is derived from the existing normalized job-to-company relationship and fails closed: externally discovered jobs without a watched-company relationship never appear there.
+5. The implementation reuses the current feed and Dashboard components and introduces no database migration, ingestion/provider change, company directory, external-only page, or new persistence contract.
+
+**Plans:** 1/1 plan complete; hosted UAT pending
+
+Plans:
+
+- [x] 03.7-01-PLAN.md — Reuse the current Dashboard for a default watchlist-only view and secondary combined All Jobs view
+
 ### Phase 03.6: US-Only Workday Expansion & Dashboard Queue (INSERTED)
 
 **Goal:** Add Nasdaq, S&P Global, Morningstar, and State Street as exact U.S.-only Workday sources while ensuring dismissed and applied jobs do not consume the active 200-job Dashboard window.
@@ -343,7 +362,7 @@ Plans:
 **Goal:** Simplify Dashboard filtering by replacing the required-experience cap with persisted job-title exclusions, adding staged company bulk-selection actions, and consolidating score tiers into one accessible multi-select dropdown.
 **Requirements**: PREF-01, SCOR-01, SCOR-03, SCOR-04
 **Depends on:** Phase 03.2
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans resolved (3 executed, 1 superseded)
 
 **Success Criteria** (what must be TRUE):
 
@@ -361,7 +380,7 @@ Plans:
 
 **Wave 2** *(blocked on all Wave 1 plans)*
 
-- [ ] 03.3-04-PLAN.md — [BLOCKING] Apply schema → score-tick → exact web release and complete signed-in UAT
+- [x] 03.3-04-PLAN.md — SUPERSEDED: partial identity evidence preserved; missing historical UAT disclosed; owner approved no-replay mark-and-skip on 2026-07-25
 
 ### Phase 03.4: Replace Automatic AI Scoring with Deterministic Ranking (INSERTED)
 
