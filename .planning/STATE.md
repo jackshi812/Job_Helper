@@ -4,11 +4,11 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 03.7
 current_phase_name: Watchlist-First Jobs Dashboard
-status: awaiting_release_approval
-stopped_at: Phase 03.7 local implementation complete at 0403362; exact release and signed-in UAT pending
-last_updated: "2026-07-25T17:14:00Z"
+status: awaiting_uat
+stopped_at: Phase 03.7 exact release baf81fc deployed and byte-verified; signed-in owner UAT pending
+last_updated: "2026-07-25T19:53:15Z"
 last_activity: 2026-07-25
-last_activity_desc: Phase 03.7 local implementation and automated verification complete
+last_activity_desc: Phase 03.7 exact release deployed and byte-verified
 progress:
   total_phases: 12
   completed_phases: 9
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 Phase: 03.7 (Watchlist-First Jobs Dashboard)
 Plan: 1 of 1 complete
-Status: Awaiting exact release approval and signed-in UAT
-Last activity: 2026-07-25 — Phase 03.7 local implementation and automated verification complete
+Status: Exact release deployed; awaiting signed-in owner UAT
+Last activity: 2026-07-25 — Phase 03.7 exact release deployed and byte-verified
 
 Progress: [███████████████░░░░░] 66/66 plans resolved; milestone 9/12 phases complete (75%)
 
@@ -291,8 +291,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-25T17:14:00Z
-Stopped at: Phase 03.7 local implementation complete at `0403362`; exact release and signed-in UAT pending
+Last session: 2026-07-25T19:53:15Z
+Stopped at: Phase 03.7 exact release `baf81fcaa72443995f227b118d10eec90da25679` deployed and byte-verified; signed-in owner UAT pending
 Resume file: None
 Last session (2026-07-25): Phase 03.6 passed 6/6 formal truths, 20/20 hosted checks, 30/30 security threats, 24/24 UI review checks, and 12/12 owner-approved UAT interactions on exact release `70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b`; no Phase 03.6 gaps remain.
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

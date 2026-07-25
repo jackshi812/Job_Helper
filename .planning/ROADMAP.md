@@ -213,7 +213,7 @@ Plans:
 4. The watchlist-only restriction is derived from the existing normalized job-to-company relationship and fails closed: externally discovered jobs without a watched-company relationship never appear there.
 5. The implementation reuses the current feed and Dashboard components and introduces no database migration, ingestion/provider change, company directory, external-only page, or new persistence contract.
 
-**Plans:** 1/1 plan complete; hosted UAT pending
+**Plans:** 1/1 plan complete; exact release deployed and hosted UAT pending
 
 Plans:
 
