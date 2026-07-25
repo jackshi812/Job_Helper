@@ -6,6 +6,7 @@ import {
   assertUnrelatedSnapshotUnchanged,
   cleanupFixtures,
   deleteSubjectsExactly,
+  commandBytes,
   expectedHostedMigrationVersions,
   fixtureIds,
   fixtureSql,
@@ -44,6 +45,20 @@ test('already-applied migration inventory expects exact remote parity without re
   assert.deepEqual(expectedHostedMigrationVersions(validated), [
     ...validated.targets.supabase.remote_migrations,
   ])
+})
+
+test('binary command output preserves raw trailing commit-object bytes', async () => {
+  const output = await commandBytes(process.cwd(), process.execPath, [
+    '-e',
+    'process.stdout.write(Buffer.from([65, 10]))',
+  ])
+  assert.ok(Buffer.isBuffer(output))
+  assert.deepEqual([...output], [65, 10])
+  assert.equal(
+    sha256(output),
+    sha256(Buffer.from([65, 10])),
+  )
+  assert.notEqual(sha256(output), sha256(output.toString('utf8').trim()))
 })
 
 test('UUID-v5 fixture ranges are deterministic, unique, and versioned', async () => {
