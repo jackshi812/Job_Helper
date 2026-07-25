@@ -1,22 +1,24 @@
 {
   "schema_version": 1,
   "phase": "03.6",
-  "created_at": "2026-07-25T05:17:57Z",
-  "accepted_production_source": "f7376b7c86906b7f669aa221835066c1a241fc65",
+  "created_at": "2026-07-25T13:15:37Z",
+  "accepted_production_source": "3a7c22b0598a2429511438082dfadc4477fc6ab2",
   "candidate": {
-    "git_sha": "3a7c22b0598a2429511438082dfadc4477fc6ab2",
-    "commit_object_sha256": "d00cca419cd6fb8fd10220b18a25ee61ae8a3edcc0e87ccd18ed98ddd2c6af6c",
-    "parent_sha": "f7376b7c86906b7f669aa221835066c1a241fc65",
+    "git_sha": "95caf9bb65e8266e20352aa5e955c74fc9a9645b",
+    "commit_object_sha256": "ff833d0bb3ff6ab4cfa08d476e7ad5a7e101b1c0f819cfdee19cc5aa4eb23290",
+    "parent_sha": "3a7c22b0598a2429511438082dfadc4477fc6ab2",
     "worktree_path": "/private/tmp/job-copilot-036-listing-validate",
     "changed_files": [
-      "supabase/functions/_shared/adapters/workday.ts",
-      "web/tests/workday-connector.integration.test.ts"
+      "supabase/migrations/0038_dashboard_feed_page_repair.sql",
+      "web/tests/migration-0038-dashboard-feed-page-repair.test.ts"
     ]
   },
   "migration": {
-    "path": "supabase/migrations/0037_us_workday_dashboard_queue.sql",
-    "sha256": "c934047cb9061ba743c4e0686db3db3b3048bd43fa938aeea697ad389e113f11",
-    "proposed": []
+    "path": "supabase/migrations/0038_dashboard_feed_page_repair.sql",
+    "sha256": "baa8b81f7c7e19ea738e5cfbdcf8c6bf84df6a5482147b1d6aec35205648ee3b",
+    "proposed": [
+      "0038"
+    ]
   },
   "functions": {
     "verify-board": {
@@ -43,7 +45,7 @@
       "verify_jwt": true,
       "current_hosted": {
         "id": "b1f7f9ea-4423-49c9-97bc-946b374b5a1d",
-        "version": 26,
+        "version": 27,
         "status": "ACTIVE",
         "verify_jwt": true
       }
@@ -74,7 +76,7 @@
       "verify_jwt": false,
       "current_hosted": {
         "id": "623f09fa-9ff8-4736-a1ae-69b052cf20a9",
-        "version": 29,
+        "version": 30,
         "status": "ACTIVE",
         "verify_jwt": false
       }
@@ -102,11 +104,11 @@
       "production_branch": "main",
       "production_domain": "job-helper-qs9.pages.dev",
       "current_deployment": {
-        "id": "cc8fe068-ab3c-43fe-8751-4519a9f0de48",
+        "id": "9a991225-6f86-4fba-b625-59809f558a8c",
         "status": "success",
         "branch": "main",
-        "git_sha": "f7376b7c86906b7f669aa221835066c1a241fc65",
-        "url": "https://cc8fe068.job-helper-qs9.pages.dev"
+        "git_sha": "3a7c22b0598a2429511438082dfadc4477fc6ab2",
+        "url": "https://9a991225.job-helper-qs9.pages.dev"
       }
     }
   },
@@ -153,19 +155,19 @@
     }
   ],
   "verifier": {
-    "script_sha256": "f807c0b7158f5d628a1a164cd42dbc4464048f06a9c9b55e0cb07c982954e9a2",
-    "run_namespace": "phase036-c42d4d62-1038-4ee7-8d7c-5581c5e79a49",
-    "fixture_namespace_uuid": "c42d4d62-1038-4ee7-8d7c-5581c5e79a49",
+    "script_sha256": "6f07785da7cff4a705d25f089b6ba0c5d3db897463946e3bc353694c691521f9",
+    "run_namespace": "phase036-998e7fc4-77de-4689-b2b8-3f30efa1e9a8",
+    "fixture_namespace_uuid": "998e7fc4-77de-4689-b2b8-3f30efa1e9a8",
     "page_size": 200,
     "subject_count": 2,
     "subjects": [
       {
         "label": "subject-1",
-        "email": "phase036-c42d4d62-1038-4ee7-8d7c-5581c5e79a49+subject-1@example.invalid"
+        "email": "phase036-998e7fc4-77de-4689-b2b8-3f30efa1e9a8+subject-1@example.invalid"
       },
       {
         "label": "subject-2",
-        "email": "phase036-c42d4d62-1038-4ee7-8d7c-5581c5e79a49+subject-2@example.invalid"
+        "email": "phase036-998e7fc4-77de-4689-b2b8-3f30efa1e9a8+subject-2@example.invalid"
       }
     ],
     "activation": {
@@ -181,13 +183,13 @@
       "user_jobs": 810
     },
     "deterministic_id_ranges": {
-      "jobs": "uuid-v5(c42d4d62-1038-4ee7-8d7c-5581c5e79a49,job:000..404)",
-      "subject_1_user_jobs": "uuid-v5(c42d4d62-1038-4ee7-8d7c-5581c5e79a49,subject-1:000..404)",
-      "subject_2_user_jobs": "uuid-v5(c42d4d62-1038-4ee7-8d7c-5581c5e79a49,subject-2:000..404)"
+      "jobs": "uuid-v5(998e7fc4-77de-4689-b2b8-3f30efa1e9a8,job:000..404)",
+      "subject_1_user_jobs": "uuid-v5(998e7fc4-77de-4689-b2b8-3f30efa1e9a8,subject-1:000..404)",
+      "subject_2_user_jobs": "uuid-v5(998e7fc4-77de-4689-b2b8-3f30efa1e9a8,subject-2:000..404)"
     }
   },
   "baselines": {
-    "captured_at": "2026-07-25T05:20:46Z",
+    "captured_at": "2026-07-25T13:15:02Z",
     "rls": {
       "jobs": true,
       "companies": true,
@@ -202,13 +204,13 @@
     },
     "policies_sha256": "a6f895b498b60514242b58faa5d56f69e98e637adc28a9c0eb403f1677d1af97",
     "counts": {
-      "jobs": 2893,
+      "jobs": 3571,
       "companies": 18,
-      "open_jobs": 2802,
-      "user_jobs": 5239,
+      "open_jobs": 3480,
+      "user_jobs": 5917,
       "auth_users": 2,
-      "ranking_runs": 245,
-      "ranking_items": 559416,
+      "ranking_runs": 279,
+      "ranking_items": 657718,
       "ranking_states": 2,
       "source_catalog": 17,
       "dismissed_user_jobs": 9,
@@ -221,7 +223,7 @@
         "source_key": "workday:wd1:fmr:FidelityCareers",
         "activation_state": "active",
         "activation_successes": 3,
-        "last_observation_count": 112,
+        "last_observation_count": 100,
         "last_error_code": null
       },
       {
@@ -229,7 +231,7 @@
         "source_key": "workday:wd1:nasdaq:Global_External_Site",
         "activation_state": "active",
         "activation_successes": 3,
-        "last_observation_count": 7,
+        "last_observation_count": 48,
         "last_error_code": null
       },
       {
@@ -237,15 +239,15 @@
         "source_key": "workday:wd1:statestreet:Global",
         "activation_state": "active",
         "activation_successes": 3,
-        "last_observation_count": 35,
-        "last_error_code": "country_filter_unverified"
+        "last_observation_count": 514,
+        "last_error_code": null
       },
       {
         "name": "Capital One",
         "source_key": "workday:wd12:capitalone:Capital_One",
         "activation_state": "active",
         "activation_successes": 3,
-        "last_observation_count": 18,
+        "last_observation_count": 17,
         "last_error_code": null
       },
       {
@@ -253,16 +255,16 @@
         "source_key": "workday:wd5:morningstar:morningstar",
         "activation_state": "active",
         "activation_successes": 3,
-        "last_observation_count": 2,
-        "last_error_code": "provider_identity_drift"
+        "last_observation_count": 65,
+        "last_error_code": null
       },
       {
         "name": "S&P Global",
         "source_key": "workday:wd5:spgi:SPGI_Careers",
         "activation_state": "active",
         "activation_successes": 3,
-        "last_observation_count": 60,
-        "last_error_code": "detail_cap_exceeded"
+        "last_observation_count": 95,
+        "last_error_code": null
       }
     ],
     "workday_catalog": [
@@ -312,15 +314,15 @@
       },
       {
         "source_key": "workday:wd1:nasdaq:Global_External_Site",
-        "open_jobs": 7,
+        "open_jobs": 48,
         "closed_jobs": 0,
-        "total_jobs": 7
+        "total_jobs": 48
       },
       {
         "source_key": "workday:wd1:statestreet:Global",
-        "open_jobs": 35,
+        "open_jobs": 512,
         "closed_jobs": 0,
-        "total_jobs": 35
+        "total_jobs": 512
       },
       {
         "source_key": "workday:wd12:capitalone:Capital_One",
@@ -330,20 +332,20 @@
       },
       {
         "source_key": "workday:wd5:morningstar:morningstar",
-        "open_jobs": 2,
+        "open_jobs": 55,
         "closed_jobs": 0,
-        "total_jobs": 2
+        "total_jobs": 55
       },
       {
         "source_key": "workday:wd5:spgi:SPGI_Careers",
-        "open_jobs": 60,
+        "open_jobs": 95,
         "closed_jobs": 0,
-        "total_jobs": 60
+        "total_jobs": 95
       }
     ],
-    "other_connector_health_sha256": "1e17a2ba422b2db6ee28ab2b67d061a7703fabbfbac6ba2e1b90774b83dc6464",
+    "other_connector_health_sha256": "719d902494d992e8357c8b2edf008953a0eaf41528e382aa7a6078f897c02972",
     "ranking_state_sha256": "13381127d13708bb9772fd996d99e11862dbd70741b8be4b5096d9570af35e15",
-    "dashboard_baseline_sha256": "785e42d1da91e4752ac4348e5357da794cba16c36137a04bf1c5ac00d0dd52a5"
+    "dashboard_baseline_sha256": "8185f018d3dd18571ceaf6e17cbd57100d004225415b53f2d6415d62c105cc67"
   },
   "exclusions": [
     ".planning/** from candidate/deployment",
@@ -352,8 +354,8 @@
     "scripts/agent-dashboard.mjs",
     "scripts/agent-dashboard.test.mjs",
     "web/zh",
-    "all functions except verify-board and poll-tick",
-    "all migrations except 0037_us_workday_dashboard_queue.sql",
+    "all function deployments",
+    "all migrations except 0038_dashboard_feed_page_repair.sql",
     "all non-verifier user data",
     "manual provider invocation before exact approval"
   ]

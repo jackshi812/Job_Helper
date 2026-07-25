@@ -17,6 +17,7 @@ import {
   uuidV5,
   validateManifest,
   verifyBoardFailureMessage,
+  waitForFixtureWindow,
 } from './verify-phase-03-6-hosted.mjs'
 
 const manifestPath = new URL(
@@ -26,26 +27,41 @@ const manifestPath = new URL(
 
 test('manifest stays strict and exact-release bound', async () => {
   const manifest = validateManifest(JSON.parse(await readFile(manifestPath, 'utf8')))
-  assert.equal(manifest.candidate.git_sha, '3a7c22b0598a2429511438082dfadc4477fc6ab2')
+  assert.equal(manifest.candidate.git_sha, '95caf9bb65e8266e20352aa5e955c74fc9a9645b')
   assert.equal(manifest.sources.length, 4)
   assert.equal(manifest.verifier.subject_count, 2)
   assert.equal(manifest.verifier.fixture_ceilings.jobs, 405)
   assert.equal(manifest.verifier.fixture_ceilings.user_jobs, 810)
 })
 
-test('already-applied migration inventory expects exact remote parity without replay', async () => {
+test('repair migration inventory expects exact hosted parity after one migration', async () => {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
-  manifest.migration.proposed = []
-  manifest.targets.supabase.remote_migrations = [
-    ...manifest.targets.supabase.remote_migrations,
-    '0037',
-  ]
   const validated = validateManifest(manifest)
-  assert.deepEqual(validated.migration.proposed, [])
+  assert.deepEqual(validated.migration.proposed, ['0038'])
   assert.equal(validated.targets.supabase.remote_migrations.at(-1), '0037')
   assert.deepEqual(expectedHostedMigrationVersions(validated), [
     ...validated.targets.supabase.remote_migrations,
+    '0038',
   ])
+})
+
+test('fixture creation waits for a bounded post-maintenance server window', async () => {
+  const calls = []
+  const seconds = [58, 10]
+  const result = await waitForFixtureWindow(
+    { targets: { supabase: { project_ref: 'exact-project' } } },
+    {
+      sql: async (projectRef, statement) => {
+        calls.push({ projectRef, statement })
+        return [{ server_second: seconds.shift() }]
+      },
+      sleep: async (ms) => calls.push({ sleep: ms }),
+    },
+  )
+  assert.deepEqual(result, { server_second: 10, attempt: 2 })
+  assert.equal(calls[0].projectRef, 'exact-project')
+  assert.match(calls[0].statement, /clock_timestamp/)
+  assert.deepEqual(calls[1], { sleep: 12_000 })
 })
 
 test('binary command output preserves raw trailing commit-object bytes', async () => {
@@ -233,10 +249,10 @@ test('guarded cleanup continues exact SQL cleanup after auth deletion exhausts r
       sleep: async () => {},
       sql: async (projectRef, statement) => {
         sqlCalls.push({ projectRef, statement })
-        if (sqlCalls.length === 1) {
+        if (sqlCalls.length === 2) {
           return [{ id: subject.id, email: subject.email }]
         }
-        return sqlCalls.length === 2
+        return sqlCalls.length < 3
           ? []
           : [{ users: 0, jobs: 0, user_jobs: 0, ranking_states: 0 }]
       },
@@ -245,9 +261,11 @@ test('guarded cleanup continues exact SQL cleanup after auth deletion exhausts r
   assert.equal(deletes, 3)
   assert.equal(sqlCalls.length, 3)
   assert.ok(sqlCalls.every(({ projectRef }) => projectRef === 'exact-project'))
-  assert.match(sqlCalls[0].statement, /11111111-1111-4111-8111-111111111111/)
-  assert.match(sqlCalls[0].statement, /phase-03-6-exact\+subject-1@example\.invalid/)
-  assert.match(sqlCalls[1].statement, /aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/)
+  assert.match(sqlCalls[0].statement, /update public\.jobs/)
+  assert.match(sqlCalls[0].statement, /delete from public\.deterministic_ranking_items/)
+  assert.match(sqlCalls[0].statement, /aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/)
+  assert.match(sqlCalls[1].statement, /11111111-1111-4111-8111-111111111111/)
+  assert.match(sqlCalls[1].statement, /phase-03-6-exact\+subject-1@example\.invalid/)
   assert.match(sqlCalls[2].statement, /phase-03-6-exact/)
   assert.equal(result.subjectDeletions[0].status, 'deleted_sql_fallback')
   assert.deepEqual(result.residue, {
@@ -285,10 +303,10 @@ test('management SQL subject fallback requires the exact returned UUID and email
         sleep: async () => {},
         sql: async (_projectRef, statement) => {
           sqlCalls.push(statement)
-          if (sqlCalls.length === 1) {
+          if (sqlCalls.length === 2) {
             return [{ id: subject.id, email: 'wrong@example.invalid' }]
           }
-          return sqlCalls.length === 2
+          return sqlCalls.length < 3
             ? []
             : [{ users: 0, jobs: 0, user_jobs: 0, ranking_states: 0 }]
         },
@@ -300,6 +318,7 @@ test('management SQL subject fallback requires the exact returned UUID and email
     ),
   )
   assert.equal(sqlCalls.length, 3)
-  assert.match(sqlCalls[1], /delete from public\.jobs/)
+  assert.match(sqlCalls[0], /delete from public\.jobs/)
+  assert.match(sqlCalls[1], /11111111-1111-4111-8111-111111111111/)
   assert.match(sqlCalls[2], /select count\(\*\)::integer from auth\.users/)
 })

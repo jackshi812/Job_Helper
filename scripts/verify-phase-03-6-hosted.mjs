@@ -249,9 +249,9 @@ function validateManifest(manifest) {
   exactKeys(manifest.migration, MIGRATION_KEYS, 'migration')
   requireString(manifest.migration.sha256, SHA256, 'migration SHA-256')
   if (
-    manifest.migration.path !== 'supabase/migrations/0037_us_workday_dashboard_queue.sql'
-    || JSON.stringify(manifest.migration.proposed) !== JSON.stringify([])
-  ) throw new Error('migration inventory must record 0037 as already applied')
+    manifest.migration.path !== 'supabase/migrations/0038_dashboard_feed_page_repair.sql'
+    || JSON.stringify(manifest.migration.proposed) !== JSON.stringify(['0038'])
+  ) throw new Error('migration inventory must propose only the 0038 hosted repair')
 
   exactKeys(manifest.functions, ['verify-board', 'poll-tick'], 'functions')
   for (const [slug, entry] of Object.entries(manifest.functions)) {
@@ -641,10 +641,10 @@ async function hostedFunctionProbe(manifest, slug) {
   const projectRef = manifest.targets.supabase.project_ref
   const before = functionMetadata(await functionInventory(projectRef), slug)
   if (before.id !== approved.current_hosted.id
-    || before.version <= approved.current_hosted.version
+    || before.version < approved.current_hosted.version
     || before.status !== 'ACTIVE'
     || before.verify_jwt !== approved.verify_jwt) {
-    throw new Error(`${slug} hosted metadata does not prove one approved deployment`)
+    throw new Error(`${slug} hosted metadata does not match the approved bundle baseline`)
   }
   const downloadRoot = await mkdtemp(join(tmpdir(), `phase-03-6-${slug}-`))
   try {
@@ -688,7 +688,7 @@ async function releaseIdentityProbe(manifest) {
   const versions = migrations.map(({ version }) => String(version))
   const expected = expectedHostedMigrationVersions(manifest)
   if (canonical(versions) !== canonical(expected)) {
-    throw new Error('hosted migration parity is not exact through 0037')
+    throw new Error('hosted migration parity is not exact through 0038')
   }
 
   const [verifyBoard, pollTick] = await Promise.all([
@@ -747,7 +747,10 @@ async function releaseIdentityProbe(manifest) {
 }
 
 function expectedHostedMigrationVersions(manifest) {
-  return [...manifest.targets.supabase.remote_migrations]
+  return [
+    ...manifest.targets.supabase.remote_migrations,
+    ...manifest.migration.proposed,
+  ]
 }
 
 async function managementSql(projectRef, query) {
@@ -1239,6 +1242,27 @@ function fixtureSql(manifest, subjects, ids) {
   `
 }
 
+async function waitForFixtureWindow(manifest, {
+  sql = managementSql,
+  sleep = delay,
+} = {}) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const rows = await sql(manifest.targets.supabase.project_ref, `
+      select floor(extract(second from clock_timestamp()))::integer as server_second
+    `)
+    const second = Number(rows[0]?.server_second)
+    if (!Number.isInteger(second) || second < 0 || second > 59) {
+      throw new Error('server fixture-window clock is malformed')
+    }
+    if (second >= 10 && second <= 30) {
+      return Object.freeze({ server_second: second, attempt })
+    }
+    const waitSeconds = second < 10 ? 10 - second : 70 - second
+    await sleep(waitSeconds * 1_000)
+  }
+  throw new Error('bounded ranking-quiet fixture window was not reached')
+}
+
 async function seedFixtures(manifest, subjects, ids) {
   const ceilings = manifest.verifier.fixture_ceilings
   if (subjects.length !== ceilings.auth_subjects
@@ -1485,11 +1509,35 @@ async function cleanupFixtures(manifest, subjects, ids, {
   sleep = delay,
   sql = managementSql,
 } = {}) {
+  const cleanupErrors = []
+  try {
+    await sql(manifest.targets.supabase.project_ref, `
+      begin;
+      update public.jobs
+      set status = 'closed'
+      where id in (${ids.jobs.map((id) => `${sqlLiteral(id)}::uuid`).join(',')})
+        and source = 'adzuna'
+        and source_company_name = 'Phase 03.6 Verifier'
+        and external_id like ${sqlLiteral(`${manifest.verifier.run_namespace}:%`)};
+      delete from public.deterministic_ranking_items
+      where job_id in (${ids.jobs.map((id) => `${sqlLiteral(id)}::uuid`).join(',')});
+      delete from public.user_jobs
+      where job_id in (${ids.jobs.map((id) => `${sqlLiteral(id)}::uuid`).join(',')});
+      delete from public.jobs
+      where id in (${ids.jobs.map((id) => `${sqlLiteral(id)}::uuid`).join(',')})
+        and source = 'adzuna'
+        and source_company_name = 'Phase 03.6 Verifier'
+        and external_id like ${sqlLiteral(`${manifest.verifier.run_namespace}:%`)};
+      commit;
+    `)
+  } catch (error) {
+    cleanupErrors.push(error)
+  }
+
   const subjectDeletions = await deleteSubjectsExactly(subjects, {
     deleteSubject,
     sleep,
   })
-  const cleanupErrors = []
   for (const deletion of subjectDeletions.filter(({ status }) => status === 'failed')) {
     const subject = subjects.find(({ id }) => id === deletion.id)
     try {
@@ -1503,16 +1551,6 @@ async function cleanupFixtures(manifest, subjects, ids, {
       ))
     }
   }
-  try {
-    await sql(manifest.targets.supabase.project_ref, `
-      delete from public.jobs
-      where id in (${ids.jobs.map((id) => `${sqlLiteral(id)}::uuid`).join(',')})
-        and external_id like ${sqlLiteral(`${manifest.verifier.run_namespace}:%`)};
-    `)
-  } catch (error) {
-    cleanupErrors.push(error)
-  }
-
   let residue
   try {
     residue = await sql(manifest.targets.supabase.project_ref, `
@@ -1632,6 +1670,7 @@ async function runHosted(manifestPath, outputPath, rolloutPath) {
   let release
   let sources
   let queue
+  let fixtureWindow
   let before
   let cleanup
   let primaryError
@@ -1641,6 +1680,7 @@ async function runHosted(manifestPath, outputPath, rolloutPath) {
     subjects.push(await createDisposableSubject(manifest, 1))
     sources = await proveFourSources(manifest, subjects[0])
     subjects.push(await createDisposableSubject(manifest, 2))
+    fixtureWindow = await waitForFixtureWindow(manifest)
     await seedFixtures(manifest, subjects, ids)
     queue = await proveQueue(manifest, subjects, ids)
   } catch (error) {
@@ -1690,6 +1730,7 @@ async function runHosted(manifestPath, outputPath, rolloutPath) {
     deployment: release,
     source_evidence: sources,
     queue_evidence: queue,
+    fixture_window: fixtureWindow,
     cleanup,
     counts: {
       subjects: queue.subjects,
@@ -1833,4 +1874,5 @@ export {
   uuidV5,
   validateManifest,
   verifyBoardFailureMessage,
+  waitForFixtureWindow,
 }
