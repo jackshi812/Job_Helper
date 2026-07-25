@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03.6
 current_phase_name: US-Only Workday Expansion & Dashboard Queue
 status: executing
-stopped_at: Completed 03.6-03-PLAN.md
-last_updated: "2026-07-24T23:51:15.093Z"
-last_activity: 2026-07-24
-last_activity_desc: Completed 03.6-02; ready for 03.6-03
+stopped_at: Phase 03.6 Plan 05 Task 2 blocking exact-release human UAT
+last_updated: "2026-07-25T13:48:03Z"
+last_activity: 2026-07-25
+last_activity_desc: Completed 03.6-04 hosted verification; awaiting exact-release desktop and narrow-width UAT
 progress:
   total_phases: 11
   completed_phases: 8
   total_plans: 65
-  completed_plans: 62
+  completed_plans: 63
   percent: 73
 ---
 
@@ -29,17 +29,17 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 03.6 (US-Only Workday Expansion & Dashboard Queue) — EXECUTING
-Plan: 4 of 5
-Status: Ready to execute
-Last activity: 2026-07-24 — Completed 03.6-02; ready for 03.6-03
+Plan: 5 of 5
+Status: Blocking human UAT checkpoint
+Last activity: 2026-07-25 — Plan 04 hosted verification passed; Plan 05 worksheet is pending
 
-Progress: [███████████████████░] 61/65 plans complete; milestone 8/11 phases complete (73%)
+Progress: [███████████████████░] 63/65 plans complete; milestone 8/11 phases complete (73%)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 42
+- Total plans completed: 43
 - Average duration: 45m
 - Total execution time: 627m
 
@@ -107,6 +107,7 @@ Progress: [███████████████████░] 61/65 p
 | Phase 03.6 P01 | 9min | 3 tasks | 3 files |
 | Phase 03.6 P02 | 13min | 2 tasks | 7 files |
 | Phase 03.6 P03 | 12min | 2 tasks | 5 files |
+| Phase 03.6 P04 | 13h36m elapsed | 3 tasks | 8 release/evidence files |
 
 ## Accumulated Context
 
@@ -285,7 +286,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-24T23:51:15.085Z
-Stopped at: Completed 03.6-03-PLAN.md
+Last session: 2026-07-25T13:48:03Z
+Stopped at: Phase 03.6 Plan 05 Task 2 blocking exact-release human UAT
 Resume file: None
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

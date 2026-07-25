@@ -214,7 +214,7 @@ Plans:
   5. A user can mark a job applied, undo that action, and review applied or dismissed jobs separately; the state is per-user, reversible, RLS-protected, and does not delete the shared job
   6. The Dashboard can retrieve eligible jobs beyond the first 200 through cursor pagination or a Load more interaction without duplicates or unstable ordering
 
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 
@@ -232,7 +232,7 @@ Plans:
 
 **Wave 4** *(blocked on all implementation plans)*
 
-- [ ] 03.6-04-PLAN.md — [BLOCKING] Exact-release schema/function/web approval and hosted verification
+- [x] 03.6-04-PLAN.md — [BLOCKING] Exact-release schema/function/web approval and hosted verification
 
 **Wave 5** *(blocked on exact-release hosted verification)*
 
@@ -448,7 +448,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.3 Dashboard Filter Refinements | 3/4 | In Progress|  |
 | 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 9/9 | Complete    | 2026-07-23 |
 | 03.5 Generic Workday Connector & Fidelity | 4/4 | Complete | 2026-07-24 |
-| 03.6 US-Only Workday Expansion & Dashboard Queue | 3/5 | In Progress|  |
+| 03.6 US-Only Workday Expansion & Dashboard Queue | 4/5 | Awaiting human UAT |  |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
