@@ -1041,11 +1041,11 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       const body = JSON.parse(String(init?.body)) as {
         appliedFacets: Record<string, string[]>
       }
-      return Promise.resolve(body.appliedFacets.locationCountry === undefined
+      return Promise.resolve(body.appliedFacets.Location_Country === undefined
         ? jsonResponse({
             total: 2,
             jobPostings: [],
-            facets: countryFacets(['locationCountry'], 1),
+            facets: countryFacets(['Location_Country'], 1),
           })
         : jsonResponse({
             total: 2,
@@ -1117,11 +1117,11 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       const body = JSON.parse(String(init?.body)) as {
         appliedFacets: Record<string, string[]>
       }
-      if (body.appliedFacets.locationCountry === undefined) {
+      if (body.appliedFacets.Location_Country === undefined) {
         return Promise.resolve(jsonResponse({
           total: 22,
           jobPostings: [],
-          facets: countryFacets(['locationCountry'], 21),
+          facets: countryFacets(['Location_Country'], 21),
         }))
       }
       scopedPage += 1
@@ -1144,11 +1144,11 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       const body = JSON.parse(String(init?.body)) as {
         appliedFacets: Record<string, string[]>
       }
-      return Promise.resolve(body.appliedFacets.locationCountry === undefined
+      return Promise.resolve(body.appliedFacets.Location_Country === undefined
         ? jsonResponse({
             total: 3,
             jobPostings: [],
-            facets: countryFacets(['locationCountry'], 2),
+            facets: countryFacets(['Location_Country'], 2),
           })
         : jsonResponse({ total: 2, jobPostings: [phase036Posting(40)] }))
     })
@@ -1255,7 +1255,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       const body = JSON.parse(String(init?.body)) as {
         appliedFacets: Record<string, string[]>
       }
-      return Promise.resolve(body.appliedFacets.locationCountry === undefined
+      return Promise.resolve(body.appliedFacets[expected.facetParameter] === undefined
         ? jsonResponse({
             total: 2,
             jobPostings: [],

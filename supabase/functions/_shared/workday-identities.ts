@@ -27,13 +27,16 @@ export const UNITED_STATES_WORKDAY_FACET_ID = 'bc33aa3152ec42d4995f4791a106ed09'
 
 export type WorkdayHostForm = 'jobs' | 'site'
 export type WorkdayCountryFacetRoute =
-  | readonly ['locationCountry']
+  | readonly ['Location_Country']
   | readonly ['locationMainGroup', 'locationCountry']
+export type WorkdayCountryFacetParameter =
+  | 'Location_Country'
+  | 'locationCountry'
 
 export interface WorkdayCountryScope {
   readonly descriptor: 'United States of America'
   readonly id: typeof UNITED_STATES_WORKDAY_FACET_ID
-  readonly facetParameter: 'locationCountry'
+  readonly facetParameter: WorkdayCountryFacetParameter
   readonly route: WorkdayCountryFacetRoute
 }
 
@@ -61,7 +64,7 @@ function unitedStatesScope(route: WorkdayCountryFacetRoute): WorkdayCountryScope
   return Object.freeze({
     descriptor: 'United States of America',
     id: UNITED_STATES_WORKDAY_FACET_ID,
-    facetParameter: 'locationCountry',
+    facetParameter: route.at(-1) as WorkdayCountryFacetParameter,
     route: Object.freeze([...route]) as WorkdayCountryFacetRoute,
   })
 }
@@ -108,7 +111,7 @@ const nasdaqIdentity: WorkdayIdentity = Object.freeze({
   sourceKey: NASDAQ_WORKDAY_SOURCE_KEY,
   companyName: 'Nasdaq',
   applyCapitalOneEligibility: false,
-  countryScope: unitedStatesScope(['locationCountry']),
+  countryScope: unitedStatesScope(['Location_Country']),
 })
 
 const spGlobalIdentity: WorkdayIdentity = Object.freeze({
@@ -122,7 +125,7 @@ const spGlobalIdentity: WorkdayIdentity = Object.freeze({
   sourceKey: SP_GLOBAL_WORKDAY_SOURCE_KEY,
   companyName: 'S&P Global',
   applyCapitalOneEligibility: false,
-  countryScope: unitedStatesScope(['locationCountry']),
+  countryScope: unitedStatesScope(['Location_Country']),
 })
 
 const morningstarIdentity: WorkdayIdentity = Object.freeze({
@@ -150,7 +153,7 @@ const stateStreetIdentity: WorkdayIdentity = Object.freeze({
   sourceKey: STATE_STREET_WORKDAY_SOURCE_KEY,
   companyName: 'State Street',
   applyCapitalOneEligibility: false,
-  countryScope: unitedStatesScope(['locationCountry']),
+  countryScope: unitedStatesScope(['Location_Country']),
 })
 
 export const WORKDAY_IDENTITIES = Object.freeze({
