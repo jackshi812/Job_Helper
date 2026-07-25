@@ -148,6 +148,35 @@ function canonical(value) {
   return JSON.stringify(value)
 }
 
+function redactVerificationDetail(value) {
+  return String(value)
+    .replace(/\bBearer\s+[A-Za-z0-9._~-]+/gi, 'Bearer [REDACTED]')
+    .replace(
+      /("(?:access_token|refresh_token|password|apikey|authorization)"\s*:\s*")[^"]*"/gi,
+      '$1[REDACTED]"',
+    )
+    .replace(
+      /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]{6,})?\b/g,
+      '[REDACTED_JWT]',
+    )
+}
+
+function formatVerificationError(error) {
+  function render(value, depth) {
+    const message = value instanceof Error ? value.message : String(value)
+    const boundedMessage = redactVerificationDetail(message).slice(0, 400)
+    if (!(value instanceof AggregateError) || depth >= 2) return boundedMessage
+    const causes = [...value.errors].slice(0, 4).map(
+      (cause, index) => `cause ${index + 1}: ${render(cause, depth + 1)}`,
+    )
+    const omitted = value.errors.length > causes.length
+      ? `; ${value.errors.length - causes.length} additional cause(s) omitted`
+      : ''
+    return `${boundedMessage}; ${causes.join('; ')}${omitted}`
+  }
+  return render(error, 0).slice(0, 1_200)
+}
+
 function exactKeys(value, keys, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${label} must be an object`)
@@ -499,6 +528,44 @@ async function deleteDisposableSubject(subject) {
     method: 'DELETE',
     expected: [200, 204],
   })
+}
+
+async function deleteSubjectsExactly(subjects, {
+  deleteSubject = deleteDisposableSubject,
+  sleep = delay,
+  maxAttempts = 3,
+} = {}) {
+  const results = []
+  for (const subject of [...subjects].reverse()) {
+    if (!UUID.test(String(subject?.id))) {
+      results.push({
+        id: String(subject?.id ?? ''),
+        attempts: 0,
+        status: 'failed',
+        error: new Error('refusing non-exact disposable subject identifier'),
+      })
+      continue
+    }
+    let lastError
+    let attempt = 0
+    for (attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        await deleteSubject(subject)
+        lastError = undefined
+        break
+      } catch (error) {
+        lastError = error
+        if (attempt < maxAttempts) await sleep(50 * attempt)
+      }
+    }
+    results.push({
+      id: subject.id,
+      attempts: Math.min(attempt, maxAttempts),
+      status: lastError ? 'failed' : 'deleted',
+      ...(lastError ? { error: lastError } : {}),
+    })
+  }
+  return results
 }
 
 async function relativeImportGraph(root, entry) {
@@ -1344,33 +1411,71 @@ async function proveQueue(manifest, subjects, ids) {
   })
 }
 
-async function cleanupFixtures(manifest, subjects, ids) {
-  for (const subject of [...subjects].reverse()) {
-    await deleteDisposableSubject(subject)
+async function cleanupFixtures(manifest, subjects, ids, {
+  deleteSubject = deleteDisposableSubject,
+  sleep = delay,
+  sql = managementSql,
+} = {}) {
+  const subjectDeletions = await deleteSubjectsExactly(subjects, {
+    deleteSubject,
+    sleep,
+  })
+  const cleanupErrors = subjectDeletions
+    .filter(({ status }) => status === 'failed')
+    .map(({ error }) => error)
+  try {
+    await sql(manifest.targets.supabase.project_ref, `
+      delete from public.jobs
+      where id in (${ids.jobs.map((id) => `${sqlLiteral(id)}::uuid`).join(',')})
+        and external_id like ${sqlLiteral(`${manifest.verifier.run_namespace}:%`)};
+    `)
+  } catch (error) {
+    cleanupErrors.push(error)
   }
-  await managementSql(manifest.targets.supabase.project_ref, `
-    delete from public.jobs
-    where id in (${ids.jobs.map((id) => `${sqlLiteral(id)}::uuid`).join(',')})
-      and external_id like ${sqlLiteral(`${manifest.verifier.run_namespace}:%`)};
-  `)
-  const residue = await managementSql(manifest.targets.supabase.project_ref, `
-    select
-      (select count(*)::integer from auth.users
-       where email like ${sqlLiteral(`${manifest.verifier.run_namespace}+%`)}) as users,
-      (select count(*)::integer from public.jobs
-       where external_id like ${sqlLiteral(`${manifest.verifier.run_namespace}:%`)}) as jobs,
-      (select count(*)::integer from public.user_jobs
-       where id in (${ids.userJobs.flat().map((id) => `${sqlLiteral(id)}::uuid`).join(',')})) as user_jobs,
-      (select count(*)::integer from public.deterministic_ranking_state
-       where user_id in (${(subjects.length > 0
+
+  let residue
+  try {
+    residue = await sql(manifest.targets.supabase.project_ref, `
+      select
+        (select count(*)::integer from auth.users
+         where email like ${sqlLiteral(`${manifest.verifier.run_namespace}+%`)}) as users,
+        (select count(*)::integer from public.jobs
+         where external_id like ${sqlLiteral(`${manifest.verifier.run_namespace}:%`)}) as jobs,
+        (select count(*)::integer from public.user_jobs
+         where id in (${ids.userJobs.flat().map((id) => `${sqlLiteral(id)}::uuid`).join(',')})) as user_jobs,
+        (select count(*)::integer from public.deterministic_ranking_state
+         where user_id in (${(subjects.length > 0
     ? subjects.map(({ id }) => `${sqlLiteral(id)}::uuid`)
     : ["'00000000-0000-0000-0000-000000000000'::uuid"]).join(',')})) as ranking_states
-  `)
-  if (residue.length !== 1
-    || Object.values(residue[0]).some((value) => Number(value) !== 0)) {
-    throw new Error('verifier fixture residue remains after guarded cleanup')
+    `)
+  } catch (error) {
+    cleanupErrors.push(error)
   }
-  return residue[0]
+  if (!residue || residue.length !== 1
+    || Object.values(residue[0]).some((value) => Number(value) !== 0)) {
+    cleanupErrors.push(new Error('verifier fixture residue remains after guarded cleanup'))
+    throw new AggregateError(
+      cleanupErrors,
+      'guarded cleanup failed after bounded exact-subject retries',
+    )
+  }
+  return Object.freeze({
+    residue: residue[0],
+    subjectDeletions: subjectDeletions.map(({ id, attempts, status }) => (
+      Object.freeze({ id, attempts, status })
+    )),
+  })
+}
+
+function assertUnrelatedSnapshotUnchanged(before, after) {
+  if (!before) return null
+  if (!SHA256.test(String(before.sha256)) || !SHA256.test(String(after?.sha256))) {
+    throw new Error('unrelated production snapshot is malformed')
+  }
+  if (before.sha256 !== after.sha256) {
+    throw new Error('unrelated production snapshot changed during hosted proof')
+  }
+  return Object.freeze({ before: before.sha256, after: after.sha256 })
 }
 
 function requirePassChecks(document) {
@@ -1461,16 +1566,15 @@ async function runHosted(manifestPath, outputPath, rolloutPath) {
   } finally {
     let cleanupError
     try {
-      const residue = await cleanupFixtures(manifest, subjects, ids)
-      const after = await unrelatedSnapshot(manifest)
-      if (!before?.sha256 || before.sha256 !== after.sha256) {
-        throw new Error('unrelated production snapshot changed during hosted proof')
-      }
+      const cleanupResult = await cleanupFixtures(manifest, subjects, ids)
+      const after = before ? await unrelatedSnapshot(manifest) : undefined
+      const snapshots = assertUnrelatedSnapshotUnchanged(before, after)
       cleanup = {
         finally_registered: true,
-        before_snapshot_sha256: before.sha256,
-        after_snapshot_sha256: after.sha256,
-        remaining_fixtures: Object.values(residue).reduce(
+        before_snapshot_sha256: snapshots?.before ?? null,
+        after_snapshot_sha256: snapshots?.after ?? null,
+        subject_deletions: cleanupResult.subjectDeletions,
+        remaining_fixtures: Object.values(cleanupResult.residue).reduce(
           (sum, value) => sum + Number(value),
           0,
         ),
@@ -1620,7 +1724,7 @@ const direct = process.argv[1]
   && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 if (direct) {
   main(process.argv.slice(2)).catch((error) => {
-    console.error(`verify-phase-03-6-hosted: ${error instanceof Error ? error.message : 'failed'}`)
+    console.error(`verify-phase-03-6-hosted: ${formatVerificationError(error)}`)
     process.exitCode = 1
   })
 }
@@ -1628,12 +1732,16 @@ if (direct) {
 export {
   REQUIRED_CHECKS,
   UAT_CASES,
+  assertUnrelatedSnapshotUnchanged,
   assertEvidence,
   assertUat,
   canonical,
+  cleanupFixtures,
   collectBaseline,
+  deleteSubjectsExactly,
   fixtureIds,
   fixtureSql,
+  formatVerificationError,
   pageBody,
   requirePassChecks,
   secretScan,
