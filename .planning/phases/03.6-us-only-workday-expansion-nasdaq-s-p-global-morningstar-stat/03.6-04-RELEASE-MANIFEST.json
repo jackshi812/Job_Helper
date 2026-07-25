@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "phase": "03.6",
-  "created_at": "2026-07-25T02:40:00Z",
+  "created_at": "2026-07-25T02:55:00Z",
   "accepted_production_source": "9a8a11457b4e7b2113a51ed2e39698393ed877fe",
   "candidate": {
     "git_sha": "29020ec8b58446254bd755b31b05ce3c9eaab460",
@@ -150,7 +150,7 @@
     }
   ],
   "verifier": {
-    "script_sha256": "caf1fbf457e1014a1dd0f75c618a740cc2bc3bd52c95b3624a71f35e05016cf4",
+    "script_sha256": "f75cc8ae42b2956f399e0feac7acd743a8566b73039c5c184184dd05e13318f9",
     "run_namespace": "phase036-c42d4d62-1038-4ee7-8d7c-5581c5e79a49",
     "fixture_namespace_uuid": "c42d4d62-1038-4ee7-8d7c-5581c5e79a49",
     "page_size": 200,
