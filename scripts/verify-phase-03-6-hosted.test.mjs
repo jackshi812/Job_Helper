@@ -6,6 +6,7 @@ import {
   assertUnrelatedSnapshotUnchanged,
   cleanupFixtures,
   deleteSubjectsExactly,
+  expectedHostedMigrationVersions,
   fixtureIds,
   fixtureSql,
   formatVerificationError,
@@ -28,6 +29,21 @@ test('manifest stays strict and exact-release bound', async () => {
   assert.equal(manifest.verifier.subject_count, 2)
   assert.equal(manifest.verifier.fixture_ceilings.jobs, 405)
   assert.equal(manifest.verifier.fixture_ceilings.user_jobs, 810)
+})
+
+test('already-applied migration inventory expects exact remote parity without replay', async () => {
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+  manifest.migration.proposed = []
+  manifest.targets.supabase.remote_migrations = [
+    ...manifest.targets.supabase.remote_migrations,
+    '0037',
+  ]
+  const validated = validateManifest(manifest)
+  assert.deepEqual(validated.migration.proposed, [])
+  assert.equal(validated.targets.supabase.remote_migrations.at(-1), '0037')
+  assert.deepEqual(expectedHostedMigrationVersions(validated), [
+    ...validated.targets.supabase.remote_migrations,
+  ])
 })
 
 test('UUID-v5 fixture ranges are deterministic, unique, and versioned', async () => {
