@@ -1129,6 +1129,179 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
     })
   })
 
+  it('accepts an exact U.S.-scoped multi-location posting when a secondary detail location is U.S.', async () => {
+    const expected = phase036Identities[1]
+    const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
+    const posting = {
+      ...phase036Posting(7, 'Toronto, CAN'),
+      externalPath: '/job/Toronto-CAN/Phase-03-6-Multi-Location_360007-2',
+      bulletFields: ['360007'],
+    }
+    const providerFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url !== `${expected.cxsRoot}/jobs`) {
+        return Promise.resolve(jsonResponse({
+          ...phase036Detail(posting, 'Canada', 'CA'),
+          jobPostingInfo: {
+            ...phase036Detail(posting, 'Canada', 'CA').jobPostingInfo,
+            jobReqId: '360007',
+            jobPostingId: 'Phase-03-6-Multi-Location_360007-2',
+            additionalLocations: ['New York, NY'],
+          },
+        }))
+      }
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: Record<string, string[]>
+      }
+      return Promise.resolve(body.appliedFacets.Location_Country === undefined
+        ? jsonResponse({
+            total: 2,
+            jobPostings: [],
+            facets: countryFacets(expected.route, 1),
+          })
+        : jsonResponse({ total: 1, jobPostings: [posting] }))
+    })
+
+    await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      jobs: [{
+        externalId: '360007',
+        location: 'Toronto, CAN',
+        companyName: 'S&P Global',
+      }],
+      warnings: [],
+    })
+  })
+
+  it('still rejects an exact U.S.-scoped detail when every exposed location is foreign', async () => {
+    const expected = phase036Identities[1]
+    const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
+    const posting = {
+      ...phase036Posting(8, 'Toronto, CAN'),
+      externalPath: '/job/Toronto-CAN/Phase-03-6-Foreign-Only_360008-2',
+      bulletFields: ['360008'],
+    }
+    const providerFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url !== `${expected.cxsRoot}/jobs`) {
+        return Promise.resolve(jsonResponse({
+          ...phase036Detail(posting, 'Canada', 'CA'),
+          jobPostingInfo: {
+            ...phase036Detail(posting, 'Canada', 'CA').jobPostingInfo,
+            jobReqId: '360008',
+            jobPostingId: 'Phase-03-6-Foreign-Only_360008-2',
+            additionalLocations: ['Toronto, CAN'],
+          },
+        }))
+      }
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: Record<string, string[]>
+      }
+      return Promise.resolve(body.appliedFacets.Location_Country === undefined
+        ? jsonResponse({
+            total: 2,
+            jobPostings: [],
+            facets: countryFacets(expected.route, 1),
+          })
+        : jsonResponse({ total: 1, jobPostings: [posting] }))
+    })
+
+    await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: ['country_filter_unverified'],
+    })
+  })
+
+  it('accepts a Morningstar detail alias only when its posting ID exactly binds the list path', async () => {
+    const expected = phase036Identities[2]
+    const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
+    const posting = {
+      title: 'Phase 03.6 Morningstar Alias',
+      externalPath: '/job/Chicago/Phase-03-6-Morningstar-Alias_REQ-057624-1',
+      locationsText: 'Chicago',
+      postedOn: 'Posted Today',
+      bulletFields: ['REQ-057624'],
+    }
+    const providerFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url !== `${expected.cxsRoot}/jobs`) {
+        return Promise.resolve(jsonResponse({
+          ...phase036Detail(posting),
+          jobPostingInfo: {
+            ...phase036Detail(posting).jobPostingInfo,
+            jobReqId: '057624',
+            jobPostingId: 'Phase-03-6-Morningstar-Alias_REQ-057624-1',
+          },
+        }))
+      }
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: Record<string, string[]>
+      }
+      return Promise.resolve(body.appliedFacets.locationCountry === undefined
+        ? jsonResponse({
+            total: 2,
+            jobPostings: [],
+            facets: countryFacets(expected.route, 1),
+          })
+        : jsonResponse({ total: 1, jobPostings: [posting] }))
+    })
+
+    await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      jobs: [{
+        externalId: 'REQ-057624',
+        companyName: 'Morningstar',
+      }],
+      warnings: [],
+    })
+  })
+
+  it('rejects a Morningstar detail alias with an unrelated posting ID', async () => {
+    const expected = phase036Identities[2]
+    const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
+    const posting = {
+      title: 'Phase 03.6 Morningstar Drift',
+      externalPath: '/job/Chicago/Phase-03-6-Morningstar-Drift_REQ-057625-1',
+      locationsText: 'Chicago',
+      postedOn: 'Posted Today',
+      bulletFields: ['REQ-057625'],
+    }
+    const providerFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url !== `${expected.cxsRoot}/jobs`) {
+        return Promise.resolve(jsonResponse({
+          ...phase036Detail(posting),
+          jobPostingInfo: {
+            ...phase036Detail(posting).jobPostingInfo,
+            jobReqId: '057625',
+            jobPostingId: 'Unrelated-Posting_REQ-999999-1',
+          },
+        }))
+      }
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: Record<string, string[]>
+      }
+      return Promise.resolve(body.appliedFacets.locationCountry === undefined
+        ? jsonResponse({
+            total: 2,
+            jobPostings: [],
+            facets: countryFacets(expected.route, 1),
+          })
+        : jsonResponse({ total: 1, jobPostings: [posting] }))
+    })
+
+    await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
+      completeness: 'unknown',
+      credibleForClosure: false,
+      jobs: [],
+      warnings: ['provider_identity_drift'],
+    })
+  })
+
   it('keeps scoped later-page drift, contradictory totals, and caps closure-ineligible', async () => {
     const identity = resolveWorkdayIdentity(
       'spgi',
