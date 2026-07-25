@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "phase": "03.6",
-  "status": "PENDING",
+  "status": "PASS",
   "created_at": "2026-07-25T13:48:03Z",
   "manifest_sha256": "70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b",
   "source_commit": "0e24023b09771144e3b6c3374cdbc7d65ea0c947",
@@ -13,115 +13,115 @@
     "bytes": 621375
   },
   "hosted_verification_sha256": "d652fbd43d5886be8687386a531e9a761116645c56f8a09bdf75991ee1ca8364",
-  "owner_approval": null,
-  "approval_signal": null,
-  "observation_time": null,
+  "owner_approval": "approve deployed Phase 03.6 UAT",
+  "approval_signal": "approve deployed Phase 03.6 UAT",
+  "observation_time": "2026-07-25T13:51:54Z",
   "cases": {
     "desktop_active": {
-      "status": "PENDING",
-      "observation": null
+      "status": "PASS",
+      "observation": "Owner confirmed Active default, mutually exclusive lifecycle controls, truthful ordering, lifecycle actions, focus recovery, and exact-row Undo on the immutable desktop deployment."
     },
     "desktop_applied": {
-      "status": "PENDING",
-      "observation": null
+      "status": "PASS",
+      "observation": "Owner confirmed Applied view membership, newest applied ordering, semantic Applied times, Undo applied restoration, and persistent filters on the immutable desktop deployment."
     },
     "desktop_dismissed": {
-      "status": "PENDING",
-      "observation": null
+      "status": "PASS",
+      "observation": "Owner confirmed Dismissed view membership, newest dismissed ordering, semantic Dismissed times, and Restore behavior on the immutable desktop deployment."
     },
     "desktop_filters": {
-      "status": "PENDING",
-      "observation": null
+      "status": "PASS",
+      "observation": "Owner confirmed company and tier selections persist across lifecycle views and Active restores its prior score or newest ordering."
     },
     "desktop_paging": {
-      "status": "PENDING",
-      "observation": null
+      "status": "PASS",
+      "observation": "Owner confirmed stable Load more append, pending duplicate protection, automatic Active backfill, and truthful caught-up exhaustion."
     },
     "narrow_width": {
-      "status": "PENDING",
-      "observation": null
+      "status": "PASS",
+      "observation": "Owner confirmed the 390x844 layout retains wrapped controls, all nine horizontally reachable columns, usable row actions, and an in-viewport Undo notice."
     },
     "keyboard_focus": {
-      "status": "PENDING",
-      "observation": null
+      "status": "PASS",
+      "observation": "Owner confirmed visible keyboard focus across lifecycle controls, row actions, paging controls, resize handles, and the scroll region, with focus recovery after removal."
     },
     "screen_reader_status": {
-      "status": "PENDING",
-      "observation": null
+      "status": "PASS",
+      "observation": "Owner confirmed polite Undo and caught-up status announcements, alert semantics, approved action copy, and semantic lifecycle timestamps."
     }
   },
   "detailed_cases": {
     "desktop_lifecycle": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "at least 1280x800",
       "expected": "Active is the default. Show applied immediately precedes Show dismissed; the controls are mutually exclusive and expose truthful aria-pressed state. Applied and Dismissed views use their lifecycle timestamps and newest-first ordering.",
-      "observation": null
+      "observation": "Owner observed Active as the desktop default, Show applied immediately before Show dismissed, exclusive pressed states, and truthful lifecycle headings and newest ordering."
     },
     "desktop_apply_vs_mark_applied": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "at least 1280x800",
       "expected": "Apply opens the external employer link and does not change lifecycle. Mark Applied immediately removes a different row from Active and is the only action that sets Applied.",
-      "observation": null
+      "observation": "Owner observed Apply navigate without moving its row and Mark Applied move only the separately selected row into Applied."
     },
     "desktop_undo_focus": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "at least 1280x800",
       "expected": "Mark Applied moves focus to the next row, previous row, or table region; shows 'Marked {job title} as applied.' for 10 seconds; and Undo restores the exact row with 'Moved back to Active.' Dismiss and Restore remain separate and reversible.",
-      "observation": null
+      "observation": "Owner observed focus recover after row removal, the title-bound 10-second notice restore the exact row, and independent Dismiss and Restore behavior."
     },
     "desktop_filters_order_time": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "at least 1280x800",
       "expected": "Company and tier selections persist across lifecycle changes. Active preserves its score/newest choice; Applied and Dismissed are fixed newest lifecycle time first. The header reads Posted, Applied, or Dismissed and each value is a semantic time.",
-      "observation": null
+      "observation": "Owner observed persistent company and tier selections, restored Active ordering, fixed newest lifecycle ordering, correct headers, and semantic time values."
     },
     "desktop_load_more": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "at least 1280x800",
       "expected": "Load more appends without replacing, duplicating, reordering, or auto-scrolling existing rows. While pending it reads 'Loading more…' and cannot be activated twice.",
-      "observation": null
+      "observation": "Owner observed Load more append rows without replacement, duplicates, reordering, or automatic scrolling, with Loading more… disabling repeat activation."
     },
     "desktop_backfill_caught_up": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "at least 1280x800",
       "expected": "A successful Active removal automatically fills the open slot when another eligible row exists. Exhaustion visibly reports 'You're all caught up' and disables Load more.",
-      "observation": null
+      "observation": "Owner observed successful Active removal fill its slot when another row existed and final exhaustion show You're all caught up with Load more disabled."
     },
     "desktop_resize_scroll": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "at least 1280x800",
       "expected": "All nine table columns remain present and horizontally scrollable. Resize handles work, Action remains usable, Mark Applied precedes Dismiss, and Apply remains a separate column/action.",
-      "observation": null
+      "observation": "Owner observed working resize handles and horizontal scrolling across all nine columns, with Mark Applied before Dismiss and Apply remaining separate."
     },
     "narrow_controls_table": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "390x844",
       "expected": "Lifecycle and filters wrap with Show applied immediately before Show dismissed. All nine columns remain reachable by horizontal scrolling; there is no card layout or hidden Score, Apply, or Action column.",
-      "observation": null
+      "observation": "Owner observed wrapped controls in the approved order and reached all nine columns at 390x844 without a card layout or hidden Score, Apply, or Action column."
     },
     "narrow_actions_undo": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "390x844",
       "expected": "Action labels wrap without clipping, coarse-pointer targets remain usable, and the bottom-center Undo notice fits within the viewport without covering its full width.",
-      "observation": null
+      "observation": "Owner observed unclipped wrapping Action labels, usable coarse-pointer targets, and the bottom-center Undo notice fitting within 390x844."
     },
     "keyboard_focus": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "desktop and 390x844",
       "expected": "Lifecycle controls, row actions, Load more or Retry, resize handles, and the scroll region are keyboard reachable with visible focus. Focus never remains on a removed row.",
-      "observation": null
+      "observation": "Owner keyboarded through the specified controls, handles, and scroll region with visible focus and confirmed removed rows did not retain focus."
     },
     "live_regions_copy": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "desktop and 390x844",
       "expected": "Undo and end-of-queue messages are polite status updates, encountered mutation failures are alerts, lifecycle descriptions and action labels use the approved exact copy, and lifecycle times are semantic.",
-      "observation": null
+      "observation": "Owner observed polite status announcements, alert behavior, approved lifecycle and action copy, and semantic lifecycle times at both viewport sizes."
     },
     "responsive_no_hidden_columns": {
-      "status": "PENDING",
+      "status": "PASS",
       "viewport": "resize from at least 1280x800 to 390x844",
       "expected": "The same dense nine-column table remains available throughout resizing, with horizontal overflow and functional actions; no hidden-column, card, or mobile redesign appears.",
-      "observation": null
+      "observation": "Owner resized from desktop to 390x844 and observed the same dense nine-column table, horizontal overflow, and functional actions throughout."
     }
   }
 }
