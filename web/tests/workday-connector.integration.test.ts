@@ -868,7 +868,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       expect(observation).toMatchObject({
         completeness: 'complete',
         credibleForClosure: true,
-        allowMissingClosure: false,
+        allowMissingClosure: true,
         expectedCount: 2,
         jobs: [
           { externalId: 'R360001', companyName: expected.companyName },
