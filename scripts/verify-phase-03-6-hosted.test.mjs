@@ -27,21 +27,21 @@ const manifestPath = new URL(
 
 test('manifest stays strict and exact-release bound', async () => {
   const manifest = validateManifest(JSON.parse(await readFile(manifestPath, 'utf8')))
-  assert.equal(manifest.candidate.git_sha, '95caf9bb65e8266e20352aa5e955c74fc9a9645b')
+  assert.equal(manifest.candidate.git_sha, '0e24023b09771144e3b6c3374cdbc7d65ea0c947')
   assert.equal(manifest.sources.length, 4)
   assert.equal(manifest.verifier.subject_count, 2)
   assert.equal(manifest.verifier.fixture_ceilings.jobs, 405)
   assert.equal(manifest.verifier.fixture_ceilings.user_jobs, 810)
 })
 
-test('repair migration inventory expects exact hosted parity after one migration', async () => {
+test('lifecycle grant inventory expects exact hosted parity after one migration', async () => {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
   const validated = validateManifest(manifest)
-  assert.deepEqual(validated.migration.proposed, ['0038'])
-  assert.equal(validated.targets.supabase.remote_migrations.at(-1), '0037')
+  assert.deepEqual(validated.migration.proposed, ['0039'])
+  assert.equal(validated.targets.supabase.remote_migrations.at(-1), '0038')
   assert.deepEqual(expectedHostedMigrationVersions(validated), [
     ...validated.targets.supabase.remote_migrations,
-    '0038',
+    '0039',
   ])
 })
 

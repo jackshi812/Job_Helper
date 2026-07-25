@@ -1,23 +1,23 @@
 {
   "schema_version": 1,
   "phase": "03.6",
-  "created_at": "2026-07-25T13:15:37Z",
-  "accepted_production_source": "3a7c22b0598a2429511438082dfadc4477fc6ab2",
+  "created_at": "2026-07-25T13:24:32Z",
+  "accepted_production_source": "95caf9bb65e8266e20352aa5e955c74fc9a9645b",
   "candidate": {
-    "git_sha": "95caf9bb65e8266e20352aa5e955c74fc9a9645b",
-    "commit_object_sha256": "ff833d0bb3ff6ab4cfa08d476e7ad5a7e101b1c0f819cfdee19cc5aa4eb23290",
-    "parent_sha": "3a7c22b0598a2429511438082dfadc4477fc6ab2",
+    "git_sha": "0e24023b09771144e3b6c3374cdbc7d65ea0c947",
+    "commit_object_sha256": "126848e4fe7bc8b7d45ce2a75a60e6907d66352b6776b308574e6f64367593b5",
+    "parent_sha": "95caf9bb65e8266e20352aa5e955c74fc9a9645b",
     "worktree_path": "/private/tmp/job-copilot-036-listing-validate",
     "changed_files": [
-      "supabase/migrations/0038_dashboard_feed_page_repair.sql",
-      "web/tests/migration-0038-dashboard-feed-page-repair.test.ts"
+      "supabase/migrations/0039_ranking_breakdown_validator_grant.sql",
+      "web/tests/migration-0039-ranking-breakdown-validator-grant.test.ts"
     ]
   },
   "migration": {
-    "path": "supabase/migrations/0038_dashboard_feed_page_repair.sql",
-    "sha256": "baa8b81f7c7e19ea738e5cfbdcf8c6bf84df6a5482147b1d6aec35205648ee3b",
+    "path": "supabase/migrations/0039_ranking_breakdown_validator_grant.sql",
+    "sha256": "a67d2a87343a9b75f1a8d95eaa820de043ac9fd2b51050c4657a9e3714e4f8db",
     "proposed": [
-      "0038"
+      "0039"
     ]
   },
   "functions": {
@@ -95,7 +95,7 @@
         "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009",
         "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018", "0019",
         "0020", "0021", "0022", "0023", "0024", "0025", "0026", "0027", "0028", "0029",
-        "0030", "0031", "0032", "0033", "0034", "0035", "0036", "0037"
+        "0030", "0031", "0032", "0033", "0034", "0035", "0036", "0037", "0038"
       ]
     },
     "cloudflare": {
@@ -104,11 +104,11 @@
       "production_branch": "main",
       "production_domain": "job-helper-qs9.pages.dev",
       "current_deployment": {
-        "id": "9a991225-6f86-4fba-b625-59809f558a8c",
+        "id": "bc5b8ece-5ad0-4143-8a4c-bd0164779c0d",
         "status": "success",
         "branch": "main",
-        "git_sha": "3a7c22b0598a2429511438082dfadc4477fc6ab2",
-        "url": "https://9a991225.job-helper-qs9.pages.dev"
+        "git_sha": "95caf9bb65e8266e20352aa5e955c74fc9a9645b",
+        "url": "https://bc5b8ece.job-helper-qs9.pages.dev"
       }
     }
   },
@@ -155,19 +155,19 @@
     }
   ],
   "verifier": {
-    "script_sha256": "6f07785da7cff4a705d25f089b6ba0c5d3db897463946e3bc353694c691521f9",
-    "run_namespace": "phase036-998e7fc4-77de-4689-b2b8-3f30efa1e9a8",
-    "fixture_namespace_uuid": "998e7fc4-77de-4689-b2b8-3f30efa1e9a8",
+    "script_sha256": "ba9d46cfe8f23f02fdeab0b72417360ab8d1845e2985d577b54e30a25af53451",
+    "run_namespace": "phase036-1af5db5e-f0af-4aa5-a518-1b2fbebce071",
+    "fixture_namespace_uuid": "1af5db5e-f0af-4aa5-a518-1b2fbebce071",
     "page_size": 200,
     "subject_count": 2,
     "subjects": [
       {
         "label": "subject-1",
-        "email": "phase036-998e7fc4-77de-4689-b2b8-3f30efa1e9a8+subject-1@example.invalid"
+        "email": "phase036-1af5db5e-f0af-4aa5-a518-1b2fbebce071+subject-1@example.invalid"
       },
       {
         "label": "subject-2",
-        "email": "phase036-998e7fc4-77de-4689-b2b8-3f30efa1e9a8+subject-2@example.invalid"
+        "email": "phase036-1af5db5e-f0af-4aa5-a518-1b2fbebce071+subject-2@example.invalid"
       }
     ],
     "activation": {
@@ -183,13 +183,13 @@
       "user_jobs": 810
     },
     "deterministic_id_ranges": {
-      "jobs": "uuid-v5(998e7fc4-77de-4689-b2b8-3f30efa1e9a8,job:000..404)",
-      "subject_1_user_jobs": "uuid-v5(998e7fc4-77de-4689-b2b8-3f30efa1e9a8,subject-1:000..404)",
-      "subject_2_user_jobs": "uuid-v5(998e7fc4-77de-4689-b2b8-3f30efa1e9a8,subject-2:000..404)"
+      "jobs": "uuid-v5(1af5db5e-f0af-4aa5-a518-1b2fbebce071,job:000..404)",
+      "subject_1_user_jobs": "uuid-v5(1af5db5e-f0af-4aa5-a518-1b2fbebce071,subject-1:000..404)",
+      "subject_2_user_jobs": "uuid-v5(1af5db5e-f0af-4aa5-a518-1b2fbebce071,subject-2:000..404)"
     }
   },
   "baselines": {
-    "captured_at": "2026-07-25T13:15:02Z",
+    "captured_at": "2026-07-25T13:25:45Z",
     "rls": {
       "jobs": true,
       "companies": true,
@@ -209,8 +209,8 @@
       "open_jobs": 3480,
       "user_jobs": 5917,
       "auth_users": 2,
-      "ranking_runs": 279,
-      "ranking_items": 657718,
+      "ranking_runs": 280,
+      "ranking_items": 661198,
       "ranking_states": 2,
       "source_catalog": 17,
       "dismissed_user_jobs": 9,
@@ -344,7 +344,7 @@
       }
     ],
     "other_connector_health_sha256": "719d902494d992e8357c8b2edf008953a0eaf41528e382aa7a6078f897c02972",
-    "ranking_state_sha256": "13381127d13708bb9772fd996d99e11862dbd70741b8be4b5096d9570af35e15",
+    "ranking_state_sha256": "cfa840b6be8591184d19f17aa1797a78bed707139e234362f4d1e4319ba87861",
     "dashboard_baseline_sha256": "8185f018d3dd18571ceaf6e17cbd57100d004225415b53f2d6415d62c105cc67"
   },
   "exclusions": [
@@ -355,7 +355,7 @@
     "scripts/agent-dashboard.test.mjs",
     "web/zh",
     "all function deployments",
-    "all migrations except 0038_dashboard_feed_page_repair.sql",
+    "all migrations except 0039_ranking_breakdown_validator_grant.sql",
     "all non-verifier user data",
     "manual provider invocation before exact approval"
   ]

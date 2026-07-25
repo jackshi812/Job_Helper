@@ -249,9 +249,9 @@ function validateManifest(manifest) {
   exactKeys(manifest.migration, MIGRATION_KEYS, 'migration')
   requireString(manifest.migration.sha256, SHA256, 'migration SHA-256')
   if (
-    manifest.migration.path !== 'supabase/migrations/0038_dashboard_feed_page_repair.sql'
-    || JSON.stringify(manifest.migration.proposed) !== JSON.stringify(['0038'])
-  ) throw new Error('migration inventory must propose only the 0038 hosted repair')
+    manifest.migration.path !== 'supabase/migrations/0039_ranking_breakdown_validator_grant.sql'
+    || JSON.stringify(manifest.migration.proposed) !== JSON.stringify(['0039'])
+  ) throw new Error('migration inventory must propose only the 0039 lifecycle grant')
 
   exactKeys(manifest.functions, ['verify-board', 'poll-tick'], 'functions')
   for (const [slug, entry] of Object.entries(manifest.functions)) {
@@ -288,8 +288,8 @@ function validateManifest(manifest) {
   requireString(manifest.targets.supabase.project_ref, /^[a-z]{20}$/, 'Supabase project ref')
   if (
     !Array.isArray(manifest.targets.supabase.remote_migrations)
-    || manifest.targets.supabase.remote_migrations.at(-1) !== '0037'
-  ) throw new Error('remote migration baseline must end at 0037')
+    || manifest.targets.supabase.remote_migrations.at(-1) !== '0038'
+  ) throw new Error('remote migration baseline must end at 0038')
   exactKeys(manifest.targets.cloudflare, CLOUDFLARE_KEYS, 'Cloudflare target')
   exactKeys(manifest.targets.cloudflare.current_deployment, DEPLOYMENT_KEYS, 'Cloudflare deployment')
   if (
@@ -688,7 +688,7 @@ async function releaseIdentityProbe(manifest) {
   const versions = migrations.map(({ version }) => String(version))
   const expected = expectedHostedMigrationVersions(manifest)
   if (canonical(versions) !== canonical(expected)) {
-    throw new Error('hosted migration parity is not exact through 0038')
+    throw new Error('hosted migration parity is not exact through 0039')
   }
 
   const [verifyBoard, pollTick] = await Promise.all([
