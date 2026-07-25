@@ -1010,11 +1010,28 @@ async function invokeVerifyBoard(manifest, subject, sourceUrl) {
     method: 'POST',
     body: { url: sourceUrl },
   })
-  if (response.headers.get('x-job-copilot-auth-stage') !== 'verified'
+  const stage = response.headers.get('x-job-copilot-auth-stage')
+  if (stage !== 'verified'
     && response.payload?.reason !== 'unsupported') {
     throw new Error('verify-board did not expose authenticated verification stage')
   }
-  return response.payload
+  return Object.freeze({ payload: response.payload, stage })
+}
+
+function verifyBoardFailureMessage(company, stage, reason) {
+  const boundedCompany = (typeof company === 'string' ? company : 'unknown-source')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 64) || 'unknown-source'
+  const boundedToken = (value, fallback) => (
+    typeof value === 'string' && /^[a-z][a-z0-9_]{0,47}$/.test(value)
+      ? value
+      : fallback
+  )
+  return `${boundedCompany} exact live verification failed closed (stage=${
+    boundedToken(stage, 'unknown')
+  }, reason=${boundedToken(reason, 'unknown')})`
 }
 
 async function sourceState(manifest) {
@@ -1065,14 +1082,19 @@ async function proveFourSources(manifest, subject) {
       if (providerCalls >= activation.max_polls) {
         throw new Error('source verification exceeded approved provider-call ceiling')
       }
-      const result = await invokeVerifyBoard(manifest, subject, source.url)
+      const invocation = await invokeVerifyBoard(manifest, subject, source.url)
+      const result = invocation.payload
       providerCalls += 1
       if (result?.ok !== true
         || result.company?.source_key !== source.source_key
         || !['accepted', 'same_window', 'replay_or_same_window'].includes(
           result.activation?.reason,
         )) {
-        throw new Error(`${source.company} exact live verification failed closed`)
+        throw new Error(verifyBoardFailureMessage(
+          source.company,
+          invocation.stage,
+          result?.activation?.reason ?? result?.reason,
+        ))
       }
       const next = Date.parse(result.activation?.next_eligible_at ?? '')
       if (Number.isFinite(next)) nextEligibleAt = Math.max(nextEligibleAt, next + 1_000)
@@ -1089,11 +1111,11 @@ async function proveFourSources(manifest, subject) {
 
   const beforeDrift = await sourceState(manifest)
   const driftTarget = manifest.sources[0]
-  const drift = await invokeVerifyBoard(
+  const drift = (await invokeVerifyBoard(
     manifest,
     subject,
     driftTarget.url.replace('https://', 'http://'),
-  )
+  )).payload
   if (drift?.ok !== false || drift?.reason !== 'unsupported') {
     throw new Error('closure-ineligible identity drift was not rejected before provider access')
   }
@@ -1810,4 +1832,5 @@ export {
   sha256,
   uuidV5,
   validateManifest,
+  verifyBoardFailureMessage,
 }
