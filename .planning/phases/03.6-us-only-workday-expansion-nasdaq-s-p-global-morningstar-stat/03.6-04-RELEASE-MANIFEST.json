@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "phase": "03.6",
-  "created_at": "2026-07-25T04:49:06Z",
-  "accepted_production_source": "5d128278b513475f18a85ebeb9c7f08f45a2f5e0",
+  "created_at": "2026-07-25T05:17:57Z",
+  "accepted_production_source": "f7376b7c86906b7f669aa221835066c1a241fc65",
   "candidate": {
-    "git_sha": "f7376b7c86906b7f669aa221835066c1a241fc65",
-    "commit_object_sha256": "e33092019d3c028307d2b0bfc4abb15b30fc322527b8d0e9078746dad976b624",
-    "parent_sha": "5d128278b513475f18a85ebeb9c7f08f45a2f5e0",
-    "worktree_path": "/private/tmp/job-copilot-036-release.L00kxB",
+    "git_sha": "3a7c22b0598a2429511438082dfadc4477fc6ab2",
+    "commit_object_sha256": "d00cca419cd6fb8fd10220b18a25ee61ae8a3edcc0e87ccd18ed98ddd2c6af6c",
+    "parent_sha": "f7376b7c86906b7f669aa221835066c1a241fc65",
+    "worktree_path": "/private/tmp/job-copilot-036-listing-validate",
     "changed_files": [
       "supabase/functions/_shared/adapters/workday.ts",
       "web/tests/workday-connector.integration.test.ts"
@@ -22,7 +22,7 @@
     "verify-board": {
       "entry_path": "supabase/functions/verify-board/index.ts",
       "entry_sha256": "08a98d06f400f3c2b03352cf837a8f6564557a63ace487736e041c4603368591",
-      "bundle_manifest_sha256": "8a972567522b1f130699890b8d79a2624483b964d0c021982d9d3abfde3ed45e",
+      "bundle_manifest_sha256": "360f13880f030ea853faf7ec51276de504582864ef699b6ce9a233a70daf3bb9",
       "bundle_files": [
         { "path": "supabase/functions/_shared/adapters/ashby.ts", "sha256": "d4e77ed191510398fab132106fd31c2a930afdebe74ec96f0840bc640a862eae" },
         { "path": "supabase/functions/_shared/adapters/greenhouse.ts", "sha256": "6d456b757ef39b18435609c1f1833e39f41fb1469321642917247c1d7f337edf" },
@@ -31,7 +31,7 @@
         { "path": "supabase/functions/_shared/adapters/recruitee.ts", "sha256": "934e23c9371d1a57fd273fddcd3ae3cf3c3876e5914cd215996104e45d39287c" },
         { "path": "supabase/functions/_shared/adapters/smartrecruiters.ts", "sha256": "83ea42f88e53e327a9dd0f9ba58774e474f517f7fd703f5c6cb2ae35b2a1c496" },
         { "path": "supabase/functions/_shared/adapters/types.ts", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" },
-        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "cd89d4dcb6759b7bab6a5b48780f52f05caaf5ed36f386ca1038c9e9e2952777" },
+        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "7a9ea78d5d5f0fc8c65282df09a92b7a6b896836fcccfba25db6d7c3e8b861b9" },
         { "path": "supabase/functions/_shared/connectors.ts", "sha256": "33c7bdb68add427136922f0b2599cfed85744d4bacb88c956d4ca64026b50ee6" },
         { "path": "supabase/functions/_shared/detect.ts", "sha256": "59b549d77be9ab4c14cd68a5beaf2a240ec1416c907b3dff9caba36a73bc7b6c" },
         { "path": "supabase/functions/_shared/deterministic-ranking.ts", "sha256": "b7a64106ffc3228677643a1eb581eef94bc3ab59a82fed57ff7a8d8615aaee7d" },
@@ -43,7 +43,7 @@
       "verify_jwt": true,
       "current_hosted": {
         "id": "b1f7f9ea-4423-49c9-97bc-946b374b5a1d",
-        "version": 25,
+        "version": 26,
         "status": "ACTIVE",
         "verify_jwt": true
       }
@@ -51,7 +51,7 @@
     "poll-tick": {
       "entry_path": "supabase/functions/poll-tick/index.ts",
       "entry_sha256": "c4d1caaf945dc39e091594e959e6e7009240f7901f3339372ed738e6285efba4",
-      "bundle_manifest_sha256": "05a692d715927c635bdd485936906a40d50c3e3360bd1984ad788b065bb4b593",
+      "bundle_manifest_sha256": "62faa71404d779eb070a0a5986f3997c2296150bca2ab0390f4fefa827cd843c",
       "bundle_files": [
         { "path": "supabase/functions/_shared/adapters/ashby.ts", "sha256": "d4e77ed191510398fab132106fd31c2a930afdebe74ec96f0840bc640a862eae" },
         { "path": "supabase/functions/_shared/adapters/greenhouse.ts", "sha256": "6d456b757ef39b18435609c1f1833e39f41fb1469321642917247c1d7f337edf" },
@@ -60,7 +60,7 @@
         { "path": "supabase/functions/_shared/adapters/recruitee.ts", "sha256": "934e23c9371d1a57fd273fddcd3ae3cf3c3876e5914cd215996104e45d39287c" },
         { "path": "supabase/functions/_shared/adapters/smartrecruiters.ts", "sha256": "83ea42f88e53e327a9dd0f9ba58774e474f517f7fd703f5c6cb2ae35b2a1c496" },
         { "path": "supabase/functions/_shared/adapters/types.ts", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" },
-        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "cd89d4dcb6759b7bab6a5b48780f52f05caaf5ed36f386ca1038c9e9e2952777" },
+        { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "7a9ea78d5d5f0fc8c65282df09a92b7a6b896836fcccfba25db6d7c3e8b861b9" },
         { "path": "supabase/functions/_shared/connectors.ts", "sha256": "33c7bdb68add427136922f0b2599cfed85744d4bacb88c956d4ca64026b50ee6" },
         { "path": "supabase/functions/_shared/dedup.ts", "sha256": "dbdbf8e0e3eeec990b0bc8de9acd5d606b562d9b64aebc899cc915d97c75c82b" },
         { "path": "supabase/functions/_shared/detect.ts", "sha256": "59b549d77be9ab4c14cd68a5beaf2a240ec1416c907b3dff9caba36a73bc7b6c" },
@@ -74,7 +74,7 @@
       "verify_jwt": false,
       "current_hosted": {
         "id": "623f09fa-9ff8-4736-a1ae-69b052cf20a9",
-        "version": 28,
+        "version": 29,
         "status": "ACTIVE",
         "verify_jwt": false
       }
@@ -102,11 +102,11 @@
       "production_branch": "main",
       "production_domain": "job-helper-qs9.pages.dev",
       "current_deployment": {
-        "id": "7054f45f-e6ec-4b82-87e3-6fb2cbf53508",
+        "id": "cc8fe068-ab3c-43fe-8751-4519a9f0de48",
         "status": "success",
         "branch": "main",
-        "git_sha": "5d128278b513475f18a85ebeb9c7f08f45a2f5e0",
-        "url": "https://7054f45f.job-helper-qs9.pages.dev"
+        "git_sha": "f7376b7c86906b7f669aa221835066c1a241fc65",
+        "url": "https://cc8fe068.job-helper-qs9.pages.dev"
       }
     }
   },
@@ -187,7 +187,7 @@
     }
   },
   "baselines": {
-    "captured_at": "2026-07-25T00:05:57Z",
+    "captured_at": "2026-07-25T05:20:46Z",
     "rls": {
       "jobs": true,
       "companies": true,
@@ -197,42 +197,72 @@
     },
     "grants": {
       "anon": [],
-      "authenticated_select_columns": 36,
-      "authenticated_update_columns": ["dismissed_at", "seen_at"]
+      "authenticated_select_columns": 37,
+      "authenticated_update_columns": ["applied_at", "dismissed_at", "seen_at"]
     },
     "policies_sha256": "a6f895b498b60514242b58faa5d56f69e98e637adc28a9c0eb403f1677d1af97",
     "counts": {
-      "jobs": 2696,
-      "companies": 14,
-      "open_jobs": 2605,
-      "user_jobs": 5042,
+      "jobs": 2893,
+      "companies": 18,
+      "open_jobs": 2802,
+      "user_jobs": 5239,
       "auth_users": 2,
-      "ranking_runs": 222,
-      "ranking_items": 498837,
+      "ranking_runs": 245,
+      "ranking_items": 559416,
       "ranking_states": 2,
-      "source_catalog": 13,
+      "source_catalog": 17,
       "dismissed_user_jobs": 9,
-      "connector_observations": 12,
-      "applied_at_column_exists": false
+      "connector_observations": 24,
+      "applied_at_column_exists": true
     },
     "workday_companies": [
       {
-        "id": "264537a2-8f3a-4b6e-a17d-9d8616fc8ef0",
         "name": "Fidelity",
         "source_key": "workday:wd1:fmr:FidelityCareers",
         "activation_state": "active",
         "activation_successes": 3,
-        "open_jobs": 113,
+        "last_observation_count": 112,
         "last_error_code": null
       },
       {
-        "id": "fc1f2133-0a48-4db2-aa77-2b931d2a598b",
+        "name": "Nasdaq",
+        "source_key": "workday:wd1:nasdaq:Global_External_Site",
+        "activation_state": "active",
+        "activation_successes": 3,
+        "last_observation_count": 7,
+        "last_error_code": null
+      },
+      {
+        "name": "State Street",
+        "source_key": "workday:wd1:statestreet:Global",
+        "activation_state": "active",
+        "activation_successes": 3,
+        "last_observation_count": 35,
+        "last_error_code": "country_filter_unverified"
+      },
+      {
         "name": "Capital One",
         "source_key": "workday:wd12:capitalone:Capital_One",
         "activation_state": "active",
         "activation_successes": 3,
-        "open_jobs": 20,
+        "last_observation_count": 18,
         "last_error_code": null
+      },
+      {
+        "name": "Morningstar",
+        "source_key": "workday:wd5:morningstar:morningstar",
+        "activation_state": "active",
+        "activation_successes": 3,
+        "last_observation_count": 2,
+        "last_error_code": "provider_identity_drift"
+      },
+      {
+        "name": "S&P Global",
+        "source_key": "workday:wd5:spgi:SPGI_Careers",
+        "activation_state": "active",
+        "activation_successes": 3,
+        "last_observation_count": 60,
+        "last_error_code": "detail_cap_exceeded"
       }
     ],
     "workday_catalog": [
@@ -243,8 +273,32 @@
         "unsupported_reason": null
       },
       {
+        "company_name": "Nasdaq",
+        "source_key": "workday:wd1:nasdaq:Global_External_Site",
+        "disposition": "experimental",
+        "unsupported_reason": null
+      },
+      {
+        "company_name": "State Street",
+        "source_key": "workday:wd1:statestreet:Global",
+        "disposition": "experimental",
+        "unsupported_reason": null
+      },
+      {
         "company_name": "Capital One",
         "source_key": "workday:wd12:capitalone:Capital_One",
+        "disposition": "experimental",
+        "unsupported_reason": null
+      },
+      {
+        "company_name": "Morningstar",
+        "source_key": "workday:wd5:morningstar:morningstar",
+        "disposition": "experimental",
+        "unsupported_reason": null
+      },
+      {
+        "company_name": "S&P Global",
+        "source_key": "workday:wd5:spgi:SPGI_Careers",
         "disposition": "experimental",
         "unsupported_reason": null
       }
@@ -257,15 +311,39 @@
         "total_jobs": 113
       },
       {
-        "source_key": "workday:wd12:capitalone:Capital_One",
-        "open_jobs": 20,
+        "source_key": "workday:wd1:nasdaq:Global_External_Site",
+        "open_jobs": 7,
         "closed_jobs": 0,
-        "total_jobs": 20
+        "total_jobs": 7
+      },
+      {
+        "source_key": "workday:wd1:statestreet:Global",
+        "open_jobs": 35,
+        "closed_jobs": 0,
+        "total_jobs": 35
+      },
+      {
+        "source_key": "workday:wd12:capitalone:Capital_One",
+        "open_jobs": 22,
+        "closed_jobs": 0,
+        "total_jobs": 22
+      },
+      {
+        "source_key": "workday:wd5:morningstar:morningstar",
+        "open_jobs": 2,
+        "closed_jobs": 0,
+        "total_jobs": 2
+      },
+      {
+        "source_key": "workday:wd5:spgi:SPGI_Careers",
+        "open_jobs": 60,
+        "closed_jobs": 0,
+        "total_jobs": 60
       }
     ],
     "other_connector_health_sha256": "1e17a2ba422b2db6ee28ab2b67d061a7703fabbfbac6ba2e1b90774b83dc6464",
     "ranking_state_sha256": "13381127d13708bb9772fd996d99e11862dbd70741b8be4b5096d9570af35e15",
-    "dashboard_baseline_sha256": "6263c79b705664de87cbb01e434370da1013068744668ee912c0703734c1f4a3"
+    "dashboard_baseline_sha256": "785e42d1da91e4752ac4348e5357da794cba16c36137a04bf1c5ac00d0dd52a5"
   },
   "exclusions": [
     ".planning/** from candidate/deployment",
