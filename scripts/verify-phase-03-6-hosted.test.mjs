@@ -24,7 +24,7 @@ const manifestPath = new URL(
 
 test('manifest stays strict and exact-release bound', async () => {
   const manifest = validateManifest(JSON.parse(await readFile(manifestPath, 'utf8')))
-  assert.equal(manifest.candidate.git_sha, '9a8a11457b4e7b2113a51ed2e39698393ed877fe')
+  assert.equal(manifest.candidate.git_sha, '29020ec8b58446254bd755b31b05ce3c9eaab460')
   assert.equal(manifest.sources.length, 4)
   assert.equal(manifest.verifier.subject_count, 2)
   assert.equal(manifest.verifier.fixture_ceilings.jobs, 405)

@@ -250,10 +250,8 @@ function validateManifest(manifest) {
   requireString(manifest.migration.sha256, SHA256, 'migration SHA-256')
   if (
     manifest.migration.path !== 'supabase/migrations/0037_us_workday_dashboard_queue.sql'
-    || JSON.stringify(manifest.migration.proposed) !== JSON.stringify([
-      '0037_us_workday_dashboard_queue.sql',
-    ])
-  ) throw new Error('migration inventory must propose only 0037')
+    || JSON.stringify(manifest.migration.proposed) !== JSON.stringify([])
+  ) throw new Error('migration inventory must record 0037 as already applied')
 
   exactKeys(manifest.functions, ['verify-board', 'poll-tick'], 'functions')
   for (const [slug, entry] of Object.entries(manifest.functions)) {
@@ -290,8 +288,8 @@ function validateManifest(manifest) {
   requireString(manifest.targets.supabase.project_ref, /^[a-z]{20}$/, 'Supabase project ref')
   if (
     !Array.isArray(manifest.targets.supabase.remote_migrations)
-    || manifest.targets.supabase.remote_migrations.at(-1) !== '0036'
-  ) throw new Error('remote migration baseline must end at 0036')
+    || manifest.targets.supabase.remote_migrations.at(-1) !== '0037'
+  ) throw new Error('remote migration baseline must end at 0037')
   exactKeys(manifest.targets.cloudflare, CLOUDFLARE_KEYS, 'Cloudflare target')
   exactKeys(manifest.targets.cloudflare.current_deployment, DEPLOYMENT_KEYS, 'Cloudflare deployment')
   if (
@@ -676,7 +674,7 @@ async function releaseIdentityProbe(manifest) {
     order by version
   `)
   const versions = migrations.map(({ version }) => String(version))
-  const expected = [...manifest.targets.supabase.remote_migrations, '0037']
+  const expected = expectedHostedMigrationVersions(manifest)
   if (canonical(versions) !== canonical(expected)) {
     throw new Error('hosted migration parity is not exact through 0037')
   }
@@ -734,6 +732,10 @@ async function releaseIdentityProbe(manifest) {
       asset_bytes: asset.length,
     },
   })
+}
+
+function expectedHostedMigrationVersions(manifest) {
+  return [...manifest.targets.supabase.remote_migrations]
 }
 
 async function managementSql(projectRef, query) {
@@ -1739,6 +1741,7 @@ export {
   cleanupFixtures,
   collectBaseline,
   deleteSubjectsExactly,
+  expectedHostedMigrationVersions,
   fixtureIds,
   fixtureSql,
   formatVerificationError,
