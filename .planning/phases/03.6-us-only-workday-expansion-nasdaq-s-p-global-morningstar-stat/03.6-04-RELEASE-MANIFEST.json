@@ -35,7 +35,7 @@
     "verify-board": {
       "entry_path": "supabase/functions/verify-board/index.ts",
       "entry_sha256": "08a98d06f400f3c2b03352cf837a8f6564557a63ace487736e041c4603368591",
-      "bundle_manifest_sha256": "7061e42ac4d1cb745fb6e87e52104d9556836f15ae3d04baa80d03236cd25169",
+      "bundle_manifest_sha256": "66f4ae7a3fbb847e118aff13e31f0a538165ca955e0af5d763bbdf7eaf9d578b",
       "bundle_files": [
         { "path": "supabase/functions/_shared/adapters/ashby.ts", "sha256": "d4e77ed191510398fab132106fd31c2a930afdebe74ec96f0840bc640a862eae" },
         { "path": "supabase/functions/_shared/adapters/greenhouse.ts", "sha256": "6d456b757ef39b18435609c1f1833e39f41fb1469321642917247c1d7f337edf" },
@@ -43,7 +43,7 @@
         { "path": "supabase/functions/_shared/adapters/paylocity.ts", "sha256": "bb348415a9d059778576d2064f715690b21284b0740257ebf24f8c999446269c" },
         { "path": "supabase/functions/_shared/adapters/recruitee.ts", "sha256": "934e23c9371d1a57fd273fddcd3ae3cf3c3876e5914cd215996104e45d39287c" },
         { "path": "supabase/functions/_shared/adapters/smartrecruiters.ts", "sha256": "83ea42f88e53e327a9dd0f9ba58774e474f517f7fd703f5c6cb2ae35b2a1c496" },
-        { "path": "supabase/functions/_shared/adapters/types.ts", "sha256": "e709c9648c1f0ad96c563b298ca8139f611488eee1d64a1b186df8160ab235e2" },
+        { "path": "supabase/functions/_shared/adapters/types.ts", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" },
         { "path": "supabase/functions/_shared/adapters/workday.ts", "sha256": "f0fee1cca9bd70974b2df5e7270fdcc3281759476aa0c5fc7a1b716612269d9f" },
         { "path": "supabase/functions/_shared/connectors.ts", "sha256": "33c7bdb68add427136922f0b2599cfed85744d4bacb88c956d4ca64026b50ee6" },
         { "path": "supabase/functions/_shared/detect.ts", "sha256": "59b549d77be9ab4c14cd68a5beaf2a240ec1416c907b3dff9caba36a73bc7b6c" },
