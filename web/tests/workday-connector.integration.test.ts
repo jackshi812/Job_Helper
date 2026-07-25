@@ -670,7 +670,8 @@ const phase036Identities = [
     origin: 'https://nasdaq.wd1.myworkdayjobs.com',
     cxsRoot: 'https://nasdaq.wd1.myworkdayjobs.com/wday/cxs/nasdaq/Global_External_Site',
     publicBoard: 'https://nasdaq.wd1.myworkdayjobs.com/Global_External_Site',
-    route: ['locationCountry'],
+    facetParameter: 'Location_Country',
+    route: ['Location_Country'],
   },
   {
     companyName: 'S&P Global',
@@ -679,7 +680,8 @@ const phase036Identities = [
     origin: 'https://spgi.wd5.myworkdayjobs.com',
     cxsRoot: 'https://spgi.wd5.myworkdayjobs.com/wday/cxs/spgi/SPGI_Careers',
     publicBoard: 'https://spgi.wd5.myworkdayjobs.com/SPGI_Careers',
-    route: ['locationCountry'],
+    facetParameter: 'Location_Country',
+    route: ['Location_Country'],
   },
   {
     companyName: 'Morningstar',
@@ -688,6 +690,7 @@ const phase036Identities = [
     origin: 'https://morningstar.wd5.myworkdayjobs.com',
     cxsRoot: 'https://morningstar.wd5.myworkdayjobs.com/wday/cxs/morningstar/morningstar',
     publicBoard: 'https://morningstar.wd5.myworkdayjobs.com/morningstar',
+    facetParameter: 'locationCountry',
     route: ['locationMainGroup', 'locationCountry'],
   },
   {
@@ -697,7 +700,8 @@ const phase036Identities = [
     origin: 'https://statestreet.wd1.myworkdayjobs.com',
     cxsRoot: 'https://statestreet.wd1.myworkdayjobs.com/wday/cxs/statestreet/Global',
     publicBoard: 'https://statestreet.wd1.myworkdayjobs.com/Global',
-    route: ['locationCountry'],
+    facetParameter: 'Location_Country',
+    route: ['Location_Country'],
   },
 ] as const
 
@@ -718,7 +722,7 @@ function countryFacetValues(usCount: number, otherCount = 1) {
 
 function countryFacets(route: readonly string[], usCount: number, otherCount = 1) {
   const countryFacet = {
-    facetParameter: 'locationCountry',
+    facetParameter: route.at(-1),
     descriptor: 'Country',
     values: countryFacetValues(usCount, otherCount),
   }
@@ -772,7 +776,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       && identity.hostForm === 'jobs'
       && identity.countryScope?.id === UNITED_STATES_WORKDAY_FACET_ID
       && identity.countryScope.descriptor === UNITED_STATES_WORKDAY_DESCRIPTOR
-      && identity.countryScope.facetParameter === 'locationCountry'
+      && identity.countryScope.facetParameter === expected.facetParameter
       && JSON.stringify(identity.countryScope.route) === JSON.stringify(expected.route)
       && Object.isFrozen(identity)
       && Object.isFrozen(identity.countryScope)
@@ -845,7 +849,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
           offset: number
         }
         bodies.push(body)
-        if (body.appliedFacets.locationCountry === undefined) {
+        if (body.appliedFacets[expected.facetParameter] === undefined) {
           return Promise.resolve(jsonResponse({
             total: 3,
             jobPostings: [],
@@ -874,7 +878,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       expect(bodies.slice(1)).toHaveLength(2)
       for (const body of bodies.slice(1)) {
         expect(body.appliedFacets).toEqual({
-          locationCountry: [UNITED_STATES_WORKDAY_FACET_ID],
+          [expected.facetParameter]: [UNITED_STATES_WORKDAY_FACET_ID],
         })
       }
     },
@@ -893,11 +897,11 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
         appliedFacets: Record<string, string[]>
         offset: number
       }
-      if (body.appliedFacets.locationCountry === undefined) {
+      if (body.appliedFacets.Location_Country === undefined) {
         return Promise.resolve(jsonResponse({
           total: 4,
           jobPostings: [],
-          facets: countryFacets(['locationCountry'], 3),
+          facets: countryFacets(['Location_Country'], 3),
         }))
       }
       scopedOffsets.push(body.offset)
@@ -932,7 +936,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
           appliedFacets: Record<string, string[]>
         }
         bodies.push(body.appliedFacets)
-        return Promise.resolve(body.appliedFacets.locationCountry === undefined
+        return Promise.resolve(body.appliedFacets[expected.facetParameter] === undefined
           ? jsonResponse({
               total: 4,
               jobPostings: [],
@@ -947,7 +951,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       })
       expect(bodies).toEqual([
         {},
-        { locationCountry: [UNITED_STATES_WORKDAY_FACET_ID] },
+        { [expected.facetParameter]: [UNITED_STATES_WORKDAY_FACET_ID] },
       ])
     },
   )
@@ -955,15 +959,15 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
   it.each([
     ['missing facet', []],
     ['duplicate facet', [
-      ...countryFacets(['locationCountry'], 1),
-      ...countryFacets(['locationCountry'], 1),
+      ...countryFacets(['Location_Country'], 1),
+      ...countryFacets(['Location_Country'], 1),
     ]],
     ['negative count', [{
-      facetParameter: 'locationCountry',
+      facetParameter: 'Location_Country',
       values: countryFacetValues(-1),
     }]],
     ['wrong descriptor', [{
-      facetParameter: 'locationCountry',
+      facetParameter: 'Location_Country',
       values: [{
         descriptor: 'United States',
         id: UNITED_STATES_WORKDAY_FACET_ID,
@@ -971,7 +975,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       }],
     }]],
     ['wrong ID', [{
-      facetParameter: 'locationCountry',
+      facetParameter: 'Location_Country',
       values: [{
         descriptor: UNITED_STATES_WORKDAY_DESCRIPTOR,
         id: 'wrong-country-id',
@@ -979,6 +983,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       }],
     }]],
     ['wrong flat route', countryFacets(['locationMainGroup', 'locationCountry'], 1)],
+    ['wrong flat casing', countryFacets(['locationCountry'], 1)],
   ])('fails closed for flat country discovery with %s', async (_name, facets) => {
     const identity = resolveWorkdayIdentity(
       'nasdaq',
@@ -1036,11 +1041,11 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       const body = JSON.parse(String(init?.body)) as {
         appliedFacets: Record<string, string[]>
       }
-      return Promise.resolve(body.appliedFacets.locationCountry === undefined
+      return Promise.resolve(body.appliedFacets.Location_Country === undefined
         ? jsonResponse({
             total: 2,
             jobPostings: [],
-            facets: countryFacets(['locationCountry'], 1),
+            facets: countryFacets(['Location_Country'], 1),
           })
         : jsonResponse({
             total: 2,
@@ -1112,11 +1117,11 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       const body = JSON.parse(String(init?.body)) as {
         appliedFacets: Record<string, string[]>
       }
-      if (body.appliedFacets.locationCountry === undefined) {
+      if (body.appliedFacets.Location_Country === undefined) {
         return Promise.resolve(jsonResponse({
           total: 22,
           jobPostings: [],
-          facets: countryFacets(['locationCountry'], 21),
+          facets: countryFacets(['Location_Country'], 21),
         }))
       }
       scopedPage += 1
@@ -1139,11 +1144,11 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       const body = JSON.parse(String(init?.body)) as {
         appliedFacets: Record<string, string[]>
       }
-      return Promise.resolve(body.appliedFacets.locationCountry === undefined
+      return Promise.resolve(body.appliedFacets.Location_Country === undefined
         ? jsonResponse({
             total: 3,
             jobPostings: [],
-            facets: countryFacets(['locationCountry'], 2),
+            facets: countryFacets(['Location_Country'], 2),
           })
         : jsonResponse({ total: 2, jobPostings: [phase036Posting(40)] }))
     })
@@ -1250,7 +1255,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
       const body = JSON.parse(String(init?.body)) as {
         appliedFacets: Record<string, string[]>
       }
-      return Promise.resolve(body.appliedFacets.locationCountry === undefined
+      return Promise.resolve(body.appliedFacets[expected.facetParameter] === undefined
         ? jsonResponse({
             total: 2,
             jobPostings: [],

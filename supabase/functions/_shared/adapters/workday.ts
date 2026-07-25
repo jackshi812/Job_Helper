@@ -708,9 +708,10 @@ function countryFacetAtRoute(
 
 /**
  * Prove the identity-local country facet route against an unfiltered response.
- * Morningstar's live payload nests a locationCountry facet object inside the
- * locationMainGroup facet's `values`; the other admitted identities expose
- * locationCountry directly in the top-level facets array.
+ * Morningstar's live payload nests a lowercase locationCountry facet object
+ * inside locationMainGroup.values; the three flat boards expose the distinct,
+ * case-sensitive top-level Location_Country parameter. Both shapes remain
+ * immutable identity-local contracts.
  */
 async function discoverCountryScope(
   identity: WorkdayIdentity,
@@ -720,12 +721,16 @@ async function discoverCountryScope(
 ): Promise<{ expectedCountryCount: number } | { warning: string }> {
   const scope = identity.countryScope
   if (!scope) return { warning: 'country_filter_unverified' }
-  if (
-    scope.facetParameter !== 'locationCountry'
-    || (scope.route.length !== 1 && scope.route.length !== 2)
+  const validFlatRoute = scope.facetParameter === 'Location_Country'
+    && scope.route.length === 1
+    && scope.route[0] === 'Location_Country'
+  const validNestedRoute = scope.facetParameter === 'locationCountry'
+    && scope.route.length === 2
+    && scope.route[0] === 'locationMainGroup'
+    && scope.route[1] === 'locationCountry'
+  if ((!validFlatRoute && !validNestedRoute)
     || scope.route.at(-1) !== scope.facetParameter
-    || new Set(scope.route).size !== scope.route.length
-  ) {
+    || new Set(scope.route).size !== scope.route.length) {
     return { warning: 'country_filter_unverified' }
   }
   let payload: unknown
