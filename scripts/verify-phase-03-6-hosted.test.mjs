@@ -3,8 +3,12 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 import {
+  assertUnrelatedSnapshotUnchanged,
+  cleanupFixtures,
+  deleteSubjectsExactly,
   fixtureIds,
   fixtureSql,
+  formatVerificationError,
   pageBody,
   requirePassChecks,
   sha256,
@@ -96,4 +100,102 @@ test('PASS evidence requires every named check and exact cleanup counts', () => 
   assert.doesNotThrow(() => requirePassChecks(document))
   document.checks.fixture_cleanup.status = 'FAIL'
   assert.throws(() => requirePassChecks(document), /fixture_cleanup is not PASS/)
+})
+
+test('AggregateError diagnostics are bounded, cause-aware, and secret-redacted', () => {
+  const token = 'eyJhbGciOiJIUzI1NiJ9.secret-signature.payload'
+  const error = new AggregateError([
+    new Error(`provider failed with authorization: Bearer ${token}`),
+    new Error(`cleanup rejected {"access_token":"${token}"}`),
+  ], 'hosted verification and guarded cleanup both failed')
+  const detail = formatVerificationError(error)
+  assert.match(detail, /hosted verification and guarded cleanup both failed/)
+  assert.match(detail, /provider failed/)
+  assert.match(detail, /cleanup rejected/)
+  assert.ok(!detail.includes(token))
+  assert.ok(detail.length <= 1_200)
+})
+
+test('snapshot comparison is skipped when release identity failed before baseline', () => {
+  assert.equal(assertUnrelatedSnapshotUnchanged(undefined, undefined), null)
+  assert.deepEqual(
+    assertUnrelatedSnapshotUnchanged(
+      { sha256: 'a'.repeat(64) },
+      { sha256: 'a'.repeat(64) },
+    ),
+    { before: 'a'.repeat(64), after: 'a'.repeat(64) },
+  )
+  assert.throws(
+    () => assertUnrelatedSnapshotUnchanged(
+      { sha256: 'a'.repeat(64) },
+      { sha256: 'b'.repeat(64) },
+    ),
+    /unrelated production snapshot changed/,
+  )
+})
+
+test('exact-subject deletion retries are bounded and continue in reverse order', async () => {
+  const first = { id: '11111111-1111-4111-8111-111111111111' }
+  const second = { id: '22222222-2222-4222-8222-222222222222' }
+  const calls = []
+  const attempts = new Map()
+  const results = await deleteSubjectsExactly([first, second], {
+    deleteSubject: async (subject) => {
+      calls.push(subject.id)
+      const attempt = (attempts.get(subject.id) ?? 0) + 1
+      attempts.set(subject.id, attempt)
+      if (subject.id === second.id || attempt === 1) throw new Error('delete failed')
+    },
+    sleep: async () => {},
+  })
+  assert.deepEqual(calls, [second.id, second.id, second.id, first.id, first.id])
+  assert.deepEqual(
+    results.map(({ id, attempts: count, status }) => ({ id, attempts: count, status })),
+    [
+      { id: second.id, attempts: 3, status: 'failed' },
+      { id: first.id, attempts: 2, status: 'deleted' },
+    ],
+  )
+})
+
+test('guarded cleanup continues exact SQL cleanup after auth deletion exhausts retries', async () => {
+  const subject = { id: '11111111-1111-4111-8111-111111111111' }
+  const sqlCalls = []
+  let deletes = 0
+  const result = await cleanupFixtures(
+    {
+      targets: { supabase: { project_ref: 'exact-project' } },
+      verifier: { run_namespace: 'phase-03-6-exact' },
+    },
+    [subject],
+    {
+      jobs: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
+      userJobs: [['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']],
+    },
+    {
+      deleteSubject: async () => {
+        deletes += 1
+        throw new Error('authorization: Bearer never-print-this')
+      },
+      sleep: async () => {},
+      sql: async (projectRef, statement) => {
+        sqlCalls.push({ projectRef, statement })
+        return sqlCalls.length === 1
+          ? []
+          : [{ users: 0, jobs: 0, user_jobs: 0, ranking_states: 0 }]
+      },
+    },
+  )
+  assert.equal(deletes, 3)
+  assert.equal(sqlCalls.length, 2)
+  assert.ok(sqlCalls.every(({ projectRef }) => projectRef === 'exact-project'))
+  assert.match(sqlCalls[0].statement, /aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/)
+  assert.match(sqlCalls[1].statement, /phase-03-6-exact/)
+  assert.equal(result.subjectDeletions[0].status, 'failed')
+  assert.deepEqual(result.residue, {
+    users: 0,
+    jobs: 0,
+    user_jobs: 0,
+    ranking_states: 0,
+  })
 })
