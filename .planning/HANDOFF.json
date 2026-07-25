@@ -1,0 +1,83 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-25T05:31:54.234Z",
+  "phase": "03.6",
+  "phase_name": "US-Only Workday Expansion & Dashboard Queue",
+  "phase_dir": ".planning/phases/03.6-us-only-workday-expansion-nasdaq-s-p-global-morningstar-stat",
+  "plan": 4,
+  "task": 3,
+  "total_tasks": 3,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Assemble exact release inventory and hosted verifier",
+      "status": "done",
+      "commit": "d4aef9c"
+    },
+    {
+      "id": 2,
+      "name": "Approve exact release",
+      "status": "done",
+      "progress": "Owner approved manifest SHA-256 8cc2fbe66cc74ae27b7ba3e4212a8b7b3c735e99b280c9b5ef8da9a0617e78ac."
+    },
+    {
+      "id": 3,
+      "name": "Deploy exact release and prove hosted behavior",
+      "status": "in_progress",
+      "progress": "Paused before live drift checks or any mutation for the final complete-listing candidate. Candidate 3a7c22b0598a2429511438082dfadc4477fc6ab2 remains clean and unpushed."
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 3,
+      "name": "Read-only live drift check, exact deployment, natural complete ingestion, bounded hosted proof, cleanup, evidence, and Plan 04 summary",
+      "status": "in_progress"
+    },
+    {
+      "id": 4,
+      "name": "Execute Plan 05 signed-in desktop and narrow-width UAT",
+      "status": "not_started"
+    },
+    {
+      "id": 5,
+      "name": "Run phase verification and complete Phase 03.6 tracking",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Work was deliberately paused by the owner before the final approved release began.",
+      "type": "human_action",
+      "workaround": "Resume with $gsd-resume-work; no new approval is needed if the manifest, candidate, and live baselines remain exact."
+    }
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [],
+  "decisions": [
+    {
+      "decision": "Generic country-scoped Workday ingestion trusts only an exact server-owned U.S. facet identity, exact filtered total equality, and complete positive-progress pagination; it does not require per-job detail fetches.",
+      "rationale": "Natural production claims proved per-detail country and identity checks truncate large boards and vary across providers.",
+      "phase": "03.6"
+    },
+    {
+      "decision": "Capital One and Fidelity retain their existing detail-authoritative policies.",
+      "rationale": "The generic listing repair must not weaken established exceptional provider contracts.",
+      "phase": "03.6"
+    },
+    {
+      "decision": "Every changed byte, target, or baseline invalidates exact release approval.",
+      "rationale": "Production acceptance is bound to immutable source, bundle, target, and asset identities.",
+      "phase": "03.6"
+    }
+  ],
+  "uncommitted_files": [
+    ".DS_Store",
+    ".planning/phases/03.3-dashboard-filter-refinements/03.3-04-ROLLOUT-EVIDENCE.md",
+    "scripts/agent-dashboard.mjs",
+    "scripts/agent-dashboard.test.mjs",
+    "web/zh"
+  ],
+  "next_action": "Read this handoff and acknowledge each blocking anti-pattern. Then perform read-only live identity drift checks against origin/main f7376b7c86906b7f669aa221835066c1a241fc65, verify-board v26/JWT true, poll-tick v29/JWT false, Pages cc8fe068-ab3c-43fe-8751-4519a9f0de48, and migrations 0001..0037. If exact, continue the already-approved manifest 8cc2fbe66cc74ae27b7ba3e4212a8b7b3c735e99b280c9b5ef8da9a0617e78ac with candidate 3a7c22b0598a2429511438082dfadc4477fc6ab2.",
+  "context_notes": "The final continuation was interrupted before any live read or mutation. No functions were deployed, no git push or Pages deployment occurred, no verifier ran, and no fixtures were created. Current production remains f7376b7 with functions v26/v29 and Pages cc8fe068. The approved clean candidate is in /private/tmp/job-copilot-036-listing-validate. Plan 04 and Plan 05 remain incomplete."
+}
