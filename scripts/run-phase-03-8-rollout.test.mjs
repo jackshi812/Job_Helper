@@ -444,6 +444,7 @@ test('unsupported reason mapping is exact and unknown reasons fail closed', () =
     pagination_incomplete: [
       'page_cap_exceeded',
       'detail_cap_exceeded',
+      'recent_window_cap_exceeded',
       'pagination_incomplete',
     ],
     count_mismatch: [

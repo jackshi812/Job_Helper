@@ -148,6 +148,7 @@ const REASON_MAP = Object.freeze({
   positive_job_count_missing: 'positive_job_count_missing',
   page_cap_exceeded: 'pagination_incomplete',
   detail_cap_exceeded: 'pagination_incomplete',
+  recent_window_cap_exceeded: 'pagination_incomplete',
   pagination_incomplete: 'pagination_incomplete',
   count_mismatch: 'count_mismatch',
   slice_count_mismatch: 'count_mismatch',
