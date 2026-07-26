@@ -1,5 +1,12 @@
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.110.7'
 import { type NormalizedJob } from '../_shared/adapters/types.ts'
+import { createBrandedScopeEvidence } from '../_shared/adapters/scope.ts'
+import {
+  BoundedPoolDeadlineError,
+  DEFAULT_BRANDED_COMPANY_CONCURRENCY,
+  DEFAULT_BRANDED_STOP_SCHEDULING_MS,
+  runBoundedPool,
+} from '../_shared/bounded-pool.ts'
 import { pollConnector } from '../_shared/connectors.ts'
 import { fingerprint } from '../_shared/dedup.ts'
 import {
@@ -30,11 +37,16 @@ interface CompanyResult {
 }
 
 const DATABASE_BATCH_SIZE = 100
+const BRANDED_PROVIDERS = new Set([
+  'eightfold',
+  'oracle_recruiting',
+  'goldman_higher',
+])
 
 function diagnosticCode(error: unknown) {
   const message = error instanceof Error ? error.message : String(error)
   if (/\b429\b/.test(message)) return 'http_429'
-  if (/timeout|timed out|abort/i.test(message)) return 'timeout'
+  if (/timeout|timed out|abort|deadline/i.test(message)) return 'timeout'
   if (/implausible empty/i.test(message)) return 'implausibly_empty'
   if (/HTML|WAF|content-type/i.test(message)) return 'invalid_provider_content'
   if (/JSON|parse|schema|shape/i.test(message)) return 'malformed_response'
@@ -72,8 +84,43 @@ function snapshot(
     description_html: normalized.descriptionHtml,
     description_text: normalized.descriptionText,
     snapshot_partial: normalized.snapshotPartial,
+    scope_evidence: normalized.scopeEvidence ?? null,
     fingerprint: jobFingerprint,
     last_seen_at: seenAt,
+  }
+}
+
+async function validateBrandedPersistenceEvidence(
+  company: Company,
+  observation: Awaited<ReturnType<typeof pollConnector>>,
+) {
+  if (!BRANDED_PROVIDERS.has(company.ats_type)) return
+  if (observation.scopeEvidence?.sourceKey !== company.source_key) {
+    throw new Error('invalid_branded_scope_evidence')
+  }
+
+  for (const job of observation.jobs) {
+    if (
+      job.source !== company.ats_type
+      || !job.scopeEvidence
+      || job.scopeEvidence.sourceKey !== company.source_key
+      || job.scopeEvidence.detailCountryCode !== 'US'
+    ) {
+      throw new Error('invalid_branded_scope_evidence')
+    }
+    const expected = await createBrandedScopeEvidence({
+      sourceKey: company.source_key,
+      externalId: job.externalId,
+      providerCategoryLabel: job.scopeEvidence.providerCategoryLabel,
+      detailCountryCode: job.scopeEvidence.detailCountryCode,
+    })
+    if (
+      expected.providerCategoryLabel !== job.scopeEvidence.providerCategoryLabel
+      || expected.matchedTerm !== job.scopeEvidence.matchedTerm
+      || expected.externalIdDigest !== job.scopeEvidence.externalIdDigest
+    ) {
+      throw new Error('invalid_branded_scope_evidence')
+    }
   }
 }
 
@@ -204,6 +251,7 @@ async function processCompany(
       .map((job) => job.external_id),
   )
   let observation = await pollConnector(company, knownIds)
+  await validateBrandedPersistenceEvidence(company, observation)
 
   // Company deletion intentionally preserves job snapshots with company_id
   // set to null. If the exact board is added again, reclaim only returned
@@ -323,9 +371,27 @@ Deno.serve(async (request) => {
     if (claimError) throw claimError
 
     const companies = (data ?? []) as Company[]
-    const settled = await Promise.allSettled(
-      companies.map((company) => processCompany(admin, company)),
-    )
+    let settled: PromiseSettledResult<CompanyResult>[]
+    try {
+      settled = await runBoundedPool(
+        companies,
+        async (company) => processCompany(admin, company),
+        {
+          concurrency: DEFAULT_BRANDED_COMPANY_CONCURRENCY,
+          deadlineMs: DEFAULT_BRANDED_STOP_SCHEDULING_MS,
+        },
+      )
+    } catch (poolError) {
+      if (!(poolError instanceof BoundedPoolDeadlineError)) throw poolError
+      settled = companies.map(() => ({
+        status: 'rejected',
+        reason: new Error(poolError.code),
+      }))
+      for (const result of poolError.outcomes) {
+        settled[result.index] =
+          result.outcome as PromiseSettledResult<CompanyResult>
+      }
+    }
 
     let succeeded = 0
     let failed = 0
