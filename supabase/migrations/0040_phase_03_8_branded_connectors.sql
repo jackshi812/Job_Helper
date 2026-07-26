@@ -1348,11 +1348,25 @@ select cron.schedule(
 
 do $$
 begin
+  if (select count(*) from phase_03_8_protected_workday_before) <> 2 then
+    raise exception 'Capital One/Fidelity protected identity parity failed';
+  end if;
+
   if exists (
     select 1
     from phase_03_8_protected_workday_before as before_row
-    full join public.companies as after_row using (id)
-    where after_row.id is null
+    full join (
+      select
+        id, name, ats_type, board_token, region, site_token, careers_url,
+        source_key, activation_state, activation_successes
+      from public.companies
+      where source_key in (
+        'workday:wd12:capitalone:Capital_One',
+        'workday:wd1:fmr:FidelityCareers'
+      )
+    ) as after_row using (id)
+    where before_row.id is null
+      or after_row.id is null
       or before_row.name is distinct from after_row.name
       or before_row.ats_type is distinct from after_row.ats_type
       or before_row.board_token is distinct from after_row.board_token
