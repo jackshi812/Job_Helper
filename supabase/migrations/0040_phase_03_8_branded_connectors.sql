@@ -4,7 +4,7 @@ begin;
 -- rollout. Migration application records truthful Unsupported evidence and
 -- never admits a branded candidate from migration or fixture bytes.
 
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto with schema extensions;
 
 create temporary table phase_03_8_protected_workday_before on commit drop as
 select
@@ -102,8 +102,8 @@ alter table public.jobs
       )
       and scope_evidence ->> 'detailCountryCode' = 'US'
       and scope_evidence ->> 'externalIdDigest' ~ '^[0-9a-f]{64}$'
-      and scope_evidence ->> 'externalIdDigest' = encode(
-        digest(
+      and scope_evidence ->> 'externalIdDigest' = pg_catalog.encode(
+        extensions.digest(
           convert_to(
             concat(
               '[',
