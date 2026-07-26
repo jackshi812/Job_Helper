@@ -93,7 +93,13 @@ describe('migration 0040 exact catalog and identity parity', () => {
     expect(sql).toMatch(/enable row level security/i)
     expect(sql).not.toMatch(/\bdrop table\b/i)
     expect(sql).not.toMatch(/\btruncate\b/i)
-    expect(sql).not.toMatch(/\bdelete from public\.jobs\b/i)
+    const verifierAuthority = sql.indexOf(
+      'create table public.phase_03_8_verifier_runs',
+    )
+    expect(verifierAuthority).toBeGreaterThan(0)
+    expect(sql.slice(0, verifierAuthority)).not.toMatch(
+      /\bdelete from public\.jobs\b/i,
+    )
   })
 })
 
@@ -148,7 +154,7 @@ describe('migration 0040 one-use hosted verifier authority', () => {
     expect(sql).toMatch(/status\s*=\s*'open'/i)
     expect(sql).toMatch(/consecutive_failures\s*=\s*[\s\S]*\+\s*1/i)
     expect(sql).toMatch(/last_error_code\s*=\s*p_fault/i)
-    expect(sql).toMatch(/when p_fault = 'clean_recovery'/i)
+    expect(sql).toMatch(/if p_fault = 'clean_recovery'/i)
     expect(sql).toMatch(/last_success_at\s*=\s*clock_timestamp\(\)/i)
     expect(sql).toMatch(/consecutive_failures\s*=\s*0/i)
     expect(sql).toMatch(/last_error_code\s*=\s*null/i)
@@ -161,7 +167,9 @@ describe('migration 0040 one-use hosted verifier authority', () => {
     expect(sql).toMatch(
       /create or replace function public\.finish_phase_03_8_verifier_run\([\s\S]*p_eightfold_expected_version[\s\S]*p_oracle_expected_version[\s\S]*p_goldman_expected_version/i,
     )
-    expect(sql).toMatch(/delete from public\.jobs[\s\S]*join public\.phase_03_8_verifier_fixtures/i)
+    expect(sql).toMatch(
+      /delete from public\.jobs[\s\S]*using public\.phase_03_8_verifier_fixtures/i,
+    )
     expect(sql).toMatch(/delete from public\.phase_03_8_verifier_fixtures/i)
     expect(sql).toMatch(/delete from public\.companies/i)
     expect(sql).toMatch(/state\s*=\s*'consumed'/i)
@@ -189,8 +197,8 @@ describe('migration 0040 one-use hosted verifier authority', () => {
   it('has no reset, rearm, caller-selected insert, or real-row cleanup authority', () => {
     expect(sql).not.toMatch(/\breset_phase_03_8_verifier\b/i)
     expect(sql).not.toMatch(/\brearm_phase_03_8_verifier\b/i)
-    expect(sql).not.toMatch(
-      /insert into public\.phase_03_8_verifier_runs[\s\S]*select/i,
+    expect(sql).toMatch(
+      /insert into public\.phase_03_8_verifier_runs[\s\S]{0,500}\bvalues\b/i,
     )
     expect(sql).toMatch(/begin_phase_03_8_verifier_run[\s\S]*state\s*=\s*'armed'/i)
     expect(sql).toMatch(/phase_03_8_verifier_fixtures[\s\S]*foreign key/i)

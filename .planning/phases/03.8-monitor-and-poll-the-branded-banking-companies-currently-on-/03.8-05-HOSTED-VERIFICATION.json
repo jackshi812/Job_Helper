@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "phase": "03.8",
+  "status": "PENDING",
+  "manifest_sha256": "545d4e30c81d6a86e6ef48a474b3194d787bf460500ade2bd07b96655a4df79e",
+  "generated_at": "2026-07-26T02:53:31Z",
+  "checks": {
+    "release_identity": {"status": "PENDING"},
+    "migration_parity": {"status": "PENDING"},
+    "verify_board_bundle": {"status": "PENDING"},
+    "observe_connectors_bundle": {"status": "PENDING"},
+    "poll_tick_bundle": {"status": "PENDING"},
+    "web_identity": {"status": "PENDING"},
+    "catalog_initial_matrix": {"status": "PENDING"},
+    "candidate_pending_state": {"status": "PENDING"},
+    "negative_target_matrix": {"status": "PENDING"},
+    "terminal_positive_branch": {"status": "PENDING"},
+    "terminal_negative_branch": {"status": "PENDING"},
+    "scope_provenance": {"status": "PENDING"},
+    "service_role_grants": {"status": "PENDING"},
+    "claim_separation": {"status": "PENDING"},
+    "cadence_and_cron": {"status": "PENDING"},
+    "cron_secret_rejection": {"status": "PENDING"},
+    "identity_rejection_before_fetch": {"status": "PENDING"},
+    "protected_sources_unchanged": {"status": "PENDING"},
+    "verifier_armed": {"status": "PENDING"},
+    "verifier_zero_fixtures": {"status": "PENDING"}
+  },
+  "family_rollout": {
+    "eightfold": {"status": "PENDING"},
+    "oracle_recruiting": {"status": "PENDING"},
+    "goldman_higher": {"status": "PENDING"}
+  },
+  "verifier_authority": {
+    "status": "PENDING",
+    "run_id": "03850000-0000-4000-8000-000000000501",
+    "fixture_rows": null,
+    "company_rows": null,
+    "job_rows": null
+  },
+  "cleanup": {"status": "PENDING"},
+  "uat": {"status": "PENDING"}
+}
