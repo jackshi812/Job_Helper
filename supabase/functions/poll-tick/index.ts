@@ -420,7 +420,12 @@ Deno.serve(async (request) => {
           last_error_code: code,
         })
         .eq('id', company.id)
-      if (failureError) console.error(`poll-tick health update ${company.id} failed`, failureError)
+      if (failureError) {
+        console.error(
+          `poll-tick health update ${company.id} failed`,
+          diagnosticCode(failureError),
+        )
+      }
     }
 
     if (shouldAdvanceSuccessHeartbeat(companies.length, succeeded)) {
@@ -440,7 +445,7 @@ Deno.serve(async (request) => {
       closed,
     })
   } catch (error) {
-    console.error('poll-tick failed', error)
+    console.error('poll-tick failed', diagnosticCode(error))
     return Response.json({ error: 'Pipeline tick failed' }, { status: 500 })
   }
 })
