@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 03.8
 current_phase_name: Monitor and poll the branded banking companies currently on watchlist
-status: ready_for_discussion
-stopped_at: Phase 03.8 context gathered
-last_updated: "2026-07-26T00:15:46.408Z"
-last_activity: 2026-07-25
-last_activity_desc: Phase 03.7 complete with exact-release owner UAT
+status: executing
+stopped_at: Completed 03.8-01-PLAN.md
+last_updated: "2026-07-26T01:55:27.061Z"
+last_activity: 2026-07-26
+last_activity_desc: Completed Phase 03.8 Plan 01
 progress:
   total_phases: 13
   completed_phases: 11
-  total_plans: 66
-  completed_plans: 66
-  percent: 85
+  total_plans: 73
+  completed_plans: 67
+  percent: 92
 ---
 
 # Project State
@@ -28,20 +28,20 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 03.8 — Monitor and poll the branded banking companies currently on watchlist
-Plan: Not started
-Status: Ready for discussion
-Last activity: 2026-07-25 — Phase 03.7 complete with exact-release owner UAT
+Phase: 03.8 (Monitor and poll the branded banking companies currently on watchlist) — EXECUTING
+Plan: 2 of 7
+Status: Ready to execute
+Last activity: 2026-07-26 — Completed Phase 03.8 Plan 01
 
-Progress: [█████████████████░░░] 66/66 plans resolved; milestone 10/12 phases complete (83%)
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 66
+- Total plans completed: 67
 - Average duration: 45m
-- Total execution time: 627m
+- Total execution time: 635m
 
 **By Phase:**
 
@@ -110,6 +110,7 @@ Progress: [█████████████████░░░] 66/66 p
 | Phase 03.6 P03 | 12min | 2 tasks | 5 files |
 | Phase 03.6 P04 | 13h36m elapsed | 3 tasks | 8 release/evidence files |
 | Phase 03.6 P05 | 4min | 3 tasks | 2 files |
+| Phase 03.8 P01 | 8min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -251,6 +252,10 @@ Recent decisions affecting current work:
 - [Phase 03.6]: Use the complete lifecycle, filter, and order signature as the Dashboard infinite-query cache identity. — Server ownership applies lifecycle and filters before the 200-row limit, so limited browser pages cannot hide or displace eligible rows.
 - [Phase 03.6]: Snapshot and update only the exact current lifecycle cache, invalidate inactive lifecycle caches, and backfill Active without replacing loaded rows. — This preserves immediate optimistic feedback and scroll position while allowing persisted truth and review views to reconcile safely.
 - [Phase 03.6]: Serialize lifecycle mutations and permit only one settled Mark Applied undo target. — Single-flight lifecycle snapshots and a bound undo target prevent cache races and ensure Undo can never act on a different row.
+- [Phase 03.8]: Authorize only three evidence-backed branded primary portals through exact frozen source keys and byte-exact public URLs. — Prevents caller-selected network coordinates and keeps seven unsupported targets non-executable.
+- [Phase 03.8]: Use NFKC Unicode token matching with longest allowed phrase precedence. — Enforces whole-word and whole-phrase category semantics without substring, title, or description fallback.
+- [Phase 03.8]: Require branded normalized jobs to carry immutable source, category, matched-term, US, and SHA-256 provenance. — Makes durable eligibility evidence mandatory at the TypeScript boundary and binds it to the external job ID.
+- [Phase 03.8]: Reject a bounded run on the shared deadline while retaining settled indexed outcomes. — Stops new scheduling and aborts outstanding work without losing completed item evidence.
 
 ### Pending Todos
 
@@ -292,9 +297,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-26T00:15:46.396Z
-Stopped at: Phase 03.8 context gathered
-Resume file: .planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-/03.8-CONTEXT.md
+Last session: 2026-07-26T01:55:27.051Z
+Stopped at: Completed 03.8-01-PLAN.md
+Resume file: None
 Last session (2026-07-25): Phase 03.7 passed local checks, exact-release byte verification, and 3/3 owner-approved signed-in UAT checks on release `baf81fcaa72443995f227b118d10eec90da25679`; no Phase 03.7 gaps remain.
 Last session (2026-07-25): Phase 03.6 passed 6/6 formal truths, 20/20 hosted checks, 30/30 security threats, 24/24 UI review checks, and 12/12 owner-approved UAT interactions on exact release `70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b`; no Phase 03.6 gaps remain.
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
