@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "phase": "03.8",
+  "status": "PASS",
+  "manifest_sha256": "6e3100857d11b00c4c62cdc427ac55f9bea620fd105686f5ecfb199e5489bf6f",
+  "generated_at": "2026-07-26T21:26:21Z",
+  "checks": {
+    "release_identity": {
+      "status": "PASS",
+      "release_manifest_id": "03850000-0000-4000-8000-000000000006",
+      "source_commit": "2a498c98c0914a36b3747438d12e84a8b47e8fea",
+      "supabase_project_ref": "fjcsvajkkztvlrpdplwx",
+      "verification_scope": "post_deploy_pre_terminalization_parity"
+    },
+    "migration_parity": {
+      "status": "PASS",
+      "remote_migration_count": 43,
+      "remote_tail": ["0041", "0042", "0043"],
+      "migration_0042_sha256": "132b8a1cc4360edd49f50b79a2dfee6ca3e3bf3d3d8c3974cb74fe06f8195eb5",
+      "migration_0043_sha256": "bdcf0ec8d22bea99fef367f48fdc0d1ec56a5c74181b954c75807391091cb246"
+    },
+    "verify_board_bundle": {
+      "status": "PASS",
+      "id": "b1f7f9ea-4423-49c9-97bc-946b374b5a1d",
+      "version": 29,
+      "deployment_status": "ACTIVE",
+      "verify_jwt": true,
+      "normalized_bundle_sha256": "db7dd36815ac9d27add7fd38741a96bc44862f08d04a13030eed6456d143528c"
+    },
+    "observe_connectors_bundle": {
+      "status": "PASS",
+      "id": "44ea3343-4c15-4e35-8826-6fc12f54ffc0",
+      "version": 2,
+      "deployment_status": "ACTIVE",
+      "verify_jwt": false,
+      "normalized_bundle_sha256": "f5b3d9848ca9260c65443d5913cb9228563309d86c7cdb2f57ba1ba928e6292c"
+    },
+    "poll_tick_bundle": {
+      "status": "PASS",
+      "id": "623f09fa-9ff8-4736-a1ae-69b052cf20a9",
+      "version": 32,
+      "deployment_status": "ACTIVE",
+      "verify_jwt": false,
+      "normalized_bundle_sha256": "2855aaaba1beab1934eaecfcb7476d22b778ac2b0c2a9486b842b4c272655e77"
+    },
+    "web_identity": {
+      "status": "PASS",
+      "deployment_id": "b8b33556-1b6c-4a42-bada-e54e4a2f6855",
+      "immutable_url": "https://b8b33556.job-helper-qs9.pages.dev",
+      "git_sha": "baf81fcaa72443995f227b118d10eec90da25679",
+      "asset_path": "/assets/index-DSR6ZHoJ.js",
+      "asset_sha256": "8e28857fb560b5997865201c75226069e71a973a5fe66451726d52a7d7a41f1f"
+    },
+    "catalog_initial_matrix": {
+      "status": "PASS",
+      "company_count": 8,
+      "workday_candidates": 4,
+      "citi_absent": true,
+      "wells_fargo_absent": true
+    },
+    "candidate_pending_state": {
+      "status": "PASS",
+      "pending_candidates": 4,
+      "operational_rows": 0
+    },
+    "negative_target_matrix": {
+      "status": "PASS",
+      "unsupported_companies": [
+        "Goldman Sachs",
+        "JPMorgan Chase",
+        "UBS",
+        "Charles Schwab"
+      ],
+      "operational_rows": 0
+    },
+    "terminal_positive_branch": {
+      "status": "PASS",
+      "authority": "exact Workday tuple plus complete warning-free U.S. evidence"
+    },
+    "terminal_negative_branch": {
+      "status": "PASS",
+      "authority": "exact Workday tuple plus bounded precise Unsupported reason"
+    },
+    "scope_provenance": {
+      "status": "PASS",
+      "exact_us_scope_required": true,
+      "heuristic_geography_rejected": true
+    },
+    "service_role_grants": {
+      "status": "PASS",
+      "workday_terminal_rpc_service_role": true,
+      "anon_execute": false,
+      "authenticated_execute": false
+    },
+    "claim_separation": {
+      "status": "PASS",
+      "experimental_minutes": 1,
+      "active_minutes": 10
+    },
+    "cadence_and_cron": {
+      "status": "PASS",
+      "cron_jobs": 2,
+      "schedule": "* * * * *",
+      "timeout_milliseconds": 120000
+    },
+    "cron_secret_rejection": {
+      "status": "PASS",
+      "observe_connectors_http_status": 401,
+      "poll_tick_http_status": 401
+    },
+    "identity_rejection_before_fetch": {
+      "status": "PASS",
+      "unknown_identity_rejected": true,
+      "cross_company_identity_rejected": true
+    },
+    "protected_sources_unchanged": {
+      "status": "PASS",
+      "capital_one_fingerprint": "cc04334cc4436ddda4c9436a0b8c7dc167a27f6f117e8e352ebab3d77145db04",
+      "fidelity_fingerprint": "2a7ab4ff273283da8d3dec3ada84e6281a271c740d1ccbb206d4f2dc90998b29"
+    },
+    "verifier_armed": {
+      "status": "PASS",
+      "run_id": "03850000-0000-4000-8000-000000000501",
+      "authority_release_manifest_id": "03850000-0000-4000-8000-000000000005",
+      "exercise_calls": 0
+    },
+    "verifier_zero_fixtures": {
+      "status": "PASS",
+      "fixture_rows": 0,
+      "company_rows": 0,
+      "job_rows": 0,
+      "observation_rows": 0
+    }
+  },
+  "family_rollout": {
+    "morgan_stanley": {"status": "PENDING"},
+    "bank_of_america": {"status": "PENDING"},
+    "blackrock": {"status": "PENDING"},
+    "barclays": {"status": "PENDING"}
+  },
+  "verifier_authority": {
+    "status": "ARMED",
+    "run_id": "03850000-0000-4000-8000-000000000501",
+    "fixture_rows": 0,
+    "company_rows": 0,
+    "job_rows": 0
+  },
+  "cleanup": {
+    "status": "PENDING",
+    "note": "This artifact records post-deploy parity before the separately recorded terminal rollout and one-use verifier cleanup."
+  },
+  "uat": {
+    "status": "PENDING"
+  }
+}
