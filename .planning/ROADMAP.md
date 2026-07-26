@@ -218,13 +218,32 @@ Plans:
 **Plans:** 7 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 03.8-01-PLAN.md — Freeze exact identities, U.S./category scope, evidence, and concurrency contracts
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 03.8-02-PLAN.md — Implement strict Eightfold, Oracle Recruiting, and Goldman Higher candidate adapters
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 03.8-03-PLAN.md — Wire exact verification, Experimental observation, and bounded Active polling
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 03.8-04-PLAN.md — Add forward migration 0040 for truthful catalog, staged activation, and staggered claims
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 03.8-05-PLAN.md — Approve and deploy the exact schema/function release with hosted parity proof
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 03.8-06-PLAN.md — Roll out each provider family independently through natural scheduled polling or precise Unsupported outcome
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 03.8-07-PLAN.md — Complete exact-release signed-in Watchlist and scoped-job UAT
 
 ### Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)
