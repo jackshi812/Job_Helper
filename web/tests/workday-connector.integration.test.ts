@@ -135,8 +135,11 @@ describe('Capital One Workday identity contract', () => {
   it('dispatches only the exact active Capital One identity', async () => {
     expect(Object.keys(providerRegistry).sort()).toEqual([
       'ashby',
+      'eightfold',
+      'goldman_higher',
       'greenhouse',
       'lever',
+      'oracle_recruiting',
       'paylocity',
       'recruitee',
       'smartrecruiters',
@@ -185,7 +188,7 @@ describe('Capital One Workday identity contract', () => {
     }
     expect(jobCheck).toContain("'adzuna'")
     expect(companyCheck).not.toContain("'adzuna'")
-    for (const unsupported of ['oracle', 'icims', 'successfactors', 'eightfold']) {
+    for (const unsupported of ['oracle', 'icims', 'successfactors']) {
       expect(normalizedTypesSource.toLowerCase()).not.toContain(`'${unsupported}'`)
       expect(companyCheck.toLowerCase()).not.toContain(`'${unsupported}'`)
       expect(jobCheck.toLowerCase()).not.toContain(`'${unsupported}'`)

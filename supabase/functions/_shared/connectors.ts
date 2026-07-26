@@ -1,6 +1,9 @@
 import { pollAshby } from './adapters/ashby.ts'
+import { pollMorganStanleyEightfold } from './adapters/eightfold.ts'
+import { pollGoldmanHigher } from './adapters/goldman-higher.ts'
 import { pollGreenhouse } from './adapters/greenhouse.ts'
 import { pollLever } from './adapters/lever.ts'
+import { pollJpmorganOracleRecruiting } from './adapters/oracle-recruiting.ts'
 import { pollPaylocity } from './adapters/paylocity.ts'
 import { pollRecruitee } from './adapters/recruitee.ts'
 import { pollSmartRecruiters } from './adapters/smartrecruiters.ts'
@@ -16,6 +19,10 @@ import {
 import { type PollObservation } from './adapters/types.ts'
 import { buildEndpoint, type DetectResult } from './detect.ts'
 import { resolvePaylocityIdentity } from './provider-identities.ts'
+import {
+  resolveBrandedIdentity,
+  type BrandedIdentity,
+} from './branded-identities.ts'
 
 export type ProviderId =
   | 'greenhouse'
@@ -25,6 +32,9 @@ export type ProviderId =
   | 'smartrecruiters'
   | 'recruitee'
   | 'workday'
+  | 'eightfold'
+  | 'oracle_recruiting'
+  | 'goldman_higher'
 export type SupportedDetection = Exclude<DetectResult, { ats: 'unsupported' }>
 
 export interface PollConnectorCompany {
@@ -45,13 +55,18 @@ export interface ConnectorVerification {
   jobCount: number
   careersUrl: string
   sourceKey: string
+  scopeEvidence?: PollObservation['scopeEvidence']
 }
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 
 export interface ProviderConnector {
   verify: (detected: SupportedDetection, fetchImpl: FetchLike) => Promise<ConnectorVerification>
-  poll: (company: PollConnectorCompany, knownIds: Set<string>) => Promise<PollObservation>
+  poll: (
+    company: PollConnectorCompany,
+    knownIds: Set<string>,
+    fetchImpl?: FetchLike,
+  ) => Promise<PollObservation>
 }
 
 // Reconstruct the full frozen identity (origin/hostForm/cxsRoot) from the
@@ -75,6 +90,29 @@ function workdayIdentityForDetection(detected: SupportedDetection): WorkdayIdent
   return identity
 }
 
+function brandedIdentityForDetection(detected: SupportedDetection): BrandedIdentity {
+  if (
+    detected.ats !== 'eightfold'
+    && detected.ats !== 'oracle_recruiting'
+    && detected.ats !== 'goldman_higher'
+  ) throw new Error('invalid_identity')
+  const identity = resolveBrandedIdentity(detected.slug)
+  if (!identity || identity.provider !== detected.ats) throw new Error('invalid_identity')
+  return identity
+}
+
+function brandedIdentityForCompany(company: PollConnectorCompany): BrandedIdentity | null {
+  const identity = resolveBrandedIdentity(company.source_key ?? '')
+  if (
+    !identity
+    || company.ats_type !== identity.provider
+    || company.board_token !== identity.sourceKey
+    || company.region !== null
+    || company.site_token !== null
+  ) return null
+  return identity
+}
+
 function canonicalCareersUrl(detected: SupportedDetection) {
   const slug = encodeURIComponent(detected.slug)
   if (detected.ats === 'greenhouse') return `https://job-boards.greenhouse.io/${slug}`
@@ -94,6 +132,13 @@ function canonicalCareersUrl(detected: SupportedDetection) {
   if (detected.ats === 'workday') {
     return workdayIdentityForDetection(detected).publicBoard
   }
+  if (
+    detected.ats === 'eightfold'
+    || detected.ats === 'oracle_recruiting'
+    || detected.ats === 'goldman_higher'
+  ) {
+    return brandedIdentityForDetection(detected).publicUrl
+  }
   return `https://${detected.slug.toLowerCase()}.recruitee.com`
 }
 
@@ -103,6 +148,13 @@ function deterministicSourceKey(detected: SupportedDetection) {
     const identity = resolvePaylocityIdentity(detected.slug)
     if (!identity) throw new Error('invalid_identity')
     return identity.sourceKey
+  }
+  if (
+    detected.ats === 'eightfold'
+    || detected.ats === 'oracle_recruiting'
+    || detected.ats === 'goldman_higher'
+  ) {
+    return brandedIdentityForDetection(detected).sourceKey
   }
   return `${detected.ats}:${detected.region ?? 'global'}:${detected.slug}`
 }
@@ -208,6 +260,47 @@ async function verifyWorkday(
   return verification(detected, identity.companyName ?? detected.slug, listing.jobCount)
 }
 
+function requireCompleteBrandedObservation(observation: PollObservation): PollObservation {
+  if (
+    observation.completeness !== 'complete'
+    || !observation.credibleForClosure
+    || observation.warnings.length !== 0
+    || observation.jobs.length === 0
+    || observation.expectedCount !== observation.jobs.length
+    || !observation.scopeEvidence
+  ) {
+    throw new Error(observation.warnings[0] ?? 'provider_observation_failed')
+  }
+  return observation
+}
+
+async function pollBrandedIdentity(
+  identity: BrandedIdentity,
+  fetchImpl: FetchLike,
+): Promise<PollObservation> {
+  if (identity.provider === 'eightfold') {
+    return pollMorganStanleyEightfold(identity, fetchImpl)
+  }
+  if (identity.provider === 'oracle_recruiting') {
+    return pollJpmorganOracleRecruiting(identity, fetchImpl)
+  }
+  return pollGoldmanHigher(identity, fetchImpl)
+}
+
+async function verifyBranded(
+  detected: SupportedDetection,
+  fetchImpl: FetchLike,
+): Promise<ConnectorVerification> {
+  const identity = brandedIdentityForDetection(detected)
+  const observation = requireCompleteBrandedObservation(
+    await pollBrandedIdentity(identity, fetchImpl),
+  )
+  return {
+    ...verification(detected, identity.companyName, observation.jobs.length),
+    scopeEvidence: observation.scopeEvidence,
+  }
+}
+
 function complete(jobs: PollObservation['jobs']): PollObservation {
   return {
     jobs,
@@ -258,6 +351,30 @@ export const providerRegistry = {
       return pollWorkdayRecent(identity, fetch, { knownIds })
     },
   },
+  eightfold: {
+    verify: verifyBranded,
+    poll: async (company, _knownIds, fetchImpl = fetch) => {
+      const identity = brandedIdentityForCompany(company)
+      if (!identity || identity.provider !== 'eightfold') throw new Error('invalid_identity')
+      return pollMorganStanleyEightfold(identity, fetchImpl)
+    },
+  },
+  oracle_recruiting: {
+    verify: verifyBranded,
+    poll: async (company, _knownIds, fetchImpl = fetch) => {
+      const identity = brandedIdentityForCompany(company)
+      if (!identity || identity.provider !== 'oracle_recruiting') throw new Error('invalid_identity')
+      return pollJpmorganOracleRecruiting(identity, fetchImpl)
+    },
+  },
+  goldman_higher: {
+    verify: verifyBranded,
+    poll: async (company, _knownIds, fetchImpl = fetch) => {
+      const identity = brandedIdentityForCompany(company)
+      if (!identity || identity.provider !== 'goldman_higher') throw new Error('invalid_identity')
+      return pollGoldmanHigher(identity, fetchImpl)
+    },
+  },
 } satisfies Record<ProviderId, ProviderConnector>
 
 export async function verifyConnector(
@@ -297,5 +414,28 @@ export async function pollConnector(
       || company.site_token !== null
     ) throw new Error('inactive_connector:paylocity_identity_not_allowed')
   }
+  if (
+    company.ats_type === 'eightfold'
+    || company.ats_type === 'oracle_recruiting'
+    || company.ats_type === 'goldman_higher'
+  ) {
+    if (!brandedIdentityForCompany(company)) {
+      throw new Error('inactive_connector:branded_identity_not_allowed')
+    }
+  }
   return providerRegistry[company.ats_type as ProviderId].poll(company, knownIds)
+}
+
+export async function observeConnector(
+  company: PollConnectorCompany,
+  fetchImpl: FetchLike = fetch,
+): Promise<PollObservation> {
+  if (company.activation_state !== 'experimental') {
+    throw new Error(`inactive_observation_connector:${company.activation_state}`)
+  }
+  const identity = brandedIdentityForCompany(company)
+  if (!identity) {
+    throw new Error('inactive_observation_connector:identity_not_allowed')
+  }
+  return providerRegistry[identity.provider].poll(company, new Set(), fetchImpl)
 }

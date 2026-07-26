@@ -1,4 +1,8 @@
 import { resolvePaylocityIdentity } from './provider-identities.ts'
+import {
+  resolveBrandedIdentity,
+  resolveBrandedPublicUrl,
+} from './branded-identities.ts'
 import { resolveWorkdayIdentity } from './workday-identities.ts'
 
 export type DetectResult =
@@ -6,6 +10,10 @@ export type DetectResult =
       ats: 'greenhouse' | 'lever' | 'ashby' | 'smartrecruiters' | 'recruitee' | 'paylocity'
       slug: string
       region?: 'eu'
+    }
+  | {
+      ats: 'eightfold' | 'oracle_recruiting' | 'goldman_higher'
+      slug: string
     }
   | {
       // Values are still validated by the frozen identity registry (allowlist +
@@ -82,6 +90,17 @@ export function detectAts(href: string): DetectResult {
       || url.port
       || url.hash
     ) return unsupported
+
+    // Phase 03.8 branded portals are recognized by byte-exact reviewed public
+    // URLs. URL parsing above rejects unsafe authority components, while the
+    // frozen resolver prevents path, query, site, or provider drift.
+    const brandedIdentity = resolveBrandedPublicUrl(href)
+    if (brandedIdentity) {
+      return {
+        ats: brandedIdentity.provider,
+        slug: brandedIdentity.sourceKey,
+      }
+    }
 
     // Workday Form A: {tenant}.{region}.myworkdayjobs.com/{site}
     const formA = workdayFormAHost.exec(rawHost)
@@ -233,6 +252,17 @@ export function buildEndpoint(detected: DetectResult): string {
     )
     if (!identity) throw new Error(UNSUPPORTED_URL_MESSAGE)
     return `${identity.cxsRoot}/jobs`
+  }
+  if (
+    detected.ats === 'eightfold'
+    || detected.ats === 'oracle_recruiting'
+    || detected.ats === 'goldman_higher'
+  ) {
+    const identity = resolveBrandedIdentity(detected.slug)
+    if (!identity || identity.provider !== detected.ats) {
+      throw new Error(UNSUPPORTED_URL_MESSAGE)
+    }
+    return identity.publicUrl
   }
   return `https://${detected.slug.toLowerCase()}.recruitee.com/api/offers/`
 }

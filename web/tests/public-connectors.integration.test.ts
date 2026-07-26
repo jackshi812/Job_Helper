@@ -223,8 +223,11 @@ describe('closed registry dispatch for public connectors', () => {
   it('keeps provider registry parity exhaustive', () => {
     expect(Object.keys(providerRegistry).sort()).toEqual([
       'ashby',
+      'eightfold',
+      'goldman_higher',
       'greenhouse',
       'lever',
+      'oracle_recruiting',
       'paylocity',
       'recruitee',
       'smartrecruiters',

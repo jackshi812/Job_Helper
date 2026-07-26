@@ -81,6 +81,9 @@ const stagedActivationProviders = new Set([
   'recruitee',
   'paylocity',
   'workday',
+  'eightfold',
+  'oracle_recruiting',
+  'goldman_higher',
 ])
 
 function diagnosticHeaders(stage: string, fetchCount: number) {
@@ -188,6 +191,7 @@ async function recordEligibleObservation(
     verified.ats,
     verified.sourceKey,
     verified.jobCount,
+    verified.scopeEvidence ?? null,
   ])
   const evidenceDigest = await (dependencies.digestEvidence ?? sha256Hex)(digestInput)
   const { data, error } = await service.rpc('record_connector_observation', {
