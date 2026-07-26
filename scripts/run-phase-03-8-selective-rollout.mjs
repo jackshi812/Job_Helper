@@ -74,6 +74,12 @@ function validateManifest(manifest) {
   'candidate identity is invalid')
   requireCondition(canonical(manifest.migrations) === canonical(EXPECTED_MIGRATIONS),
     'hosted migration inventory is invalid')
+  if (manifest.pending_migration !== undefined) {
+    requireCondition(manifest.pending_migration?.version === '0044'
+      && typeof manifest.pending_migration?.path === 'string'
+      && SHA256.test(manifest.pending_migration?.sha256),
+    'pending migration identity is invalid')
+  }
   requireCondition(canonical(Object.keys(manifest.functions ?? {}).sort())
     === canonical([...FUNCTION_ORDER].sort()), 'function inventory is invalid')
   for (const slug of FUNCTION_ORDER) {
@@ -105,6 +111,9 @@ export function exactSelectiveApproval(manifest, manifestFileSha256) {
     manifest.release_manifest_id,
     manifestFileSha256,
     manifest.candidate.git_sha,
+    ...(manifest.pending_migration
+      ? [manifest.pending_migration.sha256]
+      : []),
     ...FUNCTION_ORDER.map(
       (slug) => manifest.functions[slug].bundle_manifest_sha256,
     ),
@@ -158,6 +167,13 @@ export async function assertSelectiveCandidate(manifest) {
       ({ path }) => path === expected.entry_path,
     )?.sha256 === expected.entry_sha256, `${slug} entrypoint drift`)
   }
+  if (manifest.pending_migration) {
+    requireCondition(
+      sha256(await readFile(resolve(root, manifest.pending_migration.path)))
+        === manifest.pending_migration.sha256,
+      'pending migration checksum drift',
+    )
+  }
   return true
 }
 
@@ -188,8 +204,14 @@ export async function assertSelectiveHostedIdentity({
     ) as migrations
     from supabase_migrations.schema_migrations
   `)
+  const expectedMigrations = [
+    ...manifest.migrations,
+    ...(stage === 'postdeploy' && manifest.pending_migration
+      ? [manifest.pending_migration.version]
+      : []),
+  ]
   requireCondition(rows.length === 1
-    && canonical(rows[0].migrations) === canonical(EXPECTED_MIGRATIONS),
+    && canonical(rows[0].migrations) === canonical(expectedMigrations),
   'hosted migration parity failed')
   const functions = inventory ?? await functionInventory(
     manifest.project_ref,

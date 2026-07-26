@@ -152,6 +152,35 @@ test('postdeploy identity increments only functions selected by the manifest', a
   }))
 })
 
+test('pending migration is hash-bound and required only after deployment', async () => {
+  const value = manifest()
+  value.pending_migration = {
+    version: '0044',
+    path: 'supabase/migrations/0044.sql',
+    sha256: 'e'.repeat(64),
+  }
+  const approval = exactSelectiveApproval(value, 'f'.repeat(64))
+  assert.equal(approval.split(' ')[8], value.pending_migration.sha256)
+  const inventory = Object.entries(value.functions).map(([slug, entry]) => ({
+    slug,
+    id: entry.hosted_baseline.id,
+    status: 'ACTIVE',
+    verify_jwt: entry.hosted_baseline.verify_jwt,
+    version: entry.hosted_baseline.version + 1,
+  }))
+  await assert.doesNotReject(assertSelectiveHostedIdentity({
+    manifest: value,
+    ops: {
+      query: async () => [{
+        migrations: [...value.migrations, value.pending_migration.version],
+      }],
+    },
+    accessToken: 'unused',
+    stage: 'postdeploy',
+    inventory,
+  }))
+})
+
 test('terminal Unsupported candidates are independently re-admitted and monitored', async () => {
   const h = harness()
   const result = await executeSelectiveRollout({
