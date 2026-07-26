@@ -1,43 +1,318 @@
 {
   "schema_version": 1,
   "phase": "03.8",
-  "status": "PENDING",
+  "status": "PASS",
   "manifest_sha256": "041d043db86a306981df3d520b6cdc4ea8857beff61c77da096018b5192493e7",
-  "generated_at": "2026-07-26T16:40:37Z",
+  "generated_at": "2026-07-26T18:20:13Z",
   "checks": {
-    "release_identity": {"status": "PENDING"},
-    "migration_parity": {"status": "PENDING"},
-    "verify_board_bundle": {"status": "PENDING"},
-    "observe_connectors_bundle": {"status": "PENDING"},
-    "poll_tick_bundle": {"status": "PENDING"},
-    "web_identity": {"status": "PENDING"},
-    "catalog_initial_matrix": {"status": "PENDING"},
-    "candidate_pending_state": {"status": "PENDING"},
-    "negative_target_matrix": {"status": "PENDING"},
-    "terminal_positive_branch": {"status": "PENDING"},
-    "terminal_negative_branch": {"status": "PENDING"},
-    "scope_provenance": {"status": "PENDING"},
-    "service_role_grants": {"status": "PENDING"},
-    "claim_separation": {"status": "PENDING"},
-    "cadence_and_cron": {"status": "PENDING"},
-    "cron_secret_rejection": {"status": "PENDING"},
-    "identity_rejection_before_fetch": {"status": "PENDING"},
-    "protected_sources_unchanged": {"status": "PENDING"},
-    "verifier_armed": {"status": "PENDING"},
-    "verifier_zero_fixtures": {"status": "PENDING"}
+    "release_identity": {
+      "status": "PASS",
+      "release_manifest_id": "03850000-0000-4000-8000-000000000005",
+      "source_commit": "83fbf8fc7707d8566f47034229884c517a16c979",
+      "migration_sha256": "09ff62efcd82a13a4b5b4fbd06ea643f01f837196d1260e1d0d1f744601ce21f",
+      "supabase_project_ref": "fjcsvajkkztvlrpdplwx",
+      "verification_scope": "initial_hosted_parity_only"
+    },
+    "migration_parity": {
+      "status": "PASS",
+      "remote_migrations": [
+        "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008",
+        "0009", "0010", "0011", "0012", "0013", "0014", "0015", "0016",
+        "0017", "0018", "0019", "0020", "0021", "0022", "0023", "0024",
+        "0025", "0026", "0027", "0028", "0029", "0030", "0031", "0032",
+        "0033", "0034", "0035", "0036", "0037", "0038", "0039", "0040"
+      ],
+      "candidate_company_rows": 0,
+      "terminal_evidence_rows": 0
+    },
+    "verify_board_bundle": {
+      "status": "PASS",
+      "id": "b1f7f9ea-4423-49c9-97bc-946b374b5a1d",
+      "version": 28,
+      "deployment_status": "ACTIVE",
+      "verify_jwt": true,
+      "approved_source_aggregate_sha256": "f31118ad65b89ddf5ada50900d901d7640bf0cf72875d857ee5a5bcfbaa79994",
+      "hosted_normalized_aggregate_sha256": "f2206cc2329a30f08edbfe052215327e43f9bf92144b455aa917e9d7496430c5",
+      "comparison": "normalized_hosted_runtime_equality",
+      "entrypoint_and_runtime_transitives_match": true,
+      "literal_source_archive_equality": false,
+      "normalization_exception": {
+        "path": "supabase/functions/_shared/adapters/types.ts",
+        "approved_sha256": "ccfee822bd93cf9d44affc007d7ff97f691084bca1e072afc0100762ac80a07e",
+        "hosted_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reason": "Supabase --use-api server bundling erased a comments/interfaces/type-alias-only module imported exclusively with type-only imports.",
+        "executable_drift": false
+      },
+      "fail_closed_rule": "Any mismatch outside the one recorded type-only path fails parity."
+    },
+    "observe_connectors_bundle": {
+      "status": "PASS",
+      "id": "44ea3343-4c15-4e35-8826-6fc12f54ffc0",
+      "version": 1,
+      "deployment_status": "ACTIVE",
+      "verify_jwt": false,
+      "approved_source_aggregate_sha256": "87f94be6e86e534ae23e8fb75349402c64a5da85fb71c4a59a30bf0afe58956b",
+      "hosted_normalized_aggregate_sha256": "464454aeaa39ab8b8ef4218bce586a69c95351c3b93d56aa73889487262789e6",
+      "comparison": "normalized_hosted_runtime_equality",
+      "entrypoint_and_runtime_transitives_match": true,
+      "literal_source_archive_equality": false,
+      "normalization_exception": {
+        "path": "supabase/functions/_shared/adapters/types.ts",
+        "approved_sha256": "ccfee822bd93cf9d44affc007d7ff97f691084bca1e072afc0100762ac80a07e",
+        "hosted_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reason": "Supabase --use-api server bundling erased a comments/interfaces/type-alias-only module imported exclusively with type-only imports.",
+        "executable_drift": false
+      },
+      "fail_closed_rule": "Any mismatch outside the one recorded type-only path fails parity."
+    },
+    "poll_tick_bundle": {
+      "status": "PASS",
+      "id": "623f09fa-9ff8-4736-a1ae-69b052cf20a9",
+      "version": 31,
+      "deployment_status": "ACTIVE",
+      "verify_jwt": false,
+      "approved_source_aggregate_sha256": "722c0bb16d35f499804b46775838e0ccd3586d4f6df9f998d827b2fcd51edc44",
+      "hosted_normalized_aggregate_sha256": "bc6f5657a6a3b56e8622cf244454820a2fb04e61387d9aa4468405cd8b05d343",
+      "comparison": "normalized_hosted_runtime_equality",
+      "entrypoint_and_runtime_transitives_match": true,
+      "literal_source_archive_equality": false,
+      "normalization_exception": {
+        "path": "supabase/functions/_shared/adapters/types.ts",
+        "approved_sha256": "ccfee822bd93cf9d44affc007d7ff97f691084bca1e072afc0100762ac80a07e",
+        "hosted_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reason": "Supabase --use-api server bundling erased a comments/interfaces/type-alias-only module imported exclusively with type-only imports.",
+        "executable_drift": false
+      },
+      "fail_closed_rule": "Any mismatch outside the one recorded type-only path fails parity."
+    },
+    "web_identity": {
+      "status": "PASS",
+      "immutable_url": "https://b8b33556.job-helper-qs9.pages.dev",
+      "asset_path": "/assets/index-DSR6ZHoJ.js",
+      "asset_bytes": 622411,
+      "asset_sha256": "8e28857fb560b5997865201c75226069e71a973a5fe66451726d52a7d7a41f1f"
+    },
+    "catalog_initial_matrix": {
+      "status": "PASS",
+      "row_count": 10,
+      "candidate_rows": [
+        {
+          "company": "Morgan Stanley",
+          "disposition": "unsupported_with_reason",
+          "reason": "pending_current_live_contract_proof",
+          "source_key": null
+        },
+        {
+          "company": "JPMorgan Chase",
+          "disposition": "unsupported_with_reason",
+          "reason": "pending_current_live_contract_proof",
+          "source_key": null
+        },
+        {
+          "company": "Goldman Sachs",
+          "disposition": "unsupported_with_reason",
+          "reason": "pending_current_live_contract_proof",
+          "source_key": null
+        }
+      ],
+      "negative_rows_match_manifest": true
+    },
+    "candidate_pending_state": {
+      "status": "PASS",
+      "candidate_company_rows": 0,
+      "terminal_evidence_rows": 0,
+      "branded_jobs": 0,
+      "invalid_branded_scope": 0
+    },
+    "negative_target_matrix": {
+      "status": "PASS",
+      "companies": [
+        "Bank of America",
+        "Citi",
+        "BlackRock",
+        "Wells Fargo",
+        "UBS",
+        "Barclays",
+        "Charles Schwab"
+      ],
+      "exact_manifest_reasons_retained": true,
+      "all_source_keys_null": true
+    },
+    "terminal_positive_branch": {
+      "status": "PASS",
+      "source_key": "eightfold:morganstanley",
+      "result": {
+        "accepted": true,
+        "reason": "admitted_experimental",
+        "result_activation_state": "experimental"
+      },
+      "inside_transaction": {
+        "company_activation_state": "experimental",
+        "activation_successes": 0,
+        "required_activation_successes": 3,
+        "catalog_row_present": true,
+        "terminal_evidence_row_present": true
+      },
+      "rolled_back": true,
+      "baseline_restored": true
+    },
+    "terminal_negative_branch": {
+      "status": "PASS",
+      "source_key": "oracle:jpmc:CX_1001",
+      "reason_input": "provider_schema_error",
+      "result": {
+        "accepted": true,
+        "reason": "recorded_unsupported",
+        "result_activation_state": "disabled"
+      },
+      "inside_transaction": {
+        "operational_company_rows": 0,
+        "catalog_row_present": true,
+        "terminal_evidence_row_present": true
+      },
+      "rolled_back": true,
+      "baseline_restored": true
+    },
+    "scope_provenance": {
+      "status": "PASS",
+      "required_branded_constraints": 5,
+      "jobs_scope_evidence_check_enforces_exact_digest": true,
+      "branded_jobs": 0,
+      "invalid_branded_scope": 0
+    },
+    "service_role_grants": {
+      "status": "PASS",
+      "security_definer_search_path_empty": [
+        "finalize_branded_connector_candidate",
+        "record_connector_observation",
+        "claim_due_experimental_connectors",
+        "claim_due_companies",
+        "begin_phase_03_8_verifier_run",
+        "exercise_phase_03_8_verifier_fault",
+        "finish_phase_03_8_verifier_run"
+      ],
+      "service_role_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "connector_observations_rls_acl_correct": true,
+      "terminal_evidence_rls_acl_correct": true,
+      "verifier_tables_rls_enabled": true,
+      "verifier_tables_service_role_direct_select": false
+    },
+    "claim_separation": {
+      "status": "PASS",
+      "experimental_claim_cadence_minutes": 1,
+      "active_claim_cadence_minutes": 10,
+      "separate_rpcs": true
+    },
+    "cadence_and_cron": {
+      "status": "PASS",
+      "jobs": [
+        {
+          "name": "observe-connectors-every-minute",
+          "schedule": "* * * * *",
+          "endpoint": "observe-connectors",
+          "vault_cron_secret_reference": true,
+          "timeout_milliseconds": 120000
+        },
+        {
+          "name": "poll-tick-every-minute",
+          "schedule": "* * * * *",
+          "endpoint": "poll-tick",
+          "vault_cron_secret_reference": true,
+          "timeout_milliseconds": 120000
+        }
+      ],
+      "exact_job_count": 2
+    },
+    "cron_secret_rejection": {
+      "status": "PASS",
+      "observe_connectors": {
+        "http_status": 401,
+        "body": {
+          "error": "Unauthorized"
+        }
+      },
+      "poll_tick": {
+        "http_status": 401,
+        "body": {
+          "error": "Unauthorized"
+        }
+      }
+    },
+    "identity_rejection_before_fetch": {
+      "status": "PASS",
+      "cases": [
+        "morganstanley.com.evil.example lookalike host",
+        "Morgan Stanley exact URL with unapproved query/cross-company marker",
+        "JPMorgan Oracle URL with unapproved CX_9999 site"
+      ],
+      "http_statuses": [200, 200, 200],
+      "reasons": ["unsupported", "unsupported", "unsupported"],
+      "auth_stages": ["authenticated", "authenticated", "authenticated"],
+      "provider_fetch_counts": [0, 0, 0]
+    },
+    "protected_sources_unchanged": {
+      "status": "PASS",
+      "sources": [
+        {
+          "source_key": "workday:wd12:capitalone:Capital_One",
+          "company": "Capital One",
+          "activation_state": "active",
+          "activation_successes": 3
+        },
+        {
+          "source_key": "workday:wd1:fmr:FidelityCareers",
+          "company": "Fidelity",
+          "activation_state": "active",
+          "activation_successes": 3
+        }
+      ],
+      "exact_fields_unchanged": true
+    },
+    "verifier_armed": {
+      "status": "PASS",
+      "run_id": "03850000-0000-4000-8000-000000000501",
+      "release_manifest_id": "03850000-0000-4000-8000-000000000005",
+      "state": "armed",
+      "exercise_calls": 0,
+      "max_exercise_calls": 12,
+      "started_at": null,
+      "expires_at": null,
+      "begin_exercise_finish_called": false
+    },
+    "verifier_zero_fixtures": {
+      "status": "PASS",
+      "verifier_fixture_rows": 0,
+      "company_rows": 0,
+      "job_rows": 0,
+      "observation_rows": 0,
+      "fixed_uuid_collisions": 0
+    }
   },
   "family_rollout": {
-    "eightfold": {"status": "PENDING"},
-    "oracle_recruiting": {"status": "PENDING"},
-    "goldman_higher": {"status": "PENDING"}
+    "eightfold": {
+      "status": "PENDING"
+    },
+    "oracle_recruiting": {
+      "status": "PENDING"
+    },
+    "goldman_higher": {
+      "status": "PENDING"
+    }
   },
   "verifier_authority": {
-    "status": "PENDING",
+    "status": "ARMED",
     "run_id": "03850000-0000-4000-8000-000000000501",
-    "fixture_rows": null,
-    "company_rows": null,
-    "job_rows": null
+    "fixture_rows": 0,
+    "company_rows": 0,
+    "job_rows": 0
   },
-  "cleanup": {"status": "PENDING"},
-  "uat": {"status": "PENDING"}
+  "cleanup": {
+    "status": "PENDING",
+    "note": "Plan 05 rollback probes restored their baseline; this field is reserved for Plan 06 verifier consumption, CAS cleanup, and grant revocation."
+  },
+  "uat": {
+    "status": "PENDING"
+  }
 }

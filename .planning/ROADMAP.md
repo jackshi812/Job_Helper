@@ -215,7 +215,7 @@ Plans:
 5. Capital One and Fidelity remain unchanged Active Workday regression sources and are neither re-onboarded nor required to produce a new Phase 03.8 natural poll.
 6. The exact migration/function release passes an explicit production approval and non-TTY schema-push gate, hosted parity/cleanup checks, and signed-in owner UAT of Watchlist state plus one eligible job per newly Active provider family.
 
-**Plans:** 4/7 plans executed
+**Plans:** 5/7 plans executed
 
 Plans:
 **Wave 1**
@@ -236,7 +236,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 03.8-05-PLAN.md — Approve and deploy the exact schema/function release with hosted parity proof
+- [x] 03.8-05-PLAN.md — Approve and deploy the exact schema/function release with hosted parity proof
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
@@ -515,6 +515,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.5 Generic Workday Connector & Fidelity | 4/4 | Complete | 2026-07-24 |
 | 03.6 US-Only Workday Expansion & Dashboard Queue | 5/5 | Complete    | 2026-07-25 |
 | 03.7 Watchlist-First Jobs Dashboard | 1/1 | Complete | 2026-07-25 |
+| 03.8 Monitor and poll branded banking companies | 5/7 | In progress | - |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage
