@@ -5,12 +5,13 @@ import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { createRequire, registerHooks } from 'node:module'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 
 const execFile = promisify(execFileCallback)
 const require = createRequire(import.meta.url)
+const ORCHESTRATION_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 export const RELEASE_MANIFEST_ID = '03850000-0000-4000-8000-000000000006'
 export const VERIFIER_AUTHORITY_RELEASE_MANIFEST_ID =
@@ -414,12 +415,23 @@ export function createBoundedFetch(identity, fetchImpl = fetch, now = Date.now) 
   })
 }
 
-export function registerTypeScriptTranspileHook(root = resolve('.')) {
-  if (typeScriptHookRegistered) return
-  const ts = require(resolve(
-    root,
+export function registerTypeScriptTranspileHook(
+  compilerRoot = ORCHESTRATION_ROOT,
+) {
+  const compilerPath = resolve(
+    compilerRoot,
     'web/node_modules/typescript/lib/typescript.js',
-  ))
+  )
+  let ts
+  try {
+    ts = require(compilerPath)
+  } catch (error) {
+    throw new Error(
+      `TypeScript compiler unavailable at orchestration root: ${compilerPath}`,
+      { cause: error },
+    )
+  }
+  if (typeScriptHookRegistered) return
   registerHooks({
     load(url, context, nextLoad) {
       if (!url.startsWith('file:') || !url.endsWith('.ts')) {
@@ -449,7 +461,9 @@ export function registerTypeScriptTranspileHook(root = resolve('.')) {
 
 export async function directProbe(family, dependencies = {}) {
   const root = dependencies.root ?? resolve('.')
-  registerTypeScriptTranspileHook(root)
+  registerTypeScriptTranspileHook(
+    dependencies.compilerRoot ?? ORCHESTRATION_ROOT,
+  )
   const identities = dependencies.identities
     ?? await import(pathToFileURL(resolve(
       root,

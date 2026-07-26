@@ -1,5 +1,13 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import test from 'node:test'
@@ -25,6 +33,7 @@ import {
   createBoundedFetch,
   createDryRunPlan,
   deriveFinalHostedFunctionIdentities,
+  directProbe,
   exactApproval,
   executeRollout,
   exerciseVerifierFinally,
@@ -517,6 +526,71 @@ test('synchronous TypeScript hook imports the shared Workday adapter',
     const adapterRoot = resolve('supabase/functions/_shared/adapters')
     const workday = await import(pathToFileURL(resolve(adapterRoot, 'workday.ts')))
     assert.equal(typeof workday.pollWorkdayRecent, 'function')
+  })
+
+test('clean source root uses orchestration TypeScript but owns all source imports',
+  async () => {
+    const sourceRoot = await mkdtemp(
+      resolve(tmpdir(), 'job-copilot-plan06-source-'),
+    )
+    try {
+      const sharedRoot = resolve(sourceRoot, 'supabase/functions/_shared')
+      await mkdir(resolve(sharedRoot, 'adapters'), { recursive: true })
+      await writeFile(resolve(sharedRoot, 'workday-identities.ts'), `
+        export function resolveWorkdayIdentity(
+          tenant: string,
+          region: string,
+          site: string,
+          hostForm: string,
+        ) {
+          if (tenant !== 'ms' || region !== 'wd5'
+            || site !== 'External' || hostForm !== 'jobs') return null
+          return {
+            sourceKey: 'workday:wd5:ms:External',
+            cxsRoot: 'https://source-only.example/wday/cxs/ms/External',
+            originMarker: 'clean-source-root',
+          }
+        }
+      `)
+      await writeFile(resolve(sharedRoot, 'adapters/workday.ts'), `
+        export async function pollWorkdayRecent(identity: {
+          originMarker?: string
+        }) {
+          return {
+            completeness: 'unknown',
+            credibleForClosure: false,
+            allowMissingClosure: false,
+            jobs: [],
+            pageCount: 0,
+            expectedCount: 0,
+            warnings: [
+              identity.originMarker === 'clean-source-root'
+                ? 'provider_timeout'
+                : 'provider_schema_error',
+            ],
+          }
+        }
+      `)
+      await assert.rejects(
+        access(resolve(sourceRoot, 'web/node_modules/typescript')),
+        /ENOENT/,
+      )
+      const result = await directProbe(FAMILY_ORDER[0], {
+        root: sourceRoot,
+        compilerRoot: resolve('.'),
+      })
+      assert.equal(result.positive, false)
+      assert.equal(result.reason, 'provider_timeout')
+      assert.equal(result.evidence.request_count, 0)
+      assert.throws(
+        () => registerTypeScriptTranspileHook(
+          resolve(sourceRoot, 'missing-compiler-root'),
+        ),
+        /TypeScript compiler unavailable at orchestration root/,
+      )
+    } finally {
+      await rm(sourceRoot, { recursive: true, force: true })
+    }
   })
 
 test('probe evidence is bounded, sanitized, schema-shaped, and classifies positive',
