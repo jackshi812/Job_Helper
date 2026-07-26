@@ -1546,7 +1546,7 @@ export class ManagementSqlOps {
         end;
         begin
           update public.phase_03_8_verifier_runs
-          set expires_at = clock_timestamp() - interval '1 second'
+          set expires_at = started_at + interval '1 microsecond'
           where run_id = '${VERIFIER_RUN_ID}'::uuid;
           execute 'set local role service_role';
           perform * from public.exercise_phase_03_8_verifier_fault(

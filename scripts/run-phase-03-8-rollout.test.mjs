@@ -832,6 +832,10 @@ test('verifier SQL scopes service role to RPC inserts, never direct verifier tab
       /set local role authenticated;[\s\S]+authenticated verifier finish was callable[\s\S]+reset role;/i)
     assert.match(verifierSql,
       /update public\.phase_03_8_verifier_runs[\s\S]+execute 'set local role service_role'/i)
+    assert.match(verifierSql,
+      /set expires_at = started_at \+ interval '1 microsecond'/i)
+    assert.doesNotMatch(verifierSql,
+      /set expires_at = clock_timestamp\(\) - interval '1 second'/i)
   })
 
 test('management SQL errors include bounded diagnostics with credentials redacted',
