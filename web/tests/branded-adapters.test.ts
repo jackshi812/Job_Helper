@@ -523,6 +523,7 @@ function oracleFetch(
         requisitions.slice(offset, offset + Number(finder.limit)),
         offset,
         requisitions.length,
+        { Limit: Number(finder.limit) },
       ))
     }
     return jsonResponse({
@@ -673,7 +674,7 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
           }],
         },
       )),
-      {},
+      { pageSize: 1 },
       'facet_label_mismatch',
     ],
     [
@@ -685,8 +686,9 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
         ],
         0,
         2,
+        { Limit: 2 },
       )),
-      {},
+      { pageSize: 2 },
       'duplicate_id',
     ],
     [
@@ -706,7 +708,7 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
         0,
         2,
       )),
-      { maxJobs: 1 },
+      { pageSize: 1, maxJobs: 1 },
       'job_cap_exceeded',
     ],
   ])('keeps the whole observation closure-ineligible on %s', async (
@@ -777,7 +779,7 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     const observation = await pollJpmorganOracleRecruiting(
       oracleIdentity,
       providerFetch,
-      { now: () => 0 },
+      { pageSize: 1, now: () => 0 },
     )
     expect(observation).toMatchObject({
       jobs: [],
@@ -799,7 +801,7 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     const empty = await pollJpmorganOracleRecruiting(
       oracleIdentity,
       async () => jsonResponse(oracleListEnvelope([], 0, 0)),
-      { now: () => 0 },
+      { pageSize: 1, now: () => 0 },
     )
     expect(empty).toMatchObject({
       jobs: [],
