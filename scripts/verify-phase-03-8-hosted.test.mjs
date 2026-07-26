@@ -8,6 +8,7 @@ import {
   assertFailedPushCleanState,
   assertHostedEvidence,
   assertRolloutEvidence,
+  assertUatEvidence,
   canonical,
   deriveFinalHostedFunctionIdentities,
   guardedExercise,
@@ -27,6 +28,10 @@ const hostedEvidencePath = new URL(
 )
 const rolloutEvidencePath = new URL(
   '../.planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-/03.8-06-ROLLOUT-VERIFICATION.json',
+  import.meta.url,
+)
+const uatEvidencePath = new URL(
+  '../.planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-/03.8-UAT.json',
   import.meta.url,
 )
 
@@ -284,6 +289,16 @@ test('the full release-bound rollout artifact passes the hosted validator', asyn
   const manifest = await manifestFixture()
   const rollout = JSON.parse(await readFile(rolloutEvidencePath, 'utf8'))
   assert.equal(assertRolloutEvidence(rollout, manifest), rollout)
+})
+
+test('the exact owner-approved Workday UAT signal seals the release', async () => {
+  const manifest = await manifestFixture()
+  const uat = JSON.parse(await readFile(uatEvidencePath, 'utf8'))
+  assert.equal(assertUatEvidence(uat, manifest), uat)
+  assert.throws(() => assertUatEvidence({
+    ...uat,
+    approval_signal: 'approve deployed Phase 03.8 UAT',
+  }, manifest))
 })
 
 test('canonical serialization is stable for manifest approval binding', () => {

@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 03.8
 current_phase_name: Monitor and poll the branded banking companies currently on watchlist
-status: executing
-stopped_at: Completed 03.8-06-PLAN.md
-last_updated: "2026-07-26T20:53:49.086Z"
+status: complete
+stopped_at: Completed 03.8-07-PLAN.md
+last_updated: "2026-07-26T21:31:16.000Z"
 last_activity: 2026-07-26
-last_activity_desc: Completed Phase 03.8 Plan 06
+last_activity_desc: Completed Phase 03.8 Plan 07
 progress:
   total_phases: 13
-  completed_phases: 11
+  completed_phases: 12
   total_plans: 73
-  completed_plans: 72
-  percent: 99
+  completed_plans: 73
+  percent: 100
 ---
 
 # Project State
@@ -24,24 +24,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 03.8 — Monitor and poll the branded banking companies currently on watchlist
+**Current focus:** Phase 03.8 complete — ready to proceed to Phase 4
 
 ## Current Position
 
-Phase: 03.8 (Monitor and poll the branded banking companies currently on watchlist) — EXECUTING
+Phase: 03.8 (Monitor and poll the branded banking companies currently on watchlist) — COMPLETE
 Plan: 7 of 7
-Status: Ready to execute
-Last activity: 2026-07-26 — Completed Phase 03.8 Plan 06
+Status: Complete
+Last activity: 2026-07-26 — Completed Phase 03.8 Plan 07
 
-Progress: [██████████] 99%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 72
+- Total plans completed: 73
 - Average duration: 23m
-- Total execution time: 1625m
+- Total execution time: 1665m
 
 **By Phase:**
 
@@ -58,8 +58,8 @@ Progress: [██████████] 99%
 
 **Recent Trend:**
 
-- Last 3 plans: 9m, 9m, 15h39m
-- Trend: Phase 3 closed 11/11 plans, 17/17 verification truths, 52/52 security threats, and 8/8 human UAT
+- Last 3 plans: 15h39m, 18m, 40m
+- Trend: Phase 03.8 closed 7/7 plans with exact hosted evidence, zero-residue verifier cleanup, and owner-approved UAT
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
@@ -116,6 +116,7 @@ Progress: [██████████] 99%
 | Phase 03.8 P04 | 9min | 2 tasks | 6 files |
 | Phase 03.8 P05 | 15h39m elapsed | 3 tasks | 11 release/evidence/tracking files |
 | Phase 03.8 P06 | 18min | 3 tasks | 15 files |
+| Phase 03.8 P07 | 40min | 3 tasks | 10 release/evidence/tracking files |
 
 ## Accumulated Context
 
@@ -277,6 +278,8 @@ Recent decisions affecting current work:
 - [Phase 03.8]: Morgan Stanley uses exact flat U.S. facet plus authoritative detail proof; Bank of America uses complete whole-site all-detail U.S. proof.
 - [Phase 03.8]: BlackRock and Barclays have frozen Workday identities but no country authority, so they fail closed before fetch.
 - [Phase 03.8]: The immutable three-fixture verifier lifecycle remains separate from the four Workday rollout candidates.
+- [Phase 03.8]: Morgan Stanley and Bank of America terminalized Unsupported when complete pagination exceeded the approved bound; BlackRock and Barclays terminalized country_filter_unverified with zero operational rows.
+- [Phase 03.8]: The one-use verifier is consumed with zero residue and revoked grants; owner-approved signed-in Workday UAT closes the phase.
 
 ### Pending Todos
 
@@ -318,9 +321,10 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-26T20:53:39.804Z
-Stopped at: Completed 03.8-06-PLAN.md
+Last session: 2026-07-26T21:31:16.000Z
+Stopped at: Completed 03.8-07-PLAN.md
 Resume file: None
+Last session (2026-07-26): Phase 03.8 completed 7/7 plans; all four new Workday candidates are precise Unsupported with zero authority, migrations/functions match the approved release, verifier cleanup is zero-residue, and owner UAT passed.
 Last session (2026-07-25): Phase 03.7 passed local checks, exact-release byte verification, and 3/3 owner-approved signed-in UAT checks on release `baf81fcaa72443995f227b118d10eec90da25679`; no Phase 03.7 gaps remain.
 Last session (2026-07-25): Phase 03.6 passed 6/6 formal truths, 20/20 hosted checks, 30/30 security threats, 24/24 UI review checks, and 12/12 owner-approved UAT interactions on exact release `70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b`; no Phase 03.6 gaps remain.
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.

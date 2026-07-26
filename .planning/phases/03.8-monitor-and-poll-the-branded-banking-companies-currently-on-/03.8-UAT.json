@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "phase": "03.8",
-  "status": "PENDING",
+  "status": "PASS",
   "generated_at": "2026-07-26T21:27:45Z",
+  "approved_at": "2026-07-26T21:31:16Z",
   "release_manifest_id": "03850000-0000-4000-8000-000000000006",
   "manifest_file_sha256": "1cac45957a23cb9de040005c92ba736a727e7ae54da617b94a3d2c4e182c1b06",
   "manifest_sha256": "6e3100857d11b00c4c62cdc427ac55f9bea620fd105686f5ecfb199e5489bf6f",
@@ -25,30 +26,30 @@
     "asset_path": "/assets/index-DSR6ZHoJ.js",
     "asset_sha256": "8e28857fb560b5997865201c75226069e71a973a5fe66451726d52a7d7a41f1f"
   },
-  "owner_identity": null,
-  "browser_session": null,
+  "owner_identity": "project_owner",
+  "browser_session": "user-managed browser",
   "targets": [
-    {"company": "Morgan Stanley", "expected_state": "Unsupported", "reason": "pagination_incomplete", "ui_observation": "PENDING"},
-    {"company": "Goldman Sachs", "expected_state": "Unsupported", "reason": "precise existing reason", "ui_observation": "PENDING"},
-    {"company": "JPMorgan Chase", "expected_state": "Unsupported", "reason": "precise existing reason", "ui_observation": "PENDING"},
-    {"company": "Bank of America", "expected_state": "Unsupported", "reason": "pagination_incomplete", "ui_observation": "PENDING"},
-    {"company": "BlackRock", "expected_state": "Unsupported", "reason": "country_filter_unverified", "ui_observation": "PENDING"},
-    {"company": "UBS", "expected_state": "Unsupported", "reason": "structured_endpoint_requires_html_bootstrap_session", "ui_observation": "PENDING"},
-    {"company": "Barclays", "expected_state": "Unsupported", "reason": "country_filter_unverified", "ui_observation": "PENDING"},
-    {"company": "Charles Schwab", "expected_state": "Unsupported", "reason": "precise existing reason", "ui_observation": "PENDING"}
+    {"company": "Morgan Stanley", "expected_state": "Unsupported", "reason": "pagination_incomplete", "ui_observation": "PASS"},
+    {"company": "Goldman Sachs", "expected_state": "Unsupported", "reason": "precise existing reason", "ui_observation": "PASS"},
+    {"company": "JPMorgan Chase", "expected_state": "Unsupported", "reason": "precise existing reason", "ui_observation": "PASS"},
+    {"company": "Bank of America", "expected_state": "Unsupported", "reason": "pagination_incomplete", "ui_observation": "PASS"},
+    {"company": "BlackRock", "expected_state": "Unsupported", "reason": "country_filter_unverified", "ui_observation": "PASS"},
+    {"company": "UBS", "expected_state": "Unsupported", "reason": "structured_endpoint_requires_html_bootstrap_session", "ui_observation": "PASS"},
+    {"company": "Barclays", "expected_state": "Unsupported", "reason": "country_filter_unverified", "ui_observation": "PASS"},
+    {"company": "Charles Schwab", "expected_state": "Unsupported", "reason": "precise existing reason", "ui_observation": "PASS"}
   ],
   "absent_targets": [
-    {"company": "Citi", "ui_observation": "PENDING"},
-    {"company": "Wells Fargo", "ui_observation": "PENDING"}
+    {"company": "Citi", "ui_observation": "PASS"},
+    {"company": "Wells Fargo", "ui_observation": "PASS"}
   ],
   "protected_sources": [
-    {"company": "Capital One", "expected_state": "Active", "ui_observation": "PENDING"},
-    {"company": "Fidelity", "expected_state": "Active", "ui_observation": "PENDING"}
+    {"company": "Capital One", "expected_state": "Active", "ui_observation": "PASS"},
+    {"company": "Fidelity", "expected_state": "Active", "ui_observation": "PASS"}
   ],
   "newly_active_sources": [],
   "job_inspection": {
     "status": "NOT_APPLICABLE",
     "reason": "All four new Workday candidates terminalized Unsupported; no newly Active source exists."
   },
-  "approval_signal": null
+  "approval_signal": "approve deployed Phase 03.8 Workday UAT"
 }

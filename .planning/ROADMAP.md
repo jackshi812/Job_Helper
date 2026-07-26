@@ -215,7 +215,7 @@ Plans:
 5. Capital One and Fidelity remain unchanged Active Workday regression sources and are neither re-onboarded nor required to produce a new Phase 03.8 natural poll.
 6. Immutable migrations 0040/0041 remain unchanged, 0042 retains its verifier finish repair, and a fresh exact 0042/0043 migration/function release passes explicit production approval, hosted parity/cleanup checks, and signed-in owner UAT of the revised Watchlist state plus one eligible job per newly Active Workday source.
 
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans executed
 
 Plans:
 **Wave 1**
@@ -244,7 +244,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 03.8-07-PLAN.md — Approve and deploy 0042/0043, resolve each Workday candidate independently, clean verifier authority, and complete signed-in Watchlist UAT
+- [x] 03.8-07-PLAN.md — Approve and deploy 0042/0043, resolve each Workday candidate independently, clean verifier authority, and complete signed-in Watchlist UAT
 
 ### Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)
 
@@ -515,7 +515,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.5 Generic Workday Connector & Fidelity | 4/4 | Complete | 2026-07-24 |
 | 03.6 US-Only Workday Expansion & Dashboard Queue | 5/5 | Complete    | 2026-07-25 |
 | 03.7 Watchlist-First Jobs Dashboard | 1/1 | Complete | 2026-07-25 |
-| 03.8 Monitor and poll branded banking companies | 6/7 | In progress | - |
+| 03.8 Monitor and poll branded banking companies | 7/7 | Complete | 2026-07-26 |
 | 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
 
 ## Coverage

@@ -974,7 +974,7 @@ function assertUatEvidence(uat, manifest, { template = false } = {}) {
       throw new Error('UAT template is prefilled')
     }
   } else if (uat.status !== 'PASS'
-    || uat.approval_signal !== 'approve deployed Phase 03.8 UAT') {
+    || uat.approval_signal !== 'approve deployed Phase 03.8 Workday UAT') {
     throw new Error('UAT is not owner-approved PASS')
   }
   return uat
