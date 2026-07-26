@@ -1,13 +1,33 @@
-export interface NormalizedJob {
-  source:
-    | 'greenhouse'
-    | 'lever'
-    | 'ashby'
-    | 'smartrecruiters'
-    | 'recruitee'
-    | 'paylocity'
-    | 'workday'
-    | 'adzuna'
+export type BrandedJobSource = 'eightfold' | 'oracle_recruiting' | 'goldman_higher'
+export type BrandedJobSourceKey =
+  | 'eightfold:morganstanley'
+  | 'oracle:jpmc:CX_1001'
+  | 'goldman_higher:roles'
+export type BrandedAllowedCategoryTerm =
+  | 'Data'
+  | 'Technology'
+  | 'Finance'
+  | 'Investment'
+  | 'Research'
+  | 'Risk'
+  | 'Capital Markets'
+
+export interface BrandedJobScopeEvidence {
+  readonly sourceKey: BrandedJobSourceKey
+  readonly providerCategoryLabel: string
+  readonly matchedTerm: BrandedAllowedCategoryTerm
+  readonly detailCountryCode: 'US'
+  readonly externalIdDigest: string
+}
+
+export interface BrandedObservationScopeEvidence {
+  readonly sourceKey: BrandedJobSourceKey
+  readonly sliceDigests: readonly string[]
+  readonly categoryDigest: string
+  readonly countryDigest: string
+}
+
+interface NormalizedJobFields {
   externalId: string
   title: string
   location: string | null
@@ -18,6 +38,26 @@ export interface NormalizedJob {
   snapshotPartial: boolean
   companyName: string | null
 }
+
+type ExistingNormalizedJob = NormalizedJobFields & {
+  source:
+    | 'greenhouse'
+    | 'lever'
+    | 'ashby'
+    | 'smartrecruiters'
+    | 'recruitee'
+    | 'paylocity'
+    | 'workday'
+    | 'adzuna'
+  scopeEvidence?: never
+}
+
+type BrandedNormalizedJob = NormalizedJobFields & {
+  source: BrandedJobSource
+  scopeEvidence: BrandedJobScopeEvidence
+}
+
+export type NormalizedJob = ExistingNormalizedJob | BrandedNormalizedJob
 
 export type PollCompleteness = 'complete' | 'partial' | 'unknown'
 
@@ -35,4 +75,9 @@ export interface PollObservation {
   pageCount: number
   expectedCount?: number
   warnings: string[]
+  /**
+   * Bounded aggregate evidence for Phase 03.8 provider slices. Full provider
+   * payloads and per-job labels remain on the normalized job contract instead.
+   */
+  scopeEvidence?: BrandedObservationScopeEvidence
 }
