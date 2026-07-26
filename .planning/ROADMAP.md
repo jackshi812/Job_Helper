@@ -213,7 +213,7 @@ Plans:
 3. Candidate sources start Experimental at 0/3, activate independently only after three positive clean server-timed observations, and every newly Active family completes one healthy natural scheduled poll on the exact release.
 4. Polling remains bounded and staggered; one company failure cannot block siblings, close last-known jobs, or bypass close/reopen, heartbeat, authorization, or health contracts.
 5. Capital One and Fidelity remain unchanged Active Workday regression sources and are neither re-onboarded nor required to produce a new Phase 03.8 natural poll.
-6. Immutable migrations 0040/0041 remain unchanged, 0042 retains its verifier finish repair, and a fresh exact 0042/0043 migration/function release passes explicit production approval, hosted parity/cleanup checks, and signed-in owner UAT of the revised Watchlist state plus one eligible job per newly Active Workday source.
+6. Immutable migrations 0040/0041 remain unchanged, 0042 retains its verifier finish repair, and the exact 0042/0043/0044 migration/function releases pass explicit production approval, hosted parity/cleanup checks, and produce at least one eligible persisted job per newly Active Workday source.
 
 **Plans:** 7/7 plans executed
 
@@ -245,6 +245,12 @@ Plans:
 **Wave 7** *(blocked on Wave 6 completion)*
 
 - [x] 03.8-07-PLAN.md — Approve and deploy 0042/0043, resolve each Workday candidate independently, clean verifier authority, and complete signed-in Watchlist UAT
+
+**Post-plan recovery extension (complete):** Added a bounded seven-day
+exact-U.S. selective Workday contract, deployed the Experimental allowlist
+repair, and applied migration 0044 for exact selective scope evidence. Morgan
+Stanley, Bank of America, BlackRock, and Barclays are all Active at 3/3 with
+healthy natural polls and 111/13/37/15 persisted eligible jobs respectively.
 
 ### Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)
 

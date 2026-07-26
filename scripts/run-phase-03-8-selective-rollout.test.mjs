@@ -81,21 +81,18 @@ function harness(startKinds = {}) {
       finalized.push(input)
       return { accepted: true }
     },
-    awaitTerminalFamily: async ({ family }) => ({
-      family: family.family,
-      source_key: family.sourceKey,
-      status: 'PASS',
-      outcome: 'active',
+    familyState: async () => ({
+      activation_state: 'active',
       activation_successes: 3,
+      observation_count: 3,
+      window_count: 3,
       eligible_job_count: 5,
-      natural_poll: true,
-      timestamps: {
-        activated_at: '2026-07-26T17:00:00.000Z',
-        due_at: '2026-07-26T17:01:00.000Z',
-        claimed_at: '2026-07-26T17:01:01.000Z',
-        completed_at: '2026-07-26T17:02:00.000Z',
-        feed_visible_at: '2026-07-26T17:02:01.000Z',
-      },
+      consecutive_failures: 0,
+      last_error_code: null,
+      activated_at: '2026-07-26T17:00:00.000Z',
+      last_polled_at: '2026-07-26T17:11:01.000Z',
+      last_success_at: '2026-07-26T17:12:00.000Z',
+      feed_visible_at: '2026-07-26T17:12:01.000Z',
     }),
     assertFinalRollout: async (_manifest, families, consumedState) => {
       assert.equal(Object.keys(families).length, 4)

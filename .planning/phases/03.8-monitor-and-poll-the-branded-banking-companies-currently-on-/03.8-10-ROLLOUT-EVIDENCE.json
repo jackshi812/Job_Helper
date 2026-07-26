@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "phase": "03.8",
+  "status": "PASS",
+  "release_manifest_id": "03850000-0000-4000-8000-000000000009",
+  "source_commit": "829e3a66d569cb27e47d17e1daf88574eb6d331d",
+  "generated_at": "2026-07-26T22:46:34.906Z",
+  "families": {
+    "morgan_stanley": {
+      "family": "workday",
+      "source_key": "workday:wd5:ms:External",
+      "status": "PASS",
+      "outcome": "active",
+      "activation_successes": 3,
+      "eligible_job_count": 111,
+      "natural_poll": true,
+      "timestamps": {
+        "activated_at": "2026-07-26T22:24:16.058Z",
+        "due_at": "2026-07-26T22:37:00.651Z",
+        "claimed_at": "2026-07-26T22:37:00.651Z",
+        "completed_at": "2026-07-26T22:38:15.602Z",
+        "feed_visible_at": "2026-07-26T22:38:15.602Z"
+      },
+      "start_state": "active",
+      "terminal_evidence_digest": "15257739d0f9d0e2f5e998e4bd65e4ab3bf05ac13b1273bfb3f908fab3bbf8e0",
+      "probe": {
+        "schema_version": 1,
+        "family": "workday",
+        "company": "Morgan Stanley",
+        "source_key": "workday:wd5:ms:External",
+        "completeness": "complete",
+        "credible_for_closure": true,
+        "allow_missing_closure": false,
+        "selective_recent_days": 7,
+        "selective_title_keywords": [],
+        "selective_facet_digest": null,
+        "job_count": 111,
+        "expected_count": 111,
+        "page_count": 49,
+        "warning_codes": [],
+        "request_count": 161,
+        "elapsed_ms": 73652,
+        "aggregate_scope_digest": null,
+        "eligible_job_digests": [
+          "217989c35e7213f6b00735b7819b55230cf8a0ffbea99c45dc4f9075a80201dc",
+          "c773461dbf64ddac53d2764bd493ed790241540551b9d3328329366fc4cae3aa",
+          "9c81b75e05c8d182bb4c66893bc140ff385e8983d33ca7a093f1d09fb04c199d",
+          "44e0319b58a223dce71469b0fb5e479d75b171d909ddcf8ac159d3576f17c2e7",
+          "c75e6c5160593e58117de8c129c27bc90fad0239258fbf3cf2d5f47588bcfc5d",
+          "0b3ef66cb5134e7ba39709f33d26ee2c80b5205fa0464c6ff7399c3d6219f49a",
+          "47436b3074e1ae0ab4387885e5fa784c1a6551e77d0d16e8d50b31449bfaf2ef",
+          "ea4779ac55c0035756476c5fc18b1710de6df4929412e31aa76b9eb4f9a7683c"
+        ],
+        "evidence_digest": "3e9c600dc6eabc5ba91e6f5e5fbd3f9b0fe312df25526e641fa81d6a89b3f7d6"
+      }
+    },
+    "bank_of_america": {
+      "family": "workday",
+      "source_key": "workday:wd1:ghr:Lateral-US",
+      "status": "PASS",
+      "outcome": "active",
+      "activation_successes": 3,
+      "eligible_job_count": 13,
+      "natural_poll": true,
+      "timestamps": {
+        "activated_at": "2026-07-26T22:32:10.099Z",
+        "due_at": "2026-07-26T22:37:00.651Z",
+        "claimed_at": "2026-07-26T22:37:00.651Z",
+        "completed_at": "2026-07-26T22:37:45.924Z",
+        "feed_visible_at": "2026-07-26T22:37:45.924Z"
+      },
+      "start_state": "active",
+      "terminal_evidence_digest": "739df6f0f2b3605c2bea69b37c5c078bc2e2fe3b41dfb3b1f8ac3fcee6d12e12",
+      "probe": {
+        "schema_version": 1,
+        "family": "workday",
+        "company": "Bank of America",
+        "source_key": "workday:wd1:ghr:Lateral-US",
+        "completeness": "complete",
+        "credible_for_closure": true,
+        "allow_missing_closure": false,
+        "selective_recent_days": 7,
+        "selective_title_keywords": [
+          "finance",
+          "analytics",
+          "data",
+          "research"
+        ],
+        "selective_facet_digest": null,
+        "job_count": 13,
+        "expected_count": 13,
+        "page_count": 95,
+        "warning_codes": [],
+        "request_count": 108,
+        "elapsed_ms": 58660,
+        "aggregate_scope_digest": null,
+        "eligible_job_digests": [
+          "d49f15545f5b774c4e107ca39dd17eabb9acaf61b8251e9bc017224a374452d2",
+          "932bad2af029b5db6690141576587b5b92f86440dcda7f520ca3f8711bccbe15",
+          "e26bdad64bad3c334f96c024eac7bec8d6bee7352038670a80ca9cd6d7d66547",
+          "294d485c9aea0ba1e9cfa7ac8d5c9ccd7c224bdf1909ee7dfebc85345fd21cc6",
+          "633609322aceff68697e2faf51f5e0c1661253a16bd9c93fab59f14192428543",
+          "05465c57b0f7d6da145154593a0da2a6bb18a86443c008999a679016cb39c7c2",
+          "575ab88b6003ef68c584237dfd9d20f800e4ee0c8f7ab7d0ceb019a98d12dfa2",
+          "bfa5e9a3f61e7cb455588c6535806b8fdae0fa7dbcb7e9b8a42c791009734b1b"
+        ],
+        "evidence_digest": "b574bf05829b22045ad487f525233f8e83a79ecfcbf4415c1f340f030ad06a38"
+      }
+    },
+    "blackrock": {
+      "family": "workday",
+      "source_key": "workday:wd1:blackrock:BlackRock_Professional",
+      "status": "PASS",
+      "outcome": "active",
+      "activation_successes": 3,
+      "eligible_job_count": 37,
+      "natural_poll": true,
+      "timestamps": {
+        "activated_at": "2026-07-26T22:31:23.031Z",
+        "due_at": "2026-07-26T22:43:01.139Z",
+        "claimed_at": "2026-07-26T22:43:01.139Z",
+        "completed_at": "2026-07-26T22:43:30.046Z",
+        "feed_visible_at": "2026-07-26T22:43:30.046Z"
+      },
+      "start_state": "active",
+      "terminal_evidence_digest": "c1827f673f029eed2824901e3361bd9e54906efdf70eb863735be23e6b817b4d",
+      "probe": {
+        "schema_version": 1,
+        "family": "workday",
+        "company": "BlackRock",
+        "source_key": "workday:wd1:blackrock:BlackRock_Professional",
+        "completeness": "complete",
+        "credible_for_closure": true,
+        "allow_missing_closure": false,
+        "selective_recent_days": 7,
+        "selective_title_keywords": [],
+        "selective_facet_digest": null,
+        "job_count": 37,
+        "expected_count": 37,
+        "page_count": 14,
+        "warning_codes": [],
+        "request_count": 101,
+        "elapsed_ms": 29070,
+        "aggregate_scope_digest": null,
+        "eligible_job_digests": [
+          "488a17bbaf85a61e7a425de1cc3c05e2ebc6cdd8fe5ddefe5c3327f25845d4e1",
+          "12cdc51c78f85dbe82ba41fb33c17ef304d3ce4a7cfe5a613925e4869fc29d99",
+          "603746fd658f5a01ae5404d8e89b13502e7a633c4d4795ccb75d3d0974dc4ad4",
+          "b4fd6aa47013bbf1c46c092080d30b15e87250395a9b64aac2cf13ca18c1f9bf",
+          "ccb959b165dc26e2ae9974c08b9859c30e00ec651a5f0e58892b60e7603f05b0",
+          "ef2808d2100cb0177de2912c4216f02023d8e6e733dca1354574f308d8670d40",
+          "fa1a3a5ae2eb32c01898c8d989228e113cc4bba09370ed9b55ac846498a286e5",
+          "a6caf491b3e9f84a785191c42596a962f3ba8e3de499aa307aae701a362b9d91"
+        ],
+        "evidence_digest": "4178fb873f7f30be2f4fee2ae955cad1476fe078ebc78412c2b604d5b47b8216"
+      }
+    },
+    "barclays": {
+      "family": "workday",
+      "source_key": "workday:wd3:barclays:External_Career_Site_Barclays",
+      "status": "PASS",
+      "outcome": "active",
+      "activation_successes": 3,
+      "eligible_job_count": 15,
+      "natural_poll": true,
+      "timestamps": {
+        "activated_at": "2026-07-26T22:32:25.187Z",
+        "due_at": "2026-07-26T22:43:01.139Z",
+        "claimed_at": "2026-07-26T22:43:01.139Z",
+        "completed_at": "2026-07-26T22:44:07.406Z",
+        "feed_visible_at": "2026-07-26T22:44:07.406Z"
+      },
+      "start_state": "active",
+      "terminal_evidence_digest": "e43cc733b1bb9320e37e3d3b18eb42ad52ed1929bb6bc0b130635dcc774084c5",
+      "probe": {
+        "schema_version": 1,
+        "family": "workday",
+        "company": "Barclays",
+        "source_key": "workday:wd3:barclays:External_Career_Site_Barclays",
+        "completeness": "complete",
+        "credible_for_closure": true,
+        "allow_missing_closure": false,
+        "selective_recent_days": 7,
+        "selective_title_keywords": [],
+        "selective_facet_digest": "22f91952fc0805a60dd38c9e5020d64d9705011c8f205ac9ac8b56f36f7b081b",
+        "job_count": 15,
+        "expected_count": 15,
+        "page_count": 33,
+        "warning_codes": [],
+        "request_count": 150,
+        "elapsed_ms": 65255,
+        "aggregate_scope_digest": null,
+        "eligible_job_digests": [
+          "45afbd4b2d488c4c903a8dcf9654ffb6adcf3af75acd53ce3a52d6c2ae50913c",
+          "8aa2b5b7d9602b5f358ef984626c06ccd56fb55057a432aadb189ceb7f01a8a9",
+          "f27c179b5cf8f6374ca147317b031cc65f4e251ac8059f2cd75b655b2dc4a6a7",
+          "6d015d5fbe2e962941bbb4a5fa3c8078a9f754e83042162b1d1bff68e7147ffb",
+          "35da5b9257a5dfcd13f6fc6dea36d5380ca43aa27d9ab3ece39217b7137e10dd",
+          "579234d7cc38a5f5dcedeb2cccc41f2e5a4182287cb3bd25b4d31163b80f4af1",
+          "28c0b767e93f78149f5bef7cf4d2a7aeed31bb447e8b010f9a799ab88532de2e",
+          "80e3e7a609b1bee2767e35ab818e41d275d9785ba0ac710843b9fae901488aa8"
+        ],
+        "evidence_digest": "603fb575ff5099e093fddf86964d3b614e194b9003eff50af6e076c3d63af641"
+      }
+    }
+  },
+  "verifier": {
+    "before": {
+      "run_rows": 0,
+      "fixture_rows": 0,
+      "company_rows": 0,
+      "job_rows": 0,
+      "observation_rows": 0,
+      "authority_state": "consumed",
+      "begin_execute": false,
+      "exercise_execute": false,
+      "finish_execute": false,
+      "post_finish_denied": true
+    },
+    "after": {
+      "run_rows": 0,
+      "fixture_rows": 0,
+      "company_rows": 0,
+      "job_rows": 0,
+      "observation_rows": 0,
+      "authority_state": "consumed",
+      "begin_execute": false,
+      "exercise_execute": false,
+      "finish_execute": false,
+      "post_finish_denied": true
+    }
+  },
+  "cleanup": {
+    "status": "PASS",
+    "catalog_rows": 8,
+    "protected_rows": 2,
+    "terminal": {
+      "run_rows": 0,
+      "fixture_rows": 0,
+      "company_rows": 0,
+      "job_rows": 0,
+      "observation_rows": 0,
+      "authority_state": "consumed",
+      "begin_execute": false,
+      "exercise_execute": false,
+      "finish_execute": false,
+      "post_finish_denied": true
+    }
+  },
+  "manifest_file_sha256": "36c9ad2549f11a612b3f6622af2b7f97ea7d6d31c096b2188155be82b8dd07e1"
+}

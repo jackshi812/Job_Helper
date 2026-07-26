@@ -27,6 +27,7 @@ const SHA256 = /^[0-9a-f]{64}$/
 const COMMIT = /^[0-9a-f]{40}$/
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const FAMILY_CEILING_MS = 20 * 60_000
+const ACTIVE_LATENCY_MS = 15 * 60_000
 const EXPECTED_MIGRATIONS = Array.from(
   { length: 43 },
   (_, index) => String(index + 1).padStart(4, '0'),
@@ -245,6 +246,65 @@ function freshDigest({ manifest, family, start, probe, nonce }) {
   }))
 }
 
+function timestampMs(value, label) {
+  const milliseconds = Date.parse(value ?? '')
+  requireCondition(Number.isFinite(milliseconds), `${label} is invalid`)
+  return milliseconds
+}
+
+async function awaitSelectiveActive({
+  family,
+  ops,
+  deadline,
+  now,
+  wait,
+}) {
+  while (now() <= deadline) {
+    const state = await ops.familyState(family)
+    if (state.activation_state === 'active'
+      && state.activation_successes === 3
+      && state.observation_count === 3
+      && state.window_count === 3
+      && state.eligible_job_count > 0
+      && state.consecutive_failures === 0
+      && state.last_error_code === null
+      && state.activated_at
+      && state.last_polled_at
+      && state.last_success_at
+      && state.feed_visible_at) {
+      const activatedAt = timestampMs(state.activated_at, 'activated_at')
+      const claimedAt = timestampMs(state.last_polled_at, 'claimed_at')
+      const completedAt = timestampMs(state.last_success_at, 'completed_at')
+      const feedVisibleAt = timestampMs(state.feed_visible_at, 'feed_visible_at')
+      requireCondition(activatedAt <= claimedAt
+        && claimedAt <= completedAt
+        && completedAt <= feedVisibleAt
+        && completedAt - claimedAt <= ACTIVE_LATENCY_MS,
+      `${family.company} successful retry timestamp chain is invalid`)
+      return {
+        family: family.family,
+        source_key: family.sourceKey,
+        status: 'PASS',
+        outcome: 'active',
+        activation_successes: 3,
+        eligible_job_count: state.eligible_job_count,
+        natural_poll: true,
+        timestamps: {
+          activated_at: new Date(activatedAt).toISOString(),
+          // A recovery run may succeed after an earlier scheduled poll failed.
+          // The successful retry is due no later than its actual claim instant.
+          due_at: new Date(claimedAt).toISOString(),
+          claimed_at: new Date(claimedAt).toISOString(),
+          completed_at: new Date(completedAt).toISOString(),
+          feed_visible_at: new Date(feedVisibleAt).toISOString(),
+        },
+      }
+    }
+    await wait(Math.min(10_000, Math.max(1, deadline - now())))
+  }
+  throw new Error(`${family.company} finite monitoring ceiling expired`)
+}
+
 async function runFamily({
   manifest,
   family,
@@ -252,6 +312,7 @@ async function runFamily({
   probe,
   now,
   nonce,
+  wait,
 }) {
   const deadline = now() + FAMILY_CEILING_MS
   const start = await ops.inspectCandidateStart(family)
@@ -282,7 +343,13 @@ async function runFamily({
     requireCondition(finalized?.accepted === true,
       `${family.company} re-admission was rejected`)
   }
-  const terminal = await ops.awaitTerminalFamily({ family, deadline })
+  const terminal = await awaitSelectiveActive({
+    family,
+    ops,
+    deadline,
+    now,
+    wait,
+  })
   requireCondition(terminal?.status === 'PASS'
     && terminal.outcome === 'active'
     && terminal.activation_successes === 3
@@ -303,13 +370,24 @@ export async function executeSelectiveRollout({
   probe = directProbe,
   now = () => Date.now(),
   nonce = () => randomUUID(),
+  wait = (milliseconds) => new Promise((resolveDelay) => {
+    setTimeout(resolveDelay, milliseconds)
+  }),
 }) {
   validateManifest(manifest)
   const consumedBefore = requireConsumedVerifierState(
     await ops.assertConsumedVerifier(manifest),
   )
   const settled = await Promise.allSettled(FAMILY_ORDER.map(
-    (family) => runFamily({ manifest, family, ops, probe, now, nonce }),
+    (family) => runFamily({
+      manifest,
+      family,
+      ops,
+      probe,
+      now,
+      nonce,
+      wait,
+    }),
   ))
   const failures = settled.flatMap((result, index) => (
     result.status === 'rejected'

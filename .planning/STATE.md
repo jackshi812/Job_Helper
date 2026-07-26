@@ -5,10 +5,10 @@ milestone_name: milestone
 current_phase: 03.8
 current_phase_name: Monitor and poll the branded banking companies currently on watchlist
 status: complete
-stopped_at: Completed 03.8-07-PLAN.md
-last_updated: "2026-07-26T21:31:16.000Z"
+stopped_at: Completed Phase 03.8 selective Workday recovery
+last_updated: "2026-07-26T22:47:00.000Z"
 last_activity: 2026-07-26
-last_activity_desc: Completed Phase 03.8 Plan 07
+last_activity_desc: Completed Phase 03.8 selective Workday recovery
 progress:
   total_phases: 13
   completed_phases: 12
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 Phase: 03.8 (Monitor and poll the branded banking companies currently on watchlist) — COMPLETE
 Plan: 7 of 7
 Status: Complete
-Last activity: 2026-07-26 — Completed Phase 03.8 Plan 07
+Last activity: 2026-07-26 — Completed selective Workday production recovery
 
 Progress: [██████████] 100%
 
@@ -59,7 +59,7 @@ Progress: [██████████] 100%
 **Recent Trend:**
 
 - Last 3 plans: 15h39m, 18m, 40m
-- Trend: Phase 03.8 closed 7/7 plans with exact hosted evidence, zero-residue verifier cleanup, and owner-approved UAT
+- Trend: Phase 03.8 recovery activated all four requested Workday companies with 176 eligible jobs and zero verifier residue
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
@@ -280,6 +280,10 @@ Recent decisions affecting current work:
 - [Phase 03.8]: The immutable three-fixture verifier lifecycle remains separate from the four Workday rollout candidates.
 - [Phase 03.8]: Morgan Stanley and Bank of America terminalized Unsupported when complete pagination exceeded the approved bound; BlackRock and Barclays terminalized country_filter_unverified with zero operational rows.
 - [Phase 03.8]: The one-use verifier is consumed with zero residue and revoked grants; owner-approved signed-in Workday UAT closes the phase.
+- [Phase 03.8]: Selective Workday candidates enumerate the complete bounded listing population, hydrate only the last seven days, require exact-US detail proof, and never infer closure from selective absence.
+- [Phase 03.8]: Bank of America applies exact whole-word finance/analytics/data/research title selection; Barclays applies six exact provider-owned job-family IDs.
+- [Phase 03.8]: Migration 0044 permits only the four exact selective Workday scope-evidence shapes while retaining null evidence for established Workday sources and the branded digest contract.
+- [Phase 03.8]: Morgan Stanley, Bank of America, BlackRock, and Barclays are Active at 3/3 with healthy natural polls and 111/13/37/15 eligible jobs.
 
 ### Pending Todos
 
@@ -321,10 +325,11 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-26T21:31:16.000Z
-Stopped at: Completed 03.8-07-PLAN.md
+Last session: 2026-07-26T22:47:00.000Z
+Stopped at: Completed Phase 03.8 selective Workday recovery
 Resume file: None
-Last session (2026-07-26): Phase 03.8 completed 7/7 plans; all four new Workday candidates are precise Unsupported with zero authority, migrations/functions match the approved release, verifier cleanup is zero-residue, and owner UAT passed.
+Last session (2026-07-26): Phase 03.8 selective Workday recovery completed; all four requested companies are Active at 3/3 with successful natural polls, 176 exact-scope jobs, migration 0044 parity, protected sources intact, and zero verifier residue.
+Earlier Phase 03.8 closeout (superseded by the recovery above): all four new Workday candidates were precise Unsupported with zero authority; migrations/functions matched that approved release, verifier cleanup was zero-residue, and owner UAT passed.
 Last session (2026-07-25): Phase 03.7 passed local checks, exact-release byte verification, and 3/3 owner-approved signed-in UAT checks on release `baf81fcaa72443995f227b118d10eec90da25679`; no Phase 03.7 gaps remain.
 Last session (2026-07-25): Phase 03.6 passed 6/6 formal truths, 20/20 hosted checks, 30/30 security threats, 24/24 UI review checks, and 12/12 owner-approved UAT interactions on exact release `70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b`; no Phase 03.6 gaps remain.
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
