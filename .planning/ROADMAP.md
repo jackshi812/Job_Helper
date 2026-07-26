@@ -215,7 +215,7 @@ Plans:
 5. Capital One and Fidelity remain unchanged Active Workday regression sources and are neither re-onboarded nor required to produce a new Phase 03.8 natural poll.
 6. The exact migration/function release passes an explicit production approval and non-TTY schema-push gate, hosted parity/cleanup checks, and signed-in owner UAT of Watchlist state plus one eligible job per newly Active provider family.
 
-**Plans:** 1/7 plans executed
+**Plans:** 2/7 plans executed
 
 Plans:
 **Wave 1**
@@ -224,7 +224,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03.8-02-PLAN.md — Implement strict Eightfold, Oracle Recruiting, and Goldman Higher candidate adapters
+- [x] 03.8-02-PLAN.md — Implement strict Eightfold, Oracle Recruiting, and Goldman Higher candidate adapters
 
 **Wave 3** *(blocked on Wave 2 completion)*
 

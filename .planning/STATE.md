@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03.8
 current_phase_name: Monitor and poll the branded banking companies currently on watchlist
 status: executing
-stopped_at: Completed 03.8-01-PLAN.md
-last_updated: "2026-07-26T01:55:27.061Z"
+stopped_at: Completed 03.8-02-PLAN.md
+last_updated: "2026-07-26T02:15:00.000Z"
 last_activity: 2026-07-26
-last_activity_desc: Completed Phase 03.8 Plan 01
+last_activity_desc: Completed Phase 03.8 Plan 02
 progress:
   total_phases: 13
   completed_phases: 11
   total_plans: 73
-  completed_plans: 67
-  percent: 92
+  completed_plans: 68
+  percent: 93
 ---
 
 # Project State
@@ -29,19 +29,19 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 03.8 (Monitor and poll the branded banking companies currently on watchlist) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
-Last activity: 2026-07-26 — Completed Phase 03.8 Plan 01
+Last activity: 2026-07-26 — Completed Phase 03.8 Plan 02
 
-Progress: [█████████░] 92%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 67
-- Average duration: 45m
-- Total execution time: 635m
+- Total plans completed: 68
+- Average duration: 10m
+- Total execution time: 650m
 
 **By Phase:**
 
@@ -58,7 +58,7 @@ Progress: [█████████░] 92%
 
 **Recent Trend:**
 
-- Last 3 plans: 8m, 10m, 8m
+- Last 3 plans: 4m, 8m, 15m
 - Trend: Phase 3 closed 11/11 plans, 17/17 verification truths, 52/52 security threats, and 8/8 human UAT
 
 *Updated after each plan completion*
@@ -111,6 +111,7 @@ Progress: [█████████░] 92%
 | Phase 03.6 P04 | 13h36m elapsed | 3 tasks | 8 release/evidence files |
 | Phase 03.6 P05 | 4min | 3 tasks | 2 files |
 | Phase 03.8 P01 | 8min | 3 tasks | 7 files |
+| Phase 03.8 P02 | 15min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -256,6 +257,9 @@ Recent decisions affecting current work:
 - [Phase 03.8]: Use NFKC Unicode token matching with longest allowed phrase precedence. — Enforces whole-word and whole-phrase category semantics without substring, title, or description fallback.
 - [Phase 03.8]: Require branded normalized jobs to carry immutable source, category, matched-term, US, and SHA-256 provenance. — Makes durable eligibility evidence mandatory at the TypeScript boundary and binds it to the external job ID.
 - [Phase 03.8]: Reject a bounded run on the shared deadline while retaining settled indexed outcomes. — Stops new scheduling and aborts outstanding work without losing completed item evidence.
+- [Phase 03.8]: Authorize each branded adapter only through the exact frozen registry object; copied or altered identities perform zero fetches. — Prevents caller-controlled provider identity and SSRF authority.
+- [Phase 03.8]: Use the official comma-delimited Oracle finder variables after the finder-name semicolon. — The official Candidate Experience endpoint treats additional semicolons as part of SiteNumber.
+- [Phase 03.8]: Use Goldman GetRoleById for role details and require positive trusted provider category evidence. — GetRoleActionContent serves UI copy rather than role detail, and title or description inference is forbidden.
 
 ### Pending Todos
 
@@ -297,8 +301,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-26T01:55:27.051Z
-Stopped at: Completed 03.8-01-PLAN.md
+Last session: 2026-07-26T02:14:29.549Z
+Stopped at: Completed 03.8-02-PLAN.md
 Resume file: None
 Last session (2026-07-25): Phase 03.7 passed local checks, exact-release byte verification, and 3/3 owner-approved signed-in UAT checks on release `baf81fcaa72443995f227b118d10eec90da25679`; no Phase 03.7 gaps remain.
 Last session (2026-07-25): Phase 03.6 passed 6/6 formal truths, 20/20 hosted checks, 30/30 security threats, 24/24 UI review checks, and 12/12 owner-approved UAT interactions on exact release `70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b`; no Phase 03.6 gaps remain.
