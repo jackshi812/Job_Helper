@@ -3,6 +3,7 @@ import {
   ALLOWED_BRANDED_CATEGORY_TERMS,
   createBrandedScopeEvidence,
   findAllowedBrandedCategoryTerm,
+  findAllowedBrandedCategoryTermForSource,
   hasUnitedStatesDetailEvidence,
   matchesAllowedProviderCategory,
 } from '../../supabase/functions/_shared/adapters/scope'
@@ -93,24 +94,65 @@ describe('United States detail evidence', () => {
 })
 
 describe('durable branded scope evidence', () => {
+  it.each([
+    ['Finance', 'Finance'],
+    ['Data & Analytics', 'Data'],
+    ['Risk', 'Risk'],
+    ['Product/Investment Mgmt', 'Investment'],
+    ['Strategy & Development', 'Strategy'],
+    ['Program Analysts & Associate', 'Program Analysts'],
+  ])('maps exact JPMorgan family %s to %s', (label, matchedTerm) => {
+    expect(findAllowedBrandedCategoryTermForSource(
+      'oracle:jpmc:CX_1001',
+      label,
+    )).toBe(matchedTerm)
+  })
+
+  it.each([
+    'Credit Risk',
+    'Finance Strategy',
+    'Strategy',
+    'Program Analysts',
+    'Program Analysts & Associates',
+  ])('rejects non-exact JPMorgan provider family %s', (label) => {
+    expect(findAllowedBrandedCategoryTermForSource(
+      'oracle:jpmc:CX_1001',
+      label,
+    )).toBeNull()
+  })
+
+  it.each([
+    'Strategy & Development',
+    'Program Analysts & Associate',
+  ])('does not widen generic sibling provider evidence with %s', async (label) => {
+    expect(findAllowedBrandedCategoryTermForSource(
+      'eightfold:morganstanley',
+      label,
+    )).toBeNull()
+    expect(findAllowedBrandedCategoryTermForSource(
+      'goldman_higher:roles',
+      label,
+    )).toBeNull()
+  })
+
   it('creates bounded immutable provenance whose digest is bound to external ID', async () => {
     const evidence = await createBrandedScopeEvidence({
       sourceKey: 'oracle:jpmc:CX_1001',
       externalId: 'job-123',
-      providerCategoryLabel: '  Credit   Risk  ',
+      providerCategoryLabel: '  Data  & Analytics  ',
       detailCountryCode: 'US',
     })
     const otherExternalId = await createBrandedScopeEvidence({
       sourceKey: 'oracle:jpmc:CX_1001',
       externalId: 'job-124',
-      providerCategoryLabel: 'Credit Risk',
+      providerCategoryLabel: 'Data & Analytics',
       detailCountryCode: 'US',
     })
 
     expect(evidence).toEqual({
       sourceKey: 'oracle:jpmc:CX_1001',
-      providerCategoryLabel: 'credit risk',
-      matchedTerm: 'Risk',
+      providerCategoryLabel: 'data analytics',
+      matchedTerm: 'Data',
       detailCountryCode: 'US',
       externalIdDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
     })

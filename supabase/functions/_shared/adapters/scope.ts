@@ -16,6 +16,15 @@ export const ALLOWED_BRANDED_CATEGORY_TERMS = Object.freeze([
 export type AllowedBrandedCategoryTerm =
   typeof ALLOWED_BRANDED_CATEGORY_TERMS[number]
 
+const JPMC_PROVIDER_FAMILY_TERMS = Object.freeze({
+  finance: 'Finance',
+  'data analytics': 'Data',
+  risk: 'Risk',
+  'product investment mgmt': 'Investment',
+  'strategy development': 'Strategy',
+  'program analysts associate': 'Program Analysts',
+} as const satisfies Readonly<Record<string, BrandedJobScopeEvidence['matchedTerm']>>)
+
 const BRANDED_SOURCE_KEYS = new Set<BrandedJobSourceKey>([
   'eightfold:morganstanley',
   'oracle:jpmc:CX_1001',
@@ -78,6 +87,20 @@ export function findAllowedBrandedCategoryTerm(
   return null
 }
 
+export function findAllowedBrandedCategoryTermForSource(
+  sourceKey: string,
+  providerCategoryLabel: string | null | undefined,
+): BrandedJobScopeEvidence['matchedTerm'] | null {
+  if (typeof providerCategoryLabel !== 'string') return null
+  if (sourceKey !== 'oracle:jpmc:CX_1001') {
+    return findAllowedBrandedCategoryTerm(providerCategoryLabel)
+  }
+  const normalizedLabel = normalizedCategoryLabel(providerCategoryLabel)
+  return JPMC_PROVIDER_FAMILY_TERMS[
+    normalizedLabel as keyof typeof JPMC_PROVIDER_FAMILY_TERMS
+  ] ?? null
+}
+
 export function matchesAllowedProviderCategory(
   providerCategoryLabel: string | null | undefined,
 ): boolean {
@@ -120,7 +143,10 @@ export async function createBrandedScopeEvidence(
   )) {
     throw new Error('invalid_provider_category')
   }
-  const matchedTerm = findAllowedBrandedCategoryTerm(input.providerCategoryLabel)
+  const matchedTerm = findAllowedBrandedCategoryTermForSource(
+    input.sourceKey,
+    input.providerCategoryLabel,
+  )
   if (!matchedTerm) throw new Error('provider_category_ineligible')
   if (!hasUnitedStatesDetailEvidence(input.detailCountryCode)) {
     throw new Error('detail_country_ineligible')

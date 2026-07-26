@@ -57,7 +57,11 @@ export interface OracleRecruitingBrandedIdentity extends BrandedIdentityBase {
   readonly listPath: '/hcmRestApi/resources/latest/recruitingCEJobRequisitions'
   readonly detailPath: '/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails'
   readonly countryFacet: BrandedFacetIdentity
-  readonly categoryFacets: readonly BrandedFacetIdentity[]
+  readonly titleFacets: readonly BrandedFacetIdentity[]
+  readonly postingDateFacet: BrandedFacetIdentity & {
+    readonly recentDays: 7
+  }
+  readonly publicUrlAliases: readonly string[]
 }
 
 export interface GoldmanHigherBrandedIdentity extends BrandedIdentityBase {
@@ -113,15 +117,27 @@ const jpmorganChaseIdentity: OracleRecruitingBrandedIdentity = Object.freeze({
   sourceKey: ORACLE_JPMC_SOURCE_KEY,
   companyName: 'JPMorgan Chase',
   publicUrl:
-    'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions',
+    'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs',
   origin: 'https://jpmc.fa.oraclecloud.com',
   host: 'jpmc.fa.oraclecloud.com',
   siteNumber: 'CX_1001',
   listPath: '/hcmRestApi/resources/latest/recruitingCEJobRequisitions',
   detailPath: '/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails',
   countryFacet: facet('300000000289738', 'United States'),
-  categoryFacets: Object.freeze([
-    facet('300000086152757', 'Credit Risk'),
+  titleFacets: Object.freeze([
+    facet('FIN', 'Finance'),
+    facet('D&A', 'Data & Analytics'),
+    facet('RSK', 'Risk'),
+    facet('PIM', 'Product/Investment Mgmt'),
+    facet('S&D', 'Strategy & Development'),
+    facet('PAA', 'Program Analysts & Associate'),
+  ]),
+  postingDateFacet: Object.freeze({
+    ...facet('7', 'Less than 7 days'),
+    recentDays: 7 as const,
+  }),
+  publicUrlAliases: Object.freeze([
+    'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions',
   ]),
   transport: transportBounds(25),
 })
@@ -156,6 +172,10 @@ export function resolveBrandedIdentity(sourceKey: string): BrandedIdentity | nul
 export function resolveBrandedPublicUrl(publicUrl: string): BrandedIdentity | null {
   for (const identity of Object.values(BRANDED_IDENTITIES)) {
     if (identity.publicUrl === publicUrl) return identity
+    if (
+      identity.provider === 'oracle_recruiting'
+      && identity.publicUrlAliases.includes(publicUrl)
+    ) return identity
   }
   return null
 }

@@ -11,6 +11,8 @@ export type BrandedAllowedCategoryTerm =
   | 'Research'
   | 'Risk'
   | 'Capital Markets'
+  | 'Strategy'
+  | 'Program Analysts'
 
 export interface BrandedJobScopeEvidence {
   readonly sourceKey: BrandedJobSourceKey

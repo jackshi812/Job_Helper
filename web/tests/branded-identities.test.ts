@@ -43,10 +43,19 @@ describe('branded connector identities', () => {
         id: '300000000289738',
         expectedLabel: 'United States',
       },
-      categoryFacets: [{
-        id: '300000086152757',
-        expectedLabel: 'Credit Risk',
-      }],
+      titleFacets: [
+        { id: 'FIN', expectedLabel: 'Finance' },
+        { id: 'D&A', expectedLabel: 'Data & Analytics' },
+        { id: 'RSK', expectedLabel: 'Risk' },
+        { id: 'PIM', expectedLabel: 'Product/Investment Mgmt' },
+        { id: 'S&D', expectedLabel: 'Strategy & Development' },
+        { id: 'PAA', expectedLabel: 'Program Analysts & Associate' },
+      ],
+      postingDateFacet: {
+        id: '7',
+        expectedLabel: 'Less than 7 days',
+        recentDays: 7,
+      },
     })
     expect(resolveBrandedIdentity(GOLDMAN_HIGHER_SOURCE_KEY)).toMatchObject({
       provider: 'goldman_higher',
@@ -60,11 +69,21 @@ describe('branded connector identities', () => {
 
   it.each([
     ['https://www.morganstanley.com/careers/career-opportunities-search/', EIGHTFOLD_MORGAN_STANLEY_SOURCE_KEY],
-    ['https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions', ORACLE_JPMC_SOURCE_KEY],
+    ['https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs', ORACLE_JPMC_SOURCE_KEY],
     ['https://higher.gs.com/roles', GOLDMAN_HIGHER_SOURCE_KEY],
   ])('resolves only the exact reviewed public URL %s', (publicUrl, sourceKey) => {
     expect(resolveBrandedPublicUrl(publicUrl)?.sourceKey).toBe(sourceKey)
-    expect(resolveBrandedIdentity(sourceKey)?.publicUrl).toBe(publicUrl)
+    expect(resolveBrandedPublicUrl(publicUrl)?.sourceKey).toBe(sourceKey)
+  })
+
+  it('resolves the exact JPMorgan requisitions alias to the canonical frozen identity', () => {
+    const canonical = resolveBrandedIdentity(ORACLE_JPMC_SOURCE_KEY)
+    expect(resolveBrandedPublicUrl(
+      'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions',
+    )).toBe(canonical)
+    expect(canonical?.publicUrl).toBe(
+      'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs',
+    )
   })
 
   it.each([
@@ -77,6 +96,8 @@ describe('branded connector identities', () => {
     'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1002/requisitions',
     'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions/extra',
     'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions?q=risk',
+    'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs/',
+    'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs#finance',
     'https://higher.gs.com/roles/',
     'https://higher.gs.com/roles#technology',
     'https://api-higher.gs.com/gateway/api/v1/graphql',
@@ -115,8 +136,10 @@ describe('branded connector identities', () => {
       expect(Object.isFrozen(identity.transport)).toBe(true)
       if (identity.provider === 'oracle_recruiting') {
         expect(Object.isFrozen(identity.countryFacet)).toBe(true)
-        expect(Object.isFrozen(identity.categoryFacets)).toBe(true)
-        expect(identity.categoryFacets.every(Object.isFrozen)).toBe(true)
+        expect(Object.isFrozen(identity.titleFacets)).toBe(true)
+        expect(identity.titleFacets.every(Object.isFrozen)).toBe(true)
+        expect(Object.isFrozen(identity.postingDateFacet)).toBe(true)
+        expect(Object.isFrozen(identity.publicUrlAliases)).toBe(true)
       }
     }
   })
