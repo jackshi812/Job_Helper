@@ -1563,6 +1563,249 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
   })
 })
 
+const phase038WorkdayCandidates = [
+  {
+    companyName: 'Morgan Stanley',
+    tuple: ['ms', 'wd5', 'External', 'jobs'],
+    sourceKey: 'workday:wd5:ms:External',
+    origin: 'https://ms.wd5.myworkdayjobs.com',
+    cxsRoot: 'https://ms.wd5.myworkdayjobs.com/wday/cxs/ms/External',
+    publicBoard: 'https://ms.wd5.myworkdayjobs.com/en-US/External',
+    proof: 'countryFacet',
+  },
+  {
+    companyName: 'Bank of America',
+    tuple: ['ghr', 'wd1', 'Lateral-US', 'jobs'],
+    sourceKey: 'workday:wd1:ghr:Lateral-US',
+    origin: 'https://ghr.wd1.myworkdayjobs.com',
+    cxsRoot: 'https://ghr.wd1.myworkdayjobs.com/wday/cxs/ghr/Lateral-US',
+    publicBoard: 'https://ghr.wd1.myworkdayjobs.com/en-US/Lateral-US',
+    proof: 'wholeSite',
+  },
+  {
+    companyName: 'BlackRock',
+    tuple: ['blackrock', 'wd1', 'BlackRock_Professional', 'jobs'],
+    sourceKey: 'workday:wd1:blackrock:BlackRock_Professional',
+    origin: 'https://blackrock.wd1.myworkdayjobs.com',
+    cxsRoot: 'https://blackrock.wd1.myworkdayjobs.com/wday/cxs/blackrock/BlackRock_Professional',
+    publicBoard: 'https://blackrock.wd1.myworkdayjobs.com/en-US/BlackRock_Professional',
+    proof: 'unsupported',
+  },
+  {
+    companyName: 'Barclays',
+    tuple: ['barclays', 'wd3', 'External_Career_Site_Barclays', 'jobs'],
+    sourceKey: 'workday:wd3:barclays:External_Career_Site_Barclays',
+    origin: 'https://barclays.wd3.myworkdayjobs.com',
+    cxsRoot: 'https://barclays.wd3.myworkdayjobs.com/wday/cxs/barclays/External_Career_Site_Barclays',
+    publicBoard: 'https://barclays.wd3.myworkdayjobs.com/en-US/External_Career_Site_Barclays',
+    proof: 'unsupported',
+  },
+] as const
+
+function phase038Posting(sequence: number, company: string) {
+  return {
+    title: `${company} Analyst ${sequence}`,
+    externalPath: `/job/New-York/${company.replaceAll(' ', '-')}-Analyst-${sequence}_R38${String(sequence).padStart(4, '0')}-1`,
+    locationsText: 'New York, NY',
+    postedOn: 'Posted Today',
+  }
+}
+
+function phase038Detail(
+  posting: ReturnType<typeof phase038Posting>,
+  country: { descriptor?: string; alpha2Code?: string } | null = {
+    descriptor: UNITED_STATES_WORKDAY_DESCRIPTOR,
+    alpha2Code: 'US',
+  },
+) {
+  return {
+    jobPostingInfo: {
+      id: `opaque-${posting.externalPath}`,
+      jobReqId: posting.externalPath.match(/_(R\d+)/)?.[1],
+      title: posting.title,
+      jobDescription: '<p>Authoritative Workday detail.</p>',
+      location: posting.locationsText,
+      postedOn: posting.postedOn,
+      startDate: new Date().toISOString().slice(0, 10),
+      jobRequisitionLocation: country === null ? {} : { country },
+    },
+  }
+}
+
+describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
+  it('adds exactly four frozen candidates without changing the six existing identities', () => {
+    expect(Object.keys(WORKDAY_IDENTITIES)).toHaveLength(10)
+    for (const expected of phase038WorkdayCandidates) {
+      const identity = resolveWorkdayIdentity(...expected.tuple)
+      expect(identity).toMatchObject({
+        companyName: expected.companyName,
+        sourceKey: expected.sourceKey,
+        origin: expected.origin,
+        cxsRoot: expected.cxsRoot,
+        publicBoard: expected.publicBoard,
+        tenant: expected.tuple[0],
+        region: expected.tuple[1],
+        site: expected.tuple[2],
+        hostForm: expected.tuple[3],
+      })
+      expect(Object.isFrozen(identity)).toBe(true)
+    }
+    expect(resolveWorkdayIdentity('capitalone', 'wd12', 'Capital_One', 'jobs'))
+      .toBe(WORKDAY_IDENTITIES['workday:wd12:capitalone:Capital_One'])
+    expect(resolveWorkdayIdentity('fmr', 'wd1', 'FidelityCareers', 'site'))
+      .toBe(WORKDAY_IDENTITIES['workday:wd1:fmr:FidelityCareers'])
+  })
+
+  it('rejects every one-field candidate tuple mutation before fetch', async () => {
+    for (const expected of phase038WorkdayCandidates) {
+      const [tenant, region, site, hostForm] = expected.tuple
+      for (const tuple of [
+        [`${tenant}-lookalike`, region, site, hostForm],
+        [tenant, `${region}0`, site, hostForm],
+        [tenant, region, `${site}-lookalike`, hostForm],
+        [tenant, region, site, 'site'],
+        [tenant.toUpperCase(), region, site, hostForm],
+      ] as const) {
+        expect(resolveWorkdayIdentity(...tuple)).toBeNull()
+        const providerFetch = vi.fn()
+        await expect(verifyConnector({
+          ats: 'workday',
+          slug: tuple[0],
+          region: tuple[1],
+          site: tuple[2],
+          hostForm: tuple[3],
+        } as SupportedDetection, providerFetch)).rejects.toThrow('invalid_identity')
+        expect(providerFetch).not.toHaveBeenCalled()
+      }
+    }
+  })
+
+  it('requires Morgan Stanley exact facet reconciliation plus U.S. detail proof', async () => {
+    const expected = phase038WorkdayCandidates[0]
+    const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
+    const posting = phase038Posting(1, expected.companyName)
+    const bodies: Array<Record<string, string[]>> = []
+    const providerFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url !== `${expected.cxsRoot}/jobs`) {
+        expect(url.endsWith(posting.externalPath)).toBe(true)
+        return Promise.resolve(jsonResponse(phase038Detail(posting)))
+      }
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: Record<string, string[]>
+      }
+      bodies.push(body.appliedFacets)
+      return Promise.resolve(body.appliedFacets.Location_Country === undefined
+        ? jsonResponse({
+            total: 2,
+            jobPostings: [],
+            facets: countryFacets(['Location_Country'], 1),
+          })
+        : jsonResponse({ total: 1, jobPostings: [posting] }))
+    })
+
+    await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure: true,
+      expectedCount: 1,
+      jobs: [{ externalId: 'R380001', companyName: 'Morgan Stanley' }],
+      warnings: [],
+    })
+    expect(bodies).toEqual([
+      {},
+      { Location_Country: [UNITED_STATES_WORKDAY_FACET_ID] },
+    ])
+    expect(providerFetch).toHaveBeenCalledTimes(3)
+
+    const foreignFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      if (String(input) !== `${expected.cxsRoot}/jobs`) {
+        return Promise.resolve(jsonResponse(phase038Detail(posting, {
+          descriptor: 'Canada',
+          alpha2Code: 'CA',
+        })))
+      }
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: Record<string, string[]>
+      }
+      return Promise.resolve(body.appliedFacets.Location_Country === undefined
+        ? jsonResponse({
+            total: 2,
+            jobPostings: [],
+            facets: countryFacets(['Location_Country'], 1),
+          })
+        : jsonResponse({ total: 1, jobPostings: [posting] }))
+    })
+    await expect(pollWorkdayRecent(identity, foreignFetch)).resolves.toMatchObject({
+      credibleForClosure: false,
+      allowMissingClosure: false,
+      jobs: [],
+      warnings: ['foreign_detail_detected'],
+    })
+  })
+
+  it('authorizes Bank of America only from complete all-detail exact U.S. proof', async () => {
+    const expected = phase038WorkdayCandidates[1]
+    const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
+    const postings = [
+      phase038Posting(2, expected.companyName),
+      phase038Posting(3, expected.companyName),
+    ]
+    const providerFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url === `${expected.cxsRoot}/jobs`) {
+        expect(JSON.parse(String(init?.body))).toMatchObject({ appliedFacets: {} })
+        return Promise.resolve(jsonResponse({ total: 2, jobPostings: postings }))
+      }
+      const posting = postings.find((candidate) => url.endsWith(candidate.externalPath))
+      if (!posting) throw new Error(`unexpected detail: ${url}`)
+      return Promise.resolve(jsonResponse(phase038Detail(posting)))
+    })
+    await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure: true,
+      expectedCount: 2,
+      jobs: [
+        { externalId: 'R380002', companyName: 'Bank of America' },
+        { externalId: 'R380003', companyName: 'Bank of America' },
+      ],
+      warnings: [],
+    })
+    expect(providerFetch).toHaveBeenCalledTimes(3)
+
+    const missingCountryFetch = vi.fn((input: string | URL | Request) => {
+      const url = String(input)
+      if (url === `${expected.cxsRoot}/jobs`) {
+        return Promise.resolve(jsonResponse({ total: 1, jobPostings: [postings[0]] }))
+      }
+      return Promise.resolve(jsonResponse(phase038Detail(postings[0], null)))
+    })
+    await expect(pollWorkdayRecent(identity, missingCountryFetch)).resolves.toMatchObject({
+      credibleForClosure: false,
+      allowMissingClosure: false,
+      jobs: [],
+      warnings: ['whole_site_us_scope_unproven'],
+    })
+  })
+
+  it.each(phase038WorkdayCandidates.slice(2))(
+    'keeps $companyName closure-ineligible and performs zero fetches without country authority',
+    async (expected) => {
+      const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
+      const providerFetch = vi.fn()
+      await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
+        completeness: 'unknown',
+        credibleForClosure: false,
+        allowMissingClosure: false,
+        jobs: [],
+        warnings: ['country_filter_unverified'],
+      })
+      expect(providerFetch).not.toHaveBeenCalled()
+    },
+  )
+})
+
 describe('Fidelity category-scoped recent import', () => {
   const nowMs = Date.parse('2026-07-20T12:00:00.000Z')
   const fidelityIdentity = resolveWorkdayIdentity('fmr', 'wd1', 'FidelityCareers', 'site') as WorkdayIdentity
