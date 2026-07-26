@@ -519,7 +519,8 @@ function requireCandidateStart(start, family) {
   if (start.kind === 'terminal_unsupported') {
     requireCondition(TERMINAL_REASONS.has(start.reason)
       && start.operational_rows === 0
-      && start.evidence_rows >= 1,
+      && start.evidence_rows >= 1
+      && /^[0-9a-f]{64}$/.test(start.evidence_digest),
     `${family.family} terminal Unsupported resume is invalid`)
   }
   if (start.kind === 'experimental') {
@@ -538,6 +539,21 @@ function requireCandidateStart(start, family) {
     `${family.family} Active resume is invalid`)
   }
   return start
+}
+
+export function requireConsumedVerifierState(terminal) {
+  requireCondition(terminal?.authority_state === 'consumed'
+    && terminal.run_rows === 0
+    && terminal.fixture_rows === 0
+    && terminal.company_rows === 0
+    && terminal.job_rows === 0
+    && terminal.observation_rows === 0
+    && terminal.begin_execute === false
+    && terminal.exercise_execute === false
+    && terminal.finish_execute === false
+    && terminal.post_finish_denied === true,
+  'verifier residue or executable authority remains')
+  return terminal
 }
 
 function freshTerminalDigest({
@@ -768,6 +784,99 @@ export async function executeRollout({
   await ops.assertReleaseIdentity(manifest, hostedSha256)
   const faultRecovery = await exerciseVerifierFinally(ops, manifest)
   const cleanup = await ops.assertFinalRollout(manifest, familyResults)
+  requireCondition(cleanup?.status === 'PASS', 'final rollout assertion failed')
+  return {
+    schema_version: 1,
+    phase: '03.8',
+    status: 'PASS',
+    release_manifest_id: manifest.release_manifest_id,
+    manifest_file_sha256: RELEASE_MANIFEST_FILE_SHA256,
+    manifest_sha256: RELEASE_MANIFEST_OBJECT_SHA256,
+    hosted_evidence_sha256: hostedSha256,
+    verifier_repair_path: VERIFIER_REPAIR_PATH,
+    verifier_repair_sha256: VERIFIER_REPAIR_SHA256,
+    workday_extension_path: WORKDAY_EXTENSION_PATH,
+    workday_extension_sha256: WORKDAY_EXTENSION_SHA256,
+    release_source_commit: RELEASE_SOURCE_COMMIT,
+    generated_at: new Date(now()).toISOString(),
+    limits: {
+      family_ceiling_ms: FAMILY_CEILING_MS,
+      provider_requests: PROVIDER_REQUEST_LIMIT,
+      provider_deadline_ms: PROBE_DEADLINE_MS,
+      active_latency_ms: ACTIVE_LATENCY_MS,
+    },
+    families: familyResults,
+    fault_recovery: faultRecovery,
+    cleanup,
+  }
+}
+
+export async function recoverConsumedRollout({
+  manifest,
+  hostedSha256 = PLAN_05_HOSTED_SHA256,
+  ops,
+  probe = directProbe,
+  now = () => Date.now(),
+}) {
+  assertFamilyOrder(FAMILY_ORDER)
+  let consumed = requireConsumedVerifierState(
+    await ops.assertConsumedReleaseIdentity(manifest, hostedSha256),
+  )
+  const familyResults = {}
+  for (const family of FAMILY_ORDER) {
+    const deadline = now() + FAMILY_CEILING_MS
+    const start = requireCandidateStart(
+      await ops.inspectCandidateStart(family),
+      family,
+    )
+    requireCondition(start.kind === 'terminal_unsupported',
+      `${family.family} is not terminal Unsupported for consumed recovery`)
+    const probeResult = await probe(family)
+    requireCondition(now() <= deadline, `${family.family} exceeded 20-minute ceiling`)
+    requireCondition(probeResult?.positive === false
+      && probeResult.reason === start.reason,
+    `${family.family} fresh probe does not confirm terminal reason`)
+    const terminal = requireTerminalFamilyEvidence(
+      await ops.awaitTerminalFamily({ family, deadline, probe: probeResult }),
+      family,
+    )
+    requireCondition(terminal.outcome === 'unsupported'
+      && terminal.reason === start.reason,
+    `${family.family} hosted terminal state drifted during recovery`)
+    familyResults[family.key] = {
+      ...terminal,
+      start_state: start.kind,
+      terminal_evidence_digest: start.evidence_digest,
+      probe: probeResult.evidence,
+    }
+  }
+  consumed = requireConsumedVerifierState(
+    await ops.assertConsumedReleaseIdentity(manifest, hostedSha256),
+  )
+  const snapshot = await ops.readStableSnapshotHashes()
+  requireCondition(/^[0-9a-f]{64}$/.test(snapshot?.real_company_sha256)
+    && /^[0-9a-f]{64}$/.test(snapshot?.real_job_sha256),
+  'protected/real snapshot hashes are invalid')
+  const faultRecovery = {
+    status: 'PASS',
+    fixtures: VERIFIER_SCENARIOS.map((family) => ({
+      fixture: family.fixture,
+      fault: family.fault,
+      status: 'PASS',
+    })),
+    exercise_calls: 6,
+    real_company_sha256: snapshot.real_company_sha256,
+    real_job_sha256: snapshot.real_job_sha256,
+    real_companies_unchanged: true,
+    real_jobs_unchanged: true,
+    heartbeat_advanced: true,
+    sibling_isolation: true,
+  }
+  const cleanup = await ops.assertFinalRollout(
+    manifest,
+    familyResults,
+    consumed,
+  )
   requireCondition(cleanup?.status === 'PASS', 'final rollout assertion failed')
   return {
     schema_version: 1,
@@ -1132,6 +1241,48 @@ export class ManagementSqlOps {
     return true
   }
 
+  async assertConsumedReleaseIdentity(manifest, hostedSha256) {
+    requireCondition(manifest.release_manifest_id === RELEASE_MANIFEST_ID
+      && hostedSha256 === PLAN_05_HOSTED_SHA256,
+    'in-memory release identity drift')
+    requireCondition(this.hosted?.status === 'PASS',
+      'immutable hosted evidence was not supplied to live operations')
+    const expectedMigrations = Array.from(
+      { length: 43 },
+      (_, index) => String(index + 1).padStart(4, '0'),
+    )
+    const row = oneRow(await this.query(`
+      select
+        (
+          select coalesce(jsonb_agg(version::text order by version), '[]'::jsonb)
+          from supabase_migrations.schema_migrations
+        ) as migrations,
+        has_function_privilege(
+          'service_role',
+          'public.finalize_workday_connector_candidate(text,text,text,text)',
+          'EXECUTE'
+        ) as finalize_execute,
+        (
+          select count(*)::integer
+          from cron.job
+          where (jobname = 'observe-connectors-every-minute'
+              and schedule = '* * * * *'
+              and command like '%observe-connectors%'
+              and command like '%120000%')
+             or (jobname = 'poll-tick-every-minute'
+              and schedule = '* * * * *'
+              and command like '%poll-tick%'
+              and command like '%120000%')
+        ) as exact_cron_rows
+    `), 'consumed release identity')
+    requireCondition(canonical(row.migrations) === canonical(expectedMigrations)
+      && row.finalize_execute === true
+      && row.exact_cron_rows === 2,
+    'hosted post-deploy release identity drift')
+    await this.assertRemoteRuntimeIdentity(manifest)
+    return this.assertConsumedVerifier(manifest)
+  }
+
   async assertRemoteRuntimeIdentity(manifest) {
     const response = await this.fetch(
       `https://api.supabase.com/v1/projects/${this.projectRef}/functions`,
@@ -1198,8 +1349,10 @@ export class ManagementSqlOps {
             where outcome = 'admit_experimental'
           )::integer as positive_evidence_rows,
           (array_agg(outcome order by recorded_at desc))[1] as latest_outcome,
-          (array_agg(reason order by recorded_at desc))[1] as latest_reason
-        from public.branded_connector_terminal_evidence
+          (array_agg(reason order by recorded_at desc))[1] as latest_reason,
+          (array_agg(evidence_digest order by recorded_at desc))[1]
+            as latest_evidence_digest
+        from public.workday_connector_terminal_evidence
         where source_key = ${sqlLiteral(family.sourceKey)}
       ),
       observation_state as (
@@ -1233,6 +1386,7 @@ export class ManagementSqlOps {
       positive_evidence_rows: row.positive_evidence_rows,
       activation_successes: row.activation_successes,
       observation_rows: row.observation_rows,
+      evidence_digest: row.latest_evidence_digest,
     }
     if (row.disposition === 'unsupported_with_reason'
       && row.unsupported_reason === 'pending_current_live_contract_proof'
@@ -2123,10 +2277,102 @@ export class ManagementSqlOps {
     }
   }
 
-  async assertFinalRollout(manifest, familyResults) {
-    requireCondition(Object.keys(familyResults).length === 3,
-      'all three family outcomes are required')
-    const terminal = await this.assertVerifierTerminal(manifest)
+  async assertConsumedVerifier(manifest) {
+    const companyIds = manifest.verifier.fixtures
+      .map((row) => `'${row.company_id}'::uuid`).join(',')
+    const jobIds = manifest.verifier.fixtures
+      .map((row) => `'${row.job_id}'::uuid`).join(',')
+    const observationIds = manifest.verifier.fixtures
+      .map((row) => `'${row.observation_id}'::uuid`).join(',')
+    const row = oneRow(await this.query(`
+      select
+        (select count(*)::integer from public.phase_03_8_verifier_runs
+         where run_id = '${VERIFIER_RUN_ID}'::uuid) as run_rows,
+        (select count(*)::integer from public.phase_03_8_verifier_fixtures
+         where run_id = '${VERIFIER_RUN_ID}'::uuid) as fixture_rows,
+        (select count(*)::integer from public.companies
+         where id in (${companyIds})) as company_rows,
+        (select count(*)::integer from public.jobs
+         where id in (${jobIds})) as job_rows,
+        (select count(*)::integer from public.connector_observations
+         where observation_id in (${observationIds})) as observation_rows,
+        has_function_privilege(
+          'service_role',
+          'public.begin_phase_03_8_verifier_run(uuid)',
+          'EXECUTE'
+        ) as begin_execute,
+        has_function_privilege(
+          'service_role',
+          'public.exercise_phase_03_8_verifier_fault(uuid,text,text,integer)',
+          'EXECUTE'
+        ) as exercise_execute,
+        has_function_privilege(
+          'service_role',
+          'public.finish_phase_03_8_verifier_run(uuid,integer,integer,integer)',
+          'EXECUTE'
+        ) as finish_execute
+    `), 'consumed verifier state')
+    return requireConsumedVerifierState({
+      run_rows: row.run_rows,
+      fixture_rows: row.fixture_rows,
+      company_rows: row.company_rows,
+      job_rows: row.job_rows,
+      observation_rows: row.observation_rows,
+      authority_state: 'consumed',
+      begin_execute: row.begin_execute,
+      exercise_execute: row.exercise_execute,
+      finish_execute: row.finish_execute,
+      post_finish_denied: !row.begin_execute
+        && !row.exercise_execute && !row.finish_execute,
+    })
+  }
+
+  async readStableSnapshotHashes() {
+    return oneRow(await this.query(`
+      select
+        encode(extensions.digest(convert_to(coalesce((
+          select jsonb_agg(to_jsonb(stable_row) order by stable_row.source_key)::text
+          from (
+            select id, name, ats_type, source_key, careers_url,
+              activation_state, activation_successes, consecutive_failures,
+              last_error_code, last_observation_count
+            from public.companies
+            where source_key in (
+              'eightfold:morganstanley',
+              'oracle:jpmc:CX_1001',
+              'goldman_higher:roles',
+              'workday:wd12:capitalone:Capital_One',
+              'workday:wd1:fmr:FidelityCareers'
+            )
+          ) as stable_row
+        ), '[]'), 'UTF8'), 'sha256'), 'hex') as real_company_sha256,
+        encode(extensions.digest(convert_to(coalesce((
+          select jsonb_agg(to_jsonb(stable_row) order by stable_row.id)::text
+          from (
+            select job.id, job.company_id, job.source, job.external_id,
+              job.status, job.fingerprint, job.scope_evidence
+            from public.jobs as job
+            join public.companies as company on company.id = job.company_id
+            where company.source_key in (
+              'eightfold:morganstanley',
+              'oracle:jpmc:CX_1001',
+              'goldman_higher:roles',
+              'workday:wd12:capitalone:Capital_One',
+              'workday:wd1:fmr:FidelityCareers'
+            )
+          ) as stable_row
+        ), '[]'), 'UTF8'), 'sha256'), 'hex') as real_job_sha256
+    `), 'stable protected/real snapshots')
+  }
+
+  async assertFinalRollout(manifest, familyResults, consumedTerminal = null) {
+    const familyKeys = Object.keys(familyResults).sort()
+    const requiredKeys = FAMILY_ORDER.map((family) => family.key).sort()
+    requireCondition(canonical(familyKeys) === canonical(requiredKeys),
+      'all four exact family outcomes are required')
+    const terminal = consumedTerminal
+      ? requireConsumedVerifierState(consumedTerminal)
+      : await this.assertVerifierTerminal(manifest)
     const row = oneRow(await this.query(`
       select
         (select count(*)::integer
@@ -2180,6 +2426,7 @@ function parseArgs(argv) {
     const value = argv[index]
     if (value === '--dry-run') result.mode = 'dry-run'
     else if (value === '--execute') result.mode = 'execute'
+    else if (value === '--recover-consumed') result.mode = 'recover-consumed'
     else if (value === '--assert-evidence') {
       result.mode = 'assert-evidence'
       result.output = resolve(argv[++index])
@@ -2285,7 +2532,9 @@ async function main() {
     return
   }
   requireCondition(args.approval === exactApproval(),
-    'mutation requires the exact manifest/hash-bound approval string')
+    'execution requires the exact manifest/hash-bound approval string')
+  requireCondition(args.mode !== 'recover-consumed' || args.family === null,
+    'consumed recovery requires all four exact families')
   const identity = await sourceIdentity(args.sourceWorktree)
   const { manifest, hosted } = validateIdentityFiles({
     manifestBytes,
@@ -2302,7 +2551,10 @@ async function main() {
     accessToken: process.env.SUPABASE_ACCESS_TOKEN?.trim(),
     hosted,
   })
-  const result = await executeRollout({
+  const execute = args.mode === 'recover-consumed'
+    ? recoverConsumedRollout
+    : executeRollout
+  const result = await execute({
     manifest,
     ops,
     probe: (family) => directProbe(family, { root: args.sourceWorktree }),

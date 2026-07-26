@@ -38,7 +38,9 @@ import {
   executeRollout,
   exerciseVerifierFinally,
   mapUnsupportedReason,
+  recoverConsumedRollout,
   registerTypeScriptTranspileHook,
+  requireConsumedVerifierState,
   sanitizeProbeEvidence,
   sha256,
   validateIdentityFiles,
@@ -90,6 +92,18 @@ function completeObservation(family) {
       countryDigest: 'd'.repeat(64),
     },
   }
+}
+
+function negativeProbe(family, reason) {
+  return classifyProbe(family, {
+    completeness: 'unknown',
+    credibleForClosure: false,
+    allowMissingClosure: false,
+    jobs: [],
+    pageCount: 1,
+    expectedCount: 0,
+    warnings: [reason],
+  }, 1, 25)
 }
 
 test('identity gates bind the literal manifest, canonical object, hosted PASS, and source commit',
@@ -848,6 +862,204 @@ test('family error does not consume one-use verifier authority', async () => {
   assert.equal(verification.calls.length, 0)
 })
 
+function consumedTerminal(overrides = {}) {
+  return {
+    run_rows: 0,
+    fixture_rows: 0,
+    company_rows: 0,
+    job_rows: 0,
+    observation_rows: 0,
+    authority_state: 'consumed',
+    begin_execute: false,
+    exercise_execute: false,
+    finish_execute: false,
+    post_finish_denied: true,
+    ...overrides,
+  }
+}
+
+function consumedRecoveryOps({ startOverride, terminalOverride } = {}) {
+  const events = []
+  const reasons = {
+    morgan_stanley: 'pagination_incomplete',
+    bank_of_america: 'pagination_incomplete',
+    blackrock: 'country_filter_unverified',
+    barclays: 'country_filter_unverified',
+  }
+  return {
+    events,
+    reasons,
+    async assertConsumedReleaseIdentity() {
+      events.push('consumed-identity')
+      return consumedTerminal(terminalOverride)
+    },
+    async inspectCandidateStart(family) {
+      events.push(`start:${family.key}`)
+      if (startOverride) return startOverride(family, reasons[family.key])
+      return {
+        family: family.family,
+        source_key: family.sourceKey,
+        kind: 'terminal_unsupported',
+        reason: reasons[family.key],
+        operational_rows: 0,
+        evidence_rows: 1,
+        evidence_digest: sha256(family.sourceKey),
+      }
+    },
+    async awaitTerminalFamily({ family }) {
+      events.push(`terminal:${family.key}`)
+      return {
+        family: family.family,
+        source_key: family.sourceKey,
+        status: 'PASS',
+        outcome: 'unsupported',
+        reason: reasons[family.key],
+        scheduled: false,
+        monitored: false,
+        operational_rows: 0,
+      }
+    },
+    async readStableSnapshotHashes() {
+      events.push('snapshots')
+      return {
+        real_company_sha256: '1'.repeat(64),
+        real_job_sha256: '2'.repeat(64),
+      }
+    },
+    async assertFinalRollout(_manifest, families, terminal) {
+      events.push('final')
+      assert.deepEqual(Object.keys(families), FAMILY_ORDER.map(({ key }) => key))
+      requireConsumedVerifierState(terminal)
+      return {
+        status: 'PASS',
+        catalog_rows: 8,
+        protected_rows: 2,
+        terminal,
+      }
+    },
+    async finalizeCandidate() {
+      throw new Error('recovery invoked finalizer')
+    },
+    async runVerifierTransaction() {
+      throw new Error('recovery invoked verifier transaction')
+    },
+    async beginVerifier() {
+      throw new Error('recovery invoked verifier begin')
+    },
+    async exerciseVerifier() {
+      throw new Error('recovery invoked verifier exercise')
+    },
+    async finishVerifier() {
+      throw new Error('recovery invoked verifier finish')
+    },
+    async assertVerifierTerminal() {
+      throw new Error('recovery invoked active verifier assertion')
+    },
+  }
+}
+
+test('consumed recovery proves all four terminals without finalize or verifier calls',
+  async () => {
+    const ops = consumedRecoveryOps()
+    const result = await recoverConsumedRollout({
+      manifest: {
+        release_manifest_id: '03850000-0000-4000-8000-000000000006',
+      },
+      ops,
+      probe: async (family) => {
+        ops.events.push(`probe:${family.key}`)
+        return negativeProbe(family, ops.reasons[family.key])
+      },
+    })
+    assert.equal(result.status, 'PASS')
+    assert.equal(Object.keys(result.families).length, FAMILY_ORDER.length)
+    assert.deepEqual(
+      FAMILY_ORDER.map(({ key }) => result.families[key].terminal_evidence_digest),
+      FAMILY_ORDER.map(({ sourceKey }) => sha256(sourceKey)),
+    )
+    assert.equal(result.fault_recovery.exercise_calls, 6)
+    assert.equal(ops.events.filter((event) => event === 'consumed-identity').length, 2)
+    assert.equal(assertRolloutEvidence(result, {
+      release_manifest_id: '03850000-0000-4000-8000-000000000006',
+    }).status, 'PASS')
+  })
+
+test('consumed recovery rejects a missing family terminal and evidence digest',
+  async () => {
+    const nonterminal = consumedRecoveryOps({
+      startOverride(family, reason) {
+        if (family.key === 'barclays') {
+          return {
+            family: family.family,
+            source_key: family.sourceKey,
+            kind: 'pending',
+          }
+        }
+        return {
+          family: family.family,
+          source_key: family.sourceKey,
+          kind: 'terminal_unsupported',
+          reason,
+          operational_rows: 0,
+          evidence_rows: 1,
+          evidence_digest: sha256(family.sourceKey),
+        }
+      },
+    })
+    await assert.rejects(recoverConsumedRollout({
+      manifest: {
+        release_manifest_id: '03850000-0000-4000-8000-000000000006',
+      },
+      ops: nonterminal,
+      probe: async (family) => negativeProbe(
+        family,
+        nonterminal.reasons[family.key],
+      ),
+    }), /not terminal Unsupported/)
+
+    const missingDigest = consumedRecoveryOps({
+      startOverride(family, reason) {
+        return {
+          family: family.family,
+          source_key: family.sourceKey,
+          kind: 'terminal_unsupported',
+          reason,
+          operational_rows: 0,
+          evidence_rows: 1,
+        }
+      },
+    })
+    await assert.rejects(recoverConsumedRollout({
+      manifest: {
+        release_manifest_id: '03850000-0000-4000-8000-000000000006',
+      },
+      ops: missingDigest,
+      probe: async (family) => negativeProbe(
+        family,
+        missingDigest.reasons[family.key],
+      ),
+    }), /terminal Unsupported resume is invalid/)
+  })
+
+test('consumed recovery rejects verifier residue or remaining ACL authority',
+  async () => {
+    for (const terminalOverride of [
+      { fixture_rows: 1 },
+      { begin_execute: true, post_finish_denied: false },
+    ]) {
+      const ops = consumedRecoveryOps({ terminalOverride })
+      await assert.rejects(recoverConsumedRollout({
+        manifest: {
+          release_manifest_id: '03850000-0000-4000-8000-000000000006',
+        },
+        ops,
+        probe: async () => {
+          throw new Error('probe must not run before consumed proof')
+        },
+      }), /verifier residue or executable authority remains/)
+    }
+  })
+
 test('terminal Unsupported Morgan resumes safely and later probe failure stays partial',
   async () => {
     const events = []
@@ -867,6 +1079,7 @@ test('terminal Unsupported Morgan resumes safely and later probe failure stays p
             reason: 'provider_schema_error',
             operational_rows: 0,
             evidence_rows: 1,
+            evidence_digest: 'e'.repeat(64),
             positive_evidence_rows: 0,
             activation_successes: null,
             observation_rows: 0,
@@ -1025,6 +1238,82 @@ test('management SQL uses access-token API and leaves a final SELECT after commi
     assert.match(queries[0].query,
       /set local role service_role[\s\S]+commit;[\s\S]+select \* from phase_03_8_finalize_result;/i)
     assert.doesNotMatch(queries[0].query, /drop table if exists/i)
+  })
+
+test('terminal resume reads dedicated Workday evidence and its latest digest',
+  async () => {
+    let inspectedSql = ''
+    const digest = 'a7'.repeat(32)
+    const ops = new ManagementSqlOps({
+      projectRef: 'fjcsvajkkztvlrpdplwx',
+      accessToken: 'management-access-token-value',
+      hosted: { status: 'PASS' },
+      fetchImpl: async (_url, init) => {
+        inspectedSql = JSON.parse(init.body).query
+        return new Response(JSON.stringify([{
+          disposition: 'unsupported_with_reason',
+          unsupported_reason: 'pagination_incomplete',
+          catalog_source_key: null,
+          operational_rows: 0,
+          activation_state: null,
+          activation_successes: null,
+          ats_type: null,
+          evidence_rows: 1,
+          positive_evidence_rows: 0,
+          latest_outcome: 'unsupported',
+          latest_reason: 'pagination_incomplete',
+          latest_evidence_digest: digest,
+          observation_rows: 0,
+          window_rows: 0,
+        }]), { status: 200 })
+      },
+    })
+    const start = await ops.inspectCandidateStart(FAMILY_ORDER[0])
+    assert.equal(start.kind, 'terminal_unsupported')
+    assert.equal(start.evidence_digest, digest)
+    assert.match(inspectedSql, /from public\.workday_connector_terminal_evidence/i)
+    assert.doesNotMatch(inspectedSql, /branded_connector_terminal_evidence/i)
+    assert.match(inspectedSql,
+      /array_agg\(evidence_digest order by recorded_at desc\)/i)
+  })
+
+test('consumed verifier assertion is SELECT-only and invokes no verifier RPC',
+  async () => {
+    let consumedSql = ''
+    const ops = new ManagementSqlOps({
+      projectRef: 'fjcsvajkkztvlrpdplwx',
+      accessToken: 'management-access-token-value',
+      hosted: { status: 'PASS' },
+      fetchImpl: async (_url, init) => {
+        consumedSql = JSON.parse(init.body).query
+        return new Response(JSON.stringify([{
+          run_rows: 0,
+          fixture_rows: 0,
+          company_rows: 0,
+          job_rows: 0,
+          observation_rows: 0,
+          begin_execute: false,
+          exercise_execute: false,
+          finish_execute: false,
+        }]), { status: 200 })
+      },
+    })
+    const manifest = {
+      verifier: {
+        fixtures: [{
+          company_id: '03850000-0000-4000-8000-000000000511',
+          job_id: '03850000-0000-4000-8000-000000000521',
+          observation_id: '03850000-0000-4000-8000-000000000531',
+        }],
+      },
+    }
+    assert.equal((await ops.assertConsumedVerifier(manifest)).authority_state,
+      'consumed')
+    assert.doesNotMatch(consumedSql, /\bperform\b/i)
+    assert.doesNotMatch(consumedSql,
+      /select\s+\*\s+from\s+public\.(?:begin|exercise|finish)_phase_03_8_verifier/i)
+    assert.doesNotMatch(consumedSql, /\bbegin\s*;/i)
+    assert.doesNotMatch(consumedSql, /\bcommit\s*;/i)
   })
 
 test('verifier SQL scopes service role to RPC inserts, never direct verifier tables',
