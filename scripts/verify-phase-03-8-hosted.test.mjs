@@ -4,6 +4,7 @@ import test from 'node:test'
 
 import {
   REQUIRED_HOSTED_CHECKS,
+  assertFailedPushCleanState,
   assertHostedEvidence,
   assertRolloutEvidence,
   canonical,
@@ -240,4 +241,53 @@ test('canonical serialization is stable for manifest approval binding', () => {
     canonical({ b: 2, a: [{ z: true, y: null }] }),
     '{"a":[{"y":null,"z":true}],"b":2}',
   )
+})
+
+test('failed-push state requires 0039 parity and no partial 0040 schema residue', async () => {
+  const manifest = await manifestFixture()
+  const clean = {
+    remote_migrations: manifest.targets.supabase.remote_migrations,
+    migration_0040_recorded: false,
+    next_poll_at_exists: false,
+    scope_evidence_exists: false,
+    branded_terminal_table_exists: false,
+    verifier_runs_table_exists: false,
+    verifier_fixtures_table_exists: false,
+    finalize_rpc_exists: false,
+    experimental_claim_rpc_exists: false,
+    begin_rpc_exists: false,
+    exercise_rpc_exists: false,
+    finish_rpc_exists: false,
+    companies_constraint_branded: false,
+    jobs_constraint_branded: false,
+    observations_constraint_branded: false,
+    candidate_company_rows: 0,
+    observe_cron_rows: 0,
+  }
+  assert.equal(assertFailedPushCleanState(clean, manifest), clean)
+
+  for (const [key, value] of [
+    ['migration_0040_recorded', true],
+    ['next_poll_at_exists', true],
+    ['scope_evidence_exists', true],
+    ['branded_terminal_table_exists', true],
+    ['verifier_runs_table_exists', true],
+    ['verifier_fixtures_table_exists', true],
+    ['finalize_rpc_exists', true],
+    ['experimental_claim_rpc_exists', true],
+    ['begin_rpc_exists', true],
+    ['exercise_rpc_exists', true],
+    ['finish_rpc_exists', true],
+    ['companies_constraint_branded', true],
+    ['jobs_constraint_branded', true],
+    ['observations_constraint_branded', true],
+    ['candidate_company_rows', 1],
+    ['observe_cron_rows', 1],
+  ]) {
+    assert.throws(() => assertFailedPushCleanState({ ...clean, [key]: value }, manifest))
+  }
+  assert.throws(() => assertFailedPushCleanState({
+    ...clean,
+    remote_migrations: [...clean.remote_migrations, '0040'],
+  }, manifest))
 })
