@@ -84,6 +84,14 @@ export const FAMILY_ORDER = Object.freeze([
     fixture: 'barclays_fixture',
     fault: 'provider_schema_error',
     selectiveRecentDays: 7,
+    keptFacetIds: Object.freeze({
+      'Data & Analytics': '1ab48a98eb7c1001e8e0bdc7d4a10000',
+      Finance: '1ab48a98eb7c1001e8e0ccc6d3af0000',
+      'Investment Banking': '112c054282011001e915f210568e0000',
+      Research: '112c054282011001e9161cb8b7960000',
+      Risk: '112c054282011001e9162220a12b0000',
+      Technology: '112c054282011001e9162cfccdc10000',
+    }),
     tuple: Object.freeze([
       'barclays',
       'wd3',
@@ -350,6 +358,9 @@ export function sanitizeProbeEvidence(family, observation, requestCount, elapsed
     allow_missing_closure: observation.allowMissingClosure === true,
     selective_recent_days: family.selectiveRecentDays ?? null,
     selective_title_keywords: [...(family.titleIncludesAny ?? [])],
+    selective_facet_digest: family.keptFacetIds
+      ? sha256(canonical(family.keptFacetIds))
+      : null,
     job_count: jobs.length,
     expected_count: Number.isInteger(observation.expectedCount)
       ? observation.expectedCount
@@ -1050,6 +1061,7 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
       'allow_missing_closure',
       'selective_recent_days',
       'selective_title_keywords',
+      'selective_facet_digest',
       'job_count',
       'expected_count',
       'page_count',
@@ -1066,6 +1078,9 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
       && result.probe.selective_recent_days === expected.selectiveRecentDays
       && canonical(result.probe.selective_title_keywords)
         === canonical([...(expected.titleIncludesAny ?? [])])
+      && result.probe.selective_facet_digest === (
+        expected.keptFacetIds ? sha256(canonical(expected.keptFacetIds)) : null
+      )
       && result.probe.request_count <= PROVIDER_REQUEST_LIMIT
       && result.probe.elapsed_ms <= PROBE_DEADLINE_MS + 1_000
       && /^[0-9a-f]{64}$/.test(result.probe.evidence_digest),

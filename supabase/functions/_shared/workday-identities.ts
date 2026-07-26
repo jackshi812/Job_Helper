@@ -117,6 +117,15 @@ const bankOfAmericaSelectiveRecentUsScope: WorkdaySelectiveRecentUsScope =
     ]),
   })
 
+const barclaysKeptJobFamilies = Object.freeze({
+  'Data & Analytics': '1ab48a98eb7c1001e8e0bdc7d4a10000',
+  Finance: '1ab48a98eb7c1001e8e0ccc6d3af0000',
+  'Investment Banking': '112c054282011001e915f210568e0000',
+  Research: '112c054282011001e9161cb8b7960000',
+  Risk: '112c054282011001e9162220a12b0000',
+  Technology: '112c054282011001e9162cfccdc10000',
+})
+
 const capitalOneIdentity: WorkdayIdentity = Object.freeze({
   origin: 'https://capitalone.wd12.myworkdayjobs.com',
   cxsRoot: 'https://capitalone.wd12.myworkdayjobs.com/wday/cxs/capitalone/Capital_One',
@@ -263,6 +272,7 @@ const barclaysIdentity: WorkdayIdentity = Object.freeze({
   sourceKey: BARCLAYS_WORKDAY_SOURCE_KEY,
   companyName: 'Barclays',
   applyCapitalOneEligibility: false,
+  keptFacetIds: barclaysKeptJobFamilies,
   selectiveRecentUsScope,
 })
 

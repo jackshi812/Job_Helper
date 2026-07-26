@@ -1662,6 +1662,16 @@ describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
       })
     expect(WORKDAY_IDENTITIES['workday:wd5:ms:External']
       .selectiveRecentUsScope?.titleIncludesAny).toBeUndefined()
+    expect(WORKDAY_IDENTITIES[
+      'workday:wd3:barclays:External_Career_Site_Barclays'
+    ].keptFacetIds).toEqual({
+      'Data & Analytics': '1ab48a98eb7c1001e8e0bdc7d4a10000',
+      Finance: '1ab48a98eb7c1001e8e0ccc6d3af0000',
+      'Investment Banking': '112c054282011001e915f210568e0000',
+      Research: '112c054282011001e9161cb8b7960000',
+      Risk: '112c054282011001e9162220a12b0000',
+      Technology: '112c054282011001e9162cfccdc10000',
+    })
   })
 
   it('rejects every one-field candidate tuple mutation before fetch', async () => {
@@ -1825,12 +1835,32 @@ describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
         ...phase038Posting(12, expected.companyName),
         postedOn: 'Posted 8 Days Ago',
       }
-      const providerFetch = vi.fn((input: string | URL | Request) => {
+      const providerFetch = vi.fn((
+        input: string | URL | Request,
+        init?: RequestInit,
+      ) => {
         const url = String(input)
         if (url === `${expected.cxsRoot}/jobs`) {
+          const body = JSON.parse(String(init?.body)) as {
+            appliedFacets: { jobFamilyGroup?: string[] }
+          }
+          const familyValues = Object.entries(identity.keptFacetIds ?? {})
+            .map(([descriptor, id], index) => ({
+              descriptor,
+              id,
+              count: index === 0 ? 3 : 0,
+            }))
+          if (identity.keptFacetIds) {
+            expect(body.appliedFacets.jobFamilyGroup).toEqual(
+              Object.values(identity.keptFacetIds),
+            )
+          }
           return Promise.resolve(jsonResponse({
             total: 3,
             jobPostings: [recentUs, recentForeign, old],
+            facets: familyValues.length
+              ? [{ facetParameter: 'jobFamilyGroup', values: familyValues }]
+              : [],
           }))
         }
         if (url.endsWith(recentUs.externalPath)) {
