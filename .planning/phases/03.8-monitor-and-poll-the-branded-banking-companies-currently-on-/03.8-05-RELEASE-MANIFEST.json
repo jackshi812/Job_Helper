@@ -248,10 +248,10 @@
     "captured_at": "2026-07-26T02:53:31Z",
     "authenticated": true,
     "dry_run": {
-      "status": "PENDING_EXPLICIT_EGRESS_APPROVAL",
+      "status": "PASS",
       "command": "web/node_modules/.bin/supabase db push --linked --dry-run",
       "proposed": ["0040"],
-      "output_sha256": null
+      "output_sha256": "0c5bb3aea50e5eebe87445f157960eeed4be0b9a4d0bb6ff6424a411f70009db"
     },
     "catalog_sha256": "db322515f61236cd8c1caff6682ec967738d3b2fff4cbc8e414003a46d49114c",
     "companies_sha256": "ee749635de0e0325551071bf97933bca9b30336d83cd2d82d54aa0fa0bf5e07e",

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "phase": "03.8",
   "status": "PENDING",
-  "manifest_sha256": "545d4e30c81d6a86e6ef48a474b3194d787bf460500ade2bd07b96655a4df79e",
+  "manifest_sha256": "d65806bc557e046751353fe4e0865df8225050a0cf494ef1a759a392a161adda",
   "generated_at": "2026-07-26T02:53:31Z",
   "checks": {
     "release_identity": {"status": "PENDING"},
