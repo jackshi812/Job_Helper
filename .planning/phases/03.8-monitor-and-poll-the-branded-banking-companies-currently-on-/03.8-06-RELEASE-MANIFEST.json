@@ -8,7 +8,7 @@
     "git_sha": "2a498c98c0914a36b3747438d12e84a8b47e8fea",
     "commit_object_sha256": "aaf9741348c4c9ce41c80e33af4760d606e0430ba0e012fa478e144fe0a24feb",
     "parent_sha": "00e59179feffed3d4a7bbc14849cca54368f424c",
-    "worktree_path": "/Users/jackshi/Desktop/Job_Copilot",
+    "worktree_path": "/private/tmp/job-copilot-038-plan06-release",
     "changed_files": [
       "scripts/run-phase-03-8-rollout.mjs",
       "scripts/run-phase-03-8-rollout.test.mjs",
