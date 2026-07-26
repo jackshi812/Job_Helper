@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03.8
 current_phase_name: Monitor and poll the branded banking companies currently on watchlist
 status: executing
-stopped_at: Completed 03.8-05-PLAN.md
-last_updated: "2026-07-26T18:22:21Z"
+stopped_at: Completed 03.8-06-PLAN.md
+last_updated: "2026-07-26T20:53:49.086Z"
 last_activity: 2026-07-26
-last_activity_desc: Completed Phase 03.8 Plan 05
+last_activity_desc: Completed Phase 03.8 Plan 06
 progress:
   total_phases: 13
   completed_phases: 11
   total_plans: 73
-  completed_plans: 71
-  percent: 97
+  completed_plans: 72
+  percent: 99
 ---
 
 # Project State
@@ -29,19 +29,19 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 03.8 (Monitor and poll the branded banking companies currently on watchlist) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
-Last activity: 2026-07-26 — Completed Phase 03.8 Plan 05
+Last activity: 2026-07-26 — Completed Phase 03.8 Plan 06
 
-Progress: [██████████] 97%
+Progress: [██████████] 99%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 71
+- Total plans completed: 72
 - Average duration: 23m
-- Total execution time: 1607m
+- Total execution time: 1625m
 
 **By Phase:**
 
@@ -115,6 +115,7 @@ Progress: [██████████] 97%
 | Phase 03.8 P03 | 9min | 3 tasks | 12 files |
 | Phase 03.8 P04 | 9min | 2 tasks | 6 files |
 | Phase 03.8 P05 | 15h39m elapsed | 3 tasks | 11 release/evidence/tracking files |
+| Phase 03.8 P06 | 18min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -273,6 +274,9 @@ Recent decisions affecting current work:
 - [Phase 03.8]: Protect Capital One and Fidelity through transactional parity snapshots — Phase 03.8 cannot alter already-Active Workday identity or claim eligibility.
 - [Phase 03.8]: Accept hosted function parity as normalized runtime equality only for the single type-only `_shared/adapters/types.ts` server-erasure exception; every executable or other source mismatch remains fail-closed.
 - [Phase 03.8]: Close Plan 05 at initial hosted parity with the one-use verifier still armed and zero fixtures; family rollout, cleanup/revocation, and signed-in UAT remain Plan 06/07 work.
+- [Phase 03.8]: Morgan Stanley uses exact flat U.S. facet plus authoritative detail proof; Bank of America uses complete whole-site all-detail U.S. proof.
+- [Phase 03.8]: BlackRock and Barclays have frozen Workday identities but no country authority, so they fail closed before fetch.
+- [Phase 03.8]: The immutable three-fixture verifier lifecycle remains separate from the four Workday rollout candidates.
 
 ### Pending Todos
 
@@ -314,8 +318,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-26T18:22:21Z
-Stopped at: Completed 03.8-05-PLAN.md
+Last session: 2026-07-26T20:53:39.804Z
+Stopped at: Completed 03.8-06-PLAN.md
 Resume file: None
 Last session (2026-07-25): Phase 03.7 passed local checks, exact-release byte verification, and 3/3 owner-approved signed-in UAT checks on release `baf81fcaa72443995f227b118d10eec90da25679`; no Phase 03.7 gaps remain.
 Last session (2026-07-25): Phase 03.6 passed 6/6 formal truths, 20/20 hosted checks, 30/30 security threats, 24/24 UI review checks, and 12/12 owner-approved UAT interactions on exact release `70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b`; no Phase 03.6 gaps remain.
