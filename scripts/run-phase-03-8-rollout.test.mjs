@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import test from 'node:test'
 
 import {
@@ -21,6 +23,7 @@ import {
   executeRollout,
   exerciseVerifierFinally,
   mapUnsupportedReason,
+  registerTypeScriptTranspileHook,
   sanitizeProbeEvidence,
   sha256,
   validateIdentityFiles,
@@ -175,6 +178,20 @@ test('bounded fetch rejects request 301 and unapproved coordinates', async () =>
     /deadline/,
   )
 })
+
+test('synchronous TypeScript hook imports all three pinned adapter modules',
+  async () => {
+    registerTypeScriptTranspileHook(resolve('.'))
+    const adapterRoot = resolve('supabase/functions/_shared/adapters')
+    const [eightfold, oracle, goldman] = await Promise.all([
+      import(pathToFileURL(resolve(adapterRoot, 'eightfold.ts'))),
+      import(pathToFileURL(resolve(adapterRoot, 'oracle-recruiting.ts'))),
+      import(pathToFileURL(resolve(adapterRoot, 'goldman-higher.ts'))),
+    ])
+    assert.equal(typeof eightfold.pollMorganStanleyEightfold, 'function')
+    assert.equal(typeof oracle.pollJpmorganOracleRecruiting, 'function')
+    assert.equal(typeof goldman.pollGoldmanHigher, 'function')
+  })
 
 test('probe evidence is bounded, sanitized, schema-shaped, and classifies positive',
   () => {

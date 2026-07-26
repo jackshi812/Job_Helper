@@ -2,12 +2,15 @@
 
 import { execFile as execFileCallback } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
+import { createRequire, registerHooks } from 'node:module'
 import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 
 const execFile = promisify(execFileCallback)
+const require = createRequire(import.meta.url)
 
 export const RELEASE_MANIFEST_ID = '03850000-0000-4000-8000-000000000005'
 export const RELEASE_MANIFEST_FILE_SHA256 =
@@ -96,6 +99,7 @@ const DEFAULT_PHASE_DIR = resolve(
 const DEFAULT_MANIFEST = resolve(DEFAULT_PHASE_DIR, '03.8-05-RELEASE-MANIFEST.json')
 const DEFAULT_HOSTED = resolve(DEFAULT_PHASE_DIR, '03.8-05-HOSTED-VERIFICATION.json')
 const DEFAULT_OUTPUT = resolve(DEFAULT_PHASE_DIR, '03.8-06-ROLLOUT-VERIFICATION.json')
+let typeScriptHookRegistered = false
 
 export function sha256(value) {
   return createHash('sha256').update(value).digest('hex')
@@ -314,8 +318,42 @@ export function createBoundedFetch(identity, fetchImpl = fetch, now = Date.now) 
   })
 }
 
+export function registerTypeScriptTranspileHook(root = resolve('.')) {
+  if (typeScriptHookRegistered) return
+  const ts = require(resolve(
+    root,
+    'web/node_modules/typescript/lib/typescript.js',
+  ))
+  registerHooks({
+    load(url, context, nextLoad) {
+      if (!url.startsWith('file:') || !url.endsWith('.ts')) {
+        return nextLoad(url, context)
+      }
+      const source = readFileSync(fileURLToPath(url), 'utf8')
+      const transpiled = ts.transpileModule(source, {
+        compilerOptions: {
+          module: ts.ModuleKind.ESNext,
+          target: ts.ScriptTarget.ES2022,
+          verbatimModuleSyntax: true,
+          sourceMap: false,
+          inlineSourceMap: false,
+        },
+        fileName: fileURLToPath(url),
+        reportDiagnostics: false,
+      })
+      return {
+        format: 'module',
+        shortCircuit: true,
+        source: transpiled.outputText,
+      }
+    },
+  })
+  typeScriptHookRegistered = true
+}
+
 export async function directProbe(family, dependencies = {}) {
   const root = dependencies.root ?? resolve('.')
+  registerTypeScriptTranspileHook(root)
   const identities = dependencies.identities
     ?? await import(pathToFileURL(resolve(
       root,
