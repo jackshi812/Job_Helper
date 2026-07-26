@@ -96,3 +96,104 @@ describe('migration 0040 exact catalog and identity parity', () => {
     expect(sql).not.toMatch(/\bdelete from public\.jobs\b/i)
   })
 })
+
+describe('migration 0040 one-use hosted verifier authority', () => {
+  const releaseManifestId = '03850000-0000-4000-8000-000000000005'
+  const runId = '03850000-0000-4000-8000-000000000501'
+  const fixtureKeys = [
+    'eightfold_fixture',
+    'oracle_fixture',
+    'goldman_fixture',
+  ]
+  const faultValues = [
+    'incomplete_observation',
+    'provider_schema_error',
+    'provider_timeout',
+    'clean_recovery',
+  ]
+
+  it('seeds one immutable armed run and literal fixture identity inventory', () => {
+    expect(sql).toContain('create table public.phase_03_8_verifier_runs')
+    expect(sql).toContain('create table public.phase_03_8_verifier_fixtures')
+    expect(sql).toContain(`'${releaseManifestId}'::uuid`)
+    expect(sql).toContain(`'${runId}'::uuid`)
+    expect(sql).toMatch(/state\s+text\s+not null[\s\S]*'armed'[\s\S]*'running'[\s\S]*'consumed'/i)
+    expect(sql).toMatch(/max_exercise_calls[\s\S]*default 12[\s\S]*check[\s\S]*=\s*12/i)
+    expect(sql).toMatch(/interval '20 minutes'/i)
+    for (const fixture of fixtureKeys) expect(sql).toContain(`'${fixture}'`)
+    expect(sql).toMatch(/03850000-0000-4000-8000-00000000051[1-3]/)
+    expect(sql).toMatch(/03850000-0000-4000-8000-00000000052[1-3]/)
+    expect(sql).toMatch(/03850000-0000-4000-8000-00000000053[1-3]/)
+  })
+
+  it('exposes only fixed-enum, expected-version lifecycle fault inputs', () => {
+    const exerciseSignature = sql.match(
+      /create or replace function public\.exercise_phase_03_8_verifier_fault\(([\s\S]*?)\)\s*returns/i,
+    )?.[1] ?? ''
+    expect(exerciseSignature).toMatch(/p_run_id uuid/i)
+    expect(exerciseSignature).toMatch(/p_fixture text/i)
+    expect(exerciseSignature).toMatch(/p_fault text/i)
+    expect(exerciseSignature).toMatch(/p_expected_version integer/i)
+    expect(exerciseSignature).not.toMatch(
+      /company|job|url|host|path|provider|source|network|destination/i,
+    )
+    for (const fault of faultValues) expect(sql).toContain(`'${fault}'`)
+    expect(sql).toMatch(/exercise_calls\s*<\s*max_exercise_calls/i)
+    expect(sql).toMatch(/expires_at\s*>\s*clock_timestamp\(\)/i)
+    expect(sql).toMatch(/fixture_version\s*=\s*fixture_version\s*\+\s*1/i)
+    expect(sql).toMatch(/where[\s\S]*fixture_version\s*=\s*p_expected_version/i)
+  })
+
+  it('keeps every injected fault on an owned open job and restores healthy state', () => {
+    expect(sql).toMatch(/status\s*=\s*'open'/i)
+    expect(sql).toMatch(/consecutive_failures\s*=\s*[\s\S]*\+\s*1/i)
+    expect(sql).toMatch(/last_error_code\s*=\s*p_fault/i)
+    expect(sql).toMatch(/when p_fault = 'clean_recovery'/i)
+    expect(sql).toMatch(/last_success_at\s*=\s*clock_timestamp\(\)/i)
+    expect(sql).toMatch(/consecutive_failures\s*=\s*0/i)
+    expect(sql).toMatch(/last_error_code\s*=\s*null/i)
+    expect(sql).not.toMatch(
+      /exercise_phase_03_8_verifier_fault\([^)]*(?:url|host|provider|source|company_id|job_id)/i,
+    )
+  })
+
+  it('CAS-cleans exact owned rows, consumes the latch, and revokes itself', () => {
+    expect(sql).toMatch(
+      /create or replace function public\.finish_phase_03_8_verifier_run\([\s\S]*p_eightfold_expected_version[\s\S]*p_oracle_expected_version[\s\S]*p_goldman_expected_version/i,
+    )
+    expect(sql).toMatch(/delete from public\.jobs[\s\S]*join public\.phase_03_8_verifier_fixtures/i)
+    expect(sql).toMatch(/delete from public\.phase_03_8_verifier_fixtures/i)
+    expect(sql).toMatch(/delete from public\.companies/i)
+    expect(sql).toMatch(/state\s*=\s*'consumed'/i)
+    expect(sql).toMatch(/delete from public\.phase_03_8_verifier_runs/i)
+    for (const routine of [
+      'begin_phase_03_8_verifier_run',
+      'exercise_phase_03_8_verifier_fault',
+      'finish_phase_03_8_verifier_run',
+    ]) {
+      expect(sql).toMatch(new RegExp(
+        `revoke execute on function public\\.${routine}[\\s\\S]*from public, anon, authenticated`,
+        'i',
+      ))
+      expect(sql).toMatch(new RegExp(
+        `grant execute on function public\\.${routine}[\\s\\S]*to service_role`,
+        'i',
+      ))
+      expect(sql).toMatch(new RegExp(
+        `revoke execute on function public\\.${routine}[\\s\\S]*from service_role`,
+        'i',
+      ))
+    }
+  })
+
+  it('has no reset, rearm, caller-selected insert, or real-row cleanup authority', () => {
+    expect(sql).not.toMatch(/\breset_phase_03_8_verifier\b/i)
+    expect(sql).not.toMatch(/\brearm_phase_03_8_verifier\b/i)
+    expect(sql).not.toMatch(
+      /insert into public\.phase_03_8_verifier_runs[\s\S]*select/i,
+    )
+    expect(sql).toMatch(/begin_phase_03_8_verifier_run[\s\S]*state\s*=\s*'armed'/i)
+    expect(sql).toMatch(/phase_03_8_verifier_fixtures[\s\S]*foreign key/i)
+    expect(sql).toMatch(/security definer[\s\S]*set search_path = ''/i)
+  })
+})
