@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "phase": "03.8",
+  "created_at": "2026-07-26T22:25:30Z",
+  "release_manifest_id": "03850000-0000-4000-8000-000000000008",
+  "project_ref": "fjcsvajkkztvlrpdplwx",
+  "accepted_production_source": "2a498c98c0914a36b3747438d12e84a8b47e8fea",
+  "candidate": {
+    "git_sha": "f448c7c829b41694ad51dbff68ed178fcd33b323",
+    "commit_object_sha256": "ebbfa667db54f5cc2078f95b17233743170a20c07d23505ff66e1f24d669035e",
+    "worktree_path": "/private/tmp/job-copilot-038-selective-release",
+    "changed_files": [
+      "supabase/functions/_shared/adapters/types.ts",
+      "supabase/functions/_shared/adapters/workday.ts",
+      "supabase/functions/_shared/connectors.ts",
+      "supabase/functions/_shared/workday-identities.ts",
+      "supabase/functions/observe-connectors/index.ts",
+      "web/tests/observe-connectors.test.ts",
+      "web/tests/workday-connector.integration.test.ts"
+    ]
+  },
+  "migrations": [
+    "0001",
+    "0002",
+    "0003",
+    "0004",
+    "0005",
+    "0006",
+    "0007",
+    "0008",
+    "0009",
+    "0010",
+    "0011",
+    "0012",
+    "0013",
+    "0014",
+    "0015",
+    "0016",
+    "0017",
+    "0018",
+    "0019",
+    "0020",
+    "0021",
+    "0022",
+    "0023",
+    "0024",
+    "0025",
+    "0026",
+    "0027",
+    "0028",
+    "0029",
+    "0030",
+    "0031",
+    "0032",
+    "0033",
+    "0034",
+    "0035",
+    "0036",
+    "0037",
+    "0038",
+    "0039",
+    "0040",
+    "0041",
+    "0042",
+    "0043"
+  ],
+  "functions": {
+    "verify-board": {
+      "entry_path": "supabase/functions/verify-board/index.ts",
+      "entry_sha256": "558685a237b2efad872de874b95efe7441fe392a0ea5341307391091156b79e8",
+      "bundle_manifest_sha256": "4512526678a40329d6330b75aecbac9db717781dd90cbedcbb5334533254d4a9",
+      "deploy_increment": 0,
+      "hosted_baseline": {
+        "id": "b1f7f9ea-4423-49c9-97bc-946b374b5a1d",
+        "version": 30,
+        "verify_jwt": true
+      }
+    },
+    "observe-connectors": {
+      "entry_path": "supabase/functions/observe-connectors/index.ts",
+      "entry_sha256": "b23decf7c7091a34169c849308566a6d4fab6f2c82eb699ea6c30f63c081086f",
+      "bundle_manifest_sha256": "2ea8a70097a1094f13f8f49d67439ad4a51cf5cd1a6f3d560e0a822a07281e00",
+      "deploy_increment": 1,
+      "hosted_baseline": {
+        "id": "44ea3343-4c15-4e35-8826-6fc12f54ffc0",
+        "version": 3,
+        "verify_jwt": false
+      }
+    },
+    "poll-tick": {
+      "entry_path": "supabase/functions/poll-tick/index.ts",
+      "entry_sha256": "71f41745ea12ac950fdf04cd83f630adced3fbe78fd31491e802e7465e780ecc",
+      "bundle_manifest_sha256": "04ada43373df041b69880348a5bc14c7f6b92268ba59818fc4f9955263ec1e9d",
+      "deploy_increment": 0,
+      "hosted_baseline": {
+        "id": "623f09fa-9ff8-4736-a1ae-69b052cf20a9",
+        "version": 33,
+        "verify_jwt": false
+      }
+    }
+  },
+  "verifier": {
+    "run_id": "03850000-0000-4000-8000-000000000501",
+    "fixtures": [
+      {
+        "key": "eightfold_fixture",
+        "company_id": "03850000-0000-4000-8000-000000000511",
+        "job_id": "03850000-0000-4000-8000-000000000512",
+        "observation_id": "03850000-0000-4000-8000-000000000513"
+      },
+      {
+        "key": "oracle_fixture",
+        "company_id": "03850000-0000-4000-8000-000000000521",
+        "job_id": "03850000-0000-4000-8000-000000000522",
+        "observation_id": "03850000-0000-4000-8000-000000000523"
+      },
+      {
+        "key": "goldman_fixture",
+        "company_id": "03850000-0000-4000-8000-000000000531",
+        "job_id": "03850000-0000-4000-8000-000000000532",
+        "observation_id": "03850000-0000-4000-8000-000000000533"
+      }
+    ]
+  },
+  "families": [
+    "workday:wd5:ms:External",
+    "workday:wd1:ghr:Lateral-US",
+    "workday:wd1:blackrock:BlackRock_Professional",
+    "workday:wd3:barclays:External_Career_Site_Barclays"
+  ]
+}

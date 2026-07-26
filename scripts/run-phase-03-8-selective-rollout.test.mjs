@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import { FAMILY_ORDER } from './run-phase-03-8-rollout.mjs'
 import {
+  assertSelectiveHostedIdentity,
   exactSelectiveApproval,
   executeSelectiveRollout,
 } from './run-phase-03-8-selective-rollout.mjs'
@@ -128,6 +129,27 @@ test('approval binds manifest, source commit, and all three bundles', () => {
       (entry) => entry.bundle_manifest_sha256,
     ),
   ].join(' '))
+})
+
+test('postdeploy identity increments only functions selected by the manifest', async () => {
+  const value = manifest()
+  value.functions['verify-board'].deploy_increment = 0
+  value.functions['observe-connectors'].deploy_increment = 1
+  value.functions['poll-tick'].deploy_increment = 0
+  const inventory = Object.entries(value.functions).map(([slug, entry]) => ({
+    slug,
+    id: entry.hosted_baseline.id,
+    status: 'ACTIVE',
+    verify_jwt: entry.hosted_baseline.verify_jwt,
+    version: entry.hosted_baseline.version + entry.deploy_increment,
+  }))
+  await assert.doesNotReject(assertSelectiveHostedIdentity({
+    manifest: value,
+    ops: { query: async () => [{ migrations: value.migrations }] },
+    accessToken: 'unused',
+    stage: 'postdeploy',
+    inventory,
+  }))
 })
 
 test('terminal Unsupported candidates are independently re-admitted and monitored', async () => {

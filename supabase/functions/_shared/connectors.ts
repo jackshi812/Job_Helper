@@ -438,6 +438,7 @@ export async function observeConnector(
     const phase038Candidate = identity?.requireDetailCountryProof
       || identity?.wholeSiteUsScope
       || identity?.unsupportedCountryContract
+      || identity?.selectiveRecentUsScope
     if (
       !identity
       || !phase038Candidate

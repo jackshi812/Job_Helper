@@ -12,6 +12,7 @@ import {
   type WorkdayIdentity,
 } from '../../supabase/functions/_shared/workday-identities.ts'
 import {
+  observeConnector,
   pollConnector,
   providerRegistry,
   type SupportedDetection,
@@ -1674,6 +1675,24 @@ describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
       Risk: '112c054282011001e9162220a12b0000',
       Technology: '112c054282011001e9162cfccdc10000',
     })
+  })
+
+  it('authorizes every selective candidate in the Experimental observation lane', async () => {
+    for (const expected of phase038WorkdayCandidates) {
+      const providerFetch = vi.fn().mockRejectedValue(new Error('network sentinel'))
+      await expect(observeConnector({
+        ats_type: 'workday',
+        board_token: expected.tuple[0],
+        region: expected.tuple[1],
+        site_token: expected.tuple[2],
+        source_key: expected.sourceKey,
+        activation_state: 'experimental',
+      }, providerFetch)).resolves.toMatchObject({
+        completeness: 'unknown',
+        warnings: ['network_error'],
+      })
+      expect(providerFetch).toHaveBeenCalled()
+    }
   })
 
   it('rejects every one-field candidate tuple mutation before fetch', async () => {

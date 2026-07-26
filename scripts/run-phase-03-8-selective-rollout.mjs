@@ -84,7 +84,8 @@ function validateManifest(manifest) {
       && UUID.test(entry.hosted_baseline?.id)
       && Number.isInteger(entry.hosted_baseline?.version)
       && entry.hosted_baseline.version > 0
-      && typeof entry.hosted_baseline.verify_jwt === 'boolean',
+      && typeof entry.hosted_baseline.verify_jwt === 'boolean'
+      && [0, 1].includes(entry.deploy_increment ?? 1),
     `${slug} manifest identity is invalid`)
   }
   requireCondition(Array.isArray(manifest.verifier?.fixtures)
@@ -197,7 +198,9 @@ export async function assertSelectiveHostedIdentity({
   for (const slug of FUNCTION_ORDER) {
     const expected = manifest.functions[slug]
     const hosted = functions.find((item) => item.slug === slug)
-    const increment = stage === 'postdeploy' ? 1 : 0
+    const increment = stage === 'postdeploy'
+      ? (expected.deploy_increment ?? 1)
+      : 0
     requireCondition(hosted?.status === 'ACTIVE'
       && hosted.id === expected.hosted_baseline.id
       && hosted.version === expected.hosted_baseline.version + increment
