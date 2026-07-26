@@ -20,9 +20,9 @@ export const RELEASE_MANIFEST_OBJECT_SHA256 =
 export const PLAN_05_HOSTED_SHA256 =
   '3a36a1acab9a21aff0fdc26e1419040dd6487fb075e608bef71842a6c35b594f'
 export const VERIFIER_REPAIR_PATH =
-  'supabase/migrations/0041_phase_03_8_verifier_rpc_qualification.sql'
+  'supabase/migrations/0042_phase_03_8_verifier_finish_fk_order.sql'
 export const VERIFIER_REPAIR_SHA256 =
-  '22ffb084973067d18f75169f8e91ad1a9cf88afa3d40c0fb2034fe8d55aebb2a'
+  '132b8a1cc4360edd49f50b79a2dfee6ca3e3bf3d3d8c3974cb74fe06f8195eb5'
 export const RELEASE_SOURCE_COMMIT =
   '83fbf8fc7707d8566f47034229884c517a16c979'
 export const VERIFIER_RUN_ID = '03850000-0000-4000-8000-000000000501'
@@ -997,7 +997,7 @@ export class ManagementSqlOps {
     requireCondition(this.hosted?.status === 'PASS',
       'immutable hosted evidence was not supplied to live operations')
     const expectedMigrations = Array.from(
-      { length: 41 },
+      { length: 42 },
       (_, index) => String(index + 1).padStart(4, '0'),
     )
     const row = oneRow(await this.query(`

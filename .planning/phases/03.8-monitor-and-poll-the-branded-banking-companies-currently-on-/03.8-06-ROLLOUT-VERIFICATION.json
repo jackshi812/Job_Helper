@@ -6,8 +6,8 @@
   "manifest_file_sha256": "57bcab61932d0f8772d4e0d9959471fae09f6ba6b8727f27a8d1b9d1d419c6e5",
   "manifest_sha256": "041d043db86a306981df3d520b6cdc4ea8857beff61c77da096018b5192493e7",
   "hosted_evidence_sha256": "3a36a1acab9a21aff0fdc26e1419040dd6487fb075e608bef71842a6c35b594f",
-  "verifier_repair_path": "supabase/migrations/0041_phase_03_8_verifier_rpc_qualification.sql",
-  "verifier_repair_sha256": "22ffb084973067d18f75169f8e91ad1a9cf88afa3d40c0fb2034fe8d55aebb2a",
+  "verifier_repair_path": "supabase/migrations/0042_phase_03_8_verifier_finish_fk_order.sql",
+  "verifier_repair_sha256": "132b8a1cc4360edd49f50b79a2dfee6ca3e3bf3d3d8c3974cb74fe06f8195eb5",
   "release_source_commit": "83fbf8fc7707d8566f47034229884c517a16c979",
   "generated_at": null,
   "limits": {

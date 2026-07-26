@@ -37,6 +37,8 @@ const phaseDir =
 const manifestPath = `${phaseDir}/03.8-05-RELEASE-MANIFEST.json`
 const hostedPath = `${phaseDir}/03.8-05-HOSTED-VERIFICATION.json`
 const repairPath = VERIFIER_REPAIR_PATH
+const qualificationPath =
+  'supabase/migrations/0041_phase_03_8_verifier_rpc_qualification.sql'
 
 function timestamps(start = Date.parse('2026-07-26T18:00:00Z')) {
   return {
@@ -120,11 +122,10 @@ test('0041 is a forward-only, qualified, transaction-safe verifier repair',
     const [original, repair] = await Promise.all([
       readFile('supabase/migrations/0040_phase_03_8_branded_connectors.sql',
         'utf8'),
-      readFile(repairPath, 'utf8'),
+      readFile(qualificationPath, 'utf8'),
     ])
     assert.equal(sha256(original),
       '09ff62efcd82a13a4b5b4fbd06ea643f01f837196d1260e1d0d1f744601ce21f')
-    assert.equal(sha256(repair), VERIFIER_REPAIR_SHA256)
     assert.equal(
       [...repair.matchAll(/create or replace function public\.(?:begin|exercise|finish)_phase_03_8_verifier_(?:run|fault)\(/g)].length,
       3,
@@ -189,6 +190,40 @@ test('0041 is a forward-only, qualified, transaction-safe verifier repair',
       /revoke execute on function public\.finish_phase_03_8_verifier_run\([\s\S]+from public, anon, authenticated;[\s\S]+grant execute on function public\.finish_phase_03_8_verifier_run\([\s\S]+to service_role;/)
   })
 
+test('0042 replaces only finish and deletes ownership before owned jobs',
+  async () => {
+    const repair = await readFile(repairPath, 'utf8')
+    assert.equal(sha256(repair), VERIFIER_REPAIR_SHA256)
+    assert.equal(
+      [...repair.matchAll(/create or replace function public\./g)].length,
+      1,
+    )
+    assert.match(repair,
+      /create or replace function public\.finish_phase_03_8_verifier_run\(/)
+    assert.doesNotMatch(repair,
+      /create or replace function public\.(?:begin_phase_03_8_verifier_run|exercise_phase_03_8_verifier_fault)\(/)
+    assert.equal([...repair.matchAll(/\nsecurity definer\nset search_path = ''/g)].length,
+      1)
+    assert.match(repair,
+      /verifier_run\.state = 'armed'[\s\S]+verifier_run\.started_at is null[\s\S]+verifier_run\.expires_at is null[\s\S]+verifier_run\.exercise_calls = 0[\s\S]+verifier_run\.max_exercise_calls = 12/)
+    assert.match(repair,
+      /verifier_fixture\.run_id =[\s\S]+verifier_company\.source_key in[\s\S]+verifier_job\.external_id like[\s\S]+verifier_observation\.observation_id in/)
+
+    const fixtureDeleteAt = repair.indexOf(
+      'delete from public.phase_03_8_verifier_fixtures as verifier_fixture')
+    const jobDeleteAt = repair.indexOf(
+      'delete from public.jobs as verifier_job')
+    const companyDeleteAt = repair.indexOf(
+      'delete from public.companies as verifier_company')
+    assert.ok(fixtureDeleteAt >= 0
+      && fixtureDeleteAt < jobDeleteAt
+      && jobDeleteAt < companyDeleteAt)
+    assert.match(repair,
+      /verifier_job\.id,[\s\S]+verifier_job\.company_id,[\s\S]+verifier_job\.external_id[\s\S]+phase03_8_verifier:eightfold_fixture[\s\S]+phase03_8_verifier:oracle_fixture[\s\S]+phase03_8_verifier:goldman_fixture/)
+    assert.match(repair,
+      /revoke execute on function public\.finish_phase_03_8_verifier_run\([\s\S]+from public, anon, authenticated;[\s\S]+grant execute on function public\.finish_phase_03_8_verifier_run\([\s\S]+to service_role;/)
+  })
+
 test('dry run is inert and publishes the exact approval identity', async () => {
   const manifest = JSON.parse(await readFile(manifestPath))
   const plan = createDryRunPlan(manifest)
@@ -201,7 +236,7 @@ test('dry run is inert and publishes the exact approval identity', async () => {
     FAMILY_ORDER.map((item) => item.family))
 })
 
-test('hosted identity fails closed when migration 0041 is absent', async () => {
+test('hosted identity fails closed when migration 0042 is absent', async () => {
   const ops = new ManagementSqlOps({
     projectRef: 'fjcsvajkkztvlrpdplwx',
     accessToken: 'management-access-token-value',
