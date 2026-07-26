@@ -201,6 +201,32 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 03.8: Monitor and poll the branded banking companies currently on watchlist (INSERTED)
+
+**Goal:** Truthfully determine current monitoring support for Morgan Stanley, Goldman Sachs, JPMorgan Chase, Bank of America, Citi, BlackRock, Wells Fargo, UBS, Barclays, and Charles Schwab, then activate only exact primary-portal identities that prove complete anonymous structured U.S./category-scoped polling while preserving safe degraded-source behavior.
+**Requirements**: DISC-01, DISC-07, DISC-08, DISC-09 (bounded extension; no new requirement ID)
+**Depends on:** Phase 3
+**Success Criteria** (what must be TRUE):
+
+1. Every frozen target has either an exact reviewed monitored identity or a current precise `unsupported_with_reason` outcome; unsupported rows are never labeled monitored.
+2. Every implemented connector accepts only its server-owned primary-portal identity, ingests United States jobs with exact whole-word/phrase provider-category evidence, and treats missing/incomplete/drifted evidence as Degraded with no closures.
+3. Candidate sources start Experimental at 0/3, activate independently only after three positive clean server-timed observations, and every newly Active family completes one healthy natural scheduled poll on the exact release.
+4. Polling remains bounded and staggered; one company failure cannot block siblings, close last-known jobs, or bypass close/reopen, heartbeat, authorization, or health contracts.
+5. Capital One and Fidelity remain unchanged Active Workday regression sources and are neither re-onboarded nor required to produce a new Phase 03.8 natural poll.
+6. The exact migration/function release passes an explicit production approval and non-TTY schema-push gate, hosted parity/cleanup checks, and signed-in owner UAT of Watchlist state plus one eligible job per newly Active provider family.
+
+**Plans:** 7 plans
+
+Plans:
+
+- [ ] 03.8-01-PLAN.md — Freeze exact identities, U.S./category scope, evidence, and concurrency contracts
+- [ ] 03.8-02-PLAN.md — Implement strict Eightfold, Oracle Recruiting, and Goldman Higher candidate adapters
+- [ ] 03.8-03-PLAN.md — Wire exact verification, Experimental observation, and bounded Active polling
+- [ ] 03.8-04-PLAN.md — Add forward migration 0040 for truthful catalog, staged activation, and staggered claims
+- [ ] 03.8-05-PLAN.md — Approve and deploy the exact schema/function release with hosted parity proof
+- [ ] 03.8-06-PLAN.md — Roll out each provider family independently through natural scheduled polling or precise Unsupported outcome
+- [ ] 03.8-07-PLAN.md — Complete exact-release signed-in Watchlist and scoped-job UAT
+
 ### Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)
 
 **Goal:** Prioritize postings from explicitly watched companies by making a watchlist-only jobs dashboard the default destination while preserving the existing combined watchlist-plus-external Dashboard as a secondary All Jobs view.
