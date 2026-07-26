@@ -343,12 +343,12 @@ export const providerRegistry = {
   },
   workday: {
     verify: verifyWorkday,
-    poll: async (company, knownIds) => {
+    poll: async (company, knownIds, fetchImpl = fetch) => {
       // The persisted source key reconstructs the full identity (origin/hostForm/
       // cxsRoot) — the CXS origin is never re-derived from region.
       const identity = workdayIdentityForCompany(company)
       if (!identity) throw new Error('invalid_identity')
-      return pollWorkdayRecent(identity, fetch, { knownIds })
+      return pollWorkdayRecent(identity, fetchImpl, { knownIds })
     },
   },
   eightfold: {
@@ -432,6 +432,22 @@ export async function observeConnector(
 ): Promise<PollObservation> {
   if (company.activation_state !== 'experimental') {
     throw new Error(`inactive_observation_connector:${company.activation_state}`)
+  }
+  if (company.ats_type === 'workday') {
+    const identity = workdayIdentityForCompany(company)
+    const phase038Candidate = identity?.requireDetailCountryProof
+      || identity?.wholeSiteUsScope
+      || identity?.unsupportedCountryContract
+    if (
+      !identity
+      || !phase038Candidate
+      || company.board_token !== identity.tenant
+      || company.region !== identity.region
+      || company.site_token !== identity.site
+    ) {
+      throw new Error('inactive_observation_connector:identity_not_allowed')
+    }
+    return providerRegistry.workday.poll(company, new Set(), fetchImpl)
   }
   const identity = brandedIdentityForCompany(company)
   if (!identity) {

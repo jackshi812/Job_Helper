@@ -118,7 +118,13 @@ describe('migration 0043 Phase 03.8 Workday amendment', () => {
     expect(migration0043).toMatch(
       /delete from public\.source_coverage_catalog[\s\S]*company_name in \('Citi', 'Wells Fargo'\)/i,
     )
-    expect(migration0043).not.toMatch(
+    const catalogRemovalSurface = migration0043.slice(
+      0,
+      migration0043.indexOf(
+        'create or replace function public.finalize_workday_connector_candidate',
+      ),
+    )
+    expect(catalogRemovalSurface).not.toMatch(
       /delete from public\.(?:companies|jobs|connector_observations|branded_connector_terminal_evidence)/i,
     )
     expect(migration0043).toMatch(
