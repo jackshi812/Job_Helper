@@ -189,6 +189,25 @@ const DRY_RUN_KEYS = Object.freeze([
   'proposed',
   'output_sha256',
 ])
+const FAILED_PUSH_STATE_KEYS = Object.freeze([
+  'remote_migrations',
+  'migration_0040_recorded',
+  'next_poll_at_exists',
+  'scope_evidence_exists',
+  'branded_terminal_table_exists',
+  'verifier_runs_table_exists',
+  'verifier_fixtures_table_exists',
+  'finalize_rpc_exists',
+  'experimental_claim_rpc_exists',
+  'begin_rpc_exists',
+  'exercise_rpc_exists',
+  'finish_rpc_exists',
+  'companies_constraint_branded',
+  'jobs_constraint_branded',
+  'observations_constraint_branded',
+  'candidate_company_rows',
+  'observe_cron_rows',
+])
 
 const REQUIRED_HOSTED_CHECKS = Object.freeze([
   'release_identity',
@@ -902,10 +921,117 @@ async function managementSql(manifest, query) {
   const projectRef = manifest.targets.supabase.project_ref
   const payload = await httpJson(
     `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
-    { token, method: 'POST', body: { query } },
+    { token, method: 'POST', body: { query }, expected: [200, 201] },
   )
   if (!Array.isArray(payload)) throw new Error('management SQL response is malformed')
   return payload
+}
+
+function assertFailedPushCleanState(state, manifest) {
+  validateManifest(manifest)
+  exactKeys(state, FAILED_PUSH_STATE_KEYS, 'failed-push hosted state')
+  if (canonical(state.remote_migrations)
+    !== canonical(manifest.targets.supabase.remote_migrations)) {
+    throw new Error('failed push changed the hosted migration history')
+  }
+  for (const key of FAILED_PUSH_STATE_KEYS.slice(1, -2)) {
+    if (state[key] !== false) {
+      throw new Error(`failed push left partial 0040 residue: ${key}`)
+    }
+  }
+  if (state.candidate_company_rows !== 0 || state.observe_cron_rows !== 0) {
+    throw new Error('failed push left partial 0040 row or scheduler residue')
+  }
+  return state
+}
+
+async function runFailedPushCleanCheck(manifest) {
+  const rows = await managementSql(manifest, `
+    select
+      (
+        select coalesce(
+          jsonb_agg(version::text order by version),
+          '[]'::jsonb
+        )
+        from supabase_migrations.schema_migrations
+      ) as remote_migrations,
+      exists (
+        select 1 from supabase_migrations.schema_migrations
+        where version::text = '0040'
+      ) as migration_0040_recorded,
+      exists (
+        select 1 from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'companies'
+          and column_name = 'next_poll_at'
+      ) as next_poll_at_exists,
+      exists (
+        select 1 from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'jobs'
+          and column_name = 'scope_evidence'
+      ) as scope_evidence_exists,
+      to_regclass('public.branded_connector_terminal_evidence') is not null
+        as branded_terminal_table_exists,
+      to_regclass('public.phase_03_8_verifier_runs') is not null
+        as verifier_runs_table_exists,
+      to_regclass('public.phase_03_8_verifier_fixtures') is not null
+        as verifier_fixtures_table_exists,
+      to_regprocedure(
+        'public.finalize_branded_connector_candidate(text,text,text,text)'
+      ) is not null as finalize_rpc_exists,
+      to_regprocedure(
+        'public.claim_due_experimental_connectors(integer)'
+      ) is not null as experimental_claim_rpc_exists,
+      to_regprocedure(
+        'public.begin_phase_03_8_verifier_run(uuid)'
+      ) is not null as begin_rpc_exists,
+      to_regprocedure(
+        'public.exercise_phase_03_8_verifier_fault(uuid,text,text,integer)'
+      ) is not null as exercise_rpc_exists,
+      to_regprocedure(
+        'public.finish_phase_03_8_verifier_run(uuid,integer,integer,integer)'
+      ) is not null as finish_rpc_exists,
+      exists (
+        select 1
+        from pg_catalog.pg_constraint as constraint_row
+        where constraint_row.conname = 'companies_ats_type_check'
+          and pg_catalog.pg_get_constraintdef(constraint_row.oid)
+            ~ 'eightfold|oracle_recruiting|goldman_higher'
+      ) as companies_constraint_branded,
+      exists (
+        select 1
+        from pg_catalog.pg_constraint as constraint_row
+        where constraint_row.conname = 'jobs_source_check'
+          and pg_catalog.pg_get_constraintdef(constraint_row.oid)
+            ~ 'eightfold|oracle_recruiting|goldman_higher'
+      ) as jobs_constraint_branded,
+      exists (
+        select 1
+        from pg_catalog.pg_constraint as constraint_row
+        where constraint_row.conname = 'connector_observations_provider_check'
+          and pg_catalog.pg_get_constraintdef(constraint_row.oid)
+            ~ 'eightfold|oracle_recruiting|goldman_higher'
+      ) as observations_constraint_branded,
+      (
+        select count(*)::integer
+        from public.companies
+        where source_key in (
+          'eightfold:morganstanley',
+          'oracle:jpmc:CX_1001',
+          'goldman_higher:roles'
+        )
+      ) as candidate_company_rows,
+      (
+        select count(*)::integer
+        from cron.job
+        where jobname = 'observe-connectors-every-minute'
+      ) as observe_cron_rows
+  `)
+  if (rows.length !== 1) {
+    throw new Error('failed-push hosted state query returned an invalid row count')
+  }
+  return assertFailedPushCleanState(rows[0], manifest)
 }
 
 async function recheckHostedRelease(manifest) {
@@ -952,6 +1078,7 @@ function usage() {
   return [
     'Usage:',
     '  node scripts/verify-phase-03-8-hosted.mjs --preflight --manifest PATH',
+    '  node scripts/verify-phase-03-8-hosted.mjs --assert-failed-push-clean --manifest PATH',
     '  node scripts/verify-phase-03-8-hosted.mjs --assert-hosted PATH --manifest PATH',
     '  node scripts/verify-phase-03-8-hosted.mjs --rollout-family FAMILY --manifest PATH',
     '  node scripts/verify-phase-03-8-hosted.mjs --assert-rollout PATH --family FAMILY --max-active-latency-ms 900000 --manifest PATH',
@@ -969,6 +1096,10 @@ async function main(argv) {
   ))
   if (has(argv, '--preflight')) {
     console.log(JSON.stringify(await runPreflight(resolve(manifestPath)), null, 2))
+    return
+  }
+  if (has(argv, '--assert-failed-push-clean')) {
+    console.log(JSON.stringify(await runFailedPushCleanCheck(manifest), null, 2))
     return
   }
   if (has(argv, '--assert-hosted')) {
@@ -1014,6 +1145,7 @@ export {
   FAMILY_KEYS,
   FIXTURE_KEYS,
   REQUIRED_HOSTED_CHECKS,
+  assertFailedPushCleanState,
   assertHostedEvidence,
   assertLocalCandidate,
   assertRolloutEvidence,
@@ -1023,6 +1155,7 @@ export {
   guardedExercise,
   manifestObjectSha256,
   requireTerminalVerifierState,
+  runFailedPushCleanCheck,
   runPreflight,
   secretScan,
   sha256,
