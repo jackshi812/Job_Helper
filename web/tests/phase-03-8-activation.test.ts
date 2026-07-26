@@ -22,7 +22,11 @@ describe('Phase 03.8 proof-gated candidate terminalization', () => {
     expect(sql.trimStart()).toMatch(/^begin;/i)
     expect(sql.trimEnd()).toMatch(/commit;$/i)
     expect(sql).toContain('pending_current_live_contract_proof')
-    expect(sql).not.toMatch(/insert into public\.companies[\s\S]*eightfold:morganstanley/i)
+    const migrationApplication = sql.slice(
+      0,
+      sql.indexOf('create or replace function public.finalize_branded_connector_candidate'),
+    )
+    expect(migrationApplication).not.toMatch(/insert into public\.companies/i)
   })
 
   it('installs an exact service-only terminal RPC with replay and lifecycle guards', () => {
@@ -57,7 +61,7 @@ describe('Phase 03.8 positive activation and independent claims', () => {
     expect(rpc).toMatch(/eligibility_window_start\s*=\s*v_window_start/i)
     expect(rpc).toMatch(/v_progress\s*=\s*3/i)
     expect(rpc).toMatch(/activation_successes\s*=\s*v_progress/i)
-    expect(rpc).toMatch(/next_poll_at\s*=\s*v_now\s*\+\s*\(.*% 5\).*interval '1 minute'/is)
+    expect(rpc).toMatch(/then v_now\s*\+\s*\(.*% 5\).*interval '1 minute'/is)
   })
 
   it('locks and claims Experimental and Active lanes separately', () => {
@@ -69,7 +73,7 @@ describe('Phase 03.8 positive activation and independent claims', () => {
     expect(experimental).toMatch(/greatest\(1,\s*least\(coalesce\(batch_size,\s*3\),\s*3\)\)/i)
     expect(active).toMatch(/activation_state\s*=\s*'active'/i)
     expect(active).not.toMatch(/activation_state\s*=\s*'experimental'/i)
-    expect(active).toMatch(/next_poll_at\s*<=\s*v_now/i)
+    expect(active).toMatch(/coalesce\(next_poll_at,\s*last_polled_at,[^)]*\)\s*<=\s*v_now/i)
     expect(active).toMatch(/next_poll_at\s*=\s*v_now\s*\+\s*interval '10 minutes'/i)
     expect(active).toMatch(/for update skip locked/i)
   })
