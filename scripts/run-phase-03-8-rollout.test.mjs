@@ -23,6 +23,7 @@ import {
   classifyProbe,
   createBoundedFetch,
   createDryRunPlan,
+  deriveFinalHostedFunctionIdentities,
   exactApproval,
   executeRollout,
   exerciseVerifierFinally,
@@ -101,6 +102,38 @@ test('identity gates bind the literal manifest, canonical object, hosted PASS, a
       extensionBytes,
       sourceCommit: RELEASE_SOURCE_COMMIT,
     }).hosted.status, 'PASS')
+    assert.deepEqual(
+      deriveFinalHostedFunctionIdentities(JSON.parse(hostedBytes)),
+      {
+        'verify-board': {
+          id: 'b1f7f9ea-4423-49c9-97bc-946b374b5a1d',
+          version: 28,
+          status: 'ACTIVE',
+          verify_jwt: true,
+        },
+        'observe-connectors': {
+          id: '44ea3343-4c15-4e35-8826-6fc12f54ffc0',
+          version: 1,
+          status: 'ACTIVE',
+          verify_jwt: false,
+        },
+        'poll-tick': {
+          id: '623f09fa-9ff8-4736-a1ae-69b052cf20a9',
+          version: 31,
+          status: 'ACTIVE',
+          verify_jwt: false,
+        },
+      },
+    )
+    const staleHostedManifest = JSON.parse(manifestBytes)
+    staleHostedManifest.functions['verify-board'].current_hosted.version = 27
+    assert.throws(() => validateIdentityFiles({
+      manifestBytes: Buffer.from(`${JSON.stringify(staleHostedManifest, null, 2)}\n`),
+      hostedBytes,
+      repairBytes,
+      extensionBytes,
+      sourceCommit: RELEASE_SOURCE_COMMIT,
+    }), /manifest file hash drift|final hosted function identity drift/)
     assert.throws(() => validateIdentityFiles({
       manifestBytes,
       hostedBytes,

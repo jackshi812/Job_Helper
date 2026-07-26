@@ -14,9 +14,9 @@ const require = createRequire(import.meta.url)
 
 export const RELEASE_MANIFEST_ID = '03850000-0000-4000-8000-000000000006'
 export const RELEASE_MANIFEST_FILE_SHA256 =
-  'f5d20c1abd75415e198e5bda598d4a39c431015490be177087e69eb78223464f'
+  '1cac45957a23cb9de040005c92ba736a727e7ae54da617b94a3d2c4e182c1b06'
 export const RELEASE_MANIFEST_OBJECT_SHA256 =
-  '7134711df191afc5b509545176c07889503f9ac06a2a0af59a6d6638aa6136dc'
+  '6e3100857d11b00c4c62cdc427ac55f9bea620fd105686f5ecfb199e5489bf6f'
 export const PLAN_05_HOSTED_SHA256 =
   '3a36a1acab9a21aff0fdc26e1419040dd6487fb075e608bef71842a6c35b594f'
 export const VERIFIER_REPAIR_PATH =
@@ -162,6 +162,12 @@ const DEFAULT_OUTPUT = resolve(DEFAULT_PHASE_DIR, '03.8-06-ROLLOUT-VERIFICATION.
 const DEFAULT_REPAIR = resolve(VERIFIER_REPAIR_PATH)
 let typeScriptHookRegistered = false
 
+const HOSTED_FUNCTION_CHECKS = Object.freeze({
+  'verify-board': 'verify_board_bundle',
+  'observe-connectors': 'observe_connectors_bundle',
+  'poll-tick': 'poll_tick_bundle',
+})
+
 export function sha256(value) {
   return createHash('sha256').update(value).digest('hex')
 }
@@ -182,6 +188,26 @@ function requireCondition(condition, message) {
 
 export function exactApproval() {
   return `approve Phase 03.8 Workday rollout ${RELEASE_MANIFEST_ID} ${RELEASE_MANIFEST_FILE_SHA256} ${VERIFIER_REPAIR_SHA256} ${WORKDAY_EXTENSION_SHA256}`
+}
+
+export function deriveFinalHostedFunctionIdentities(hosted) {
+  return Object.fromEntries(Object.entries(HOSTED_FUNCTION_CHECKS).map(
+    ([slug, checkName]) => {
+      const check = hosted?.checks?.[checkName]
+      requireCondition(check?.status === 'PASS'
+        && check.deployment_status === 'ACTIVE'
+        && typeof check.id === 'string'
+        && Number.isSafeInteger(check.version)
+        && typeof check.verify_jwt === 'boolean',
+      `Plan 05 final hosted identity is invalid for ${slug}`)
+      return [slug, {
+        id: check.id,
+        version: check.version,
+        status: check.deployment_status,
+        verify_jwt: check.verify_jwt,
+      }]
+    },
+  ))
 }
 
 export function validateIdentityFiles({
@@ -209,6 +235,7 @@ export function validateIdentityFiles({
   )
   const manifest = JSON.parse(manifestBytes)
   const hosted = JSON.parse(hostedBytes)
+  const finalHosted = deriveFinalHostedFunctionIdentities(hosted)
   requireCondition(manifest.release_manifest_id === RELEASE_MANIFEST_ID,
     'release manifest ID drift')
   requireCondition(manifest.candidate?.git_sha === RELEASE_SOURCE_COMMIT,
@@ -217,6 +244,11 @@ export function validateIdentityFiles({
     'canonical release manifest hash drift')
   requireCondition(hosted.status === 'PASS' && hosted.phase === '03.8',
     'Plan 05 hosted baseline is not PASS')
+  requireCondition(canonical(Object.fromEntries(Object.entries(
+    manifest.functions ?? {},
+  ).map(([slug, entry]) => [slug, entry.current_hosted])))
+    === canonical(finalHosted),
+  'release manifest final hosted function identity drift')
   requireCondition(hosted.verifier_authority?.status === 'ARMED'
     && hosted.verifier_authority.run_id === VERIFIER_RUN_ID
     && hosted.cleanup?.status === 'PENDING',

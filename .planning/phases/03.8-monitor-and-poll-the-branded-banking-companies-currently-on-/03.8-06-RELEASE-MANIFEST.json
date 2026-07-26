@@ -172,11 +172,11 @@
         }
       ],
       "verify_jwt": true,
-      "current_hosted": {
-        "id": "b1f7f9ea-4423-49c9-97bc-946b374b5a1d",
-        "version": 27,
-        "status": "ACTIVE",
-        "verify_jwt": true
+    "current_hosted": {
+      "id": "b1f7f9ea-4423-49c9-97bc-946b374b5a1d",
+      "version": 28,
+      "status": "ACTIVE",
+      "verify_jwt": true
       }
     },
     "observe-connectors": {
@@ -270,7 +270,12 @@
         }
       ],
       "verify_jwt": false,
-      "current_hosted": null
+    "current_hosted": {
+      "id": "44ea3343-4c15-4e35-8826-6fc12f54ffc0",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false
+    }
     },
     "poll-tick": {
       "entry_path": "supabase/functions/poll-tick/index.ts",
@@ -371,11 +376,11 @@
         }
       ],
       "verify_jwt": false,
-      "current_hosted": {
-        "id": "623f09fa-9ff8-4736-a1ae-69b052cf20a9",
-        "version": 30,
-        "status": "ACTIVE",
-        "verify_jwt": false
+    "current_hosted": {
+      "id": "623f09fa-9ff8-4736-a1ae-69b052cf20a9",
+      "version": 31,
+      "status": "ACTIVE",
+      "verify_jwt": false
       }
     }
   },
@@ -623,7 +628,7 @@
     }
   ],
   "verifier": {
-    "script_sha256": "753c3ca07c528dbefefaae82954c75957b5f750545ea29164743248885d8f0af",
+    "script_sha256": "bc6bac7de8cbd243d96f63fa9934ff7c7cacb6c053a5a22f1414dab6ae8d8cd2",
     "run_id": "03850000-0000-4000-8000-000000000501",
     "faults": [
       "incomplete_observation",

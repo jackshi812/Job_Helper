@@ -4,10 +4,12 @@ import test from 'node:test'
 
 import {
   REQUIRED_HOSTED_CHECKS,
+  FINAL_HOSTED_FUNCTION_IDENTITIES,
   assertFailedPushCleanState,
   assertHostedEvidence,
   assertRolloutEvidence,
   canonical,
+  deriveFinalHostedFunctionIdentities,
   guardedExercise,
   requireTerminalVerifierState,
   sha256,
@@ -17,6 +19,10 @@ import {
 
 const manifestPath = new URL(
   '../.planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-/03.8-06-RELEASE-MANIFEST.json',
+  import.meta.url,
+)
+const hostedEvidencePath = new URL(
+  '../.planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-/03.8-05-HOSTED-VERIFICATION.json',
   import.meta.url,
 )
 
@@ -30,7 +36,18 @@ function clone(value) {
 
 test('the exact checked-in release manifest is schema-valid and secret-free', async () => {
   const manifest = await manifestFixture()
+  const hosted = JSON.parse(await readFile(hostedEvidencePath, 'utf8'))
   assert.equal(validateManifest(manifest), manifest)
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(manifest.functions).map(
+      ([slug, entry]) => [slug, entry.current_hosted],
+    )),
+    deriveFinalHostedFunctionIdentities(hosted),
+  )
+  assert.deepEqual(
+    deriveFinalHostedFunctionIdentities(hosted),
+    FINAL_HOSTED_FUNCTION_IDENTITIES,
+  )
   assert.equal(manifest.phase, '03.8')
   assert.equal(manifest.release_manifest_id, '03850000-0000-4000-8000-000000000006')
   assert.equal(manifest.verifier.run_id, '03850000-0000-4000-8000-000000000501')
@@ -84,6 +101,15 @@ test('manifest validation rejects missing/extra keys, secrets, aliases, drift, a
   const staleFunction = clone(await manifestFixture())
   staleFunction.functions['poll-tick'].bundle_manifest_sha256 = '0'.repeat(64)
   cases.push(staleFunction)
+  const staleVerifyHosted = clone(await manifestFixture())
+  staleVerifyHosted.functions['verify-board'].current_hosted.version = 27
+  cases.push(staleVerifyHosted)
+  const missingObserveHosted = clone(await manifestFixture())
+  missingObserveHosted.functions['observe-connectors'].current_hosted = null
+  cases.push(missingObserveHosted)
+  const stalePollHosted = clone(await manifestFixture())
+  stalePollHosted.functions['poll-tick'].current_hosted.version = 30
+  cases.push(stalePollHosted)
   const protectedDrift = clone(await manifestFixture())
   protectedDrift.protected_sources[0].source_key = 'workday:drift'
   cases.push(protectedDrift)

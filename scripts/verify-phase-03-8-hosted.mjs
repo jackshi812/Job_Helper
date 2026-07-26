@@ -54,6 +54,31 @@ const PROTECTED_SOURCE_KEYS = Object.freeze([
   'workday:wd12:capitalone:Capital_One',
   'workday:wd1:fmr:FidelityCareers',
 ])
+const FINAL_HOSTED_FUNCTION_CHECKS = Object.freeze({
+  'verify-board': 'verify_board_bundle',
+  'observe-connectors': 'observe_connectors_bundle',
+  'poll-tick': 'poll_tick_bundle',
+})
+const FINAL_HOSTED_FUNCTION_IDENTITIES = Object.freeze({
+  'verify-board': Object.freeze({
+    id: 'b1f7f9ea-4423-49c9-97bc-946b374b5a1d',
+    version: 28,
+    status: 'ACTIVE',
+    verify_jwt: true,
+  }),
+  'observe-connectors': Object.freeze({
+    id: '44ea3343-4c15-4e35-8826-6fc12f54ffc0',
+    version: 1,
+    status: 'ACTIVE',
+    verify_jwt: false,
+  }),
+  'poll-tick': Object.freeze({
+    id: '623f09fa-9ff8-4736-a1ae-69b052cf20a9',
+    version: 31,
+    status: 'ACTIVE',
+    verify_jwt: false,
+  }),
+})
 
 const ROOT_KEYS = Object.freeze([
   'schema_version',
@@ -291,6 +316,31 @@ function secretScan(value, path = 'manifest') {
   }
 }
 
+function deriveFinalHostedFunctionIdentities(hosted) {
+  const identities = Object.fromEntries(Object.entries(
+    FINAL_HOSTED_FUNCTION_CHECKS,
+  ).map(([slug, checkName]) => {
+    const check = hosted?.checks?.[checkName]
+    if (check?.status !== 'PASS'
+      || check.deployment_status !== 'ACTIVE'
+      || typeof check.id !== 'string'
+      || !Number.isSafeInteger(check.version)
+      || typeof check.verify_jwt !== 'boolean') {
+      throw new Error(`final hosted evidence is invalid for ${slug}`)
+    }
+    return [slug, {
+      id: check.id,
+      version: check.version,
+      status: check.deployment_status,
+      verify_jwt: check.verify_jwt,
+    }]
+  }))
+  if (canonical(identities) !== canonical(FINAL_HOSTED_FUNCTION_IDENTITIES)) {
+    throw new Error('final hosted function identities drift from pinned evidence')
+  }
+  return identities
+}
+
 function validateCatalogRows(rows, label) {
   if (!Array.isArray(rows) || rows.length !== 8) {
     throw new Error(`${label} must contain exactly eight frozen companies`)
@@ -403,18 +453,14 @@ function validateManifest(manifest) {
         !== entry.entry_sha256) {
       throw new Error(`${slug} transitive bundle manifest drift`)
     }
-    if (slug === 'observe-connectors') {
-      if (entry.current_hosted !== null) {
-        throw new Error('observe-connectors must record its absent hosted baseline')
-      }
-    } else {
-      exactKeys(entry.current_hosted, HOSTED_FUNCTION_KEYS, `${slug} hosted identity`)
-      requireString(entry.current_hosted.id, UUID, `${slug} hosted ID`)
-      requireInteger(entry.current_hosted.version, 1, 100_000, `${slug} version`)
-      if (entry.current_hosted.status !== 'ACTIVE'
-        || entry.current_hosted.verify_jwt !== entry.verify_jwt) {
-        throw new Error(`${slug} hosted identity/JWT mismatch`)
-      }
+    exactKeys(entry.current_hosted, HOSTED_FUNCTION_KEYS, `${slug} hosted identity`)
+    requireString(entry.current_hosted.id, UUID, `${slug} hosted ID`)
+    requireInteger(entry.current_hosted.version, 1, 100_000, `${slug} version`)
+    if (entry.current_hosted.status !== 'ACTIVE'
+      || entry.current_hosted.verify_jwt !== entry.verify_jwt
+      || canonical(entry.current_hosted)
+        !== canonical(FINAL_HOSTED_FUNCTION_IDENTITIES[slug])) {
+      throw new Error(`${slug} final hosted identity/JWT mismatch`)
     }
   }
   if (manifest.functions['verify-board'].verify_jwt !== true
@@ -1170,6 +1216,7 @@ export {
   FAULTS,
   FAMILY_KEYS,
   FIXTURE_KEYS,
+  FINAL_HOSTED_FUNCTION_IDENTITIES,
   REQUIRED_HOSTED_CHECKS,
   assertFailedPushCleanState,
   assertHostedEvidence,
@@ -1178,6 +1225,7 @@ export {
   assertUatEvidence,
   bundleManifest,
   canonical,
+  deriveFinalHostedFunctionIdentities,
   guardedExercise,
   manifestObjectSha256,
   requireTerminalVerifierState,
