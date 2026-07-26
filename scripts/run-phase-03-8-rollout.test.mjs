@@ -363,9 +363,13 @@ test('rollout invokes terminal RPC only after each probe and runs verifier in fi
       async assertReleaseIdentity() {
         events.push('identity')
       },
-      async assertCandidatePending(family) {
+      async inspectCandidateStart(family) {
         events.push(`pending:${family.family}`)
-        return true
+        return {
+          family: family.family,
+          source_key: family.sourceKey,
+          kind: 'pending',
+        }
       },
       async finalizeCandidate({ sourceKey }) {
         events.push(`finalize:${sourceKey}`)
@@ -454,8 +458,12 @@ test('family error does not consume one-use verifier authority', async () => {
   const ops = {
     ...verification,
     async assertReleaseIdentity() {},
-    async assertCandidatePending() {
-      return false
+    async inspectCandidateStart(family) {
+      return {
+        family: family.family,
+        source_key: family.sourceKey,
+        kind: 'ambiguous',
+      }
     },
   }
   await assert.rejects(executeRollout({
@@ -466,9 +474,132 @@ test('family error does not consume one-use verifier authority', async () => {
     probe: async () => {
       throw new Error('probe must not run')
     },
-  }), /not pristine pending/)
+  }), /candidate start state is invalid/)
   assert.equal(verification.calls.length, 0)
 })
+
+test('terminal Unsupported Morgan resumes safely and later probe failure stays partial',
+  async () => {
+    const events = []
+    const verification = verifierOps()
+    const ops = {
+      ...verification,
+      async assertReleaseIdentity() {
+        events.push('identity')
+      },
+      async inspectCandidateStart(family) {
+        events.push(`start:${family.family}`)
+        if (family.family === 'eightfold') {
+          return {
+            family: family.family,
+            source_key: family.sourceKey,
+            kind: 'terminal_unsupported',
+            reason: 'provider_schema_error',
+            operational_rows: 0,
+            evidence_rows: 1,
+            positive_evidence_rows: 0,
+            activation_successes: null,
+            observation_rows: 0,
+          }
+        }
+        return {
+          family: family.family,
+          source_key: family.sourceKey,
+          kind: 'pending',
+        }
+      },
+      async finalizeCandidate({ sourceKey, outcome, evidenceDigest }) {
+        events.push(`finalize:${sourceKey}:${outcome}:${evidenceDigest}`)
+        return { accepted: true }
+      },
+      async awaitTerminalFamily({ family }) {
+        events.push(`terminal:${family.family}`)
+        return {
+          family: family.family,
+          source_key: family.sourceKey,
+          status: 'PASS',
+          outcome: 'unsupported',
+          reason: 'scope_evidence_incomplete',
+          scheduled: false,
+          monitored: false,
+          operational_rows: 0,
+        }
+      },
+    }
+    await assert.rejects(executeRollout({
+      manifest: {
+        release_manifest_id: '03850000-0000-4000-8000-000000000005',
+      },
+      ops,
+      nonce: () => 'resume-attempt-1',
+      probe: async (family) => {
+        events.push(`probe:${family.family}`)
+        if (family.family === 'oracle_recruiting') {
+          throw new Error('injected Oracle detail failure')
+        }
+        return classifyProbe(family, {
+          ...completeObservation(family),
+          completeness: 'unknown',
+          credibleForClosure: false,
+          allowMissingClosure: false,
+          jobs: [],
+          expectedCount: 0,
+          warnings: ['detail_evidence_missing'],
+        }, 2, 25)
+      },
+    }), /injected Oracle detail failure/)
+    assert.ok(events.includes('start:eightfold'))
+    assert.ok(events.includes('probe:eightfold'))
+    assert.ok(events.some((event) =>
+      event.startsWith('finalize:eightfold:morganstanley:unsupported:')))
+    assert.ok(events.includes('terminal:eightfold'))
+    assert.ok(events.includes('start:oracle_recruiting'))
+    assert.ok(events.includes('probe:oracle_recruiting'))
+    assert.equal(events.some((event) => event.includes('goldman_higher')), false)
+    assert.equal(verification.calls.length, 0)
+  })
+
+test('Active resume re-probes and refuses downgrade on negative live evidence',
+  async () => {
+    let finalized = false
+    const verification = verifierOps()
+    await assert.rejects(executeRollout({
+      manifest: {
+        release_manifest_id: '03850000-0000-4000-8000-000000000005',
+      },
+      ops: {
+        ...verification,
+        async assertReleaseIdentity() {},
+        async inspectCandidateStart(family) {
+          return {
+            family: family.family,
+            source_key: family.sourceKey,
+            kind: 'active',
+            operational_rows: 1,
+            evidence_rows: 1,
+            positive_evidence_rows: 1,
+            activation_successes: 3,
+            observation_rows: 3,
+          }
+        },
+        async finalizeCandidate() {
+          finalized = true
+          return { accepted: true }
+        },
+      },
+      probe: async (family) => classifyProbe(family, {
+        ...completeObservation(family),
+        completeness: 'unknown',
+        credibleForClosure: false,
+        allowMissingClosure: false,
+        jobs: [],
+        expectedCount: 0,
+        warnings: ['detail_evidence_missing'],
+      }, 2, 25),
+    }), /refusing mutation/)
+    assert.equal(finalized, false)
+    assert.equal(verification.calls.length, 0)
+  })
 
 test('ambiguous verifier response confirms cleanup but fails evidence closed',
   async () => {

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFile as execFileCallback } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { createRequire, registerHooks } from 'node:module'
@@ -424,6 +424,54 @@ function requireTerminalFamilyEvidence(result, family) {
   return result
 }
 
+function requireCandidateStart(start, family) {
+  requireCondition(start?.family === family.family
+    && start?.source_key === family.sourceKey
+    && ['pending', 'terminal_unsupported', 'experimental', 'active']
+      .includes(start?.kind),
+  `${family.family} candidate start state is invalid`)
+  if (start.kind === 'terminal_unsupported') {
+    requireCondition(TERMINAL_REASONS.has(start.reason)
+      && start.operational_rows === 0
+      && start.evidence_rows >= 1,
+    `${family.family} terminal Unsupported resume is invalid`)
+  }
+  if (start.kind === 'experimental') {
+    requireCondition(start.operational_rows === 1
+      && start.activation_successes >= 0
+      && start.activation_successes <= 3
+      && start.observation_rows === start.activation_successes
+      && start.positive_evidence_rows >= 1,
+    `${family.family} Experimental resume is invalid`)
+  }
+  if (start.kind === 'active') {
+    requireCondition(start.operational_rows === 1
+      && start.activation_successes === 3
+      && start.observation_rows === 3
+      && start.positive_evidence_rows >= 1,
+    `${family.family} Active resume is invalid`)
+  }
+  return start
+}
+
+function freshTerminalDigest({
+  family,
+  start,
+  probe,
+  outcome,
+  nonce,
+}) {
+  return sha256(canonical({
+    schema_version: 1,
+    release_manifest_id: RELEASE_MANIFEST_ID,
+    source_key: family.sourceKey,
+    start_kind: start.kind,
+    outcome,
+    probe_evidence_digest: probe.evidence.evidence_digest,
+    attempt_nonce: nonce,
+  }))
+}
+
 export async function exerciseVerifierFinally(ops, manifest, clock = Date) {
   if (typeof ops.runVerifierTransaction === 'function') {
     try {
@@ -545,25 +593,58 @@ export async function executeRollout({
   ops,
   probe = directProbe,
   now = () => Date.now(),
+  nonce = () => randomUUID(),
 }) {
   assertFamilyOrder(FAMILY_ORDER)
   const familyResults = {}
   for (const family of FAMILY_ORDER) {
     const deadline = now() + FAMILY_CEILING_MS
     await ops.assertReleaseIdentity(manifest, hostedSha256)
-    const initial = await ops.assertCandidatePending(family)
-    requireCondition(initial === true, `${family.family} is not pristine pending`)
+    const start = requireCandidateStart(
+      await ops.inspectCandidateStart(family),
+      family,
+    )
     const probeResult = await probe(family)
     requireCondition(now() <= deadline, `${family.family} exceeded 20-minute ceiling`)
     const outcome = probeResult.positive ? 'admit_experimental' : 'unsupported'
-    const finalized = await ops.finalizeCandidate({
-      sourceKey: family.sourceKey,
-      outcome,
-      reason: probeResult.reason,
-      evidenceDigest: probeResult.evidence.evidence_digest,
-    })
-    requireCondition(finalized?.accepted === true,
-      `${family.family} terminal RPC rejected exact evidence`)
+    let terminalEvidenceDigest = null
+    if (start.kind === 'pending' || start.kind === 'terminal_unsupported') {
+      terminalEvidenceDigest = freshTerminalDigest({
+        family,
+        start,
+        probe: probeResult,
+        outcome,
+        nonce: nonce(),
+      })
+      const finalized = await ops.finalizeCandidate({
+        sourceKey: family.sourceKey,
+        outcome,
+        reason: probeResult.reason,
+        evidenceDigest: terminalEvidenceDigest,
+      })
+      requireCondition(finalized?.accepted === true,
+        `${family.family} terminal RPC rejected exact evidence`)
+    } else if (start.kind === 'experimental' && !probeResult.positive) {
+      terminalEvidenceDigest = freshTerminalDigest({
+        family,
+        start,
+        probe: probeResult,
+        outcome: 'unsupported',
+        nonce: nonce(),
+      })
+      const finalized = await ops.finalizeCandidate({
+        sourceKey: family.sourceKey,
+        outcome: 'unsupported',
+        reason: probeResult.reason,
+        evidenceDigest: terminalEvidenceDigest,
+      })
+      requireCondition(finalized?.accepted === true,
+        `${family.family} Experimental terminalization failed`)
+    } else if (start.kind === 'active' && !probeResult.positive) {
+      throw new Error(
+        `${family.family} live probe no longer supports its Active state; refusing mutation`,
+      )
+    }
     let terminal
     try {
       terminal = await ops.awaitTerminalFamily({
@@ -573,21 +654,25 @@ export async function executeRollout({
       })
     } catch (error) {
       if (!probeResult.positive) throw error
+      if (start.kind === 'active') throw error
       await ops.assertReleaseIdentity(manifest, hostedSha256)
+      terminalEvidenceDigest = freshTerminalDigest({
+        family,
+        start,
+        probe: probeResult,
+        outcome: 'unsupported',
+        nonce: nonce(),
+      })
       terminal = await ops.terminalizeExperimental({
         family,
         reason: 'provider_timeout',
-        evidenceDigest: sha256(canonical({
-          schema_version: 1,
-          source_key: family.sourceKey,
-          disposition: 'unsupported_after_observation_failure',
-          initial_probe_digest: probeResult.evidence.evidence_digest,
-          failure_code: 'provider_timeout',
-        })),
+        evidenceDigest: terminalEvidenceDigest,
       })
     }
     familyResults[family.family] = {
       ...requireTerminalFamilyEvidence(terminal, family),
+      start_state: start.kind,
+      terminal_evidence_digest: terminalEvidenceDigest,
       probe: probeResult.evidence,
     }
   }
@@ -706,6 +791,8 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
           'eligible_job_count',
           'natural_poll',
           'timestamps',
+          'start_state',
+          'terminal_evidence_digest',
           'probe',
         ]
       : [
@@ -717,6 +804,8 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
           'scheduled',
           'monitored',
           'operational_rows',
+          'start_state',
+          'terminal_evidence_digest',
           'probe',
         ],
     `${expected.family} outcome`)
@@ -745,6 +834,12 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
       && result.probe.elapsed_ms <= PROBE_DEADLINE_MS + 1_000
       && /^[0-9a-f]{64}$/.test(result.probe.evidence_digest),
     `${expected.family} probe binding failed`)
+    requireCondition(
+      ['pending', 'terminal_unsupported', 'experimental', 'active']
+        .includes(result.start_state)
+      && (result.terminal_evidence_digest === null
+        || /^[0-9a-f]{64}$/.test(result.terminal_evidence_digest)),
+    `${expected.family} resume binding failed`)
   }
   exactKeys(evidence.fault_recovery, [
     'status',
@@ -955,31 +1050,99 @@ export class ManagementSqlOps {
     'manifest/hosted web identity drift')
   }
 
-  async assertCandidatePending(family) {
+  async inspectCandidateStart(family) {
     const row = oneRow(await this.query(`
+      with company_state as (
+        select
+          count(*)::integer as operational_rows,
+          min(activation_state) as activation_state,
+          min(activation_successes)::integer as activation_successes,
+          min(ats_type) as ats_type
+        from public.companies
+        where source_key = ${sqlLiteral(family.sourceKey)}
+      ),
+      evidence_state as (
+        select
+          count(*)::integer as evidence_rows,
+          count(*) filter (
+            where outcome = 'admit_experimental'
+          )::integer as positive_evidence_rows,
+          (array_agg(outcome order by recorded_at desc))[1] as latest_outcome,
+          (array_agg(reason order by recorded_at desc))[1] as latest_reason
+        from public.branded_connector_terminal_evidence
+        where source_key = ${sqlLiteral(family.sourceKey)}
+      ),
+      observation_state as (
+        select
+          count(*)::integer as observation_rows,
+          count(distinct eligibility_window_start)::integer as window_rows
+        from public.connector_observations
+        where company_id in (
+          select id from public.companies
+          where source_key = ${sqlLiteral(family.sourceKey)}
+        )
+      )
       select
-        (
-          select count(*)::integer
-          from public.source_coverage_catalog
-          where company_name = ${sqlLiteral(family.company)}
-            and disposition = 'unsupported_with_reason'
-            and unsupported_reason = 'pending_current_live_contract_proof'
-            and source_key is null
-        ) as pending_rows,
-        (
-          select count(*)::integer
-          from public.companies
-          where source_key = ${sqlLiteral(family.sourceKey)}
-        ) as operational_rows,
-        (
-          select count(*)::integer
-          from public.branded_connector_terminal_evidence
-          where source_key = ${sqlLiteral(family.sourceKey)}
-        ) as evidence_rows
-    `), `${family.family} pending state`)
-    return row.pending_rows === 1
+        catalog.disposition,
+        catalog.unsupported_reason,
+        catalog.source_key as catalog_source_key,
+        company.*,
+        evidence.*,
+        observation.*
+      from public.source_coverage_catalog as catalog
+      cross join company_state as company
+      cross join evidence_state as evidence
+      cross join observation_state as observation
+      where catalog.company_name = ${sqlLiteral(family.company)}
+    `), `${family.family} candidate start`)
+    const base = {
+      family: family.family,
+      source_key: family.sourceKey,
+      operational_rows: row.operational_rows,
+      evidence_rows: row.evidence_rows,
+      positive_evidence_rows: row.positive_evidence_rows,
+      activation_successes: row.activation_successes,
+      observation_rows: row.observation_rows,
+    }
+    if (row.disposition === 'unsupported_with_reason'
+      && row.unsupported_reason === 'pending_current_live_contract_proof'
+      && row.catalog_source_key === null
       && row.operational_rows === 0
-      && row.evidence_rows === 0
+      && row.evidence_rows === 0) {
+      return { ...base, kind: 'pending' }
+    }
+    if (row.disposition === 'unsupported_with_reason'
+      && TERMINAL_REASONS.has(row.unsupported_reason)
+      && row.catalog_source_key === null
+      && row.operational_rows === 0
+      && row.evidence_rows >= 1
+      && row.latest_outcome === 'unsupported'
+      && row.latest_reason === row.unsupported_reason) {
+      return { ...base, kind: 'terminal_unsupported', reason: row.unsupported_reason }
+    }
+    if (row.disposition === 'experimental'
+      && row.catalog_source_key === family.sourceKey
+      && row.operational_rows === 1
+      && row.ats_type === family.family
+      && row.activation_state === 'experimental'
+      && row.activation_successes >= 0
+      && row.activation_successes <= 3
+      && row.observation_rows === row.activation_successes
+      && row.window_rows === row.observation_rows
+      && row.positive_evidence_rows >= 1) {
+      return { ...base, kind: 'experimental' }
+    }
+    if (row.catalog_source_key === family.sourceKey
+      && row.operational_rows === 1
+      && row.ats_type === family.family
+      && row.activation_state === 'active'
+      && row.activation_successes === 3
+      && row.observation_rows === 3
+      && row.window_rows === 3
+      && row.positive_evidence_rows >= 1) {
+      return { ...base, kind: 'active' }
+    }
+    throw new Error(`${family.family} candidate start state is ambiguous`)
   }
 
   async finalizeCandidate({ sourceKey, outcome, reason, evidenceDigest }) {
