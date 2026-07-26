@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UNSUPPORTED_URL_MESSAGE } from '../../../supabase/functions/_shared/detect'
 import sourceCoverageCatalogMigration from '../../../supabase/migrations/0013_source_coverage_catalog.sql?raw'
 import brandedConnectorMigration from '../../../supabase/migrations/0040_phase_03_8_branded_connectors.sql?raw'
+import workdayCandidateMigration from '../../../supabase/migrations/0043_phase_03_8_workday_candidates.sql?raw'
 import {
   activationPresentation,
   addCompany,
@@ -53,14 +54,14 @@ function company(overrides: Partial<CompanyRecord> = {}): CompanyRecord {
 
 const CAPITAL_ONE_SOURCE_KEY = 'workday:wd12:capitalone:Capital_One'
 const FIDELITY_SOURCE_KEY = 'workday:wd1:fmr:FidelityCareers'
-const MORGAN_STANLEY_SOURCE_KEY = 'eightfold:morganstanley'
+const MORGAN_STANLEY_SOURCE_KEY = 'workday:wd5:ms:External'
 
 const financeCatalog: SourceCoverageCatalogRecord[] = [
   {
     id: 'catalog-morgan-stanley',
     company_name: 'Morgan Stanley',
-    careers_url: 'https://www.morganstanley.com/careers/career-opportunities-search/',
-    provider: 'Eightfold',
+    careers_url: 'https://ms.wd5.myworkdayjobs.com/en-US/External',
+    provider: 'Workday',
     access_evidence: 'Current exact hosted live proof remains pending.',
     disposition: 'unsupported_with_reason',
     verified_at: '2026-07-25',
@@ -92,45 +93,23 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
   {
     id: 'catalog-bank-of-america',
     company_name: 'Bank of America',
-    careers_url: 'https://careers.bankofamerica.com/en-us/job-search',
-    provider: 'Branded/custom AEM',
-    access_evidence: 'No single documented anonymous source contract was established.',
+    careers_url: 'https://ghr.wd1.myworkdayjobs.com/en-US/Lateral-US',
+    provider: 'Workday',
+    access_evidence: 'Exact whole-site U.S. detail proof remains pending.',
     disposition: 'unsupported_with_reason',
-    verified_at: '2026-07-17',
-    unsupported_reason: 'primary_portal_html_only_no_structured_machine_contract',
-    source_key: null,
-  },
-  {
-    id: 'catalog-citi',
-    company_name: 'Citi',
-    careers_url: 'https://jobs.citi.com/search-jobs',
-    provider: 'Radancy/TalentBrew',
-    access_evidence: 'No documented public listing API was established.',
-    disposition: 'unsupported_with_reason',
-    verified_at: '2026-07-17',
-    unsupported_reason: 'radancy_results_require_html_parsing',
+    verified_at: '2026-07-26',
+    unsupported_reason: 'pending_current_live_contract_proof',
     source_key: null,
   },
   {
     id: 'catalog-blackrock',
     company_name: 'BlackRock',
-    careers_url: 'https://careers.blackrock.com/search-jobs',
-    provider: 'Radancy/TalentBrew',
-    access_evidence: 'No documented public listing API was established.',
+    careers_url: 'https://blackrock.wd1.myworkdayjobs.com/en-US/BlackRock_Professional',
+    provider: 'Workday',
+    access_evidence: 'No exact safe country contract has been proven.',
     disposition: 'unsupported_with_reason',
-    verified_at: '2026-07-17',
-    unsupported_reason: 'radancy_results_require_html_parsing',
-    source_key: null,
-  },
-  {
-    id: 'catalog-wells-fargo',
-    company_name: 'Wells Fargo',
-    careers_url: 'https://www.wellsfargojobs.com/en/jobs/',
-    provider: 'Branded/custom',
-    access_evidence: 'Direct automation reached a Cloudflare challenge.',
-    disposition: 'unsupported_with_reason',
-    verified_at: '2026-07-17',
-    unsupported_reason: 'primary_portal_managed_challenge_no_bypass',
+    verified_at: '2026-07-26',
+    unsupported_reason: 'pending_current_live_contract_proof',
     source_key: null,
   },
   {
@@ -147,12 +126,12 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
   {
     id: 'catalog-barclays',
     company_name: 'Barclays',
-    careers_url: 'https://search.jobs.barclays/en/search-jobs',
-    provider: 'Radancy/TalentBrew',
-    access_evidence: 'No documented public listing API was established.',
+    careers_url: 'https://barclays.wd3.myworkdayjobs.com/en-US/External_Career_Site_Barclays',
+    provider: 'Workday',
+    access_evidence: 'No exact safe country contract has been proven.',
     disposition: 'unsupported_with_reason',
-    verified_at: '2026-07-17',
-    unsupported_reason: 'radancy_results_require_html_parsing',
+    verified_at: '2026-07-26',
+    unsupported_reason: 'pending_current_live_contract_proof',
     source_key: null,
   },
   {
@@ -201,9 +180,7 @@ describe('finance coverage presentation', () => {
       'Goldman Sachs',
       'JPMorgan Chase',
       'Bank of America',
-      'Citi',
       'BlackRock',
-      'Wells Fargo',
       'UBS',
       'Barclays',
       'Capital One',
@@ -217,12 +194,11 @@ describe('finance coverage presentation', () => {
 
   it('pins current evidence seeds while preserving the read-only catalog policy', () => {
     for (const entry of financeCatalog) {
-      const owningMigration = [
-        'Capital One',
-        'Fidelity',
-      ].includes(entry.company_name)
+      const owningMigration = ['Capital One', 'Fidelity'].includes(entry.company_name)
         ? sourceCoverageCatalogMigration
-        : brandedConnectorMigration
+        : ['Goldman Sachs', 'JPMorgan Chase'].includes(entry.company_name)
+          ? brandedConnectorMigration
+          : workdayCandidateMigration
       expect(owningMigration).toContain(`'${entry.company_name}'`)
       expect(owningMigration).toContain(`'${entry.careers_url}'`)
     }
@@ -285,7 +261,7 @@ describe('finance coverage presentation', () => {
     })
 
     const rows = mergeCoverageRows([capitalOne], financeCatalog)
-    expect(rows).toHaveLength(12)
+    expect(rows).toHaveLength(10)
     expect(rows.filter((row) => row.name === 'Capital One')).toHaveLength(1)
     expect(rows.find((row) => row.name === 'Capital One')).toMatchObject({
       company_id: 'company-capital-one',
@@ -297,7 +273,7 @@ describe('finance coverage presentation', () => {
     })
 
     const unsupported = rows.filter((row) => row.disposition === 'unsupported_with_reason')
-    expect(unsupported).toHaveLength(10)
+    expect(unsupported).toHaveLength(8)
     expect(unsupported.every((row) => (
       row.company_id === null
       && row.source_key === null
@@ -351,7 +327,7 @@ describe('finance coverage presentation', () => {
     })
   })
 
-  it('merges a positively terminalized branded source once through Experimental and Active', () => {
+  it('merges a positively terminalized Workday candidate once through Experimental and Active', () => {
     const admittedCatalog = financeCatalog.map((entry) => (
       entry.company_name === 'Morgan Stanley'
         ? {
@@ -365,9 +341,11 @@ describe('finance coverage presentation', () => {
     const experimental = company({
       id: 'company-morgan-stanley',
       name: 'Morgan Stanley',
-      ats_type: 'eightfold',
-      board_token: MORGAN_STANLEY_SOURCE_KEY,
-      careers_url: 'https://www.morganstanley.com/careers/career-opportunities-search/',
+      ats_type: 'workday',
+      board_token: 'ms',
+      region: 'wd5',
+      site_token: 'External',
+      careers_url: 'https://ms.wd5.myworkdayjobs.com/en-US/External',
       source_key: MORGAN_STANLEY_SOURCE_KEY,
       activation_state: 'experimental',
       activation_successes: 0,
@@ -376,7 +354,7 @@ describe('finance coverage presentation', () => {
 
     const rows = mergeCoverageRows([experimental], admittedCatalog)
     const morganRows = rows.filter((row) => row.name === 'Morgan Stanley')
-    expect(rows).toHaveLength(12)
+    expect(rows).toHaveLength(10)
     expect(morganRows).toHaveLength(1)
     expect(morganRows[0]).toMatchObject({
       company_id: 'company-morgan-stanley',
@@ -399,7 +377,7 @@ describe('finance coverage presentation', () => {
     })
   })
 
-  it('keeps all seven negative targets exact and protects Active Capital One and Fidelity', () => {
+  it('keeps all four non-candidates exact and protects Active Capital One and Fidelity', () => {
     const capitalOne = company({
       id: 'company-capital-one',
       name: 'Capital One',
@@ -423,15 +401,12 @@ describe('finance coverage presentation', () => {
     })
     const rows = mergeCoverageRows([capitalOne, fidelity], financeCatalog)
     const negativeNames = [
-      'Bank of America',
-      'Citi',
-      'BlackRock',
-      'Wells Fargo',
+      'Goldman Sachs',
+      'JPMorgan Chase',
       'UBS',
-      'Barclays',
       'Charles Schwab',
     ]
-    expect(rows.filter((row) => negativeNames.includes(row.name))).toHaveLength(7)
+    expect(rows.filter((row) => negativeNames.includes(row.name))).toHaveLength(4)
     expect(rows.filter((row) => negativeNames.includes(row.name)).every((row) => (
       row.company_id === null
       && row.source_key === null
