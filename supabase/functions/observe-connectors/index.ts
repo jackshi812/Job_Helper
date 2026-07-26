@@ -61,6 +61,27 @@ function isPositiveCompleteEvidence(
   company: ExperimentalCompany,
   observation: PollObservation,
 ): boolean {
+  if (company.ats_type === 'workday') {
+    return observation.completeness === 'complete'
+      && observation.credibleForClosure
+      && observation.allowMissingClosure === false
+      && observation.warnings.length === 0
+      && observation.jobs.length > 0
+      && observation.expectedCount === observation.jobs.length
+      && observation.jobs.every((job) => {
+        const evidence = job.scopeEvidence
+        return job.source === 'workday'
+          && evidence !== undefined
+          && 'selectionMode' in evidence
+          && evidence.sourceKey === company.source_key
+          && evidence.detailCountryCode === 'US'
+          && evidence.selectionMode === 'recent_exact_us'
+          && evidence.recentDays === 7
+          && evidence.titleKeywords.length <= 16
+          && evidence.providerFacetLabels.length <= 16
+      })
+  }
+
   const aggregate = observation.scopeEvidence
   return observation.completeness === 'complete'
     && observation.credibleForClosure
@@ -77,6 +98,7 @@ function isPositiveCompleteEvidence(
       job.source === company.ats_type
       && job.scopeEvidence?.sourceKey === company.source_key
       && job.scopeEvidence.detailCountryCode === 'US'
+      && 'externalIdDigest' in job.scopeEvidence
       && SHA256_HEX.test(job.scopeEvidence.externalIdDigest)
     ))
 }
@@ -102,11 +124,22 @@ function evidenceInput(
     observation.scopeEvidence?.sliceDigests,
     observation.scopeEvidence?.categoryDigest,
     observation.scopeEvidence?.countryDigest,
-    observation.jobs.map((job) => [
-      job.externalId,
-      job.scopeEvidence?.matchedTerm,
-      job.scopeEvidence?.externalIdDigest,
-    ]),
+    observation.jobs.map((job) => {
+      const evidence = job.scopeEvidence
+      return evidence && 'selectionMode' in evidence
+        ? [
+            job.externalId,
+            evidence.selectionMode,
+            evidence.recentDays,
+            evidence.titleKeywords,
+            evidence.providerFacetLabels,
+          ]
+        : [
+            job.externalId,
+            evidence?.matchedTerm,
+            evidence?.externalIdDigest,
+          ]
+    }),
   ])
 }
 

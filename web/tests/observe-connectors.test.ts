@@ -204,6 +204,83 @@ describe('observe-connectors cron-only Experimental lane', () => {
     expect(h.from).toHaveBeenCalledWith('companies')
   })
 
+  it('accepts complete selective Workday proof without granting closure authority', async () => {
+    const company = {
+      id: '55555555-5555-4555-8555-555555555555',
+      name: 'Bank of America',
+      ats_type: 'workday',
+      board_token: 'ghr',
+      region: 'wd1',
+      site_token: 'Lateral-US',
+      source_key: 'workday:wd1:ghr:Lateral-US',
+      activation_state: 'experimental',
+      consecutive_failures: 0,
+    }
+    const rpc = vi.fn(async (name: string) => ({
+      data: name === 'claim_due_experimental_connectors'
+        ? [company]
+        : [{ accepted: true }],
+      error: null,
+    }))
+    const handler = createObserveConnectorsHandler({
+      getCronSecret: () => 'cron-secret',
+      createServiceClient: () => ({
+        rpc,
+        from: () => ({
+          update: () => ({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        }),
+      }),
+      observeCompany: async () => ({
+        jobs: [{
+          source: 'workday',
+          externalId: '26000001',
+          title: 'Finance Analyst',
+          location: 'Charlotte, NC',
+          absoluteUrl: 'https://ghr.wd1.myworkdayjobs.com/job/example',
+          postedAt: '2026-07-26T00:00:00.000Z',
+          descriptionHtml: '<p>Finance role.</p>',
+          descriptionText: 'Finance role.',
+          snapshotPartial: false,
+          companyName: 'Bank of America',
+          scopeEvidence: {
+            sourceKey: company.source_key,
+            detailCountryCode: 'US',
+            selectionMode: 'recent_exact_us',
+            recentDays: 7,
+            titleKeywords: ['finance', 'analytics', 'data', 'research'],
+            providerFacetLabels: [],
+          },
+        }],
+        completeness: 'complete',
+        credibleForClosure: true,
+        allowMissingClosure: false,
+        pageCount: 95,
+        expectedCount: 1,
+        warnings: [],
+      }),
+      digestEvidence: async () => 'f'.repeat(64),
+      randomUUID: () => '66666666-6666-4666-8666-666666666666',
+    })
+
+    const response = await handler(request())
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      claimed: 1,
+      recorded: 1,
+      degraded: 0,
+    })
+    expect(rpc).toHaveBeenCalledWith(
+      'record_connector_observation',
+      expect.objectContaining({
+        p_company_id: company.id,
+        p_job_count: 1,
+        p_expected_count: 1,
+      }),
+    )
+  })
+
   it('ignores request-body network, identity, time, digest, and activation fields', async () => {
     const h = harness()
     const response = await h.handler(request('POST', 'cron-secret', {
