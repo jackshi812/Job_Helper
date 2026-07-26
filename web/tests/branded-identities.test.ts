@@ -54,7 +54,7 @@ describe('branded connector identities', () => {
       host: 'api-higher.gs.com',
       graphqlPath: '/gateway/api/v1/graphql',
       listOperation: 'GetRoles',
-      detailOperation: 'GetRoleActionContent',
+      detailOperation: 'GetRoleById',
     })
   })
 
