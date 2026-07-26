@@ -1131,13 +1131,20 @@ export class ManagementSqlOps {
     ]) {
       const actual = functions.find((entry) => entry.slug === slug
         || entry.name === slug)
-      const expected = this.hosted.checks[checkKey]
+      const expected = manifest.functions?.[slug]?.current_hosted
+      const immutableBaseline = this.hosted.checks[checkKey]
+      requireCondition(expected
+        && expected.id === immutableBaseline.id
+        && expected.version === immutableBaseline.version
+        && expected.status === immutableBaseline.deployment_status
+        && expected.verify_jwt === immutableBaseline.verify_jwt,
+      `${slug} manifest/hosted baseline identity drift`)
       requireCondition(actual
         && actual.id === expected.id
-        && Number(actual.version) === expected.version
-        && actual.status === expected.deployment_status
+        && Number(actual.version) === expected.version + 1
+        && actual.status === expected.status
         && actual.verify_jwt === expected.verify_jwt,
-      `${slug} hosted function identity drift`)
+      `${slug} post-deploy function identity drift`)
     }
     if (!this.webChecked) {
       const web = this.hosted.checks.web_identity

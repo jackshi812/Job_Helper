@@ -309,6 +309,50 @@ test('hosted identity fails closed when ordered migrations 0042/0043 are absent'
   }, PLAN_05_HOSTED_SHA256), /hosted release\/verifier identity drift/)
 })
 
+test('remote runtime requires the exact one-version deployment transition',
+  async () => {
+    const [manifest, hosted] = await Promise.all([
+      readFile(manifestPath, 'utf8').then(JSON.parse),
+      readFile(hostedPath, 'utf8').then(JSON.parse),
+    ])
+    const exact = Object.entries(manifest.functions).map(
+      ([slug, entry]) => ({
+        slug,
+        id: entry.current_hosted.id,
+        version: entry.current_hosted.version + 1,
+        status: entry.current_hosted.status,
+        verify_jwt: entry.current_hosted.verify_jwt,
+      }),
+    )
+    const assertRuntime = async (functions) => {
+      const ops = new ManagementSqlOps({
+        projectRef: 'fjcsvajkkztvlrpdplwx',
+        accessToken: 'management-access-token-value',
+        hosted,
+        fetchImpl: async () => new Response(JSON.stringify(functions), {
+          status: 200,
+        }),
+      })
+      ops.webChecked = true
+      return ops.assertRemoteRuntimeIdentity(manifest)
+    }
+    await assert.doesNotReject(assertRuntime(exact))
+
+    const mutations = [
+      (rows) => { rows[0].version -= 1 },
+      (rows) => { rows[1].version += 1 },
+      (rows) => { rows[2].id = '00000000-0000-4000-8000-000000000000' },
+      (rows) => { rows[0].verify_jwt = false },
+      (rows) => { rows[1].status = 'INACTIVE' },
+    ]
+    for (const mutate of mutations) {
+      const drifted = structuredClone(exact)
+      mutate(drifted)
+      await assert.rejects(assertRuntime(drifted),
+        /post-deploy function identity drift/)
+    }
+  })
+
 test('family order is strict', () => {
   assert.equal(assertFamilyOrder(FAMILY_ORDER), FAMILY_ORDER)
   assert.deepEqual(FAMILY_ORDER.map(({ family, company, sourceKey }) => ({
