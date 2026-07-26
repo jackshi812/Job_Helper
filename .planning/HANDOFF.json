@@ -1,82 +1,110 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-25T20:00:49.824Z",
-  "phase": "4",
-  "phase_name": "Resume Tailoring & Tracker",
-  "phase_dir": null,
-  "plan": null,
-  "task": null,
-  "total_tasks": 0,
+  "timestamp": "2026-07-26T17:54:54.493Z",
+  "phase": "03.8",
+  "phase_name": "Monitor and poll the branded banking companies currently on watchlist",
+  "phase_dir": ".planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-",
+  "plan": 5,
+  "task": 3,
+  "total_tasks": 3,
   "status": "paused",
   "completed_tasks": [
     {
       "id": 1,
-      "name": "Resolve the historical Phase 03.3 Plan 04 anomaly without replay",
+      "name": "Complete Phase 03.8 Plans 01-04",
       "status": "done",
-      "commit": "5487a04"
+      "commit": "ccc965d"
     },
     {
       "id": 2,
-      "name": "Implement and verify the watchlist-first Phase 03.7 dashboard",
+      "name": "Build and repair the exact Plan 05 release",
       "status": "done",
-      "commit": "0403362"
+      "commit": "af25ad1"
     },
     {
       "id": 3,
-      "name": "Deploy the byte-identical clean Phase 03.7 production release",
+      "name": "Apply migration 0040 and deploy the three approved functions",
       "status": "done",
-      "commit": "baf81fc"
+      "commit": "external-production-state"
     },
     {
       "id": 4,
-      "name": "Record exact-release evidence and owner-approved signed-in UAT",
-      "status": "done",
-      "commit": "06792e1"
+      "name": "Prove Plan 05 hosted parity and safe initial state",
+      "status": "in_progress",
+      "progress": "Migration 0040 and verify-board, observe-connectors, and poll-tick are live. Hosted parity evidence, terminal-branch fixtures, zero-residue proof, Plan 05 SUMMARY, and tracking updates are not complete."
     }
   ],
   "remaining_tasks": [
     {
       "id": 5,
-      "name": "Discuss Phase 4 Resume Tailoring & Tracker",
-      "status": "not_started"
+      "name": "Finish Plan 05 hosted parity, guarded fixture cleanup, evidence, SUMMARY, and tracking",
+      "status": "in_progress"
     },
     {
       "id": 6,
-      "name": "Research and plan Phase 4 after owner decisions are locked",
+      "name": "Execute Plan 06 three-family live proof and natural polling",
+      "status": "not_started"
+    },
+    {
+      "id": 7,
+      "name": "Execute Plan 07 signed-in owner UAT",
       "status": "not_started"
     }
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "description": "The conversation is being transferred to a laptop session. The active hosted-parity executor was interrupted before it wrote evidence.",
+      "type": "human_action",
+      "workaround": "Open this repository on the laptop and run $gsd-resume-work."
+    },
+    {
+      "description": "Plan 05 hosted evidence files are stale and still say PENDING or describe the earlier failed push even though migration 0040 and the three functions are now live.",
+      "type": "technical",
+      "workaround": "Start with authenticated read-only hosted checks, reconcile artifacts to observed production truth, then perform only the remaining manifest-bounded fixture checks."
+    }
+  ],
   "async_jobs": [],
-  "human_actions_pending": [],
+  "human_actions_pending": [
+    {
+      "action": "Resume from the laptop using $gsd-resume-work.",
+      "context": "The remote/chat-side executor was explicitly stopped at the user's request.",
+      "blocking": true
+    },
+    {
+      "action": "Complete signed-in owner UAT in Plan 07.",
+      "context": "Phase completion requires owner-visible Watchlist and scoped-job verification.",
+      "blocking": true
+    }
+  ],
   "decisions": [
     {
-      "decision": "The default route is Watchlist Jobs; the existing combined feed is preserved at All Jobs.",
-      "rationale": "The owner prioritizes watched companies while retaining discovery coverage.",
-      "phase": "03.7"
+      "decision": "Migration 0040 is now deployed and immutable.",
+      "rationale": "Remote migration history was verified as exact local/remote 0001-0040 after the successful push. Any future schema repair must be a new forward migration.",
+      "phase": "03.8"
     },
     {
-      "decision": "Phase 03.7 introduced no database, ingestion, provider, or persistence changes.",
-      "rationale": "Reusing the existing Dashboard and feed was the fastest safe implementation.",
-      "phase": "03.7"
+      "decision": "The three approved functions were deployed with Supabase server-side bundling.",
+      "rationale": "The local eszip bundler failed before upload; --use-api deployed the same manifest-pinned source inventory successfully.",
+      "phase": "03.8"
     },
     {
-      "decision": "The earlier Phase 03.7 source-expansion scope was replaced, not resumed.",
-      "rationale": "The owner explicitly replaced it with the watchlist-first dashboard.",
-      "phase": "03.7"
+      "decision": "Do not credit any of the three candidates as Active yet.",
+      "rationale": "Plan 06 live proof, three clean server-timed windows, and a natural scheduled poll have not run.",
+      "phase": "03.8"
     },
     {
-      "decision": "Phase 03.3 Plan 04 is superseded with missing historical UAT disclosed and no production replay.",
-      "rationale": "The owner selected mark-and-skip after later releases made replay obsolete.",
-      "phase": "03.3"
+      "decision": "The other seven targets remain fail-closed Unsupported.",
+      "rationale": "Their primary portals lack an approved stable anonymous structured contract.",
+      "phase": "03.8"
     }
   ],
   "uncommitted_files": [
     ".DS_Store",
+    ".planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-/.gitkeep",
     "scripts/agent-dashboard.mjs",
     "scripts/agent-dashboard.test.mjs",
     "web/zh"
   ],
-  "next_action": "Run $gsd-discuss-phase 4 and gather owner decisions for resume tailoring, truthful-edit review, PDF generation, and the application tracker before planning.",
-  "context_notes": "Phase 03.7 is fully complete on production release baf81fcaa72443995f227b118d10eec90da25679 with 1,127 tests, byte-identical hosted assets, and 3/3 owner-approved UAT checks. Local main HEAD is 06792e16bddef1358aac70b8153a484ebeacc11b. Production origin/main intentionally uses a separate clean release history. Never force-push local main: create an isolated fast-forward candidate from origin/main, apply only approved source changes, verify tree identity and tests, request exact approval, then fast-forward push. Cloudflare API credentials are unavailable in the non-interactive environment, so Pages releases use the GitHub production branch and live asset hashes. The listed uncommitted files predate this work and belong to the user; preserve them."
+  "next_action": "Run $gsd-resume-work on the laptop. Before any mutation, acknowledge the blocking constraints in the phase .continue-here.md and perform authenticated read-only checks proving migration 0040 and the three function versions/JWT settings are live. Do not replay the migration or deployments.",
+  "context_notes": "Production state is ahead of the still-PENDING Plan 05 evidence artifacts. Successful external actions: migration 0040 SHA-256 09ff62efcd82a13a4b5b4fbd06ea643f01f837196d1260e1d0d1f744601ce21f applied to Supabase fjcsvajkkztvlrpdplwx; immediate migration list showed exact remote 0001-0040; verify-board deployed with JWT verification enabled; observe-connectors and poll-tick deployed with JWT verification disabled, all using --use-api. No Plan 06 provider observations, accepted activation windows, disposable fault run, or Plan 07 UAT occurred. Capital One and Fidelity must remain regression-only and unchanged. Preserve all listed pre-existing uncommitted files."
 }
