@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "phase": "03.8",
-  "created_at": "2026-07-26T02:53:31Z",
+  "created_at": "2026-07-26T15:19:28Z",
   "release_manifest_id": "03850000-0000-4000-8000-000000000005",
   "accepted_production_source": "baf81fcaa72443995f227b118d10eec90da25679",
   "candidate": {
-    "git_sha": "b66f57b59c8505c6b6d85cf0d8de3fd308d6b04e",
-    "commit_object_sha256": "b43176efc5efb06ceed795fb14bbd404fe0803095d4035cd0d07dc759244e886",
+    "git_sha": "82b4956cefdba79c5874d2b7b0019c1de652e18e",
+    "commit_object_sha256": "47b2e36022d03f1a3863b21c66d0560d4c131d1876bd63e2108c1abe8dd53282",
     "parent_sha": "baf81fcaa72443995f227b118d10eec90da25679",
-    "worktree_path": "/private/tmp/job-copilot-038-release",
+    "worktree_path": "/private/tmp/job-copilot-038-release-repair",
     "changed_files": [
       "supabase/config.toml",
       "supabase/functions/_shared/adapters/eightfold.ts",
@@ -42,7 +42,7 @@
   },
   "migration": {
     "path": "supabase/migrations/0040_phase_03_8_branded_connectors.sql",
-    "sha256": "81e8161706c085164b3ba3f05c5031a9a4d202bc0682394b7a18a1f1149d4498",
+    "sha256": "3ebc906b974061ec87c10b396b3505f8b7b80b2ec1a5c8d143cd4f1a18e0461d",
     "proposed": ["0040"]
   },
   "functions": {
@@ -206,7 +206,7 @@
     {"source_key":"workday:wd1:fmr:FidelityCareers","company":"Fidelity","fingerprint_sha256":"2a7ab4ff273283da8d3dec3ada84e6281a271c740d1ccbb206d4f2dc90998b29"}
   ],
   "verifier": {
-    "script_sha256": "2c9d6441a63dbb4af3a30e40f50bf7292128434a6cff575ad6b7ad1a5c404e1c",
+    "script_sha256": "3f23a144cbf462164e2c3d3278338f01b564fd2195ab5393f05cc8e50935ac3e",
     "run_id": "03850000-0000-4000-8000-000000000501",
     "faults": ["incomplete_observation","provider_schema_error","provider_timeout","clean_recovery"],
     "fixtures": [
@@ -248,10 +248,10 @@
     "captured_at": "2026-07-26T02:53:31Z",
     "authenticated": true,
     "dry_run": {
-      "status": "PASS",
+      "status": "PENDING_EXPLICIT_EGRESS_APPROVAL",
       "command": "web/node_modules/.bin/supabase db push --linked --dry-run",
       "proposed": ["0040"],
-      "output_sha256": "56a7ce8e6f223af5786129884edd67e30a4119701389df7145d78ddc5a521168"
+      "output_sha256": null
     },
     "catalog_sha256": "db322515f61236cd8c1caff6682ec967738d3b2fff4cbc8e414003a46d49114c",
     "companies_sha256": "ee749635de0e0325551071bf97933bca9b30336d83cd2d82d54aa0fa0bf5e07e",

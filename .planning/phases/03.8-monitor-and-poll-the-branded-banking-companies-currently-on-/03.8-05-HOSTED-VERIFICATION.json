@@ -2,8 +2,8 @@
   "schema_version": 1,
   "phase": "03.8",
   "status": "PENDING",
-  "manifest_sha256": "784469a41cb28603c8aa4ae7ca5ff92f37d3128091d1007202f337902b153ce8",
-  "generated_at": "2026-07-26T02:53:31Z",
+  "manifest_sha256": "f8534846a08139114589e3f2e4cb70788d3caf252a3b111f7f6e781c25f983bf",
+  "generated_at": "2026-07-26T15:19:28Z",
   "checks": {
     "release_identity": {"status": "PENDING"},
     "migration_parity": {"status": "PENDING"},
