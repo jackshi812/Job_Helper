@@ -1514,10 +1514,8 @@ export class ManagementSqlOps {
               and source = ${sqlLiteral(family.family)}
               and scope_evidence ->> 'sourceKey' = ${sqlLiteral(family.sourceKey)}
               and scope_evidence ->> 'detailCountryCode' = 'US'
-              and coalesce(scope_evidence ->> 'providerCategoryLabel', '') <> ''
-              and coalesce(scope_evidence ->> 'matchedTerm', '') <> ''
-              and coalesce(scope_evidence ->> 'externalIdDigest', '')
-                ~ '^[0-9a-f]{64}$'
+              and scope_evidence ->> 'selectionMode' = 'recent_exact_us'
+              and (scope_evidence ->> 'recentDays')::integer = 7
           )::integer as eligible_job_count,
           max(last_seen_at) filter (where status = 'open') as feed_visible_at
         from public.jobs

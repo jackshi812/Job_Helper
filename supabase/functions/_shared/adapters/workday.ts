@@ -599,6 +599,7 @@ function mapRecentDetail(
   ) {
     throw new ProviderError('provider_identity_drift')
   }
+  const selectiveScope = identity.selectiveRecentUsScope
   return Object.freeze({
     source: 'workday',
     externalId,
@@ -610,6 +611,22 @@ function mapRecentDetail(
     descriptionText: htmlToText(info.jobDescription),
     snapshotPartial: false,
     companyName: identity.companyName,
+    ...(selectiveScope
+      ? {
+          scopeEvidence: Object.freeze({
+            sourceKey: identity.sourceKey,
+            detailCountryCode: 'US' as const,
+            selectionMode: 'recent_exact_us' as const,
+            recentDays: selectiveScope.recentDays,
+            titleKeywords: Object.freeze([
+              ...(selectiveScope.titleIncludesAny ?? []),
+            ]),
+            providerFacetLabels: Object.freeze([
+              ...Object.keys(identity.keptFacetIds ?? {}),
+            ]),
+          }),
+        }
+      : {}),
   })
 }
 

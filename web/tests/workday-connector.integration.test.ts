@@ -182,7 +182,9 @@ describe('Capital One Workday identity contract', () => {
     const jobCheck = activationSql.match(/jobs_source_check check \(([\s\S]*?)\n  \)/)?.[1] ?? ''
     const direct = ['greenhouse', 'lever', 'ashby', 'smartrecruiters', 'recruitee', 'workday', 'paylocity']
     for (const provider of direct) {
-      expect(normalizedTypesSource).toContain(`| '${provider}'`)
+      expect(normalizedTypesSource).toContain(
+        provider === 'workday' ? "source: 'workday'" : `| '${provider}'`,
+      )
       expect(companyCheck).toContain(`'${provider}'`)
       expect(jobCheck).toContain(`'${provider}'`)
     }
@@ -1727,7 +1729,18 @@ describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
       credibleForClosure: true,
       allowMissingClosure: false,
       expectedCount: 1,
-      jobs: [{ externalId: 'R380001', companyName: 'Morgan Stanley' }],
+      jobs: [{
+        externalId: 'R380001',
+        companyName: 'Morgan Stanley',
+        scopeEvidence: {
+          sourceKey: expected.sourceKey,
+          detailCountryCode: 'US',
+          selectionMode: 'recent_exact_us',
+          recentDays: 7,
+          titleKeywords: [],
+          providerFacetLabels: [],
+        },
+      }],
       warnings: [],
     })
     expect(bodies).toEqual([
@@ -1800,8 +1813,30 @@ describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
       allowMissingClosure: false,
       expectedCount: 2,
       jobs: [
-        { externalId: 'R380002', companyName: 'Bank of America' },
-        { externalId: 'R380003', companyName: 'Bank of America' },
+        {
+          externalId: 'R380002',
+          companyName: 'Bank of America',
+          scopeEvidence: {
+            sourceKey: expected.sourceKey,
+            detailCountryCode: 'US',
+            selectionMode: 'recent_exact_us',
+            recentDays: 7,
+            titleKeywords: ['finance', 'analytics', 'data', 'research'],
+            providerFacetLabels: [],
+          },
+        },
+        {
+          externalId: 'R380003',
+          companyName: 'Bank of America',
+          scopeEvidence: {
+            sourceKey: expected.sourceKey,
+            detailCountryCode: 'US',
+            selectionMode: 'recent_exact_us',
+            recentDays: 7,
+            titleKeywords: ['finance', 'analytics', 'data', 'research'],
+            providerFacetLabels: [],
+          },
+        },
       ],
       warnings: [],
     })
@@ -1882,6 +1917,23 @@ describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
         jobs: [{
           externalId: 'R380010',
           companyName: expected.companyName,
+          scopeEvidence: {
+            sourceKey: expected.sourceKey,
+            detailCountryCode: 'US',
+            selectionMode: 'recent_exact_us',
+            recentDays: 7,
+            titleKeywords: [],
+            providerFacetLabels: expected.companyName === 'Barclays'
+              ? [
+                  'Data & Analytics',
+                  'Finance',
+                  'Investment Banking',
+                  'Research',
+                  'Risk',
+                  'Technology',
+                ]
+              : [],
+          },
         }],
         warnings: [],
       })

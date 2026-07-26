@@ -47,9 +47,22 @@ type ExistingNormalizedJob = NormalizedJobFields & {
     | 'smartrecruiters'
     | 'recruitee'
     | 'paylocity'
-    | 'workday'
     | 'adzuna'
   scopeEvidence?: never
+}
+
+export interface WorkdayJobScopeEvidence {
+  readonly sourceKey: string
+  readonly detailCountryCode: 'US'
+  readonly selectionMode: 'recent_exact_us'
+  readonly recentDays: 7
+  readonly titleKeywords: readonly string[]
+  readonly providerFacetLabels: readonly string[]
+}
+
+type WorkdayNormalizedJob = NormalizedJobFields & {
+  source: 'workday'
+  scopeEvidence?: WorkdayJobScopeEvidence
 }
 
 type BrandedNormalizedJob = NormalizedJobFields & {
@@ -57,7 +70,10 @@ type BrandedNormalizedJob = NormalizedJobFields & {
   scopeEvidence: BrandedJobScopeEvidence
 }
 
-export type NormalizedJob = ExistingNormalizedJob | BrandedNormalizedJob
+export type NormalizedJob =
+  | ExistingNormalizedJob
+  | WorkdayNormalizedJob
+  | BrandedNormalizedJob
 
 export type PollCompleteness = 'complete' | 'partial' | 'unknown'
 
