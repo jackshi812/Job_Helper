@@ -117,11 +117,72 @@ test('family order is strict', () => {
 })
 
 test('unsupported reason mapping is exact and unknown reasons fail closed', () => {
-  assert.equal(mapUnsupportedReason('deadline_exceeded'), 'provider_timeout')
-  assert.equal(mapUnsupportedReason('category_evidence_missing'),
-    'category_evidence_missing')
-  assert.equal(mapUnsupportedReason('slice_count_mismatch'), 'count_mismatch')
+  const expectedReasons = {
+    provider_timeout: [
+      'provider_timeout',
+      'deadline_exceeded',
+      'fetch_failed',
+      'network_error',
+      'http_429',
+    ],
+    provider_schema_error: [
+      'http_status',
+      'invalid_json',
+      'response_too_large',
+      'provider_error',
+      'provider_schema_error',
+      'provider_schema_invalid',
+      'invalid_identity',
+      'invalid_clock',
+      'redirect_rejected',
+      'invalid_content_type',
+      'payload_too_large',
+      'malformed_response',
+      'graphql_error',
+      'detail_id_mismatch',
+      'facet_label_mismatch',
+      'slice_limit_mismatch',
+      'slice_identity_mismatch',
+      'slice_offset_mismatch',
+      'cross_slice_id_drift',
+    ],
+    category_evidence_missing: ['category_evidence_missing'],
+    scope_evidence_incomplete: [
+      'scope_evidence_incomplete',
+      'scope_evidence_invalid',
+      'detail_evidence_missing',
+      'detail_country_ineligible',
+      'detail_category_ineligible',
+    ],
+    positive_job_count_missing: [
+      'zero_eligible_jobs',
+      'positive_job_count_missing',
+    ],
+    pagination_incomplete: [
+      'page_cap_exceeded',
+      'detail_cap_exceeded',
+      'pagination_incomplete',
+    ],
+    count_mismatch: [
+      'count_mismatch',
+      'slice_count_mismatch',
+      'duplicate_id',
+      'duplicate_source_id',
+      'job_cap_exceeded',
+    ],
+  }
+  for (const [reason, codes] of Object.entries(expectedReasons)) {
+    for (const code of codes) {
+      assert.equal(mapUnsupportedReason(code), reason, code)
+    }
+  }
+  for (const status of ['200', '400', '404', '500', '503']) {
+    assert.equal(mapUnsupportedReason(`http_${status}`), 'provider_schema_error')
+  }
+  assert.equal(mapUnsupportedReason('http_429'), 'provider_timeout')
   assert.throws(() => mapUnsupportedReason('some_new_provider_message'),
+    /unmapped provider reason/)
+  assert.throws(() => mapUnsupportedReason('http_not_a_status'),
     /unmapped provider reason/)
 })
 

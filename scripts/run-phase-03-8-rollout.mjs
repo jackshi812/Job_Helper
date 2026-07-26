@@ -70,6 +70,8 @@ const REASON_MAP = Object.freeze({
   provider_timeout: 'provider_timeout',
   deadline_exceeded: 'provider_timeout',
   fetch_failed: 'provider_timeout',
+  network_error: 'provider_timeout',
+  http_429: 'provider_timeout',
   http_status: 'provider_schema_error',
   invalid_json: 'provider_schema_error',
   response_too_large: 'provider_schema_error',
@@ -77,9 +79,24 @@ const REASON_MAP = Object.freeze({
   provider_schema_error: 'provider_schema_error',
   provider_schema_invalid: 'provider_schema_error',
   invalid_identity: 'provider_schema_error',
+  invalid_clock: 'provider_schema_error',
+  redirect_rejected: 'provider_schema_error',
+  invalid_content_type: 'provider_schema_error',
+  payload_too_large: 'provider_schema_error',
+  malformed_response: 'provider_schema_error',
+  graphql_error: 'provider_schema_error',
+  detail_id_mismatch: 'provider_schema_error',
+  facet_label_mismatch: 'provider_schema_error',
+  slice_limit_mismatch: 'provider_schema_error',
+  slice_identity_mismatch: 'provider_schema_error',
+  slice_offset_mismatch: 'provider_schema_error',
+  cross_slice_id_drift: 'provider_schema_error',
   category_evidence_missing: 'category_evidence_missing',
   scope_evidence_incomplete: 'scope_evidence_incomplete',
   scope_evidence_invalid: 'scope_evidence_incomplete',
+  detail_evidence_missing: 'scope_evidence_incomplete',
+  detail_country_ineligible: 'scope_evidence_incomplete',
+  detail_category_ineligible: 'scope_evidence_incomplete',
   zero_eligible_jobs: 'positive_job_count_missing',
   positive_job_count_missing: 'positive_job_count_missing',
   page_cap_exceeded: 'pagination_incomplete',
@@ -89,7 +106,6 @@ const REASON_MAP = Object.freeze({
   slice_count_mismatch: 'count_mismatch',
   duplicate_id: 'count_mismatch',
   duplicate_source_id: 'count_mismatch',
-  cross_slice_id_drift: 'count_mismatch',
   job_cap_exceeded: 'count_mismatch',
 })
 
@@ -172,7 +188,12 @@ export function assertFamilyOrder(families) {
 
 export function mapUnsupportedReason(code) {
   const normalized = typeof code === 'string' ? code.trim() : ''
-  const mapped = REASON_MAP[normalized]
+  const dynamicHttp = /^http_(\d{3})$/.exec(normalized)
+  const mapped = dynamicHttp
+    ? dynamicHttp[1] === '429'
+      ? 'provider_timeout'
+      : 'provider_schema_error'
+    : REASON_MAP[normalized]
   if (!mapped || !TERMINAL_REASONS.has(mapped)) {
     throw new Error(`unmapped provider reason: ${normalized || '<empty>'}`)
   }
