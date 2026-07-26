@@ -215,7 +215,7 @@ Plans:
 5. Capital One and Fidelity remain unchanged Active Workday regression sources and are neither re-onboarded nor required to produce a new Phase 03.8 natural poll.
 6. The exact migration/function release passes an explicit production approval and non-TTY schema-push gate, hosted parity/cleanup checks, and signed-in owner UAT of Watchlist state plus one eligible job per newly Active provider family.
 
-**Plans:** 3/7 plans executed
+**Plans:** 4/7 plans executed
 
 Plans:
 **Wave 1**
@@ -232,7 +232,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 03.8-04-PLAN.md — Add forward migration 0040 for truthful catalog, staged activation, and staggered claims
+- [x] 03.8-04-PLAN.md — Add forward migration 0040 for truthful catalog, staged activation, and staggered claims
 
 **Wave 5** *(blocked on Wave 4 completion)*
 

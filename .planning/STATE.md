@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 03.8
 current_phase_name: Monitor and poll the branded banking companies currently on watchlist
 status: executing
-stopped_at: Completed 03.8-03-PLAN.md
-last_updated: "2026-07-26T02:27:06.375Z"
+stopped_at: Completed 03.8-04-PLAN.md
+last_updated: "2026-07-26T02:38:50.625Z"
 last_activity: 2026-07-26
-last_activity_desc: Completed Phase 03.8 Plan 03
+last_activity_desc: Completed Phase 03.8 Plan 04
 progress:
   total_phases: 13
   completed_phases: 11
   total_plans: 73
-  completed_plans: 69
-  percent: 95
+  completed_plans: 70
+  percent: 96
 ---
 
 # Project State
@@ -29,19 +29,19 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 03.8 (Monitor and poll the branded banking companies currently on watchlist) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
-Last activity: 2026-07-26 — Completed Phase 03.8 Plan 03
+Last activity: 2026-07-26 — Completed Phase 03.8 Plan 04
 
-Progress: [██████████] 95%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 69
+- Total plans completed: 70
 - Average duration: 10m
-- Total execution time: 659m
+- Total execution time: 668m
 
 **By Phase:**
 
@@ -58,7 +58,7 @@ Progress: [██████████] 95%
 
 **Recent Trend:**
 
-- Last 3 plans: 8m, 15m, 9m
+- Last 3 plans: 15m, 9m, 9m
 - Trend: Phase 3 closed 11/11 plans, 17/17 verification truths, 52/52 security threats, and 8/8 human UAT
 
 *Updated after each plan completion*
@@ -113,6 +113,7 @@ Progress: [██████████] 95%
 | Phase 03.8 P01 | 8min | 3 tasks | 7 files |
 | Phase 03.8 P02 | 15min | 3 tasks | 6 files |
 | Phase 03.8 P03 | 9min | 3 tasks | 12 files |
+| Phase 03.8 P04 | 9min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -265,6 +266,10 @@ Recent decisions affecting current work:
 - [Phase 03.8]: Keep authenticated verification, Experimental observation, and Active polling as separate exact-authority paths. — Each path re-resolves the persisted identity without widening the Active guard.
 - [Phase 03.8]: Claim at most three Experimental companies and execute at most two companies concurrently with a 120-second scheduling reserve. — Provider failures and deadline outcomes stay bounded and independently settled.
 - [Phase 03.8]: Validate branded category, U.S., source-key, and external-ID digest evidence before atomic job persistence. — Malformed provenance fails before lifecycle mutation.
+- [Phase 03.8]: Keep branded candidates Unsupported until exact service-role proof terminalizes them — Migration and fixture bytes cannot authorize production admission.
+- [Phase 03.8]: Separate Experimental and Active scheduling with next_poll_at — Independent due authority preserves one-minute observation and exact ten-minute Active cadence.
+- [Phase 03.8]: Recompute branded external-ID scope digests in the database constraint — Durable provenance stays bound to the exact source and job row.
+- [Phase 03.8]: Protect Capital One and Fidelity through transactional parity snapshots — Phase 03.8 cannot alter already-Active Workday identity or claim eligibility.
 
 ### Pending Todos
 
@@ -306,8 +311,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-26T02:27:06.364Z
-Stopped at: Completed 03.8-03-PLAN.md
+Last session: 2026-07-26T02:38:50.615Z
+Stopped at: Completed 03.8-04-PLAN.md
 Resume file: None
 Last session (2026-07-25): Phase 03.7 passed local checks, exact-release byte verification, and 3/3 owner-approved signed-in UAT checks on release `baf81fcaa72443995f227b118d10eec90da25679`; no Phase 03.7 gaps remain.
 Last session (2026-07-25): Phase 03.6 passed 6/6 formal truths, 20/20 hosted checks, 30/30 security threats, 24/24 UI review checks, and 12/12 owner-approved UAT interactions on exact release `70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b`; no Phase 03.6 gaps remain.
