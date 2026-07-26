@@ -23,6 +23,12 @@ export const NASDAQ_WORKDAY_SOURCE_KEY = 'workday:wd1:nasdaq:Global_External_Sit
 export const SP_GLOBAL_WORKDAY_SOURCE_KEY = 'workday:wd5:spgi:SPGI_Careers'
 export const MORNINGSTAR_WORKDAY_SOURCE_KEY = 'workday:wd5:morningstar:morningstar'
 export const STATE_STREET_WORKDAY_SOURCE_KEY = 'workday:wd1:statestreet:Global'
+export const MORGAN_STANLEY_WORKDAY_SOURCE_KEY = 'workday:wd5:ms:External'
+export const BANK_OF_AMERICA_WORKDAY_SOURCE_KEY = 'workday:wd1:ghr:Lateral-US'
+export const BLACKROCK_WORKDAY_SOURCE_KEY =
+  'workday:wd1:blackrock:BlackRock_Professional'
+export const BARCLAYS_WORKDAY_SOURCE_KEY =
+  'workday:wd3:barclays:External_Career_Site_Barclays'
 export const UNITED_STATES_WORKDAY_FACET_ID = 'bc33aa3152ec42d4995f4791a106ed09'
 
 export type WorkdayHostForm = 'jobs' | 'site'
@@ -58,6 +64,12 @@ export interface WorkdayIdentity {
   readonly excludedJobFamilyGroups?: readonly string[]
   /** Exact server-owned country facet contract for U.S.-scoped identities. */
   readonly countryScope?: WorkdayCountryScope
+  /** Require authoritative detail-country proof for every scoped listing. */
+  readonly requireDetailCountryProof?: true
+  /** Complete unfiltered site is U.S.-authoritative only when every detail proves US. */
+  readonly wholeSiteUsScope?: 'all_details'
+  /** Exact identity is evaluable but has no country authority and must fetch nothing. */
+  readonly unsupportedCountryContract?: true
 }
 
 function unitedStatesScope(route: WorkdayCountryFacetRoute): WorkdayCountryScope {
@@ -156,6 +168,67 @@ const stateStreetIdentity: WorkdayIdentity = Object.freeze({
   countryScope: unitedStatesScope(['Location_Country']),
 })
 
+const morganStanleyIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://ms.wd5.myworkdayjobs.com',
+  cxsRoot: 'https://ms.wd5.myworkdayjobs.com/wday/cxs/ms/External',
+  publicBoard: 'https://ms.wd5.myworkdayjobs.com/en-US/External',
+  tenant: 'ms',
+  site: 'External',
+  region: 'wd5',
+  hostForm: 'jobs',
+  sourceKey: MORGAN_STANLEY_WORKDAY_SOURCE_KEY,
+  companyName: 'Morgan Stanley',
+  applyCapitalOneEligibility: false,
+  countryScope: unitedStatesScope(['Location_Country']),
+  requireDetailCountryProof: true,
+})
+
+const bankOfAmericaIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://ghr.wd1.myworkdayjobs.com',
+  cxsRoot: 'https://ghr.wd1.myworkdayjobs.com/wday/cxs/ghr/Lateral-US',
+  publicBoard: 'https://ghr.wd1.myworkdayjobs.com/en-US/Lateral-US',
+  tenant: 'ghr',
+  site: 'Lateral-US',
+  region: 'wd1',
+  hostForm: 'jobs',
+  sourceKey: BANK_OF_AMERICA_WORKDAY_SOURCE_KEY,
+  companyName: 'Bank of America',
+  applyCapitalOneEligibility: false,
+  wholeSiteUsScope: 'all_details',
+})
+
+const blackRockIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://blackrock.wd1.myworkdayjobs.com',
+  cxsRoot:
+    'https://blackrock.wd1.myworkdayjobs.com/wday/cxs/blackrock/BlackRock_Professional',
+  publicBoard:
+    'https://blackrock.wd1.myworkdayjobs.com/en-US/BlackRock_Professional',
+  tenant: 'blackrock',
+  site: 'BlackRock_Professional',
+  region: 'wd1',
+  hostForm: 'jobs',
+  sourceKey: BLACKROCK_WORKDAY_SOURCE_KEY,
+  companyName: 'BlackRock',
+  applyCapitalOneEligibility: false,
+  unsupportedCountryContract: true,
+})
+
+const barclaysIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://barclays.wd3.myworkdayjobs.com',
+  cxsRoot:
+    'https://barclays.wd3.myworkdayjobs.com/wday/cxs/barclays/External_Career_Site_Barclays',
+  publicBoard:
+    'https://barclays.wd3.myworkdayjobs.com/en-US/External_Career_Site_Barclays',
+  tenant: 'barclays',
+  site: 'External_Career_Site_Barclays',
+  region: 'wd3',
+  hostForm: 'jobs',
+  sourceKey: BARCLAYS_WORKDAY_SOURCE_KEY,
+  companyName: 'Barclays',
+  applyCapitalOneEligibility: false,
+  unsupportedCountryContract: true,
+})
+
 export const WORKDAY_IDENTITIES = Object.freeze({
   [CAPITAL_ONE_WORKDAY_SOURCE_KEY]: capitalOneIdentity,
   [FIDELITY_WORKDAY_SOURCE_KEY]: fidelityIdentity,
@@ -163,6 +236,10 @@ export const WORKDAY_IDENTITIES = Object.freeze({
   [SP_GLOBAL_WORKDAY_SOURCE_KEY]: spGlobalIdentity,
   [MORNINGSTAR_WORKDAY_SOURCE_KEY]: morningstarIdentity,
   [STATE_STREET_WORKDAY_SOURCE_KEY]: stateStreetIdentity,
+  [MORGAN_STANLEY_WORKDAY_SOURCE_KEY]: morganStanleyIdentity,
+  [BANK_OF_AMERICA_WORKDAY_SOURCE_KEY]: bankOfAmericaIdentity,
+  [BLACKROCK_WORKDAY_SOURCE_KEY]: blackRockIdentity,
+  [BARCLAYS_WORKDAY_SOURCE_KEY]: barclaysIdentity,
 })
 
 export const CAPITAL_ONE_WORKDAY_IDENTITY = capitalOneIdentity
@@ -171,6 +248,10 @@ export const NASDAQ_WORKDAY_IDENTITY = nasdaqIdentity
 export const SP_GLOBAL_WORKDAY_IDENTITY = spGlobalIdentity
 export const MORNINGSTAR_WORKDAY_IDENTITY = morningstarIdentity
 export const STATE_STREET_WORKDAY_IDENTITY = stateStreetIdentity
+export const MORGAN_STANLEY_WORKDAY_IDENTITY = morganStanleyIdentity
+export const BANK_OF_AMERICA_WORKDAY_IDENTITY = bankOfAmericaIdentity
+export const BLACKROCK_WORKDAY_IDENTITY = blackRockIdentity
+export const BARCLAYS_WORKDAY_IDENTITY = barclaysIdentity
 
 /**
  * Pure, fail-closed resolver. Returns an admitted identity only when ALL four

@@ -137,6 +137,20 @@ function isUnitedStatesDetail(detail: WorkdayDetail) {
     .some((location) => classifyUsLocation(location) === 'us')
 }
 
+function exactDetailCountry(
+  detail: WorkdayDetail,
+): 'us' | 'foreign' | 'missing' {
+  const info = detail.jobPostingInfo
+  const country = info.jobRequisitionLocation?.country
+  const alpha2Code = country?.alpha2Code?.trim().toUpperCase()
+  if (alpha2Code) return alpha2Code === 'US' ? 'us' : 'foreign'
+  const descriptor = (country?.descriptor ?? info.country?.descriptor)?.trim()
+  if (!descriptor) return 'missing'
+  return /^(?:United States|United States of America|USA)$/.test(descriptor)
+    ? 'us'
+    : 'foreign'
+}
+
 function postedAgeDays(value: string | null | undefined) {
   const normalized = value?.trim().toLowerCase()
   if (!normalized) return null
@@ -825,6 +839,10 @@ export async function pollWorkdayRecent(
   const nowMs = options.nowMs ?? Date.now()
   const knownIds = options.knownIds ?? new Set<string>()
 
+  if (identity.unsupportedCountryContract) {
+    return incomplete([], 'country_filter_unverified', undefined, 0)
+  }
+
   // Resolve identity-local inclusion facets to apply on every list page.
   const appliedFacets: Record<string, string[]> = {}
   let expectedScopedCount: number | undefined
@@ -844,7 +862,7 @@ export async function pollWorkdayRecent(
     appliedFacets.jobFamilyGroup = discovered.ids
     expectedScopedCount = discovered.expectedKeptCount
     scopedCountWarning = 'category_filter_unverified'
-  } else if (!identity.countryScope) {
+  } else if (!identity.countryScope && !identity.wholeSiteUsScope) {
     // A recent poll with no registered scope cannot prove the filter applied.
     return incomplete([], 'category_filter_unverified', undefined, 0)
   }
@@ -967,7 +985,7 @@ export async function pollWorkdayRecent(
       seenPaths.add(posting.externalPath)
       if (identifier) seenListingIdentifiers.add(identifier)
       const age = postedAgeDays(posting.postedOn)
-      if (identity.countryScope || age === null || age <= recentDays) {
+      if (identity.countryScope || identity.wholeSiteUsScope || age === null || age <= recentDays) {
         candidates.push(posting)
       }
     }
@@ -993,11 +1011,14 @@ export async function pollWorkdayRecent(
     // Existing category-scoped importers may stop once ordering proves the
     // remaining rows are old. Country-scoped sources must still account for
     // every scoped provider row before their observation can be credible.
-    if ((!identity.countryScope && reachedOlderPage) || rawCount >= providerTotal) break
+    if (
+      (!identity.countryScope && !identity.wholeSiteUsScope && reachedOlderPage)
+      || rawCount >= providerTotal
+    ) break
   }
 
   if (
-    (identity.countryScope || !reachedOlderPage)
+    (identity.countryScope || identity.wholeSiteUsScope || !reachedOlderPage)
     && rawCount < (providerTotal ?? 0)
     && (rawCount >= maxListings || pageCount >= maxPages)
   ) {
@@ -1018,7 +1039,7 @@ export async function pollWorkdayRecent(
         pageCount,
       )
     }
-    if (identity.countryScope) {
+    if (identity.countryScope && !identity.requireDetailCountryProof) {
       try {
         jobs.push(mapRecentListPosting(posting, nowMs, identity))
       } catch (error) {
@@ -1031,7 +1052,11 @@ export async function pollWorkdayRecent(
       }
       continue
     }
-    if (knownIds.has(externalId) && !identity.countryScope) {
+    if (
+      knownIds.has(externalId)
+      && !identity.countryScope
+      && !identity.wholeSiteUsScope
+    ) {
       try {
         jobs.push(mapRecentListPosting(posting, nowMs, identity))
       } catch (error) {
@@ -1052,7 +1077,11 @@ export async function pollWorkdayRecent(
         allowMissingClosure: false,
         pageCount,
         expectedCount: candidates.length,
-        warnings: ['detail_cap_exceeded'],
+        warnings: [
+          identity.wholeSiteUsScope
+            ? 'detail_scope_incomplete'
+            : 'detail_cap_exceeded',
+        ],
       }
     }
     const path = safeDetailPath(posting.externalPath, identity)
@@ -1073,8 +1102,16 @@ export async function pollWorkdayRecent(
     if (!detail || detail.jobPostingInfo.title.trim() !== posting.title.trim()) {
       return incomplete(jobs, 'provider_schema_invalid', candidates.length, pageCount)
     }
-    if (identity.countryScope && !isUnitedStatesDetail(detail)) {
-      return incomplete(jobs, 'country_filter_unverified', candidates.length, pageCount)
+    if (identity.requireDetailCountryProof || identity.wholeSiteUsScope) {
+      const country = exactDetailCountry(detail)
+      if (country !== 'us') {
+        const warning = country === 'foreign'
+          ? 'foreign_detail_detected'
+          : identity.wholeSiteUsScope
+            ? 'whole_site_us_scope_unproven'
+            : 'country_filter_unverified'
+        return incomplete(jobs, warning, candidates.length, pageCount)
+      }
     }
     let mapped: NormalizedJob
     try {
@@ -1089,6 +1126,10 @@ export async function pollWorkdayRecent(
     }
     const eligible = !identity.applyCapitalOneEligibility
       || (isUnitedStatesDetail(detail) && isEntryLevelWorkdayDetail(detail))
+    if (identity.requireDetailCountryProof || identity.wholeSiteUsScope) {
+      jobs.push(mapped)
+      continue
+    }
     if (!recentStartDate(detail.jobPostingInfo.startDate, nowMs, recentDays) || !eligible) continue
     jobs.push(mapped)
   }
@@ -1097,7 +1138,7 @@ export async function pollWorkdayRecent(
     jobs: Object.freeze([...jobs]) as NormalizedJob[],
     completeness: 'complete',
     credibleForClosure: true,
-    allowMissingClosure: Boolean(identity.countryScope),
+    allowMissingClosure: Boolean(identity.countryScope || identity.wholeSiteUsScope),
     pageCount,
     expectedCount: jobs.length,
     warnings: [],
