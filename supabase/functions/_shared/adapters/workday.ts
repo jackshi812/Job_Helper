@@ -156,8 +156,21 @@ function postedAgeDays(value: string | null | undefined) {
   if (!normalized) return null
   if (normalized === 'posted today') return 0
   if (normalized === 'posted yesterday') return 1
-  const match = normalized.match(/^posted (\d+) days? ago$/)
+  const match = normalized.match(/^posted (\d+)(?:\+)? days? ago$/)
   return match ? Number(match[1]) : null
+}
+
+function titleIncludesAnyWholeWord(
+  title: string,
+  keywords: readonly string[] | undefined,
+) {
+  if (!keywords?.length) return true
+  const words = new Set(
+    title.normalize('NFKC').toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [],
+  )
+  return keywords.some((keyword) => words.has(
+    keyword.normalize('NFKC').trim().toLowerCase(),
+  ))
 }
 
 function recentStartDate(value: string | null | undefined, nowMs: number, recentDays: number) {
@@ -825,15 +838,22 @@ export async function pollWorkdayRecent(
   options: WorkdayRecentOptions = {},
 ): Promise<PollObservation> {
   const listUrl = `${identity.cxsRoot}/jobs`
-  const recentDays = Math.min(Math.max(options.recentDays ?? DEFAULT_RECENT_DAYS, 1), 7)
-  const maxPages = Math.min(options.maxPages ?? DEFAULT_RECENT_MAX_PAGES, DEFAULT_RECENT_MAX_PAGES)
+  const selectiveScope = identity.selectiveRecentUsScope
+  const recentDays = Math.min(
+    Math.max(options.recentDays ?? selectiveScope?.recentDays ?? DEFAULT_RECENT_DAYS, 1),
+    selectiveScope?.recentDays ?? 7,
+  )
+  const maximumPages = selectiveScope?.maxPages ?? DEFAULT_RECENT_MAX_PAGES
+  const maximumListings = selectiveScope?.maxListings ?? DEFAULT_RECENT_MAX_LISTINGS
+  const maximumDetails = selectiveScope?.maxDetails ?? DEFAULT_RECENT_MAX_DETAILS
+  const maxPages = Math.min(options.maxPages ?? maximumPages, maximumPages)
   const maxListings = Math.min(
-    options.maxListings ?? DEFAULT_RECENT_MAX_LISTINGS,
-    DEFAULT_RECENT_MAX_LISTINGS,
+    options.maxListings ?? maximumListings,
+    maximumListings,
   )
   const maxDetails = Math.min(
-    options.maxDetails ?? DEFAULT_RECENT_MAX_DETAILS,
-    DEFAULT_RECENT_MAX_DETAILS,
+    options.maxDetails ?? maximumDetails,
+    maximumDetails,
   )
   const maxBytes = Math.min(options.maxBytes ?? DEFAULT_MAX_BYTES, DEFAULT_MAX_BYTES)
   const nowMs = options.nowMs ?? Date.now()
@@ -862,7 +882,11 @@ export async function pollWorkdayRecent(
     appliedFacets.jobFamilyGroup = discovered.ids
     expectedScopedCount = discovered.expectedKeptCount
     scopedCountWarning = 'category_filter_unverified'
-  } else if (!identity.countryScope && !identity.wholeSiteUsScope) {
+  } else if (
+    !identity.countryScope
+    && !identity.wholeSiteUsScope
+    && !selectiveScope
+  ) {
     // A recent poll with no registered scope cannot prove the filter applied.
     return incomplete([], 'category_filter_unverified', undefined, 0)
   }
@@ -985,7 +1009,17 @@ export async function pollWorkdayRecent(
       seenPaths.add(posting.externalPath)
       if (identifier) seenListingIdentifiers.add(identifier)
       const age = postedAgeDays(posting.postedOn)
-      if (identity.countryScope || identity.wholeSiteUsScope || age === null || age <= recentDays) {
+      const recent = selectiveScope
+        ? age !== null && age <= recentDays
+        : age === null || age <= recentDays
+      const titleEligible = titleIncludesAnyWholeWord(
+        posting.title,
+        selectiveScope?.titleIncludesAny,
+      )
+      if (
+        (!selectiveScope && (identity.countryScope || identity.wholeSiteUsScope))
+        || (recent && titleEligible)
+      ) {
         candidates.push(posting)
       }
     }
@@ -1009,16 +1043,26 @@ export async function pollWorkdayRecent(
       return incomplete([], 'count_mismatch', undefined, pageCount)
     }
     // Existing category-scoped importers may stop once ordering proves the
-    // remaining rows are old. Country-scoped sources must still account for
-    // every scoped provider row before their observation can be credible.
+    // remaining rows are old. Country-scoped and selective-recent sources must
+    // still account for every provider row because some boards interleave ages.
     if (
-      (!identity.countryScope && !identity.wholeSiteUsScope && reachedOlderPage)
+      (
+        !selectiveScope
+        && !identity.countryScope
+        && !identity.wholeSiteUsScope
+        && reachedOlderPage
+      )
       || rawCount >= providerTotal
     ) break
   }
 
   if (
-    (identity.countryScope || identity.wholeSiteUsScope || !reachedOlderPage)
+    (
+      selectiveScope
+      || identity.countryScope
+      || identity.wholeSiteUsScope
+      || !reachedOlderPage
+    )
     && rawCount < (providerTotal ?? 0)
     && (rawCount >= maxListings || pageCount >= maxPages)
   ) {
@@ -1078,7 +1122,7 @@ export async function pollWorkdayRecent(
         pageCount,
         expectedCount: candidates.length,
         warnings: [
-          identity.wholeSiteUsScope
+          identity.wholeSiteUsScope || selectiveScope
             ? 'detail_scope_incomplete'
             : 'detail_cap_exceeded',
         ],
@@ -1102,8 +1146,15 @@ export async function pollWorkdayRecent(
     if (!detail || detail.jobPostingInfo.title.trim() !== posting.title.trim()) {
       return incomplete(jobs, 'provider_schema_invalid', candidates.length, pageCount)
     }
-    if (identity.requireDetailCountryProof || identity.wholeSiteUsScope) {
+    if (
+      identity.requireDetailCountryProof
+      || identity.wholeSiteUsScope
+      || selectiveScope
+    ) {
       const country = exactDetailCountry(detail)
+      if (selectiveScope && !identity.countryScope && country === 'foreign') {
+        continue
+      }
       if (country !== 'us') {
         const warning = country === 'foreign'
           ? 'foreign_detail_detected'
@@ -1126,7 +1177,11 @@ export async function pollWorkdayRecent(
     }
     const eligible = !identity.applyCapitalOneEligibility
       || (isUnitedStatesDetail(detail) && isEntryLevelWorkdayDetail(detail))
-    if (identity.requireDetailCountryProof || identity.wholeSiteUsScope) {
+    if (
+      identity.requireDetailCountryProof
+      || identity.wholeSiteUsScope
+      || selectiveScope
+    ) {
       jobs.push(mapped)
       continue
     }
@@ -1138,7 +1193,9 @@ export async function pollWorkdayRecent(
     jobs: Object.freeze([...jobs]) as NormalizedJob[],
     completeness: 'complete',
     credibleForClosure: true,
-    allowMissingClosure: Boolean(identity.countryScope || identity.wholeSiteUsScope),
+    allowMissingClosure: selectiveScope
+      ? false
+      : Boolean(identity.countryScope || identity.wholeSiteUsScope),
     pageCount,
     expectedCount: jobs.length,
     warnings: [],

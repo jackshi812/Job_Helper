@@ -47,6 +47,7 @@ export const FAMILY_ORDER = Object.freeze([
     sourceKey: 'workday:wd5:ms:External',
     fixture: 'eightfold_fixture',
     fault: 'incomplete_observation',
+    selectiveRecentDays: 7,
     tuple: Object.freeze(['ms', 'wd5', 'External', 'jobs']),
   }),
   Object.freeze({
@@ -56,6 +57,13 @@ export const FAMILY_ORDER = Object.freeze([
     sourceKey: 'workday:wd1:ghr:Lateral-US',
     fixture: 'oracle_fixture',
     fault: 'provider_schema_error',
+    selectiveRecentDays: 7,
+    titleIncludesAny: Object.freeze([
+      'finance',
+      'analytics',
+      'data',
+      'research',
+    ]),
     tuple: Object.freeze(['ghr', 'wd1', 'Lateral-US', 'jobs']),
   }),
   Object.freeze({
@@ -65,6 +73,7 @@ export const FAMILY_ORDER = Object.freeze([
     sourceKey: 'workday:wd1:blackrock:BlackRock_Professional',
     fixture: 'goldman_fixture',
     fault: 'provider_timeout',
+    selectiveRecentDays: 7,
     tuple: Object.freeze(['blackrock', 'wd1', 'BlackRock_Professional', 'jobs']),
   }),
   Object.freeze({
@@ -74,6 +83,7 @@ export const FAMILY_ORDER = Object.freeze([
     sourceKey: 'workday:wd3:barclays:External_Career_Site_Barclays',
     fixture: 'barclays_fixture',
     fault: 'provider_schema_error',
+    selectiveRecentDays: 7,
     tuple: Object.freeze([
       'barclays',
       'wd3',
@@ -338,6 +348,8 @@ export function sanitizeProbeEvidence(family, observation, requestCount, elapsed
     completeness: boundedText(observation.completeness, 16),
     credible_for_closure: observation.credibleForClosure === true,
     allow_missing_closure: observation.allowMissingClosure === true,
+    selective_recent_days: family.selectiveRecentDays ?? null,
+    selective_title_keywords: [...(family.titleIncludesAny ?? [])],
     job_count: jobs.length,
     expected_count: Number.isInteger(observation.expectedCount)
       ? observation.expectedCount
@@ -372,7 +384,11 @@ export function classifyProbe(family, observation, requestCount, elapsedMs) {
   const evidence = sanitizeProbeEvidence(family, observation, requestCount, elapsedMs)
   const positive = observation.completeness === 'complete'
     && observation.credibleForClosure === true
-    && observation.allowMissingClosure === true
+    && (
+      family.selectiveRecentDays === 7
+        ? observation.allowMissingClosure === false
+        : observation.allowMissingClosure === true
+    )
     && Array.isArray(observation.jobs)
     && observation.jobs.length > 0
     && observation.expectedCount === observation.jobs.length
@@ -481,8 +497,8 @@ export async function directProbe(family, dependencies = {}) {
   requireCondition(typeof poll === 'function', 'exact adapter entrypoint is missing')
   const bounded = createBoundedFetch(identity, dependencies.fetchImpl, dependencies.now)
   const observation = await poll(identity, bounded.fetch, {
-    totalDurationMs: PROBE_DEADLINE_MS,
-    maxDetailRequests: 200,
+    recentDays: family.selectiveRecentDays,
+    maxDetails: 199,
   })
   return classifyProbe(family, observation, bounded.count(), bounded.elapsed())
 }
@@ -1032,6 +1048,8 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
       'completeness',
       'credible_for_closure',
       'allow_missing_closure',
+      'selective_recent_days',
+      'selective_title_keywords',
       'job_count',
       'expected_count',
       'page_count',
@@ -1045,6 +1063,9 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
     requireCondition(result.probe.family === expected.family
       && result.probe.company === expected.company
       && result.probe.source_key === expected.sourceKey
+      && result.probe.selective_recent_days === expected.selectiveRecentDays
+      && canonical(result.probe.selective_title_keywords)
+        === canonical([...(expected.titleIncludesAny ?? [])])
       && result.probe.request_count <= PROVIDER_REQUEST_LIMIT
       && result.probe.elapsed_ms <= PROBE_DEADLINE_MS + 1_000
       && /^[0-9a-f]{64}$/.test(result.probe.evidence_digest),

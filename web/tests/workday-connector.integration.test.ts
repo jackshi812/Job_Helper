@@ -1654,6 +1654,14 @@ describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
       .toBe(WORKDAY_IDENTITIES['workday:wd12:capitalone:Capital_One'])
     expect(resolveWorkdayIdentity('fmr', 'wd1', 'FidelityCareers', 'site'))
       .toBe(WORKDAY_IDENTITIES['workday:wd1:fmr:FidelityCareers'])
+    expect(WORKDAY_IDENTITIES['workday:wd1:ghr:Lateral-US'])
+      .toMatchObject({
+        selectiveRecentUsScope: {
+          titleIncludesAny: ['finance', 'analytics', 'data', 'research'],
+        },
+      })
+    expect(WORKDAY_IDENTITIES['workday:wd5:ms:External']
+      .selectiveRecentUsScope?.titleIncludesAny).toBeUndefined()
   })
 
   it('rejects every one-field candidate tuple mutation before fetch', async () => {
@@ -1707,7 +1715,7 @@ describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
     await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
       completeness: 'complete',
       credibleForClosure: true,
-      allowMissingClosure: true,
+      allowMissingClosure: false,
       expectedCount: 1,
       jobs: [{ externalId: 'R380001', companyName: 'Morgan Stanley' }],
       warnings: [],
@@ -1744,18 +1752,33 @@ describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
     })
   })
 
-  it('authorizes Bank of America only from complete all-detail exact U.S. proof', async () => {
+  it('authorizes Bank of America recent rows only from exact U.S. detail proof', async () => {
     const expected = phase038WorkdayCandidates[1]
     const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
     const postings = [
-      phase038Posting(2, expected.companyName),
-      phase038Posting(3, expected.companyName),
+      {
+        ...phase038Posting(2, expected.companyName),
+        title: 'Finance Analyst',
+      },
+      {
+        ...phase038Posting(3, expected.companyName),
+        title: 'Data Research Associate',
+      },
+      {
+        ...phase038Posting(4, expected.companyName),
+        title: 'Financial Services Representative',
+      },
+      {
+        ...phase038Posting(5, expected.companyName),
+        title: 'Finance Manager',
+        postedOn: 'Posted 30+ Days Ago',
+      },
     ]
     const providerFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
       const url = String(input)
       if (url === `${expected.cxsRoot}/jobs`) {
         expect(JSON.parse(String(init?.body))).toMatchObject({ appliedFacets: {} })
-        return Promise.resolve(jsonResponse({ total: 2, jobPostings: postings }))
+        return Promise.resolve(jsonResponse({ total: 4, jobPostings: postings }))
       }
       const posting = postings.find((candidate) => url.endsWith(candidate.externalPath))
       if (!posting) throw new Error(`unexpected detail: ${url}`)
@@ -1764,7 +1787,7 @@ describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
     await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
       completeness: 'complete',
       credibleForClosure: true,
-      allowMissingClosure: true,
+      allowMissingClosure: false,
       expectedCount: 2,
       jobs: [
         { externalId: 'R380002', companyName: 'Bank of America' },
@@ -1785,25 +1808,101 @@ describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
       credibleForClosure: false,
       allowMissingClosure: false,
       jobs: [],
-      warnings: ['whole_site_us_scope_unproven'],
+      warnings: ['country_filter_unverified'],
     })
   })
 
   it.each(phase038WorkdayCandidates.slice(2))(
-    'keeps $companyName closure-ineligible and performs zero fetches without country authority',
+    'retains only recent exact-U.S. $companyName details without closure authority',
     async (expected) => {
       const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
-      const providerFetch = vi.fn()
-      await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
-        completeness: 'unknown',
-        credibleForClosure: false,
-        allowMissingClosure: false,
-        jobs: [],
-        warnings: ['country_filter_unverified'],
+      const recentUs = phase038Posting(10, expected.companyName)
+      const recentForeign = {
+        ...phase038Posting(11, expected.companyName),
+        postedOn: 'Posted 7 Days Ago',
+      }
+      const old = {
+        ...phase038Posting(12, expected.companyName),
+        postedOn: 'Posted 8 Days Ago',
+      }
+      const providerFetch = vi.fn((input: string | URL | Request) => {
+        const url = String(input)
+        if (url === `${expected.cxsRoot}/jobs`) {
+          return Promise.resolve(jsonResponse({
+            total: 3,
+            jobPostings: [recentUs, recentForeign, old],
+          }))
+        }
+        if (url.endsWith(recentUs.externalPath)) {
+          return Promise.resolve(jsonResponse(phase038Detail(recentUs)))
+        }
+        if (url.endsWith(recentForeign.externalPath)) {
+          return Promise.resolve(jsonResponse(phase038Detail(recentForeign, {
+            descriptor: 'Canada',
+            alpha2Code: 'CA',
+          })))
+        }
+        throw new Error(`unexpected detail: ${url}`)
       })
-      expect(providerFetch).not.toHaveBeenCalled()
+      await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
+        completeness: 'complete',
+        credibleForClosure: true,
+        allowMissingClosure: false,
+        expectedCount: 1,
+        jobs: [{
+          externalId: 'R380010',
+          companyName: expected.companyName,
+        }],
+        warnings: [],
+      })
+      expect(providerFetch).toHaveBeenCalledTimes(3)
     },
   )
+
+  it('scans all Morgan Stanley list pages before hydrating only recent details', async () => {
+    const expected = phase038WorkdayCandidates[0]
+    const identity = resolveWorkdayIdentity(...expected.tuple) as WorkdayIdentity
+    const postings = Array.from({ length: 963 }, (_, index) => ({
+      ...phase038Posting(index + 100, expected.companyName),
+      postedOn: index === 0 || index === 40
+        ? 'Posted 2 Days Ago'
+        : 'Posted 8 Days Ago',
+    }))
+    const recent = postings.filter((posting) => posting.postedOn === 'Posted 2 Days Ago')
+    const providerFetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url !== `${expected.cxsRoot}/jobs`) {
+        const posting = recent.find((candidate) => url.endsWith(candidate.externalPath))
+        if (!posting) throw new Error(`unexpected detail: ${url}`)
+        return Promise.resolve(jsonResponse(phase038Detail(posting)))
+      }
+      const body = JSON.parse(String(init?.body)) as {
+        appliedFacets: Record<string, string[]>
+        offset: number
+      }
+      if (body.appliedFacets.Location_Country === undefined) {
+        return Promise.resolve(jsonResponse({
+          total: 963,
+          jobPostings: [],
+          facets: countryFacets(['Location_Country'], 963),
+        }))
+      }
+      return Promise.resolve(jsonResponse({
+        total: 963,
+        jobPostings: postings.slice(body.offset, body.offset + 20),
+      }))
+    })
+
+    await expect(pollWorkdayRecent(identity, providerFetch)).resolves.toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure: false,
+      expectedCount: 2,
+      pageCount: 49,
+      warnings: [],
+    })
+    expect(providerFetch).toHaveBeenCalledTimes(52)
+  })
 })
 
 describe('Fidelity category-scoped recent import', () => {

@@ -46,6 +46,17 @@ export interface WorkdayCountryScope {
   readonly route: WorkdayCountryFacetRoute
 }
 
+export interface WorkdaySelectiveRecentUsScope {
+  /** Only list rows advertised as no older than this many days are hydrated. */
+  readonly recentDays: 7
+  /** Provider-list bounds; detail hydration remains inside the 300-request rollout ceiling. */
+  readonly maxPages: 100
+  readonly maxListings: 2_000
+  readonly maxDetails: 199
+  /** Optional server-owned whole-word title gate applied before detail hydration. */
+  readonly titleIncludesAny?: readonly string[]
+}
+
 export interface WorkdayIdentity {
   readonly origin: string
   readonly cxsRoot: string
@@ -68,6 +79,13 @@ export interface WorkdayIdentity {
   readonly requireDetailCountryProof?: true
   /** Complete unfiltered site is U.S.-authoritative only when every detail proves US. */
   readonly wholeSiteUsScope?: 'all_details'
+  /**
+   * Selective shared-pool import: enumerate the complete lightweight listing
+   * population, hydrate every recent row, retain only exact-U.S. details, and
+   * never infer closure from absence. Complete list enumeration is required
+   * because some Workday boards interleave old and newly posted rows.
+   */
+  readonly selectiveRecentUsScope?: WorkdaySelectiveRecentUsScope
   /** Exact identity is evaluable but has no country authority and must fetch nothing. */
   readonly unsupportedCountryContract?: true
 }
@@ -80,6 +98,24 @@ function unitedStatesScope(route: WorkdayCountryFacetRoute): WorkdayCountryScope
     route: Object.freeze([...route]) as WorkdayCountryFacetRoute,
   })
 }
+
+const selectiveRecentUsScope: WorkdaySelectiveRecentUsScope = Object.freeze({
+  recentDays: 7,
+  maxPages: 100,
+  maxListings: 2_000,
+  maxDetails: 199,
+})
+
+const bankOfAmericaSelectiveRecentUsScope: WorkdaySelectiveRecentUsScope =
+  Object.freeze({
+    ...selectiveRecentUsScope,
+    titleIncludesAny: Object.freeze([
+      'finance',
+      'analytics',
+      'data',
+      'research',
+    ]),
+  })
 
 const capitalOneIdentity: WorkdayIdentity = Object.freeze({
   origin: 'https://capitalone.wd12.myworkdayjobs.com',
@@ -181,6 +217,7 @@ const morganStanleyIdentity: WorkdayIdentity = Object.freeze({
   applyCapitalOneEligibility: false,
   countryScope: unitedStatesScope(['Location_Country']),
   requireDetailCountryProof: true,
+  selectiveRecentUsScope,
 })
 
 const bankOfAmericaIdentity: WorkdayIdentity = Object.freeze({
@@ -194,7 +231,7 @@ const bankOfAmericaIdentity: WorkdayIdentity = Object.freeze({
   sourceKey: BANK_OF_AMERICA_WORKDAY_SOURCE_KEY,
   companyName: 'Bank of America',
   applyCapitalOneEligibility: false,
-  wholeSiteUsScope: 'all_details',
+  selectiveRecentUsScope: bankOfAmericaSelectiveRecentUsScope,
 })
 
 const blackRockIdentity: WorkdayIdentity = Object.freeze({
@@ -210,7 +247,7 @@ const blackRockIdentity: WorkdayIdentity = Object.freeze({
   sourceKey: BLACKROCK_WORKDAY_SOURCE_KEY,
   companyName: 'BlackRock',
   applyCapitalOneEligibility: false,
-  unsupportedCountryContract: true,
+  selectiveRecentUsScope,
 })
 
 const barclaysIdentity: WorkdayIdentity = Object.freeze({
@@ -226,7 +263,7 @@ const barclaysIdentity: WorkdayIdentity = Object.freeze({
   sourceKey: BARCLAYS_WORKDAY_SOURCE_KEY,
   companyName: 'Barclays',
   applyCapitalOneEligibility: false,
-  unsupportedCountryContract: true,
+  selectiveRecentUsScope,
 })
 
 export const WORKDAY_IDENTITIES = Object.freeze({

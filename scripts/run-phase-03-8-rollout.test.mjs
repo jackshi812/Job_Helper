@@ -69,7 +69,7 @@ function completeObservation(family) {
   return {
     completeness: 'complete',
     credibleForClosure: true,
-    allowMissingClosure: true,
+    allowMissingClosure: false,
     jobs: [{
       externalId: 'safe-id',
       source: 'workday',
@@ -622,7 +622,7 @@ test('probe evidence is bounded, sanitized, schema-shaped, and classifies positi
       true)
     assert.equal(classifyProbe(family, {
       ...completeObservation(family),
-      allowMissingClosure: false,
+      allowMissingClosure: true,
       warnings: ['scope_evidence_incomplete'],
     }, 2, 25).positive, false)
     assert.equal(classifyProbe(family, {
