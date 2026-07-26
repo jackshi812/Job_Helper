@@ -16,7 +16,7 @@ import {
 } from './verify-phase-03-8-hosted.mjs'
 
 const manifestPath = new URL(
-  '../.planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-/03.8-05-RELEASE-MANIFEST.json',
+  '../.planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-/03.8-06-RELEASE-MANIFEST.json',
   import.meta.url,
 )
 
@@ -32,7 +32,7 @@ test('the exact checked-in release manifest is schema-valid and secret-free', as
   const manifest = await manifestFixture()
   assert.equal(validateManifest(manifest), manifest)
   assert.equal(manifest.phase, '03.8')
-  assert.equal(manifest.release_manifest_id, '03850000-0000-4000-8000-000000000005')
+  assert.equal(manifest.release_manifest_id, '03850000-0000-4000-8000-000000000006')
   assert.equal(manifest.verifier.run_id, '03850000-0000-4000-8000-000000000501')
   assert.equal(manifest.verifier.fixtures.length, 3)
   assert.deepEqual(

@@ -15,6 +15,8 @@ import {
   RELEASE_SOURCE_COMMIT,
   VERIFIER_REPAIR_PATH,
   VERIFIER_REPAIR_SHA256,
+  WORKDAY_EXTENSION_PATH,
+  WORKDAY_EXTENSION_SHA256,
   assertFamilyOrder,
   assertRolloutEvidence,
   canonical,
@@ -34,7 +36,7 @@ import {
 
 const phaseDir =
   '.planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-'
-const manifestPath = `${phaseDir}/03.8-05-RELEASE-MANIFEST.json`
+const manifestPath = `${phaseDir}/03.8-06-RELEASE-MANIFEST.json`
 const hostedPath = `${phaseDir}/03.8-05-HOSTED-VERIFICATION.json`
 const repairPath = VERIFIER_REPAIR_PATH
 const qualificationPath =
@@ -231,12 +233,16 @@ test('dry run is inert and publishes the exact approval identity', async () => {
   assert.equal(plan.required_approval, exactApproval())
   assert.equal(plan.verifier_repair_path, VERIFIER_REPAIR_PATH)
   assert.equal(plan.verifier_repair_sha256, VERIFIER_REPAIR_SHA256)
-  assert.ok(exactApproval().endsWith(VERIFIER_REPAIR_SHA256))
+  assert.equal(plan.workday_extension_path, WORKDAY_EXTENSION_PATH)
+  assert.equal(plan.workday_extension_sha256, WORKDAY_EXTENSION_SHA256)
+  assert.ok(exactApproval().includes(VERIFIER_REPAIR_SHA256))
+  assert.ok(exactApproval().endsWith(WORKDAY_EXTENSION_SHA256))
   assert.deepEqual(plan.family_order.map((item) => item.family),
     FAMILY_ORDER.map((item) => item.family))
 })
 
-test('hosted identity fails closed when migration 0042 is absent', async () => {
+test('hosted identity fails closed when ordered migrations 0042/0043 are absent',
+  async () => {
   const ops = new ManagementSqlOps({
     projectRef: 'fjcsvajkkztvlrpdplwx',
     accessToken: 'management-access-token-value',
@@ -259,8 +265,34 @@ test('hosted identity fails closed when migration 0042 is absent', async () => {
 
 test('family order is strict', () => {
   assert.equal(assertFamilyOrder(FAMILY_ORDER), FAMILY_ORDER)
+  assert.deepEqual(FAMILY_ORDER.map(({ family, company, sourceKey }) => ({
+    family,
+    company,
+    sourceKey,
+  })), [
+    {
+      family: 'workday',
+      company: 'Morgan Stanley',
+      sourceKey: 'workday:wd5:ms:External',
+    },
+    {
+      family: 'workday',
+      company: 'Bank of America',
+      sourceKey: 'workday:wd1:ghr:Lateral-US',
+    },
+    {
+      family: 'workday',
+      company: 'BlackRock',
+      sourceKey: 'workday:wd1:blackrock:BlackRock_Professional',
+    },
+    {
+      family: 'workday',
+      company: 'Barclays',
+      sourceKey: 'workday:wd3:barclays:External_Career_Site_Barclays',
+    },
+  ])
   assert.throws(() => assertFamilyOrder([...FAMILY_ORDER].reverse()),
-    /provider family order/)
+    /Workday candidate order/)
 })
 
 test('unsupported reason mapping is exact and unknown reasons fail closed', () => {
