@@ -214,13 +214,13 @@ Plans:
 4. JPMorgan activates independently only after positive exact live proof, three clean server-timed observations, and one healthy natural scheduled poll; at least one eligible job is persisted on the exact approved release.
 5. A forward-only migration and hash-bound rollout reauthorize only `oracle:jpmc:CX_1001`, preserve every sibling provider and active Workday source, require explicit production approval, and leave zero verifier residue.
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 03.9-01-PLAN.md — Build and freeze the exact selective JPMorgan Oracle release
+- [x] 03.9-01-PLAN.md — Build and freeze the exact selective JPMorgan Oracle release
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
