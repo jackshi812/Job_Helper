@@ -949,8 +949,24 @@ export class ManagementSqlOps {
         body: JSON.stringify({ query }),
       },
     )
-    requireCondition(response.ok,
-      `management SQL returned HTTP ${response.status}`)
+    if (!response.ok) {
+      const raw = await response.text()
+      const detail = raw
+        .replaceAll(this.accessToken, '[access-token-redacted]')
+        .replaceAll(
+          /(?:authorization|bearer|apikey|token|secret|password)\s*[:=]?\s*\S+/gi,
+          '[credential-redacted]',
+        )
+        .replaceAll(
+          /[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}/g,
+          '[jwt-redacted]',
+        )
+        .replaceAll(/\s+/g, ' ')
+        .slice(0, 500)
+      throw new Error(
+        `management SQL returned HTTP ${response.status}: ${detail || '<empty>'}`,
+      )
+    }
     const rows = await response.json()
     requireCondition(Array.isArray(rows), 'management SQL response is malformed')
     return rows
@@ -1309,7 +1325,6 @@ export class ManagementSqlOps {
     const row = oneRow(await this.query(`
       begin;
       set transaction isolation level repeatable read;
-      set local role service_role;
       create temporary table phase_03_8_runner_baseline
         on commit preserve rows
         as
@@ -1356,6 +1371,7 @@ export class ManagementSqlOps {
         activation_state text,
         consecutive_failures integer
       ) on commit preserve rows;
+      grant insert, select on phase_03_8_runner_results to service_role;
       create temporary table phase_03_8_runner_checkpoints (
         stage text,
         fixture_key text,
@@ -1364,12 +1380,75 @@ export class ManagementSqlOps {
         last_error_code text,
         job_status text
       ) on commit preserve rows;
-      create temporary table phase_03_8_runner_begin
-        on commit preserve rows
-        as
+      create temporary table phase_03_8_runner_begin (
+        started boolean,
+        expires_at timestamptz,
+        exercise_calls integer,
+        fixture_count integer
+      ) on commit preserve rows;
+      grant insert, select on phase_03_8_runner_begin to service_role;
+      set local role service_role;
+      insert into phase_03_8_runner_begin
       select * from public.begin_phase_03_8_verifier_run(
         '${VERIFIER_RUN_ID}'::uuid
       );
+      reset role;
+      set local role anon;
+      do $anon_denied$
+      begin
+        begin
+          perform * from public.begin_phase_03_8_verifier_run(
+            '${VERIFIER_RUN_ID}'::uuid
+          );
+          raise exception 'anon verifier begin was callable';
+        exception when insufficient_privilege then null;
+        end;
+        begin
+          perform * from public.exercise_phase_03_8_verifier_fault(
+            '${VERIFIER_RUN_ID}'::uuid, 'eightfold_fixture',
+            'provider_timeout', 0
+          );
+          raise exception 'anon verifier exercise was callable';
+        exception when insufficient_privilege then null;
+        end;
+        begin
+          perform * from public.finish_phase_03_8_verifier_run(
+            '${VERIFIER_RUN_ID}'::uuid, 0, 0, 0
+          );
+          raise exception 'anon verifier finish was callable';
+        exception when insufficient_privilege then null;
+        end;
+      end
+      $anon_denied$;
+      reset role;
+      set local role authenticated;
+      do $authenticated_denied$
+      begin
+        begin
+          perform * from public.begin_phase_03_8_verifier_run(
+            '${VERIFIER_RUN_ID}'::uuid
+          );
+          raise exception 'authenticated verifier begin was callable';
+        exception when insufficient_privilege then null;
+        end;
+        begin
+          perform * from public.exercise_phase_03_8_verifier_fault(
+            '${VERIFIER_RUN_ID}'::uuid, 'eightfold_fixture',
+            'provider_timeout', 0
+          );
+          raise exception 'authenticated verifier exercise was callable';
+        exception when insufficient_privilege then null;
+        end;
+        begin
+          perform * from public.finish_phase_03_8_verifier_run(
+            '${VERIFIER_RUN_ID}'::uuid, 0, 0, 0
+          );
+          raise exception 'authenticated verifier finish was callable';
+        exception when insufficient_privilege then null;
+        end;
+      end
+      $authenticated_denied$;
+      reset role;
       do $negative$
       begin
         if not exists (
@@ -1406,59 +1485,78 @@ export class ManagementSqlOps {
           raise exception 'unauthorized verifier ACL remains';
         end if;
         begin
+          execute 'set local role service_role';
           perform * from public.begin_phase_03_8_verifier_run(
             '03850000-0000-4000-8000-000000009999'::uuid
           );
+          execute 'reset role';
           raise exception 'unknown verifier run was accepted';
-        exception when sqlstate '22023' then null;
+        exception when sqlstate '22023' then
+          execute 'reset role';
         end;
         begin
+          execute 'set local role service_role';
           perform * from public.exercise_phase_03_8_verifier_fault(
             '${VERIFIER_RUN_ID}'::uuid, 'eightfold_fixture',
             'unknown_fault', 0
           );
+          execute 'reset role';
           raise exception 'unknown verifier fault was accepted';
-        exception when sqlstate '22023' then null;
+        exception when sqlstate '22023' then
+          execute 'reset role';
         end;
         begin
+          execute 'set local role service_role';
           perform * from public.finish_phase_03_8_verifier_run(
             '03850000-0000-4000-8000-000000009999'::uuid, 0, 0, 0
           );
+          execute 'reset role';
           raise exception 'unknown verifier finish was accepted';
-        exception when sqlstate '22023' then null;
+        exception when sqlstate '22023' then
+          execute 'reset role';
         end;
         begin
+          execute 'set local role service_role';
           perform * from public.exercise_phase_03_8_verifier_fault(
             '${VERIFIER_RUN_ID}'::uuid, 'real_company_identifier',
             'provider_timeout', 0
           );
+          execute 'reset role';
           raise exception 'unknown verifier fixture was accepted';
-        exception when sqlstate '22023' then null;
+        exception when sqlstate '22023' then
+          execute 'reset role';
         end;
         begin
           update public.phase_03_8_verifier_runs
           set expires_at = clock_timestamp() - interval '1 second'
           where run_id = '${VERIFIER_RUN_ID}'::uuid;
+          execute 'set local role service_role';
           perform * from public.exercise_phase_03_8_verifier_fault(
             '${VERIFIER_RUN_ID}'::uuid, 'eightfold_fixture',
             'provider_timeout', 0
           );
+          execute 'reset role';
           raise exception 'expired verifier run was accepted';
-        exception when sqlstate '55000' then null;
+        exception when sqlstate '55000' then
+          execute 'reset role';
         end;
         begin
           update public.phase_03_8_verifier_runs
           set exercise_calls = max_exercise_calls
           where run_id = '${VERIFIER_RUN_ID}'::uuid;
+          execute 'set local role service_role';
           perform * from public.exercise_phase_03_8_verifier_fault(
             '${VERIFIER_RUN_ID}'::uuid, 'eightfold_fixture',
             'provider_timeout', 0
           );
+          execute 'reset role';
           raise exception 'exhausted verifier run was accepted';
-        exception when sqlstate '55000' then null;
+        exception when sqlstate '55000' then
+          execute 'reset role';
         end;
       end
       $negative$;
+      set local role service_role;
       insert into phase_03_8_runner_results
       select fixture_key, fixture_version, fault, job_status,
         activation_state, consecutive_failures
@@ -1466,6 +1564,7 @@ export class ManagementSqlOps {
         '${VERIFIER_RUN_ID}'::uuid, 'eightfold_fixture',
         'incomplete_observation', 0
       );
+      reset role;
       insert into phase_03_8_runner_checkpoints
       select 'eightfold_fault', fixture.fixture_key, fixture.fixture_version,
         fixture.last_fault, company.last_error_code, job.status
@@ -1476,12 +1575,15 @@ export class ManagementSqlOps {
       do $stale$
       begin
         begin
+          execute 'set local role service_role';
           perform * from public.exercise_phase_03_8_verifier_fault(
             '${VERIFIER_RUN_ID}'::uuid, 'eightfold_fixture',
             'clean_recovery', 0
           );
+          execute 'reset role';
           raise exception 'stale verifier version was accepted';
-        exception when sqlstate '40001' then null;
+        exception when sqlstate '40001' then
+          execute 'reset role';
         end;
         if (select exercise_calls from public.phase_03_8_verifier_runs
             where run_id = '${VERIFIER_RUN_ID}'::uuid) <> 1
@@ -1494,12 +1596,14 @@ export class ManagementSqlOps {
         end if;
       end
       $stale$;
+      set local role service_role;
       insert into phase_03_8_runner_results
       select fixture_key, fixture_version, fault, job_status,
         activation_state, consecutive_failures
       from public.exercise_phase_03_8_verifier_fault(
         '${VERIFIER_RUN_ID}'::uuid, 'eightfold_fixture', 'clean_recovery', 1
       );
+      reset role;
       insert into phase_03_8_runner_checkpoints
       select 'eightfold_recovery', fixture.fixture_key, fixture.fixture_version,
         fixture.last_fault, company.last_error_code, job.status
@@ -1507,6 +1611,7 @@ export class ManagementSqlOps {
       join public.companies as company on company.id = fixture.company_id
       join public.jobs as job on job.id = fixture.job_id
       where fixture.run_id = '${VERIFIER_RUN_ID}'::uuid;
+      set local role service_role;
       insert into phase_03_8_runner_results
       select fixture_key, fixture_version, fault, job_status,
         activation_state, consecutive_failures
@@ -1514,6 +1619,7 @@ export class ManagementSqlOps {
         '${VERIFIER_RUN_ID}'::uuid, 'oracle_fixture',
         'provider_schema_error', 0
       );
+      reset role;
       insert into phase_03_8_runner_checkpoints
       select 'oracle_fault', fixture.fixture_key, fixture.fixture_version,
         fixture.last_fault, company.last_error_code, job.status
@@ -1521,12 +1627,14 @@ export class ManagementSqlOps {
       join public.companies as company on company.id = fixture.company_id
       join public.jobs as job on job.id = fixture.job_id
       where fixture.run_id = '${VERIFIER_RUN_ID}'::uuid;
+      set local role service_role;
       insert into phase_03_8_runner_results
       select fixture_key, fixture_version, fault, job_status,
         activation_state, consecutive_failures
       from public.exercise_phase_03_8_verifier_fault(
         '${VERIFIER_RUN_ID}'::uuid, 'oracle_fixture', 'clean_recovery', 1
       );
+      reset role;
       insert into phase_03_8_runner_checkpoints
       select 'oracle_recovery', fixture.fixture_key, fixture.fixture_version,
         fixture.last_fault, company.last_error_code, job.status
@@ -1534,12 +1642,14 @@ export class ManagementSqlOps {
       join public.companies as company on company.id = fixture.company_id
       join public.jobs as job on job.id = fixture.job_id
       where fixture.run_id = '${VERIFIER_RUN_ID}'::uuid;
+      set local role service_role;
       insert into phase_03_8_runner_results
       select fixture_key, fixture_version, fault, job_status,
         activation_state, consecutive_failures
       from public.exercise_phase_03_8_verifier_fault(
         '${VERIFIER_RUN_ID}'::uuid, 'goldman_fixture', 'provider_timeout', 0
       );
+      reset role;
       insert into phase_03_8_runner_checkpoints
       select 'goldman_fault', fixture.fixture_key, fixture.fixture_version,
         fixture.last_fault, company.last_error_code, job.status
@@ -1547,12 +1657,14 @@ export class ManagementSqlOps {
       join public.companies as company on company.id = fixture.company_id
       join public.jobs as job on job.id = fixture.job_id
       where fixture.run_id = '${VERIFIER_RUN_ID}'::uuid;
+      set local role service_role;
       insert into phase_03_8_runner_results
       select fixture_key, fixture_version, fault, job_status,
         activation_state, consecutive_failures
       from public.exercise_phase_03_8_verifier_fault(
         '${VERIFIER_RUN_ID}'::uuid, 'goldman_fixture', 'clean_recovery', 1
       );
+      reset role;
       insert into phase_03_8_runner_checkpoints
       select 'goldman_recovery', fixture.fixture_key, fixture.fixture_version,
         fixture.last_fault, company.last_error_code, job.status
@@ -1669,24 +1781,40 @@ export class ManagementSqlOps {
         end if;
       end
       $assert$;
-      create temporary table phase_03_8_runner_finish
+      create temporary table phase_03_8_runner_versions
         on commit preserve rows
         as
+      select fixture_key, fixture_version
+      from public.phase_03_8_verifier_fixtures
+      where run_id = '${VERIFIER_RUN_ID}'::uuid
+        and fixture_key in (
+          'eightfold_fixture', 'oracle_fixture', 'goldman_fixture'
+        );
+      grant select on phase_03_8_runner_versions to service_role;
+      create temporary table phase_03_8_runner_finish (
+        consumed boolean,
+        release_manifest_id uuid,
+        run_id uuid,
+        exercise_calls integer,
+        deleted_fixtures integer,
+        remaining_rows integer,
+        grants_revoked boolean
+      ) on commit preserve rows;
+      grant insert, select on phase_03_8_runner_finish to service_role;
+      set local role service_role;
+      insert into phase_03_8_runner_finish
       select *
       from public.finish_phase_03_8_verifier_run(
         '${VERIFIER_RUN_ID}'::uuid,
         (select fixture_version
-         from public.phase_03_8_verifier_fixtures
-         where run_id = '${VERIFIER_RUN_ID}'::uuid
-           and fixture_key = 'eightfold_fixture'),
+         from phase_03_8_runner_versions
+         where fixture_key = 'eightfold_fixture'),
         (select fixture_version
-         from public.phase_03_8_verifier_fixtures
-         where run_id = '${VERIFIER_RUN_ID}'::uuid
-           and fixture_key = 'oracle_fixture'),
+         from phase_03_8_runner_versions
+         where fixture_key = 'oracle_fixture'),
         (select fixture_version
-         from public.phase_03_8_verifier_fixtures
-         where run_id = '${VERIFIER_RUN_ID}'::uuid
-           and fixture_key = 'goldman_fixture')
+         from phase_03_8_runner_versions
+         where fixture_key = 'goldman_fixture')
       );
       reset role;
       commit;

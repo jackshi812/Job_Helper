@@ -656,3 +656,86 @@ test('management SQL uses access-token API and leaves a final SELECT after commi
       /set local role service_role[\s\S]+commit;[\s\S]+select \* from phase_03_8_finalize_result;/i)
     assert.doesNotMatch(queries[0].query, /drop table if exists/i)
   })
+
+test('verifier SQL scopes service role to RPC inserts, never direct verifier tables',
+  async () => {
+    let verifierSql = ''
+    const ops = new ManagementSqlOps({
+      projectRef: 'fjcsvajkkztvlrpdplwx',
+      accessToken: 'management-access-token-value',
+      hosted: { status: 'PASS' },
+      fetchImpl: async (_url, init) => {
+        verifierSql = JSON.parse(init.body).query
+        return new Response(JSON.stringify([{
+          consumed: true,
+          release_manifest_id: '03850000-0000-4000-8000-000000000005',
+          run_id: '03850000-0000-4000-8000-000000000501',
+          exercise_calls: 6,
+          deleted_fixtures: 3,
+          remaining_rows: 0,
+          grants_revoked: true,
+          transition_rows: 6,
+          real_company_sha256: '1'.repeat(64),
+          real_job_sha256: '2'.repeat(64),
+          real_companies_unchanged: true,
+          real_jobs_unchanged: true,
+          heartbeat_advanced: true,
+          sibling_isolation: true,
+          begin_denied: true,
+          exercise_denied: true,
+          finish_denied: true,
+        }]), { status: 200 })
+      },
+    })
+    assert.equal((await ops.runVerifierTransaction({
+      release_manifest_id: '03850000-0000-4000-8000-000000000005',
+    })).status, 'PASS')
+    const scoped = []
+    const lines = verifierSql.split('\n')
+    for (let index = 0; index < lines.length; index += 1) {
+      if (lines[index].trim() !== 'set local role service_role;') continue
+      const body = []
+      index += 1
+      while (index < lines.length && lines[index].trim() !== 'reset role;') {
+        body.push(lines[index])
+        index += 1
+      }
+      scoped.push(body.join('\n'))
+    }
+    assert.equal(scoped.length, 8)
+    for (const body of scoped) {
+      assert.match(body, /insert into phase_03_8_runner_/i)
+      assert.match(body,
+        /public\.(?:begin|exercise|finish)_phase_03_8_verifier_/i)
+      assert.doesNotMatch(body,
+        /(?:from|update|delete from|join)\s+public\.phase_03_8_verifier_(?:runs|fixtures)/i)
+    }
+    assert.match(verifierSql,
+      /grant insert, select on phase_03_8_runner_results to service_role/i)
+    assert.match(verifierSql,
+      /set local role anon;[\s\S]+anon verifier begin was callable[\s\S]+reset role;/i)
+    assert.match(verifierSql,
+      /set local role authenticated;[\s\S]+authenticated verifier finish was callable[\s\S]+reset role;/i)
+    assert.match(verifierSql,
+      /update public\.phase_03_8_verifier_runs[\s\S]+execute 'set local role service_role'/i)
+  })
+
+test('management SQL errors include bounded diagnostics with credentials redacted',
+  async () => {
+    const token = 'management-access-token-value-that-must-not-leak'
+    const ops = new ManagementSqlOps({
+      projectRef: 'fjcsvajkkztvlrpdplwx',
+      accessToken: token,
+      hosted: { status: 'PASS' },
+      fetchImpl: async () => new Response(
+        `Authorization: Bearer ${token} ${'provider detail '.repeat(100)}`,
+        { status: 400 },
+      ),
+    })
+    await assert.rejects(ops.query('select broken'), (error) => {
+      assert.match(error.message, /management SQL returned HTTP 400:/)
+      assert.doesNotMatch(error.message, new RegExp(token))
+      assert.ok(error.message.length < 600)
+      return true
+    })
+  })
