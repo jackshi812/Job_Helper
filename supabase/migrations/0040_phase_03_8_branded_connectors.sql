@@ -4,6 +4,8 @@ begin;
 -- rollout. Migration application records truthful Unsupported evidence and
 -- never admits a branded candidate from migration or fixture bytes.
 
+create extension if not exists pgcrypto;
+
 create temporary table phase_03_8_protected_workday_before on commit drop as
 select
   id, name, ats_type, board_token, region, site_token, careers_url, source_key,
@@ -75,16 +77,24 @@ alter table public.jobs
     or (
       source in ('eightfold', 'oracle_recruiting', 'goldman_higher')
       and jsonb_typeof(scope_evidence) = 'object'
-      and jsonb_object_length(scope_evidence) = 5
       and scope_evidence ?& array[
         'sourceKey', 'providerCategoryLabel', 'matchedTerm',
         'detailCountryCode', 'externalIdDigest'
       ]
+      and scope_evidence - array[
+        'sourceKey', 'providerCategoryLabel', 'matchedTerm',
+        'detailCountryCode', 'externalIdDigest'
+      ] = '{}'::jsonb
       and scope_evidence ->> 'sourceKey' in (
         'eightfold:morganstanley',
         'oracle:jpmc:CX_1001',
         'goldman_higher:roles'
       )
+      and scope_evidence ->> 'sourceKey' = case source
+        when 'eightfold' then 'eightfold:morganstanley'
+        when 'oracle_recruiting' then 'oracle:jpmc:CX_1001'
+        when 'goldman_higher' then 'goldman_higher:roles'
+      end
       and length(scope_evidence ->> 'providerCategoryLabel') between 1 and 160
       and scope_evidence ->> 'matchedTerm' in (
         'Data', 'Technology', 'Finance', 'Investment',
@@ -92,6 +102,24 @@ alter table public.jobs
       )
       and scope_evidence ->> 'detailCountryCode' = 'US'
       and scope_evidence ->> 'externalIdDigest' ~ '^[0-9a-f]{64}$'
+      and scope_evidence ->> 'externalIdDigest' = encode(
+        digest(
+          convert_to(
+            concat(
+              '[',
+              to_json(scope_evidence ->> 'sourceKey')::text, ',',
+              to_json(external_id)::text, ',',
+              to_json(scope_evidence ->> 'providerCategoryLabel')::text, ',',
+              to_json(scope_evidence ->> 'matchedTerm')::text, ',',
+              to_json('US'::text)::text,
+              ']'
+            ),
+            'UTF8'
+          ),
+          'sha256'
+        ),
+        'hex'
+      )
     )
   );
 

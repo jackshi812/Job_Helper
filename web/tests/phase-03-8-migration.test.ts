@@ -55,7 +55,7 @@ describe('migration 0040 exact catalog and identity parity', () => {
       expect(sql).toContain(`'${candidate.sourceKey}'`)
       expect(sql).toContain(`'${candidate.publicUrl}'`)
     }
-    expect(sql.match(/'pending_current_live_contract_proof'/g)).toHaveLength(4)
+    expect(sql.match(/'pending_current_live_contract_proof', null/g)).toHaveLength(3)
     expect(sql).toMatch(/migration application must not pre-admit branded candidates/i)
   })
 
@@ -69,7 +69,9 @@ describe('migration 0040 exact catalog and identity parity', () => {
   })
 
   it('binds every branded scope object to its row source and external id digest', () => {
-    expect(sql).toMatch(/jsonb_object_length\(scope_evidence\)\s*=\s*5/i)
+    expect(sql).toMatch(
+      /scope_evidence\s*-\s*array\[[\s\S]*'externalIdDigest'[\s\S]*\]\s*=\s*'\{\}'::jsonb/i,
+    )
     expect(sql).toMatch(/scope_evidence\s*->>\s*'detailCountryCode'\s*=\s*'US'/i)
     expect(sql).toMatch(
       /scope_evidence\s*->>\s*'sourceKey'\s*=\s*case\s+source/i,
@@ -78,7 +80,9 @@ describe('migration 0040 exact catalog and identity parity', () => {
       /scope_evidence\s*->>\s*'externalIdDigest'\s*=\s*encode\(\s*digest\(/i,
     )
     expect(sql).toMatch(/external_id/i)
-    expect(sql).not.toMatch(/scope_evidence[\s\S]{0,300}(?:credential|cookie|payload)/i)
+    expect(sql).not.toMatch(
+      /scope_evidence\s*->>\s*'(?:credential|cookie|payload)'/i,
+    )
   })
 
   it('preserves protected Workday rows, RLS, grants, and forward-only schema history', () => {

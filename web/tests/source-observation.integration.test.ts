@@ -102,8 +102,11 @@ describe('scheduled closed-registry dispatch', () => {
   it('keeps the registry exhaustive for exactly the implemented providers', () => {
     expect(Object.keys(providerRegistry).sort()).toEqual([
       'ashby',
+      'eightfold',
+      'goldman_higher',
       'greenhouse',
       'lever',
+      'oracle_recruiting',
       'paylocity',
       'recruitee',
       'smartrecruiters',

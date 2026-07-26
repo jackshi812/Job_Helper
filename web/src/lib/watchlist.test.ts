@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UNSUPPORTED_URL_MESSAGE } from '../../../supabase/functions/_shared/detect'
 import sourceCoverageCatalogMigration from '../../../supabase/migrations/0013_source_coverage_catalog.sql?raw'
+import brandedConnectorMigration from '../../../supabase/migrations/0040_phase_03_8_branded_connectors.sql?raw'
 import {
   activationPresentation,
   addCompany,
@@ -51,6 +52,8 @@ function company(overrides: Partial<CompanyRecord> = {}): CompanyRecord {
 }
 
 const CAPITAL_ONE_SOURCE_KEY = 'workday:wd12:capitalone:Capital_One'
+const FIDELITY_SOURCE_KEY = 'workday:wd1:fmr:FidelityCareers'
+const MORGAN_STANLEY_SOURCE_KEY = 'eightfold:morganstanley'
 
 const financeCatalog: SourceCoverageCatalogRecord[] = [
   {
@@ -58,21 +61,21 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
     company_name: 'Morgan Stanley',
     careers_url: 'https://www.morganstanley.com/careers/career-opportunities-search/',
     provider: 'Eightfold',
-    access_evidence: 'Official machine API requires OAuth credentials.',
+    access_evidence: 'Current exact hosted live proof remains pending.',
     disposition: 'unsupported_with_reason',
-    verified_at: '2026-07-17',
-    unsupported_reason: 'Public API requires employer credentials',
+    verified_at: '2026-07-25',
+    unsupported_reason: 'pending_current_live_contract_proof',
     source_key: null,
   },
   {
     id: 'catalog-goldman-sachs',
     company_name: 'Goldman Sachs',
     careers_url: 'https://higher.gs.com/roles',
-    provider: 'Branded/custom',
-    access_evidence: 'No stable public listing contract was established.',
+    provider: 'Goldman Higher',
+    access_evidence: 'Current exact hosted live proof remains pending.',
     disposition: 'unsupported_with_reason',
-    verified_at: '2026-07-17',
-    unsupported_reason: 'No stable public feed',
+    verified_at: '2026-07-25',
+    unsupported_reason: 'pending_current_live_contract_proof',
     source_key: null,
   },
   {
@@ -80,10 +83,10 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
     company_name: 'JPMorgan Chase',
     careers_url: 'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions',
     provider: 'Oracle Recruiting Cloud',
-    access_evidence: 'Candidate requisition API is marked Oracle-internal.',
+    access_evidence: 'Current exact hosted live proof remains pending.',
     disposition: 'unsupported_with_reason',
-    verified_at: '2026-07-17',
-    unsupported_reason: 'Public API requires employer credentials',
+    verified_at: '2026-07-25',
+    unsupported_reason: 'pending_current_live_contract_proof',
     source_key: null,
   },
   {
@@ -94,7 +97,7 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
     access_evidence: 'No single documented anonymous source contract was established.',
     disposition: 'unsupported_with_reason',
     verified_at: '2026-07-17',
-    unsupported_reason: 'No stable public feed',
+    unsupported_reason: 'primary_portal_html_only_no_structured_machine_contract',
     source_key: null,
   },
   {
@@ -105,7 +108,7 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
     access_evidence: 'No documented public listing API was established.',
     disposition: 'unsupported_with_reason',
     verified_at: '2026-07-17',
-    unsupported_reason: 'No stable public feed',
+    unsupported_reason: 'radancy_results_require_html_parsing',
     source_key: null,
   },
   {
@@ -116,7 +119,7 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
     access_evidence: 'No documented public listing API was established.',
     disposition: 'unsupported_with_reason',
     verified_at: '2026-07-17',
-    unsupported_reason: 'No stable public feed',
+    unsupported_reason: 'radancy_results_require_html_parsing',
     source_key: null,
   },
   {
@@ -127,7 +130,7 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
     access_evidence: 'Direct automation reached a Cloudflare challenge.',
     disposition: 'unsupported_with_reason',
     verified_at: '2026-07-17',
-    unsupported_reason: 'Automated access is blocked',
+    unsupported_reason: 'primary_portal_managed_challenge_no_bypass',
     source_key: null,
   },
   {
@@ -138,7 +141,7 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
     access_evidence: 'No supported anonymous machine API was established.',
     disposition: 'unsupported_with_reason',
     verified_at: '2026-07-17',
-    unsupported_reason: 'No stable public feed',
+    unsupported_reason: 'structured_endpoint_requires_html_bootstrap_session',
     source_key: null,
   },
   {
@@ -149,7 +152,7 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
     access_evidence: 'No documented public listing API was established.',
     disposition: 'unsupported_with_reason',
     verified_at: '2026-07-17',
-    unsupported_reason: 'No stable public feed',
+    unsupported_reason: 'radancy_results_require_html_parsing',
     source_key: null,
   },
   {
@@ -167,12 +170,12 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
     id: 'catalog-fidelity',
     company_name: 'Fidelity',
     careers_url: 'https://jobs.fidelity.com/en/jobs/',
-    provider: 'Branded/custom',
-    access_evidence: 'Direct automation reached a Cloudflare challenge.',
-    disposition: 'unsupported_with_reason',
-    verified_at: '2026-07-17',
-    unsupported_reason: 'Automated access is blocked',
-    source_key: null,
+    provider: 'Workday',
+    access_evidence: 'The exact public Workday source is already Active.',
+    disposition: 'experimental',
+    verified_at: '2026-07-24',
+    unsupported_reason: null,
+    source_key: FIDELITY_SOURCE_KEY,
   },
   {
     id: 'catalog-charles-schwab',
@@ -182,7 +185,7 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
     access_evidence: 'The official iCIMS machine API requires Basic authentication.',
     disposition: 'unsupported_with_reason',
     verified_at: '2026-07-17',
-    unsupported_reason: 'Public API requires employer credentials',
+    unsupported_reason: 'radancy_results_require_html_parsing',
     source_key: null,
   },
 ]
@@ -212,11 +215,16 @@ describe('finance coverage presentation', () => {
       .toBe('workday:wd12:capitalone:Capital_One')
   })
 
-  it('pins the evidence seeds, read-only policy, and Capital One identity in migration 0013', () => {
+  it('pins current evidence seeds while preserving the read-only catalog policy', () => {
     for (const entry of financeCatalog) {
-      expect(sourceCoverageCatalogMigration).toContain(`'${entry.company_name}'`)
-      expect(sourceCoverageCatalogMigration).toContain(`'${entry.careers_url}'`)
-      expect(sourceCoverageCatalogMigration).toContain(`'${entry.provider}'`)
+      const owningMigration = [
+        'Capital One',
+        'Fidelity',
+      ].includes(entry.company_name)
+        ? sourceCoverageCatalogMigration
+        : brandedConnectorMigration
+      expect(owningMigration).toContain(`'${entry.company_name}'`)
+      expect(owningMigration).toContain(`'${entry.careers_url}'`)
     }
     expect(sourceCoverageCatalogMigration).toContain("'workday:wd12:capitalone:Capital_One'")
     expect(sourceCoverageCatalogMigration).toContain('revoke all on table public.source_coverage_catalog from public, anon, authenticated')
@@ -289,7 +297,7 @@ describe('finance coverage presentation', () => {
     })
 
     const unsupported = rows.filter((row) => row.disposition === 'unsupported_with_reason')
-    expect(unsupported).toHaveLength(11)
+    expect(unsupported).toHaveLength(10)
     expect(unsupported.every((row) => (
       row.company_id === null
       && row.source_key === null
@@ -338,9 +346,107 @@ describe('finance coverage presentation', () => {
     })
     expect(healthPresentation(unsupported)).toEqual({
       label: 'Unsupported',
-      detail: 'Public API requires employer credentials',
+      detail: 'pending_current_live_contract_proof',
       retention: 'Not monitored',
     })
+  })
+
+  it('merges a positively terminalized branded source once through Experimental and Active', () => {
+    const admittedCatalog = financeCatalog.map((entry) => (
+      entry.company_name === 'Morgan Stanley'
+        ? {
+            ...entry,
+            disposition: 'experimental' as const,
+            unsupported_reason: null,
+            source_key: MORGAN_STANLEY_SOURCE_KEY,
+          }
+        : entry
+    ))
+    const experimental = company({
+      id: 'company-morgan-stanley',
+      name: 'Morgan Stanley',
+      ats_type: 'eightfold',
+      board_token: MORGAN_STANLEY_SOURCE_KEY,
+      careers_url: 'https://www.morganstanley.com/careers/career-opportunities-search/',
+      source_key: MORGAN_STANLEY_SOURCE_KEY,
+      activation_state: 'experimental',
+      activation_successes: 0,
+      last_success_at: null,
+    })
+
+    const rows = mergeCoverageRows([experimental], admittedCatalog)
+    const morganRows = rows.filter((row) => row.name === 'Morgan Stanley')
+    expect(rows).toHaveLength(12)
+    expect(morganRows).toHaveLength(1)
+    expect(morganRows[0]).toMatchObject({
+      company_id: 'company-morgan-stanley',
+      source_key: MORGAN_STANLEY_SOURCE_KEY,
+      activation_state: 'experimental',
+      activation_successes: 0,
+      scheduled: false,
+      monitored: true,
+    })
+    expect(activationPresentation(morganRows[0])).toEqual({
+      label: 'Experimental',
+      details: ['0 of 3 checks passed', 'Scheduled polling off'],
+    })
+    expect(mergeCoverageRows([
+      { ...experimental, activation_state: 'active', activation_successes: 3 },
+    ], admittedCatalog).find((row) => row.name === 'Morgan Stanley')).toMatchObject({
+      activation_state: 'active',
+      scheduled: true,
+      monitored: true,
+    })
+  })
+
+  it('keeps all seven negative targets exact and protects Active Capital One and Fidelity', () => {
+    const capitalOne = company({
+      id: 'company-capital-one',
+      name: 'Capital One',
+      ats_type: 'workday',
+      board_token: 'capitalone',
+      region: 'wd12',
+      site_token: 'Capital_One',
+      source_key: CAPITAL_ONE_SOURCE_KEY,
+      activation_state: 'active',
+    })
+    const fidelity = company({
+      id: 'company-fidelity',
+      name: 'Fidelity',
+      ats_type: 'workday',
+      board_token: 'fmr',
+      region: 'wd1',
+      site_token: 'FidelityCareers',
+      careers_url: 'https://wd1.myworkdaysite.com/en-US/recruiting/fmr/FidelityCareers',
+      source_key: FIDELITY_SOURCE_KEY,
+      activation_state: 'active',
+    })
+    const rows = mergeCoverageRows([capitalOne, fidelity], financeCatalog)
+    const negativeNames = [
+      'Bank of America',
+      'Citi',
+      'BlackRock',
+      'Wells Fargo',
+      'UBS',
+      'Barclays',
+      'Charles Schwab',
+    ]
+    expect(rows.filter((row) => negativeNames.includes(row.name))).toHaveLength(7)
+    expect(rows.filter((row) => negativeNames.includes(row.name)).every((row) => (
+      row.company_id === null
+      && row.source_key === null
+      && row.health_state === 'unsupported'
+      && row.scheduled === false
+      && row.monitored === false
+    ))).toBe(true)
+    for (const name of ['Capital One', 'Fidelity']) {
+      expect(rows.find((row) => row.name === name)).toMatchObject({
+        provider: 'Workday',
+        activation_state: 'active',
+        scheduled: true,
+        monitored: true,
+      })
+    }
   })
 
   it('uses successful Experimental verification evidence without enabling scheduling', () => {
@@ -381,7 +487,6 @@ describe('finance coverage presentation', () => {
   })
 
   it('shows a Fidelity filter note keyed on the Fidelity source key and reuses existing badges', () => {
-    const FIDELITY_SOURCE_KEY = 'workday:wd1:fmr:FidelityCareers'
     const fidelity: WatchlistRow = {
       key: 'company-fidelity',
       company_id: '22222222-2222-4222-8222-222222222222',

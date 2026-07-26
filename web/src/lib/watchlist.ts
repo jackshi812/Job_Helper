@@ -13,7 +13,17 @@ export const SOURCE_COVERAGE_CATALOG_COLUMNS =
 export interface CompanyRecord {
   id: string
   name: string
-  ats_type: 'greenhouse' | 'lever' | 'ashby' | 'smartrecruiters' | 'recruitee' | 'workday'
+  ats_type:
+    | 'greenhouse'
+    | 'lever'
+    | 'ashby'
+    | 'smartrecruiters'
+    | 'recruitee'
+    | 'workday'
+    | 'paylocity'
+    | 'eightfold'
+    | 'oracle_recruiting'
+    | 'goldman_higher'
   board_token: string
   region: string | null
   careers_url: string
