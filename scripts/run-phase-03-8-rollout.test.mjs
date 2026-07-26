@@ -13,6 +13,8 @@ import {
   RELEASE_MANIFEST_FILE_SHA256,
   RELEASE_MANIFEST_OBJECT_SHA256,
   RELEASE_SOURCE_COMMIT,
+  VERIFIER_REPAIR_PATH,
+  VERIFIER_REPAIR_SHA256,
   assertFamilyOrder,
   assertRolloutEvidence,
   canonical,
@@ -34,6 +36,7 @@ const phaseDir =
   '.planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-'
 const manifestPath = `${phaseDir}/03.8-05-RELEASE-MANIFEST.json`
 const hostedPath = `${phaseDir}/03.8-05-HOSTED-VERIFICATION.json`
+const repairPath = VERIFIER_REPAIR_PATH
 
 function timestamps(start = Date.parse('2026-07-26T18:00:00Z')) {
   return {
@@ -75,30 +78,115 @@ function completeObservation(family) {
 
 test('identity gates bind the literal manifest, canonical object, hosted PASS, and source commit',
   async () => {
-    const [manifestBytes, hostedBytes] = await Promise.all([
+    const [manifestBytes, hostedBytes, repairBytes] = await Promise.all([
       readFile(manifestPath),
       readFile(hostedPath),
+      readFile(repairPath),
     ])
     assert.equal(sha256(manifestBytes), RELEASE_MANIFEST_FILE_SHA256)
     assert.equal(sha256(JSON.stringify(JSON.parse(manifestBytes))),
       RELEASE_MANIFEST_OBJECT_SHA256)
     assert.equal(sha256(hostedBytes), PLAN_05_HOSTED_SHA256)
+    assert.equal(sha256(repairBytes), VERIFIER_REPAIR_SHA256)
     assert.equal(validateIdentityFiles({
       manifestBytes,
       hostedBytes,
+      repairBytes,
       sourceCommit: RELEASE_SOURCE_COMMIT,
     }).hosted.status, 'PASS')
     assert.throws(() => validateIdentityFiles({
       manifestBytes,
       hostedBytes,
+      repairBytes,
       sourceCommit: '0'.repeat(40),
     }), /source worktree/)
     const changed = Buffer.from(`${hostedBytes.toString().trim()} `)
     assert.throws(() => validateIdentityFiles({
       manifestBytes,
       hostedBytes: changed,
+      repairBytes,
       sourceCommit: RELEASE_SOURCE_COMMIT,
     }), /hosted evidence hash drift/)
+    assert.throws(() => validateIdentityFiles({
+      manifestBytes,
+      hostedBytes,
+      repairBytes: Buffer.from(`${repairBytes.toString().trim()} `),
+      sourceCommit: RELEASE_SOURCE_COMMIT,
+    }), /forward verifier repair hash drift/)
+  })
+
+test('0041 is a forward-only, qualified, transaction-safe verifier repair',
+  async () => {
+    const [original, repair] = await Promise.all([
+      readFile('supabase/migrations/0040_phase_03_8_branded_connectors.sql',
+        'utf8'),
+      readFile(repairPath, 'utf8'),
+    ])
+    assert.equal(sha256(original),
+      '09ff62efcd82a13a4b5b4fbd06ea643f01f837196d1260e1d0d1f744601ce21f')
+    assert.equal(sha256(repair), VERIFIER_REPAIR_SHA256)
+    assert.equal(
+      [...repair.matchAll(/create or replace function public\.(?:begin|exercise|finish)_phase_03_8_verifier_(?:run|fault)\(/g)].length,
+      3,
+    )
+    assert.equal([...repair.matchAll(/\nsecurity definer\nset search_path = ''/g)].length,
+      3)
+    assert.match(repair,
+      /verifier_run\.state = 'armed'[\s\S]+verifier_run\.started_at is null[\s\S]+verifier_run\.expires_at is null[\s\S]+verifier_run\.exercise_calls = 0[\s\S]+verifier_run\.max_exercise_calls = 12/)
+    assert.match(repair,
+      /verifier_fixture\.run_id =[\s\S]+verifier_company\.source_key in[\s\S]+verifier_job\.external_id like[\s\S]+verifier_observation\.observation_id in/)
+
+    const forbiddenUnqualified = [
+      /\bwhere run_id\b/i,
+      /\band expires_at\b/i,
+      /\band exercise_calls\b/i,
+      /\band fixture_key\b/i,
+      /\band fixture_version\b/i,
+      /\band state\b/i,
+      /\bselect status into\b/i,
+      /\barray_agg\(company_id\b/i,
+      /\barray_agg\(job_id\b/i,
+      /\bwhere id =\b/i,
+      /\bwhere source_key\b/i,
+      /\breturning phase_03_8_verifier_runs\./i,
+      /\bconsecutive_failures = consecutive_failures \+ 1\b/i,
+      /\bexercise_calls = exercise_calls \+ 1\b/i,
+      /\bfixture_version = fixture_version \+ 1\b/i,
+    ]
+    for (const pattern of forbiddenUnqualified) {
+      assert.doesNotMatch(repair, pattern)
+    }
+    for (const qualified of [
+      'verifier_run.expires_at',
+      'verifier_run.exercise_calls',
+      'verifier_fixture.fixture_key',
+      'verifier_fixture.fixture_version',
+      'verifier_job.status',
+      'verifier_company.consecutive_failures',
+      'v_company.activation_state',
+      'v_company.last_error_code',
+      'v_company.last_success_at',
+    ]) {
+      assert.ok(repair.includes(qualified), `${qualified} must remain qualified`)
+    }
+
+    const preconditionAt = repair.indexOf('do $$')
+    const beginAt = repair.indexOf(
+      'create or replace function public.begin_phase_03_8_verifier_run')
+    const exerciseAt = repair.indexOf(
+      'create or replace function public.exercise_phase_03_8_verifier_fault')
+    const finishAt = repair.indexOf(
+      'create or replace function public.finish_phase_03_8_verifier_run')
+    const grantAt = repair.lastIndexOf(
+      'grant execute on function public.begin_phase_03_8_verifier_run')
+    assert.ok(preconditionAt >= 0 && preconditionAt < beginAt
+      && beginAt < exerciseAt && exerciseAt < finishAt && finishAt < grantAt)
+    assert.match(repair,
+      /for update;[\s\S]+verifier_fixture\.fixture_version = p_expected_version[\s\S]+returning verifier_fixture\.\* into v_fixture/)
+    assert.match(repair,
+      /set state = 'consumed'[\s\S]+revoke execute on function public\.begin_phase_03_8_verifier_run[\s\S]+delete from public\.phase_03_8_verifier_runs as verifier_run[\s\S]+verifier residue remains/)
+    assert.match(repair,
+      /revoke execute on function public\.finish_phase_03_8_verifier_run\([\s\S]+from public, anon, authenticated;[\s\S]+grant execute on function public\.finish_phase_03_8_verifier_run\([\s\S]+to service_role;/)
   })
 
 test('dry run is inert and publishes the exact approval identity', async () => {
@@ -106,8 +194,32 @@ test('dry run is inert and publishes the exact approval identity', async () => {
   const plan = createDryRunPlan(manifest)
   assert.equal(plan.mode, 'DRY_RUN_NO_NETWORK_NO_MUTATION')
   assert.equal(plan.required_approval, exactApproval())
+  assert.equal(plan.verifier_repair_path, VERIFIER_REPAIR_PATH)
+  assert.equal(plan.verifier_repair_sha256, VERIFIER_REPAIR_SHA256)
+  assert.ok(exactApproval().endsWith(VERIFIER_REPAIR_SHA256))
   assert.deepEqual(plan.family_order.map((item) => item.family),
     FAMILY_ORDER.map((item) => item.family))
+})
+
+test('hosted identity fails closed when migration 0041 is absent', async () => {
+  const ops = new ManagementSqlOps({
+    projectRef: 'fjcsvajkkztvlrpdplwx',
+    accessToken: 'management-access-token-value',
+    hosted: { status: 'PASS' },
+    fetchImpl: async () => new Response(JSON.stringify([{
+      migrations: Array.from(
+        { length: 40 },
+        (_, index) => String(index + 1).padStart(4, '0'),
+      ),
+      armed_runs: 1,
+      finalize_execute: true,
+      exact_cron_rows: 2,
+    }]), { status: 200 }),
+  })
+  ops.assertRemoteRuntimeIdentity = async () => true
+  await assert.rejects(ops.assertReleaseIdentity({
+    release_manifest_id: '03850000-0000-4000-8000-000000000005',
+  }, PLAN_05_HOSTED_SHA256), /hosted release\/verifier identity drift/)
 })
 
 test('family order is strict', () => {
@@ -420,6 +532,8 @@ test('rollout invokes terminal RPC only after each probe and runs verifier in fi
     })
     assert.equal(result.status, 'PASS')
     assert.equal(result.hosted_evidence_sha256, PLAN_05_HOSTED_SHA256)
+    assert.equal(result.verifier_repair_path, VERIFIER_REPAIR_PATH)
+    assert.equal(result.verifier_repair_sha256, VERIFIER_REPAIR_SHA256)
     Object.assign(result.fault_recovery, {
       real_company_sha256: '1'.repeat(64),
       real_job_sha256: '2'.repeat(64),

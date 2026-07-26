@@ -19,6 +19,10 @@ export const RELEASE_MANIFEST_OBJECT_SHA256 =
   '041d043db86a306981df3d520b6cdc4ea8857beff61c77da096018b5192493e7'
 export const PLAN_05_HOSTED_SHA256 =
   '3a36a1acab9a21aff0fdc26e1419040dd6487fb075e608bef71842a6c35b594f'
+export const VERIFIER_REPAIR_PATH =
+  'supabase/migrations/0041_phase_03_8_verifier_rpc_qualification.sql'
+export const VERIFIER_REPAIR_SHA256 =
+  '22ffb084973067d18f75169f8e91ad1a9cf88afa3d40c0fb2034fe8d55aebb2a'
 export const RELEASE_SOURCE_COMMIT =
   '83fbf8fc7707d8566f47034229884c517a16c979'
 export const VERIFIER_RUN_ID = '03850000-0000-4000-8000-000000000501'
@@ -115,6 +119,7 @@ const DEFAULT_PHASE_DIR = resolve(
 const DEFAULT_MANIFEST = resolve(DEFAULT_PHASE_DIR, '03.8-05-RELEASE-MANIFEST.json')
 const DEFAULT_HOSTED = resolve(DEFAULT_PHASE_DIR, '03.8-05-HOSTED-VERIFICATION.json')
 const DEFAULT_OUTPUT = resolve(DEFAULT_PHASE_DIR, '03.8-06-ROLLOUT-VERIFICATION.json')
+const DEFAULT_REPAIR = resolve(VERIFIER_REPAIR_PATH)
 let typeScriptHookRegistered = false
 
 export function sha256(value) {
@@ -136,12 +141,13 @@ function requireCondition(condition, message) {
 }
 
 export function exactApproval() {
-  return `approve Phase 03.8 rollout ${RELEASE_MANIFEST_ID} ${RELEASE_MANIFEST_FILE_SHA256} ${PLAN_05_HOSTED_SHA256}`
+  return `approve Phase 03.8 rollout ${RELEASE_MANIFEST_ID} ${RELEASE_MANIFEST_FILE_SHA256} ${PLAN_05_HOSTED_SHA256} ${VERIFIER_REPAIR_SHA256}`
 }
 
 export function validateIdentityFiles({
   manifestBytes,
   hostedBytes,
+  repairBytes,
   sourceCommit,
 }) {
   requireCondition(
@@ -151,6 +157,10 @@ export function validateIdentityFiles({
   requireCondition(
     sha256(hostedBytes) === PLAN_05_HOSTED_SHA256,
     'immutable Plan 05 hosted evidence hash drift',
+  )
+  requireCondition(
+    sha256(repairBytes) === VERIFIER_REPAIR_SHA256,
+    'forward verifier repair hash drift',
   )
   const manifest = JSON.parse(manifestBytes)
   const hosted = JSON.parse(hostedBytes)
@@ -688,6 +698,8 @@ export async function executeRollout({
     manifest_file_sha256: RELEASE_MANIFEST_FILE_SHA256,
     manifest_sha256: RELEASE_MANIFEST_OBJECT_SHA256,
     hosted_evidence_sha256: hostedSha256,
+    verifier_repair_path: VERIFIER_REPAIR_PATH,
+    verifier_repair_sha256: VERIFIER_REPAIR_SHA256,
     release_source_commit: RELEASE_SOURCE_COMMIT,
     generated_at: new Date(now()).toISOString(),
     limits: {
@@ -709,6 +721,8 @@ export function createDryRunPlan(manifest) {
     manifest_file_sha256: RELEASE_MANIFEST_FILE_SHA256,
     manifest_sha256: RELEASE_MANIFEST_OBJECT_SHA256,
     hosted_evidence_sha256: PLAN_05_HOSTED_SHA256,
+    verifier_repair_path: VERIFIER_REPAIR_PATH,
+    verifier_repair_sha256: VERIFIER_REPAIR_SHA256,
     release_source_commit: RELEASE_SOURCE_COMMIT,
     required_approval: exactApproval(),
     family_order: FAMILY_ORDER.map(({ family, company, sourceKey }) => ({
@@ -744,6 +758,8 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
     'manifest_file_sha256',
     'manifest_sha256',
     'hosted_evidence_sha256',
+    'verifier_repair_path',
+    'verifier_repair_sha256',
     'release_source_commit',
     'generated_at',
     'limits',
@@ -758,6 +774,8 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
     && evidence.manifest_file_sha256 === RELEASE_MANIFEST_FILE_SHA256
     && evidence.manifest_sha256 === RELEASE_MANIFEST_OBJECT_SHA256
     && evidence.hosted_evidence_sha256 === PLAN_05_HOSTED_SHA256
+    && evidence.verifier_repair_path === VERIFIER_REPAIR_PATH
+    && evidence.verifier_repair_sha256 === VERIFIER_REPAIR_SHA256
     && evidence.release_source_commit === RELEASE_SOURCE_COMMIT
     && manifest.release_manifest_id === RELEASE_MANIFEST_ID,
   'rollout evidence release binding failed')
@@ -979,7 +997,7 @@ export class ManagementSqlOps {
     requireCondition(this.hosted?.status === 'PASS',
       'immutable hosted evidence was not supplied to live operations')
     const expectedMigrations = Array.from(
-      { length: 40 },
+      { length: 41 },
       (_, index) => String(index + 1).padStart(4, '0'),
     )
     const row = oneRow(await this.query(`
@@ -2055,6 +2073,7 @@ function parseArgs(argv) {
     mode: 'dry-run',
     manifest: DEFAULT_MANIFEST,
     hosted: DEFAULT_HOSTED,
+    repair: DEFAULT_REPAIR,
     output: DEFAULT_OUTPUT,
     sourceWorktree: null,
     approval: null,
@@ -2070,6 +2089,7 @@ function parseArgs(argv) {
     }
     else if (value === '--manifest') result.manifest = resolve(argv[++index])
     else if (value === '--hosted') result.hosted = resolve(argv[++index])
+    else if (value === '--repair') result.repair = resolve(argv[++index])
     else if (value === '--output') result.output = resolve(argv[++index])
     else if (value === '--source-worktree') result.sourceWorktree = resolve(argv[++index])
     else if (value === '--approve') result.approval = argv[++index]
@@ -2110,6 +2130,8 @@ async function promoteOutput(output, result) {
       && existing.manifest_file_sha256 === RELEASE_MANIFEST_FILE_SHA256
       && existing.manifest_sha256 === RELEASE_MANIFEST_OBJECT_SHA256
       && existing.hosted_evidence_sha256 === PLAN_05_HOSTED_SHA256
+      && existing.verifier_repair_path === VERIFIER_REPAIR_PATH
+      && existing.verifier_repair_sha256 === VERIFIER_REPAIR_SHA256
       && existing.release_source_commit === RELEASE_SOURCE_COMMIT,
     'refusing to replace a non-exact rollout template')
   } catch (error) {
@@ -2129,15 +2151,19 @@ async function promoteOutput(output, result) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2))
-  const [manifestBytes, hostedBytes] = await Promise.all([
+  requireCondition(args.repair === DEFAULT_REPAIR,
+    `verifier repair path must be exactly ${VERIFIER_REPAIR_PATH}`)
+  const [manifestBytes, hostedBytes, repairBytes] = await Promise.all([
     readFile(args.manifest),
     readFile(args.hosted),
+    readFile(args.repair),
   ])
   const manifestJson = JSON.parse(manifestBytes)
   if (args.mode === 'assert-evidence') {
     const { manifest } = validateIdentityFiles({
       manifestBytes,
       hostedBytes,
+      repairBytes,
       sourceCommit: manifestJson.candidate?.git_sha,
     })
     const evidence = JSON.parse(await readFile(args.output, 'utf8'))
@@ -2149,6 +2175,7 @@ async function main() {
     validateIdentityFiles({
       manifestBytes,
       hostedBytes,
+      repairBytes,
       sourceCommit: manifestJson.candidate?.git_sha,
     })
     process.stdout.write(`${JSON.stringify(createDryRunPlan(manifestJson), null, 2)}\n`)
@@ -2160,6 +2187,7 @@ async function main() {
   const { manifest, hosted } = validateIdentityFiles({
     manifestBytes,
     hostedBytes,
+    repairBytes,
     sourceCommit: identity.commit,
   })
   requireCondition(identity.commitObjectSha256
