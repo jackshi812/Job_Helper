@@ -27,6 +27,60 @@ const negativeReasons = new Map([
   ['Charles Schwab', 'radancy_results_require_html_parsing'],
 ])
 
+const protectedSourceKeys = [
+  'workday:wd12:capitalone:Capital_One',
+  'workday:wd1:fmr:FidelityCareers',
+] as const
+
+type ProtectedWorkdayRow = {
+  id: string
+  name: string
+  source_key: string
+  activation_state: string
+}
+
+const protectedBefore: ProtectedWorkdayRow[] = [
+  {
+    id: 'capital-one',
+    name: 'Capital One',
+    source_key: protectedSourceKeys[0],
+    activation_state: 'active',
+  },
+  {
+    id: 'fidelity',
+    name: 'Fidelity',
+    source_key: protectedSourceKeys[1],
+    activation_state: 'active',
+  },
+]
+
+function protectedParityWouldFail(
+  migrationSql: string,
+  beforeRows: ProtectedWorkdayRow[],
+  productionRows: ProtectedWorkdayRow[],
+) {
+  const scopesAfterSide = /full join\s*\(\s*select[\s\S]*?from public\.companies[\s\S]*?where source_key in\s*\([\s\S]*?workday:wd12:capitalone:Capital_One[\s\S]*?workday:wd1:fmr:FidelityCareers[\s\S]*?\)\s*\)\s*as after_row using \(id\)/i
+    .test(migrationSql)
+  const afterRows = scopesAfterSide
+    ? productionRows.filter((row) => protectedSourceKeys.includes(
+        row.source_key as typeof protectedSourceKeys[number],
+      ))
+    : productionRows
+  const beforeById = new Map(beforeRows.map((row) => [row.id, row]))
+  const afterById = new Map(afterRows.map((row) => [row.id, row]))
+  const ids = new Set([...beforeById.keys(), ...afterById.keys()])
+
+  return beforeRows.length !== protectedSourceKeys.length || [...ids].some((id) => {
+    const beforeRow = beforeById.get(id)
+    const afterRow = afterById.get(id)
+    return beforeRow === undefined
+      || afterRow === undefined
+      || beforeRow.name !== afterRow.name
+      || beforeRow.source_key !== afterRow.source_key
+      || beforeRow.activation_state !== afterRow.activation_state
+  })
+}
+
 describe('migration 0040 exact catalog and identity parity', () => {
   it('contains exactly the three frozen candidate tuples and leaves them pending proof', () => {
     expect(candidates).toEqual([
@@ -103,6 +157,27 @@ describe('migration 0040 exact catalog and identity parity', () => {
     expect(sql.slice(0, verifierAuthority)).not.toMatch(
       /\bdelete from public\.jobs\b/i,
     )
+  })
+
+  it('scopes protected parity to Capital One and Fidelity without weakening drift detection', () => {
+    const unrelatedProductionCompany: ProtectedWorkdayRow = {
+      id: 'unrelated-greenhouse-company',
+      name: 'Unrelated Production Company',
+      source_key: 'greenhouse:unrelated-production-company',
+      activation_state: 'active',
+    }
+    const productionRoster = [...protectedBefore, unrelatedProductionCompany]
+
+    expect(protectedParityWouldFail(sql, protectedBefore, productionRoster)).toBe(false)
+    expect(protectedParityWouldFail(
+      sql,
+      protectedBefore,
+      productionRoster.filter((row) => row.id !== 'capital-one'),
+    )).toBe(true)
+    expect(protectedParityWouldFail(sql, protectedBefore, productionRoster.map((row) => (
+      row.id === 'fidelity' ? { ...row, name: 'Fidelity drifted' } : row
+    )))).toBe(true)
+    expect(protectedParityWouldFail(sql, protectedBefore.slice(1), productionRoster)).toBe(true)
   })
 })
 
