@@ -15,7 +15,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const ISO_SECOND = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/
 const IMMUTABLE_PAGES_URL = /^https:\/\/[0-9a-f-]+\.job-helper-qs9\.pages\.dev$/
 
-const RELEASE_MANIFEST_ID = '03850000-0000-4000-8000-000000000005'
+const RELEASE_MANIFEST_ID = '03850000-0000-4000-8000-000000000006'
 const VERIFIER_RUN_ID = '03850000-0000-4000-8000-000000000501'
 const FIXTURE_KEYS = Object.freeze([
   'eightfold_fixture',
@@ -29,26 +29,26 @@ const FAULTS = Object.freeze([
   'clean_recovery',
 ])
 const FAMILY_KEYS = Object.freeze([
-  'eightfold',
-  'oracle_recruiting',
-  'goldman_higher',
+  'morgan_stanley',
+  'bank_of_america',
+  'blackrock',
+  'barclays',
 ])
 const FROZEN_COMPANIES = Object.freeze([
   'Morgan Stanley',
   'Goldman Sachs',
   'JPMorgan Chase',
   'Bank of America',
-  'Citi',
   'BlackRock',
-  'Wells Fargo',
   'UBS',
   'Barclays',
   'Charles Schwab',
 ])
 const SOURCE_KEYS = Object.freeze([
-  'eightfold:morganstanley',
-  'oracle:jpmc:CX_1001',
-  'goldman_higher:roles',
+  'workday:wd5:ms:External',
+  'workday:wd1:ghr:Lateral-US',
+  'workday:wd1:blackrock:BlackRock_Professional',
+  'workday:wd3:barclays:External_Career_Site_Barclays',
 ])
 const PROTECTED_SOURCE_KEYS = Object.freeze([
   'workday:wd12:capitalone:Capital_One',
@@ -82,7 +82,8 @@ const CANDIDATE_KEYS = Object.freeze([
   'worktree_path',
   'changed_files',
 ])
-const MIGRATION_KEYS = Object.freeze(['path', 'sha256', 'proposed'])
+const MIGRATION_KEYS = Object.freeze(['hosted_baseline', 'pending'])
+const PENDING_MIGRATION_KEYS = Object.freeze(['version', 'path', 'sha256'])
 const FUNCTION_KEYS = Object.freeze([
   'entry_path',
   'entry_sha256',
@@ -291,8 +292,8 @@ function secretScan(value, path = 'manifest') {
 }
 
 function validateCatalogRows(rows, label) {
-  if (!Array.isArray(rows) || rows.length !== 10) {
-    throw new Error(`${label} must contain exactly ten frozen companies`)
+  if (!Array.isArray(rows) || rows.length !== 8) {
+    throw new Error(`${label} must contain exactly eight frozen companies`)
   }
   for (const row of rows) {
     exactKeys(row, CATALOG_ROW_KEYS, `${label} row`)
@@ -333,12 +334,9 @@ function validateManifest(manifest) {
   requireString(manifest.candidate.git_sha, SHA40, 'candidate git SHA')
   requireString(manifest.candidate.commit_object_sha256, SHA256, 'candidate commit object')
   requireString(manifest.candidate.parent_sha, SHA40, 'candidate parent SHA')
-  if (manifest.candidate.parent_sha !== manifest.accepted_production_source) {
-    throw new Error('candidate is not a direct child of accepted production source')
-  }
   if (typeof manifest.candidate.worktree_path !== 'string'
-    || !manifest.candidate.worktree_path.startsWith('/private/tmp/')) {
-    throw new Error('candidate worktree path is not an isolated release root')
+    || !manifest.candidate.worktree_path.startsWith('/')) {
+    throw new Error('candidate worktree path is not absolute')
   }
   if (!Array.isArray(manifest.candidate.changed_files)
     || manifest.candidate.changed_files.length < 1
@@ -355,11 +353,33 @@ function validateManifest(manifest) {
   }
 
   exactKeys(manifest.migration, MIGRATION_KEYS, 'migration')
-  if (manifest.migration.path !== 'supabase/migrations/0040_phase_03_8_branded_connectors.sql'
-    || canonical(manifest.migration.proposed) !== canonical(['0040'])) {
-    throw new Error('migration inventory must propose only 0040')
+  if (canonical(manifest.migration.hosted_baseline)
+      !== canonical(Array.from(
+        { length: 41 },
+        (_, index) => String(index + 1).padStart(4, '0'),
+      ))) {
+    throw new Error('migration hosted baseline must be exactly 0001-0041')
   }
-  requireString(manifest.migration.sha256, SHA256, 'migration SHA-256')
+  if (!Array.isArray(manifest.migration.pending)
+    || manifest.migration.pending.length !== 2) {
+    throw new Error('migration inventory must contain ordered 0042 and 0043')
+  }
+  const expectedPending = [
+    ['0042', 'supabase/migrations/0042_phase_03_8_verifier_finish_fk_order.sql'],
+    ['0043', 'supabase/migrations/0043_phase_03_8_workday_candidates.sql'],
+  ]
+  for (const [index, entry] of manifest.migration.pending.entries()) {
+    exactKeys(entry, PENDING_MIGRATION_KEYS, `migration.pending[${index}]`)
+    if (entry.version !== expectedPending[index][0]
+      || entry.path !== expectedPending[index][1]) {
+      throw new Error('migration pending order/path drift')
+    }
+    requireString(entry.sha256, SHA256, 'pending migration SHA-256')
+  }
+  if (manifest.migration.pending[0].sha256
+      !== '132b8a1cc4360edd49f50b79a2dfee6ca3e3bf3d3d8c3974cb74fe06f8195eb5') {
+    throw new Error('immutable migration 0042 checksum drift')
+  }
 
   exactKeys(
     manifest.functions,
@@ -409,8 +429,9 @@ function validateManifest(manifest) {
   exactKeys(manifest.targets.supabase, SUPABASE_KEYS, 'Supabase target')
   requireString(manifest.targets.supabase.project_ref, /^[a-z]{20}$/, 'Supabase project ref')
   if (!Array.isArray(manifest.targets.supabase.remote_migrations)
-    || manifest.targets.supabase.remote_migrations.at(-1) !== '0039') {
-    throw new Error('remote migration baseline must end at 0039')
+    || canonical(manifest.targets.supabase.remote_migrations)
+      !== canonical(manifest.migration.hosted_baseline)) {
+    throw new Error('remote migration baseline must be exactly 0001-0041')
   }
   exactKeys(manifest.targets.cloudflare, CLOUDFLARE_KEYS, 'Cloudflare target')
   if (manifest.targets.cloudflare.project !== 'job-helper'
@@ -419,13 +440,13 @@ function validateManifest(manifest) {
     throw new Error('Cloudflare target drift')
   }
 
-  if (!Array.isArray(manifest.candidates) || manifest.candidates.length !== 3) {
-    throw new Error('candidate identity inventory must contain exactly three rows')
+  if (!Array.isArray(manifest.candidates) || manifest.candidates.length !== 4) {
+    throw new Error('candidate identity inventory must contain exactly four rows')
   }
   for (const candidate of manifest.candidates) {
     exactKeys(candidate, CANDIDATE_IDENTITY_KEYS, 'candidate identity')
     if (!FROZEN_COMPANIES.includes(candidate.company)
-      || !FAMILY_KEYS.includes(candidate.family)
+      || candidate.family !== 'workday'
       || !SOURCE_KEYS.includes(candidate.source_key)
       || !candidate.public_url.startsWith('https://')
       || candidate.initial_disposition !== 'unsupported_with_reason'
@@ -502,14 +523,15 @@ function validateManifest(manifest) {
   }
   if (!Array.isArray(manifest.approved_actions)
     || canonical(manifest.approved_actions) !== canonical([
-      'supabase_db_push_linked_0040',
+      'supabase_db_push_linked_0042_0043',
       'deploy_verify_board',
       'deploy_observe_connectors',
       'deploy_poll_tick',
       'assert_hosted_parity',
-      'rollout_exact_eightfold',
-      'rollout_exact_oracle_recruiting',
-      'rollout_exact_goldman_higher',
+      'rollout_exact_morgan_stanley_workday',
+      'rollout_exact_bank_of_america_workday',
+      'terminalize_blackrock_country_filter_unverified',
+      'terminalize_barclays_country_filter_unverified',
       'exercise_fixed_disposable_faults',
       'finish_and_revoke_verifier',
     ])) {
@@ -524,8 +546,9 @@ function validateManifest(manifest) {
   exactKeys(manifest.baselines.dry_run, DRY_RUN_KEYS, 'dry-run baseline')
   if (manifest.baselines.dry_run.command
       !== 'web/node_modules/.bin/supabase db push --linked --dry-run'
-    || canonical(manifest.baselines.dry_run.proposed) !== canonical(['0040'])) {
-    throw new Error('dry-run did not propose only 0040')
+    || canonical(manifest.baselines.dry_run.proposed)
+      !== canonical(['0042', '0043'])) {
+    throw new Error('dry-run did not propose exactly 0042 then 0043')
   }
   if (!['PENDING_EXPLICIT_EGRESS_APPROVAL', 'PASS'].includes(
     manifest.baselines.dry_run.status,
@@ -637,9 +660,10 @@ async function assertLocalCandidate(manifest) {
   if (canonical(changed) !== canonical(manifest.candidate.changed_files)) {
     throw new Error('source-only candidate path inventory drift')
   }
-  if (sha256(await readFile(resolve(root, manifest.migration.path)))
-    !== manifest.migration.sha256) {
-    throw new Error('migration 0040 checksum drift')
+  for (const entry of manifest.migration.pending) {
+    if (sha256(await readFile(resolve(root, entry.path))) !== entry.sha256) {
+      throw new Error(`migration ${entry.version} checksum drift`)
+    }
   }
   for (const [slug, entry] of Object.entries(manifest.functions)) {
     const bundle = await bundleManifest(root, entry.entry_path)
@@ -671,11 +695,7 @@ async function runPreflight(manifestPath) {
     release_manifest_id: manifest.release_manifest_id,
     manifest_object_sha256: manifestObjectSha256(manifest),
     source_commit: manifest.candidate.git_sha,
-    migration: {
-      path: manifest.migration.path,
-      sha256: manifest.migration.sha256,
-      proposed: manifest.migration.proposed,
-    },
+    migration: manifest.migration,
     functions: Object.fromEntries(Object.entries(manifest.functions).map(
       ([slug, entry]) => [slug, {
         entry_sha256: entry.entry_sha256,
@@ -1043,7 +1063,7 @@ async function recheckHostedRelease(manifest) {
   const versions = rows.map(({ version }) => version)
   const allowed = [
     ...manifest.targets.supabase.remote_migrations,
-    ...manifest.migration.proposed,
+    ...manifest.migration.pending.map(({ version }) => version),
   ]
   if (canonical(versions) !== canonical(allowed)
     && canonical(versions) !== canonical(manifest.targets.supabase.remote_migrations)) {

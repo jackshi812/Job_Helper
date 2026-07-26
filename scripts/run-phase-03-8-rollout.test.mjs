@@ -59,7 +59,8 @@ function completeObservation(family) {
     allowMissingClosure: true,
     jobs: [{
       externalId: 'safe-id',
-      source: family.family,
+      source: 'workday',
+      companyName: family.company,
       scopeEvidence: {
         sourceKey: family.sourceKey,
         providerCategoryLabel: 'Risk',
@@ -82,10 +83,11 @@ function completeObservation(family) {
 
 test('identity gates bind the literal manifest, canonical object, hosted PASS, and source commit',
   async () => {
-    const [manifestBytes, hostedBytes, repairBytes] = await Promise.all([
+    const [manifestBytes, hostedBytes, repairBytes, extensionBytes] = await Promise.all([
       readFile(manifestPath),
       readFile(hostedPath),
       readFile(repairPath),
+      readFile(WORKDAY_EXTENSION_PATH),
     ])
     assert.equal(sha256(manifestBytes), RELEASE_MANIFEST_FILE_SHA256)
     assert.equal(sha256(JSON.stringify(JSON.parse(manifestBytes))),
@@ -96,12 +98,14 @@ test('identity gates bind the literal manifest, canonical object, hosted PASS, a
       manifestBytes,
       hostedBytes,
       repairBytes,
+      extensionBytes,
       sourceCommit: RELEASE_SOURCE_COMMIT,
     }).hosted.status, 'PASS')
     assert.throws(() => validateIdentityFiles({
       manifestBytes,
       hostedBytes,
       repairBytes,
+      extensionBytes,
       sourceCommit: '0'.repeat(40),
     }), /source worktree/)
     const changed = Buffer.from(`${hostedBytes.toString().trim()} `)
@@ -109,14 +113,23 @@ test('identity gates bind the literal manifest, canonical object, hosted PASS, a
       manifestBytes,
       hostedBytes: changed,
       repairBytes,
+      extensionBytes,
       sourceCommit: RELEASE_SOURCE_COMMIT,
     }), /hosted evidence hash drift/)
     assert.throws(() => validateIdentityFiles({
       manifestBytes,
       hostedBytes,
       repairBytes: Buffer.from(`${repairBytes.toString().trim()} `),
+      extensionBytes,
       sourceCommit: RELEASE_SOURCE_COMMIT,
     }), /forward verifier repair hash drift/)
+    assert.throws(() => validateIdentityFiles({
+      manifestBytes,
+      hostedBytes,
+      repairBytes,
+      extensionBytes: Buffer.from(`${extensionBytes.toString().trim()} `),
+      sourceCommit: RELEASE_SOURCE_COMMIT,
+    }), /Workday extension hash drift/)
   })
 
 test('0041 is a forward-only, qualified, transaction-safe verifier repair',
@@ -259,7 +272,7 @@ test('hosted identity fails closed when ordered migrations 0042/0043 are absent'
   })
   ops.assertRemoteRuntimeIdentity = async () => true
   await assert.rejects(ops.assertReleaseIdentity({
-    release_manifest_id: '03850000-0000-4000-8000-000000000005',
+    release_manifest_id: '03850000-0000-4000-8000-000000000006',
   }, PLAN_05_HOSTED_SHA256), /hosted release\/verifier identity drift/)
 })
 
@@ -325,13 +338,17 @@ test('unsupported reason mapping is exact and unknown reasons fail closed', () =
       'slice_offset_mismatch',
       'cross_slice_id_drift',
     ],
-    category_evidence_missing: ['category_evidence_missing'],
-    scope_evidence_incomplete: [
+    country_filter_unverified: ['country_filter_unverified'],
+    whole_site_us_scope_unproven: ['whole_site_us_scope_unproven'],
+    foreign_detail_detected: [
+      'foreign_detail_detected',
+      'detail_country_ineligible',
+    ],
+    detail_scope_incomplete: [
       'scope_evidence_incomplete',
       'scope_evidence_invalid',
       'detail_evidence_missing',
-      'detail_country_ineligible',
-      'detail_category_ineligible',
+      'detail_scope_incomplete',
     ],
     positive_job_count_missing: [
       'zero_eligible_jobs',
@@ -381,10 +398,7 @@ test('timestamp chain enforces ordering, cron lateness, reserve, and latency', (
 test('bounded fetch rejects request 301 and unapproved coordinates', async () => {
   let clock = 0
   const identity = {
-    provider: 'eightfold',
-    host: 'morganstanley.eightfold.ai',
-    searchPath: '/api/pcsx/search',
-    detailPath: '/api/pcsx/position_details',
+    cxsRoot: 'https://ms.wd5.myworkdayjobs.com/wday/cxs/ms/External',
   }
   const bounded = createBoundedFetch(
     identity,
@@ -392,7 +406,7 @@ test('bounded fetch rejects request 301 and unapproved coordinates', async () =>
     () => clock,
   )
   await assert.rejects(
-    bounded.fetch('https://evil.example/api/pcsx/search'),
+    bounded.fetch('https://evil.example/wday/cxs/ms/External/jobs'),
     /unapproved network coordinate/,
   )
   const fresh = createBoundedFetch(
@@ -401,10 +415,10 @@ test('bounded fetch rejects request 301 and unapproved coordinates', async () =>
     () => clock,
   )
   for (let index = 0; index < PROVIDER_REQUEST_LIMIT; index += 1) {
-    await fresh.fetch('https://morganstanley.eightfold.ai/api/pcsx/search')
+    await fresh.fetch('https://ms.wd5.myworkdayjobs.com/wday/cxs/ms/External/jobs')
   }
   await assert.rejects(
-    fresh.fetch('https://morganstanley.eightfold.ai/api/pcsx/search'),
+    fresh.fetch('https://ms.wd5.myworkdayjobs.com/wday/cxs/ms/External/jobs'),
     /request limit/,
   )
   const timed = createBoundedFetch(
@@ -414,23 +428,17 @@ test('bounded fetch rejects request 301 and unapproved coordinates', async () =>
   )
   clock = 120_001
   await assert.rejects(
-    timed.fetch('https://morganstanley.eightfold.ai/api/pcsx/search'),
+    timed.fetch('https://ms.wd5.myworkdayjobs.com/wday/cxs/ms/External/jobs'),
     /deadline/,
   )
 })
 
-test('synchronous TypeScript hook imports all three pinned adapter modules',
+test('synchronous TypeScript hook imports the shared Workday adapter',
   async () => {
     registerTypeScriptTranspileHook(resolve('.'))
     const adapterRoot = resolve('supabase/functions/_shared/adapters')
-    const [eightfold, oracle, goldman] = await Promise.all([
-      import(pathToFileURL(resolve(adapterRoot, 'eightfold.ts'))),
-      import(pathToFileURL(resolve(adapterRoot, 'oracle-recruiting.ts'))),
-      import(pathToFileURL(resolve(adapterRoot, 'goldman-higher.ts'))),
-    ])
-    assert.equal(typeof eightfold.pollMorganStanleyEightfold, 'function')
-    assert.equal(typeof oracle.pollJpmorganOracleRecruiting, 'function')
-    assert.equal(typeof goldman.pollGoldmanHigher, 'function')
+    const workday = await import(pathToFileURL(resolve(adapterRoot, 'workday.ts')))
+    assert.equal(typeof workday.pollWorkdayRecent, 'function')
   })
 
 test('probe evidence is bounded, sanitized, schema-shaped, and classifies positive',
@@ -495,7 +503,7 @@ function verifierOps({ failExercise = false } = {}) {
       calls.push('finish')
       return {
         consumed: true,
-        release_manifest_id: '03850000-0000-4000-8000-000000000005',
+        release_manifest_id: '03850000-0000-4000-8000-000000000006',
         run_id: '03850000-0000-4000-8000-000000000501',
         exercise_calls: 6,
         deleted_fixtures: 3,
@@ -525,7 +533,7 @@ test('verifier always finishes and asserts terminal cleanup after injected failu
     const ops = verifierOps({ failExercise: true })
     await assert.rejects(
       exerciseVerifierFinally(ops, {
-        release_manifest_id: '03850000-0000-4000-8000-000000000005',
+        release_manifest_id: '03850000-0000-4000-8000-000000000006',
       }),
       /injected exercise failure/,
     )
@@ -543,7 +551,7 @@ test('rollout invokes terminal RPC only after each probe and runs verifier in fi
         events.push('identity')
       },
       async inspectCandidateStart(family) {
-        events.push(`pending:${family.family}`)
+        events.push(`pending:${family.key}`)
         return {
           family: family.family,
           source_key: family.sourceKey,
@@ -555,7 +563,7 @@ test('rollout invokes terminal RPC only after each probe and runs verifier in fi
         return { accepted: true }
       },
       async awaitTerminalFamily({ family }) {
-        events.push(`terminal:${family.family}`)
+        events.push(`terminal:${family.key}`)
         return {
           family: family.family,
           source_key: family.sourceKey,
@@ -570,7 +578,7 @@ test('rollout invokes terminal RPC only after each probe and runs verifier in fi
       async assertFinalRollout() {
         return {
           status: 'PASS',
-          catalog_rows: 10,
+          catalog_rows: 8,
           protected_rows: 2,
           terminal: {
             run_rows: 0,
@@ -589,11 +597,11 @@ test('rollout invokes terminal RPC only after each probe and runs verifier in fi
     }
     const result = await executeRollout({
       manifest: {
-        release_manifest_id: '03850000-0000-4000-8000-000000000005',
+        release_manifest_id: '03850000-0000-4000-8000-000000000006',
       },
       ops,
       probe: async (family) => {
-        events.push(`probe:${family.family}`)
+        events.push(`probe:${family.key}`)
         return classifyProbe(family, completeObservation(family), 2, 25)
       },
     })
@@ -601,6 +609,8 @@ test('rollout invokes terminal RPC only after each probe and runs verifier in fi
     assert.equal(result.hosted_evidence_sha256, PLAN_05_HOSTED_SHA256)
     assert.equal(result.verifier_repair_path, VERIFIER_REPAIR_PATH)
     assert.equal(result.verifier_repair_sha256, VERIFIER_REPAIR_SHA256)
+    assert.equal(result.workday_extension_path, WORKDAY_EXTENSION_PATH)
+    assert.equal(result.workday_extension_sha256, WORKDAY_EXTENSION_SHA256)
     Object.assign(result.fault_recovery, {
       real_company_sha256: '1'.repeat(64),
       real_job_sha256: '2'.repeat(64),
@@ -610,26 +620,26 @@ test('rollout invokes terminal RPC only after each probe and runs verifier in fi
       sibling_isolation: true,
     })
     assert.equal(assertRolloutEvidence(result, {
-      release_manifest_id: '03850000-0000-4000-8000-000000000005',
+      release_manifest_id: '03850000-0000-4000-8000-000000000006',
     }).status, 'PASS')
     assert.throws(() => assertRolloutEvidence({
       ...result,
       unexpected: true,
     }, {
-      release_manifest_id: '03850000-0000-4000-8000-000000000005',
+      release_manifest_id: '03850000-0000-4000-8000-000000000006',
     }), /keys are not exact/)
     const drifted = structuredClone(result)
-    drifted.families.eightfold.probe.source_key = 'eightfold:drift'
+    drifted.families.morgan_stanley.probe.source_key = 'workday:drift'
     assert.throws(() => assertRolloutEvidence(drifted, {
-      release_manifest_id: '03850000-0000-4000-8000-000000000005',
+      release_manifest_id: '03850000-0000-4000-8000-000000000006',
     }), /probe binding failed/)
     for (const family of FAMILY_ORDER) {
-      assert.ok(events.indexOf(`probe:${family.family}`)
+      assert.ok(events.indexOf(`probe:${family.key}`)
         < events.indexOf(`finalize:${family.sourceKey}`))
     }
     assert.deepEqual(
       events.filter((event) => event.startsWith('probe:')),
-      FAMILY_ORDER.map((family) => `probe:${family.family}`),
+      FAMILY_ORDER.map((family) => `probe:${family.key}`),
     )
     assert.ok(verification.calls.includes('finish'))
   })
@@ -649,7 +659,7 @@ test('family error does not consume one-use verifier authority', async () => {
   }
   await assert.rejects(executeRollout({
     manifest: {
-      release_manifest_id: '03850000-0000-4000-8000-000000000005',
+      release_manifest_id: '03850000-0000-4000-8000-000000000006',
     },
     ops,
     probe: async () => {
@@ -669,8 +679,8 @@ test('terminal Unsupported Morgan resumes safely and later probe failure stays p
         events.push('identity')
       },
       async inspectCandidateStart(family) {
-        events.push(`start:${family.family}`)
-        if (family.family === 'eightfold') {
+        events.push(`start:${family.key}`)
+        if (family.key === 'morgan_stanley') {
           return {
             family: family.family,
             source_key: family.sourceKey,
@@ -694,13 +704,13 @@ test('terminal Unsupported Morgan resumes safely and later probe failure stays p
         return { accepted: true }
       },
       async awaitTerminalFamily({ family }) {
-        events.push(`terminal:${family.family}`)
+        events.push(`terminal:${family.key}`)
         return {
           family: family.family,
           source_key: family.sourceKey,
           status: 'PASS',
           outcome: 'unsupported',
-          reason: 'scope_evidence_incomplete',
+          reason: 'detail_scope_incomplete',
           scheduled: false,
           monitored: false,
           operational_rows: 0,
@@ -709,14 +719,14 @@ test('terminal Unsupported Morgan resumes safely and later probe failure stays p
     }
     await assert.rejects(executeRollout({
       manifest: {
-        release_manifest_id: '03850000-0000-4000-8000-000000000005',
+        release_manifest_id: '03850000-0000-4000-8000-000000000006',
       },
       ops,
       nonce: () => 'resume-attempt-1',
       probe: async (family) => {
-        events.push(`probe:${family.family}`)
-        if (family.family === 'oracle_recruiting') {
-          throw new Error('injected Oracle detail failure')
+        events.push(`probe:${family.key}`)
+        if (family.key === 'bank_of_america') {
+          throw new Error('injected Bank of America detail failure')
         }
         return classifyProbe(family, {
           ...completeObservation(family),
@@ -728,15 +738,15 @@ test('terminal Unsupported Morgan resumes safely and later probe failure stays p
           warnings: ['detail_evidence_missing'],
         }, 2, 25)
       },
-    }), /injected Oracle detail failure/)
-    assert.ok(events.includes('start:eightfold'))
-    assert.ok(events.includes('probe:eightfold'))
+    }), /injected Bank of America detail failure/)
+    assert.ok(events.includes('start:morgan_stanley'))
+    assert.ok(events.includes('probe:morgan_stanley'))
     assert.ok(events.some((event) =>
-      event.startsWith('finalize:eightfold:morganstanley:unsupported:')))
-    assert.ok(events.includes('terminal:eightfold'))
-    assert.ok(events.includes('start:oracle_recruiting'))
-    assert.ok(events.includes('probe:oracle_recruiting'))
-    assert.equal(events.some((event) => event.includes('goldman_higher')), false)
+      event.startsWith('finalize:workday:wd5:ms:External:unsupported:')))
+    assert.ok(events.includes('terminal:morgan_stanley'))
+    assert.ok(events.includes('start:bank_of_america'))
+    assert.ok(events.includes('probe:bank_of_america'))
+    assert.equal(events.some((event) => event.includes('blackrock')), false)
     assert.equal(verification.calls.length, 0)
   })
 
@@ -746,7 +756,7 @@ test('Active resume re-probes and refuses downgrade on negative live evidence',
     const verification = verifierOps()
     await assert.rejects(executeRollout({
       manifest: {
-        release_manifest_id: '03850000-0000-4000-8000-000000000005',
+        release_manifest_id: '03850000-0000-4000-8000-000000000006',
       },
       ops: {
         ...verification,
@@ -824,7 +834,7 @@ test('management SQL uses access-token API and leaves a final SELECT after commi
       },
     })
     const result = await ops.finalizeCandidate({
-      sourceKey: 'eightfold:morganstanley',
+      sourceKey: 'workday:wd5:ms:External',
       outcome: 'unsupported',
       reason: 'provider_timeout',
       evidenceDigest: 'a'.repeat(64),
@@ -849,7 +859,7 @@ test('verifier SQL scopes service role to RPC inserts, never direct verifier tab
         verifierSql = JSON.parse(init.body).query
         return new Response(JSON.stringify([{
           consumed: true,
-          release_manifest_id: '03850000-0000-4000-8000-000000000005',
+          release_manifest_id: '03850000-0000-4000-8000-000000000006',
           run_id: '03850000-0000-4000-8000-000000000501',
           exercise_calls: 6,
           deleted_fixtures: 3,
@@ -869,7 +879,7 @@ test('verifier SQL scopes service role to RPC inserts, never direct verifier tab
       },
     })
     assert.equal((await ops.runVerifierTransaction({
-      release_manifest_id: '03850000-0000-4000-8000-000000000005',
+      release_manifest_id: '03850000-0000-4000-8000-000000000006',
     })).status, 'PASS')
     const scoped = []
     const lines = verifierSql.split('\n')

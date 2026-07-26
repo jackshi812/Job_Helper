@@ -12,19 +12,23 @@ import { promisify } from 'node:util'
 const execFile = promisify(execFileCallback)
 const require = createRequire(import.meta.url)
 
-export const RELEASE_MANIFEST_ID = '03850000-0000-4000-8000-000000000005'
+export const RELEASE_MANIFEST_ID = '03850000-0000-4000-8000-000000000006'
 export const RELEASE_MANIFEST_FILE_SHA256 =
-  '57bcab61932d0f8772d4e0d9959471fae09f6ba6b8727f27a8d1b9d1d419c6e5'
+  'PLAN_06_MANIFEST_FILE_SHA256_PENDING'
 export const RELEASE_MANIFEST_OBJECT_SHA256 =
-  '041d043db86a306981df3d520b6cdc4ea8857beff61c77da096018b5192493e7'
+  'PLAN_06_MANIFEST_OBJECT_SHA256_PENDING'
 export const PLAN_05_HOSTED_SHA256 =
   '3a36a1acab9a21aff0fdc26e1419040dd6487fb075e608bef71842a6c35b594f'
 export const VERIFIER_REPAIR_PATH =
   'supabase/migrations/0042_phase_03_8_verifier_finish_fk_order.sql'
 export const VERIFIER_REPAIR_SHA256 =
   '132b8a1cc4360edd49f50b79a2dfee6ca3e3bf3d3d8c3974cb74fe06f8195eb5'
+export const WORKDAY_EXTENSION_PATH =
+  'supabase/migrations/0043_phase_03_8_workday_candidates.sql'
+export const WORKDAY_EXTENSION_SHA256 =
+  'bdcf0ec8d22bea99fef367f48fdc0d1ec56a5c74181b954c75807391091cb246'
 export const RELEASE_SOURCE_COMMIT =
-  '83fbf8fc7707d8566f47034229884c517a16c979'
+  'PLAN_06_RELEASE_SOURCE_COMMIT_PENDING'
 export const VERIFIER_RUN_ID = '03850000-0000-4000-8000-000000000501'
 export const PROVIDER_REQUEST_LIMIT = 300
 export const PROBE_DEADLINE_MS = 120_000
@@ -34,28 +38,60 @@ export const MAX_EVIDENCE_BYTES = 16_384
 
 export const FAMILY_ORDER = Object.freeze([
   Object.freeze({
-    family: 'eightfold',
+    key: 'morgan_stanley',
+    family: 'workday',
     company: 'Morgan Stanley',
-    sourceKey: 'eightfold:morganstanley',
+    sourceKey: 'workday:wd5:ms:External',
     fixture: 'eightfold_fixture',
     fault: 'incomplete_observation',
-    adapter: 'eightfold',
+    tuple: Object.freeze(['ms', 'wd5', 'External', 'jobs']),
   }),
   Object.freeze({
-    family: 'oracle_recruiting',
-    company: 'JPMorgan Chase',
-    sourceKey: 'oracle:jpmc:CX_1001',
+    key: 'bank_of_america',
+    family: 'workday',
+    company: 'Bank of America',
+    sourceKey: 'workday:wd1:ghr:Lateral-US',
     fixture: 'oracle_fixture',
     fault: 'provider_schema_error',
-    adapter: 'oracle-recruiting',
+    tuple: Object.freeze(['ghr', 'wd1', 'Lateral-US', 'jobs']),
   }),
   Object.freeze({
-    family: 'goldman_higher',
-    company: 'Goldman Sachs',
-    sourceKey: 'goldman_higher:roles',
+    key: 'blackrock',
+    family: 'workday',
+    company: 'BlackRock',
+    sourceKey: 'workday:wd1:blackrock:BlackRock_Professional',
     fixture: 'goldman_fixture',
     fault: 'provider_timeout',
-    adapter: 'goldman-higher',
+    tuple: Object.freeze(['blackrock', 'wd1', 'BlackRock_Professional', 'jobs']),
+  }),
+  Object.freeze({
+    key: 'barclays',
+    family: 'workday',
+    company: 'Barclays',
+    sourceKey: 'workday:wd3:barclays:External_Career_Site_Barclays',
+    fixture: 'barclays_fixture',
+    fault: 'provider_schema_error',
+    tuple: Object.freeze([
+      'barclays',
+      'wd3',
+      'External_Career_Site_Barclays',
+      'jobs',
+    ]),
+  }),
+])
+
+const VERIFIER_SCENARIOS = Object.freeze([
+  Object.freeze({
+    fixture: 'eightfold_fixture',
+    fault: 'incomplete_observation',
+  }),
+  Object.freeze({
+    fixture: 'oracle_fixture',
+    fault: 'provider_schema_error',
+  }),
+  Object.freeze({
+    fixture: 'goldman_fixture',
+    fault: 'provider_timeout',
   }),
 ])
 
@@ -63,8 +99,10 @@ const TERMINAL_REASONS = new Set([
   'pending_current_live_contract_proof',
   'provider_timeout',
   'provider_schema_error',
-  'category_evidence_missing',
-  'scope_evidence_incomplete',
+  'country_filter_unverified',
+  'whole_site_us_scope_unproven',
+  'foreign_detail_detected',
+  'detail_scope_incomplete',
   'positive_job_count_missing',
   'pagination_incomplete',
   'count_mismatch',
@@ -95,12 +133,14 @@ const REASON_MAP = Object.freeze({
   slice_identity_mismatch: 'provider_schema_error',
   slice_offset_mismatch: 'provider_schema_error',
   cross_slice_id_drift: 'provider_schema_error',
-  category_evidence_missing: 'category_evidence_missing',
-  scope_evidence_incomplete: 'scope_evidence_incomplete',
-  scope_evidence_invalid: 'scope_evidence_incomplete',
-  detail_evidence_missing: 'scope_evidence_incomplete',
-  detail_country_ineligible: 'scope_evidence_incomplete',
-  detail_category_ineligible: 'scope_evidence_incomplete',
+  country_filter_unverified: 'country_filter_unverified',
+  whole_site_us_scope_unproven: 'whole_site_us_scope_unproven',
+  foreign_detail_detected: 'foreign_detail_detected',
+  detail_scope_incomplete: 'detail_scope_incomplete',
+  scope_evidence_incomplete: 'detail_scope_incomplete',
+  scope_evidence_invalid: 'detail_scope_incomplete',
+  detail_evidence_missing: 'detail_scope_incomplete',
+  detail_country_ineligible: 'foreign_detail_detected',
   zero_eligible_jobs: 'positive_job_count_missing',
   positive_job_count_missing: 'positive_job_count_missing',
   page_cap_exceeded: 'pagination_incomplete',
@@ -116,7 +156,7 @@ const REASON_MAP = Object.freeze({
 const DEFAULT_PHASE_DIR = resolve(
   '.planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-',
 )
-const DEFAULT_MANIFEST = resolve(DEFAULT_PHASE_DIR, '03.8-05-RELEASE-MANIFEST.json')
+const DEFAULT_MANIFEST = resolve(DEFAULT_PHASE_DIR, '03.8-06-RELEASE-MANIFEST.json')
 const DEFAULT_HOSTED = resolve(DEFAULT_PHASE_DIR, '03.8-05-HOSTED-VERIFICATION.json')
 const DEFAULT_OUTPUT = resolve(DEFAULT_PHASE_DIR, '03.8-06-ROLLOUT-VERIFICATION.json')
 const DEFAULT_REPAIR = resolve(VERIFIER_REPAIR_PATH)
@@ -141,13 +181,14 @@ function requireCondition(condition, message) {
 }
 
 export function exactApproval() {
-  return `approve Phase 03.8 rollout ${RELEASE_MANIFEST_ID} ${RELEASE_MANIFEST_FILE_SHA256} ${PLAN_05_HOSTED_SHA256} ${VERIFIER_REPAIR_SHA256}`
+  return `approve Phase 03.8 Workday rollout ${RELEASE_MANIFEST_ID} ${RELEASE_MANIFEST_FILE_SHA256} ${VERIFIER_REPAIR_SHA256} ${WORKDAY_EXTENSION_SHA256}`
 }
 
 export function validateIdentityFiles({
   manifestBytes,
   hostedBytes,
   repairBytes,
+  extensionBytes,
   sourceCommit,
 }) {
   requireCondition(
@@ -161,6 +202,10 @@ export function validateIdentityFiles({
   requireCondition(
     sha256(repairBytes) === VERIFIER_REPAIR_SHA256,
     'forward verifier repair hash drift',
+  )
+  requireCondition(
+    sha256(extensionBytes) === WORKDAY_EXTENSION_SHA256,
+    'Workday extension hash drift',
   )
   const manifest = JSON.parse(manifestBytes)
   const hosted = JSON.parse(hostedBytes)
@@ -189,9 +234,9 @@ export function validateIdentityFiles({
 export function assertFamilyOrder(families) {
   requireCondition(Array.isArray(families), 'families must be an array')
   requireCondition(
-    canonical(families.map((item) => item.family))
-      === canonical(FAMILY_ORDER.map((item) => item.family)),
-    'provider family order must be Eightfold, Oracle Recruiting, Goldman Higher',
+    canonical(families.map((item) => item.sourceKey))
+      === canonical(FAMILY_ORDER.map((item) => item.sourceKey)),
+    'Workday candidate order must be Morgan Stanley, Bank of America, BlackRock, Barclays',
   )
   return families
 }
@@ -277,7 +322,7 @@ export function sanitizeProbeEvidence(family, observation, requestCount, elapsed
     eligible_job_digests: jobs.slice(0, 8).map((job) => sha256(canonical({
       external_id: boundedText(job.externalId, 128),
       source: boundedText(job.source, 32),
-      scope: job.scopeEvidence ?? null,
+      company_name: boundedText(job.companyName, 64),
     }))),
   }
   const serialized = canonical(evidence)
@@ -302,14 +347,9 @@ export function classifyProbe(family, observation, requestCount, elapsedMs) {
     && observation.expectedCount === observation.jobs.length
     && Array.isArray(observation.warnings)
     && observation.warnings.length === 0
-    && observation.scopeEvidence
     && observation.jobs.every((job) =>
-      job.scopeEvidence?.sourceKey === family.sourceKey
-      && job.scopeEvidence?.detailCountryCode === 'US'
-      && typeof job.scopeEvidence?.providerCategoryLabel === 'string'
-      && job.scopeEvidence.providerCategoryLabel.length > 0
-      && typeof job.scopeEvidence?.matchedTerm === 'string'
-      && /^[0-9a-f]{64}$/.test(job.scopeEvidence?.externalIdDigest ?? ''))
+      job.source === 'workday'
+      && job.companyName === family.company)
   if (positive) return { positive: true, reason: null, evidence }
   const warning = observation.warnings?.[0]
     ?? (!observation.jobs?.length ? 'zero_eligible_jobs' : 'scope_evidence_incomplete')
@@ -323,11 +363,7 @@ export function classifyProbe(family, observation, requestCount, elapsedMs) {
 export function createBoundedFetch(identity, fetchImpl = fetch, now = Date.now) {
   let requestCount = 0
   const startedAt = now()
-  const allowedPaths = identity.provider === 'eightfold'
-    ? [identity.searchPath, identity.detailPath]
-    : identity.provider === 'oracle_recruiting'
-      ? [identity.listPath, identity.detailPath]
-      : [identity.graphqlPath]
+  const approvedRoot = new URL(identity.cxsRoot)
   const boundedFetch = async (input, init = {}) => {
     requestCount += 1
     requireCondition(requestCount <= PROVIDER_REQUEST_LIMIT,
@@ -335,10 +371,10 @@ export function createBoundedFetch(identity, fetchImpl = fetch, now = Date.now) 
     requireCondition(now() - startedAt <= PROBE_DEADLINE_MS,
       'provider probe deadline exceeded')
     const url = new URL(input instanceof Request ? input.url : input)
-    requireCondition(url.protocol === 'https:' && url.hostname === identity.host
+    requireCondition(url.protocol === 'https:' && url.origin === approvedRoot.origin
       && url.username === '' && url.password === ''
-      && allowedPaths.some((path) => url.pathname === path
-        || url.pathname.startsWith(`${path}/`)),
+      && (url.pathname === `${approvedRoot.pathname}/jobs`
+        || url.pathname.startsWith(`${approvedRoot.pathname}/job/`)),
     'adapter attempted an unapproved network coordinate')
     return fetchImpl(input, init)
   }
@@ -388,20 +424,16 @@ export async function directProbe(family, dependencies = {}) {
   const identities = dependencies.identities
     ?? await import(pathToFileURL(resolve(
       root,
-      'supabase/functions/_shared/branded-identities.ts',
+      'supabase/functions/_shared/workday-identities.ts',
     )))
-  const identity = identities.resolveBrandedIdentity(family.sourceKey)
-  requireCondition(identity?.provider === family.family,
-    'exact adapter identity did not resolve')
+  const identity = identities.resolveWorkdayIdentity(...family.tuple)
+  requireCondition(identity?.sourceKey === family.sourceKey,
+    'exact Workday identity did not resolve')
   const module = dependencies.adapterModule ?? await import(pathToFileURL(resolve(
     root,
-    `supabase/functions/_shared/adapters/${family.adapter}.ts`,
+    'supabase/functions/_shared/adapters/workday.ts',
   )))
-  const poll = family.family === 'eightfold'
-    ? module.pollMorganStanleyEightfold
-    : family.family === 'oracle_recruiting'
-      ? module.pollJpmorganOracleRecruiting
-      : module.pollGoldmanHigher
+  const poll = module.pollWorkdayRecent
   requireCondition(typeof poll === 'function', 'exact adapter entrypoint is missing')
   const bounded = createBoundedFetch(identity, dependencies.fetchImpl, dependencies.now)
   const observation = await poll(identity, bounded.fetch, {
@@ -509,7 +541,9 @@ export async function exerciseVerifierFinally(ops, manifest, clock = Date) {
       throw error
     }
   }
-  const versions = Object.fromEntries(FAMILY_ORDER.map((family) => [family.fixture, 0]))
+  const versions = Object.fromEntries(
+    VERIFIER_SCENARIOS.map((scenario) => [scenario.fixture, 0]),
+  )
   let began = false
   let primaryError
   const results = []
@@ -524,7 +558,7 @@ export async function exerciseVerifierFinally(ops, manifest, clock = Date) {
     requireCondition(expiresAt > clock.now()
       && expiresAt - clock.now() <= FAMILY_CEILING_MS + 5_000,
     'verifier expiry exceeds its 20-minute ceiling')
-    for (const family of FAMILY_ORDER) {
+    for (const family of VERIFIER_SCENARIOS) {
       const failed = await ops.exerciseVerifier({
         runId: VERIFIER_RUN_ID,
         fixture: family.fixture,
@@ -679,7 +713,7 @@ export async function executeRollout({
         evidenceDigest: terminalEvidenceDigest,
       })
     }
-    familyResults[family.family] = {
+    familyResults[family.key] = {
       ...requireTerminalFamilyEvidence(terminal, family),
       start_state: start.kind,
       terminal_evidence_digest: terminalEvidenceDigest,
@@ -700,6 +734,8 @@ export async function executeRollout({
     hosted_evidence_sha256: hostedSha256,
     verifier_repair_path: VERIFIER_REPAIR_PATH,
     verifier_repair_sha256: VERIFIER_REPAIR_SHA256,
+    workday_extension_path: WORKDAY_EXTENSION_PATH,
+    workday_extension_sha256: WORKDAY_EXTENSION_SHA256,
     release_source_commit: RELEASE_SOURCE_COMMIT,
     generated_at: new Date(now()).toISOString(),
     limits: {
@@ -725,7 +761,8 @@ export function createDryRunPlan(manifest) {
     verifier_repair_sha256: VERIFIER_REPAIR_SHA256,
     release_source_commit: RELEASE_SOURCE_COMMIT,
     required_approval: exactApproval(),
-    family_order: FAMILY_ORDER.map(({ family, company, sourceKey }) => ({
+    family_order: FAMILY_ORDER.map(({ key, family, company, sourceKey }) => ({
+      key,
       family,
       company,
       source_key: sourceKey,
@@ -760,6 +797,8 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
     'hosted_evidence_sha256',
     'verifier_repair_path',
     'verifier_repair_sha256',
+    'workday_extension_path',
+    'workday_extension_sha256',
     'release_source_commit',
     'generated_at',
     'limits',
@@ -776,6 +815,8 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
     && evidence.hosted_evidence_sha256 === PLAN_05_HOSTED_SHA256
     && evidence.verifier_repair_path === VERIFIER_REPAIR_PATH
     && evidence.verifier_repair_sha256 === VERIFIER_REPAIR_SHA256
+    && evidence.workday_extension_path === WORKDAY_EXTENSION_PATH
+    && evidence.workday_extension_sha256 === WORKDAY_EXTENSION_SHA256
     && evidence.release_source_commit === RELEASE_SOURCE_COMMIT
     && manifest.release_manifest_id === RELEASE_MANIFEST_ID,
   'rollout evidence release binding failed')
@@ -790,14 +831,14 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
     && evidence.limits.provider_deadline_ms === PROBE_DEADLINE_MS
     && evidence.limits.active_latency_ms === ACTIVE_LATENCY_MS,
   'rollout limits drift')
-  exactKeys(evidence.families, FAMILY_ORDER.map((item) => item.family),
+  exactKeys(evidence.families, FAMILY_ORDER.map((item) => item.key),
     'rollout families')
   const requested = family
-    ? FAMILY_ORDER.filter((item) => item.family === family)
+    ? FAMILY_ORDER.filter((item) => item.key === family)
     : FAMILY_ORDER
   requireCondition(requested.length > 0, 'unknown rollout family assertion')
   for (const expected of requested) {
-    const result = evidence.families[expected.family]
+    const result = evidence.families[expected.key]
     requireTerminalFamilyEvidence(result, expected)
     exactKeys(result, result.outcome === 'active'
       ? [
@@ -900,7 +941,7 @@ export function assertRolloutEvidence(evidence, manifest, family = null) {
     'post_finish_denied',
   ], 'terminal cleanup')
   requireCondition(evidence.cleanup?.status === 'PASS'
-    && evidence.cleanup.catalog_rows === 10
+    && evidence.cleanup.catalog_rows === 8
     && evidence.cleanup.protected_rows === 2,
   'rollout cleanup evidence is not PASS')
   const terminal = evidence.cleanup.terminal
@@ -997,7 +1038,7 @@ export class ManagementSqlOps {
     requireCondition(this.hosted?.status === 'PASS',
       'immutable hosted evidence was not supplied to live operations')
     const expectedMigrations = Array.from(
-      { length: 42 },
+      { length: 43 },
       (_, index) => String(index + 1).padStart(4, '0'),
     )
     const row = oneRow(await this.query(`
@@ -1018,7 +1059,7 @@ export class ManagementSqlOps {
         ) as armed_runs,
         has_function_privilege(
           'service_role',
-          'public.finalize_branded_connector_candidate(text,text,text,text)',
+          'public.finalize_workday_connector_candidate(text,text,text,text)',
           'EXECUTE'
         ) as finalize_execute,
         (
@@ -1195,7 +1236,7 @@ export class ManagementSqlOps {
         on commit preserve rows
         as
       select *
-      from public.finalize_branded_connector_candidate(
+      from public.finalize_workday_connector_candidate(
         ${sqlLiteral(sourceKey)},
         ${sqlLiteral(outcome)},
         ${reason === null ? 'null' : sqlLiteral(reason)},
@@ -1931,7 +1972,7 @@ export class ManagementSqlOps {
     'verifier transaction did not finish cleanly')
     return {
       status: 'PASS',
-      fixtures: FAMILY_ORDER.map((family) => ({
+      fixtures: VERIFIER_SCENARIOS.map((family) => ({
         fixture: family.fixture,
         fault: family.fault,
         status: 'PASS',
@@ -2055,7 +2096,7 @@ export class ManagementSqlOps {
            ('workday:wd1:fmr:FidelityCareers', 'active', 3)
          )) as protected_rows
     `), 'final rollout')
-    requireCondition(row.catalog_rows === 10
+    requireCondition(row.catalog_rows === 8
       && row.invalid_candidates === 0
       && row.protected_rows === 2,
     'final catalog/candidate/protected-source assertion failed')
@@ -2074,6 +2115,7 @@ function parseArgs(argv) {
     manifest: DEFAULT_MANIFEST,
     hosted: DEFAULT_HOSTED,
     repair: DEFAULT_REPAIR,
+    extension: resolve(WORKDAY_EXTENSION_PATH),
     output: DEFAULT_OUTPUT,
     sourceWorktree: null,
     approval: null,
@@ -2090,6 +2132,7 @@ function parseArgs(argv) {
     else if (value === '--manifest') result.manifest = resolve(argv[++index])
     else if (value === '--hosted') result.hosted = resolve(argv[++index])
     else if (value === '--repair') result.repair = resolve(argv[++index])
+    else if (value === '--extension') result.extension = resolve(argv[++index])
     else if (value === '--output') result.output = resolve(argv[++index])
     else if (value === '--source-worktree') result.sourceWorktree = resolve(argv[++index])
     else if (value === '--approve') result.approval = argv[++index]
@@ -2153,10 +2196,13 @@ async function main() {
   const args = parseArgs(process.argv.slice(2))
   requireCondition(args.repair === DEFAULT_REPAIR,
     `verifier repair path must be exactly ${VERIFIER_REPAIR_PATH}`)
-  const [manifestBytes, hostedBytes, repairBytes] = await Promise.all([
+  requireCondition(args.extension === resolve(WORKDAY_EXTENSION_PATH),
+    `Workday extension path must be exactly ${WORKDAY_EXTENSION_PATH}`)
+  const [manifestBytes, hostedBytes, repairBytes, extensionBytes] = await Promise.all([
     readFile(args.manifest),
     readFile(args.hosted),
     readFile(args.repair),
+    readFile(args.extension),
   ])
   const manifestJson = JSON.parse(manifestBytes)
   if (args.mode === 'assert-evidence') {
@@ -2164,6 +2210,7 @@ async function main() {
       manifestBytes,
       hostedBytes,
       repairBytes,
+      extensionBytes,
       sourceCommit: manifestJson.candidate?.git_sha,
     })
     const evidence = JSON.parse(await readFile(args.output, 'utf8'))
@@ -2176,6 +2223,7 @@ async function main() {
       manifestBytes,
       hostedBytes,
       repairBytes,
+      extensionBytes,
       sourceCommit: manifestJson.candidate?.git_sha,
     })
     process.stdout.write(`${JSON.stringify(createDryRunPlan(manifestJson), null, 2)}\n`)
@@ -2188,6 +2236,7 @@ async function main() {
     manifestBytes,
     hostedBytes,
     repairBytes,
+    extensionBytes,
     sourceCommit: identity.commit,
   })
   requireCondition(identity.commitObjectSha256
