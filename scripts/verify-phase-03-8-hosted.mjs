@@ -897,16 +897,45 @@ function requireTerminalVerifierState(state) {
 
 function assertRolloutEvidence(rollout, manifest, options = {}) {
   validateManifest(manifest)
-  exactKeys(rollout, [
-    'status',
-    'manifest_sha256',
-    'families',
-    'fault_recovery',
-    'cleanup',
-  ], 'rollout evidence')
+  const exactReleaseEvidence = Object.hasOwn(rollout ?? {}, 'schema_version')
+  exactKeys(rollout, exactReleaseEvidence
+    ? [
+        'schema_version',
+        'phase',
+        'status',
+        'release_manifest_id',
+        'manifest_file_sha256',
+        'manifest_sha256',
+        'hosted_evidence_sha256',
+        'verifier_repair_path',
+        'verifier_repair_sha256',
+        'workday_extension_path',
+        'workday_extension_sha256',
+        'release_source_commit',
+        'generated_at',
+        'limits',
+        'families',
+        'fault_recovery',
+        'cleanup',
+      ]
+    : [
+        'status',
+        'manifest_sha256',
+        'families',
+        'fault_recovery',
+        'cleanup',
+      ],
+  'rollout evidence')
   if (rollout.status !== 'PASS'
     || rollout.manifest_sha256 !== manifestObjectSha256(manifest)) {
     throw new Error('rollout is not exact-release PASS')
+  }
+  if (exactReleaseEvidence
+    && (rollout.schema_version !== 1
+      || rollout.phase !== '03.8'
+      || rollout.release_manifest_id !== manifest.release_manifest_id
+      || rollout.release_source_commit !== manifest.candidate.git_sha)) {
+    throw new Error('rollout exact release identity drift')
   }
   exactKeys(rollout.families, FAMILY_KEYS, 'rollout families')
   const requested = options.family ? [options.family] : FAMILY_KEYS

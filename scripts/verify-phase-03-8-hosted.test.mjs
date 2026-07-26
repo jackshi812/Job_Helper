@@ -25,6 +25,10 @@ const hostedEvidencePath = new URL(
   '../.planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-/03.8-05-HOSTED-VERIFICATION.json',
   import.meta.url,
 )
+const rolloutEvidencePath = new URL(
+  '../.planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-/03.8-06-ROLLOUT-VERIFICATION.json',
+  import.meta.url,
+)
 
 async function manifestFixture() {
   return JSON.parse(await readFile(manifestPath, 'utf8'))
@@ -274,6 +278,12 @@ test('rollout PASS requires cleanup success, consumed authority, zero residue, a
     ...rollout,
     cleanup: { status: 'FAIL', terminal },
   }, manifest))
+})
+
+test('the full release-bound rollout artifact passes the hosted validator', async () => {
+  const manifest = await manifestFixture()
+  const rollout = JSON.parse(await readFile(rolloutEvidencePath, 'utf8'))
+  assert.equal(assertRolloutEvidence(rollout, manifest), rollout)
 })
 
 test('canonical serialization is stable for manifest approval binding', () => {

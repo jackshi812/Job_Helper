@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "phase": "03.8",
-  "status": "PENDING",
+  "status": "PASS",
   "release_manifest_id": "03850000-0000-4000-8000-000000000006",
   "manifest_file_sha256": "1cac45957a23cb9de040005c92ba736a727e7ae54da617b94a3d2c4e182c1b06",
   "manifest_sha256": "6e3100857d11b00c4c62cdc427ac55f9bea620fd105686f5ecfb199e5489bf6f",
@@ -11,7 +11,7 @@
   "workday_extension_path": "supabase/migrations/0043_phase_03_8_workday_candidates.sql",
   "workday_extension_sha256": "bdcf0ec8d22bea99fef367f48fdc0d1ec56a5c74181b954c75807391091cb246",
   "release_source_commit": "2a498c98c0914a36b3747438d12e84a8b47e8fea",
-  "generated_at": null,
+  "generated_at": "2026-07-26T21:25:10.623Z",
   "limits": {
     "family_ceiling_ms": 1200000,
     "provider_requests": 300,
@@ -20,22 +20,176 @@
   },
   "families": {
     "morgan_stanley": {
-      "status": "PENDING"
+      "family": "workday",
+      "source_key": "workday:wd5:ms:External",
+      "status": "PASS",
+      "outcome": "unsupported",
+      "reason": "pagination_incomplete",
+      "scheduled": false,
+      "monitored": false,
+      "operational_rows": 0,
+      "start_state": "terminal_unsupported",
+      "terminal_evidence_digest": "a7f112318ce84cfd61c2c39d41c16d5baec93f7ce3a0c817acd9387919f1aa21",
+      "probe": {
+        "schema_version": 1,
+        "family": "workday",
+        "company": "Morgan Stanley",
+        "source_key": "workday:wd5:ms:External",
+        "completeness": "unknown",
+        "credible_for_closure": false,
+        "allow_missing_closure": false,
+        "job_count": 0,
+        "expected_count": null,
+        "page_count": 30,
+        "warning_codes": [
+          "recent_window_cap_exceeded"
+        ],
+        "request_count": 31,
+        "elapsed_ms": 19781,
+        "aggregate_scope_digest": null,
+        "eligible_job_digests": [],
+        "evidence_digest": "2ffbe9afe9f3d49014393ba2db7812321d7c411f68743d8bb5dbe45cd67bca2b"
+      }
     },
     "bank_of_america": {
-      "status": "PENDING"
+      "family": "workday",
+      "source_key": "workday:wd1:ghr:Lateral-US",
+      "status": "PASS",
+      "outcome": "unsupported",
+      "reason": "pagination_incomplete",
+      "scheduled": false,
+      "monitored": false,
+      "operational_rows": 0,
+      "start_state": "terminal_unsupported",
+      "terminal_evidence_digest": "6ad9d8779fb7b261a9b312c1de9367d985bfa3c868406fd997d9a205d518a541",
+      "probe": {
+        "schema_version": 1,
+        "family": "workday",
+        "company": "Bank of America",
+        "source_key": "workday:wd1:ghr:Lateral-US",
+        "completeness": "unknown",
+        "credible_for_closure": false,
+        "allow_missing_closure": false,
+        "job_count": 0,
+        "expected_count": null,
+        "page_count": 30,
+        "warning_codes": [
+          "recent_window_cap_exceeded"
+        ],
+        "request_count": 30,
+        "elapsed_ms": 18943,
+        "aggregate_scope_digest": null,
+        "eligible_job_digests": [],
+        "evidence_digest": "2542323eda8f526fe05108454b20366848aa90ae9a403935b7c1ca91eb93c834"
+      }
     },
     "blackrock": {
-      "status": "PENDING"
+      "family": "workday",
+      "source_key": "workday:wd1:blackrock:BlackRock_Professional",
+      "status": "PASS",
+      "outcome": "unsupported",
+      "reason": "country_filter_unverified",
+      "scheduled": false,
+      "monitored": false,
+      "operational_rows": 0,
+      "start_state": "terminal_unsupported",
+      "terminal_evidence_digest": "699bb10ecfceb4de15c9b8590b900c3037fb819352fae0dd86c84f0bc2956c4a",
+      "probe": {
+        "schema_version": 1,
+        "family": "workday",
+        "company": "BlackRock",
+        "source_key": "workday:wd1:blackrock:BlackRock_Professional",
+        "completeness": "unknown",
+        "credible_for_closure": false,
+        "allow_missing_closure": false,
+        "job_count": 0,
+        "expected_count": null,
+        "page_count": 0,
+        "warning_codes": [
+          "country_filter_unverified"
+        ],
+        "request_count": 0,
+        "elapsed_ms": 0,
+        "aggregate_scope_digest": null,
+        "eligible_job_digests": [],
+        "evidence_digest": "3c0268c375bb15587e79595ac25e6756f35f3bc3698f3d675fbeb2ca639e5b3c"
+      }
     },
     "barclays": {
-      "status": "PENDING"
+      "family": "workday",
+      "source_key": "workday:wd3:barclays:External_Career_Site_Barclays",
+      "status": "PASS",
+      "outcome": "unsupported",
+      "reason": "country_filter_unverified",
+      "scheduled": false,
+      "monitored": false,
+      "operational_rows": 0,
+      "start_state": "terminal_unsupported",
+      "terminal_evidence_digest": "45268399723c95bb4ae72f3c20daff006147fc48000cb0581e458e6fdec0f82b",
+      "probe": {
+        "schema_version": 1,
+        "family": "workday",
+        "company": "Barclays",
+        "source_key": "workday:wd3:barclays:External_Career_Site_Barclays",
+        "completeness": "unknown",
+        "credible_for_closure": false,
+        "allow_missing_closure": false,
+        "job_count": 0,
+        "expected_count": null,
+        "page_count": 0,
+        "warning_codes": [
+          "country_filter_unverified"
+        ],
+        "request_count": 0,
+        "elapsed_ms": 0,
+        "aggregate_scope_digest": null,
+        "eligible_job_digests": [],
+        "evidence_digest": "eae15484f6b44333d3171fec145c1865ebf3e10d126e838b136fd2654afefb49"
+      }
     }
   },
   "fault_recovery": {
-    "status": "PENDING"
+    "status": "PASS",
+    "fixtures": [
+      {
+        "fixture": "eightfold_fixture",
+        "fault": "incomplete_observation",
+        "status": "PASS"
+      },
+      {
+        "fixture": "oracle_fixture",
+        "fault": "provider_schema_error",
+        "status": "PASS"
+      },
+      {
+        "fixture": "goldman_fixture",
+        "fault": "provider_timeout",
+        "status": "PASS"
+      }
+    ],
+    "exercise_calls": 6,
+    "real_company_sha256": "48d1d0062258188b24907791bb5de7fe09f7b9b3bb221b1565c298dfb2d4f409",
+    "real_job_sha256": "2dfa463cc937b3aa51f7d091a3ebb43c2ac469bae324bcf1523575e9e2ee6e94",
+    "real_companies_unchanged": true,
+    "real_jobs_unchanged": true,
+    "heartbeat_advanced": true,
+    "sibling_isolation": true
   },
   "cleanup": {
-    "status": "PENDING"
+    "status": "PASS",
+    "catalog_rows": 8,
+    "protected_rows": 2,
+    "terminal": {
+      "run_rows": 0,
+      "fixture_rows": 0,
+      "company_rows": 0,
+      "job_rows": 0,
+      "observation_rows": 0,
+      "authority_state": "consumed",
+      "begin_execute": false,
+      "exercise_execute": false,
+      "finish_execute": false,
+      "post_finish_denied": true
+    }
   }
 }
