@@ -13,6 +13,8 @@ const execFile = promisify(execFileCallback)
 const require = createRequire(import.meta.url)
 
 export const RELEASE_MANIFEST_ID = '03850000-0000-4000-8000-000000000006'
+export const VERIFIER_AUTHORITY_RELEASE_MANIFEST_ID =
+  '03850000-0000-4000-8000-000000000005'
 export const RELEASE_MANIFEST_FILE_SHA256 =
   '1cac45957a23cb9de040005c92ba736a727e7ae54da617b94a3d2c4e182c1b06'
 export const RELEASE_MANIFEST_OBJECT_SHA256 =
@@ -626,7 +628,8 @@ export async function exerciseVerifierFinally(ops, manifest, clock = Date) {
           goldmanVersion: versions.goldman_fixture,
         })
         requireCondition(finish?.consumed === true
-          && finish.release_manifest_id === manifest.release_manifest_id
+          && finish.release_manifest_id
+            === VERIFIER_AUTHORITY_RELEASE_MANIFEST_ID
           && finish.run_id === VERIFIER_RUN_ID
           && finish.deleted_fixtures === 3
           && finish.remaining_rows === 0
@@ -1080,7 +1083,8 @@ export class ManagementSqlOps {
           select count(*)::integer
           from public.phase_03_8_verifier_runs
           where run_id = '${VERIFIER_RUN_ID}'::uuid
-            and release_manifest_id = '${RELEASE_MANIFEST_ID}'::uuid
+            and release_manifest_id =
+              '${VERIFIER_AUTHORITY_RELEASE_MANIFEST_ID}'::uuid
             and state = 'armed'
             and started_at is null
             and expires_at is null
@@ -1991,7 +1995,7 @@ export class ManagementSqlOps {
       cross join phase_03_8_runner_baseline as baseline;
     `), 'verifier transaction')
     requireCondition(row.consumed === true
-      && row.release_manifest_id === RELEASE_MANIFEST_ID
+      && row.release_manifest_id === VERIFIER_AUTHORITY_RELEASE_MANIFEST_ID
       && row.run_id === VERIFIER_RUN_ID
       && row.exercise_calls === 6
       && row.deleted_fixtures === 3

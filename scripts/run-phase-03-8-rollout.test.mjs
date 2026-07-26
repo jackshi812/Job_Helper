@@ -13,6 +13,7 @@ import {
   RELEASE_MANIFEST_FILE_SHA256,
   RELEASE_MANIFEST_OBJECT_SHA256,
   RELEASE_SOURCE_COMMIT,
+  VERIFIER_AUTHORITY_RELEASE_MANIFEST_ID,
   VERIFIER_REPAIR_PATH,
   VERIFIER_REPAIR_SHA256,
   WORKDAY_EXTENSION_PATH,
@@ -580,7 +581,7 @@ function verifierOps({ failExercise = false } = {}) {
       calls.push('finish')
       return {
         consumed: true,
-        release_manifest_id: '03850000-0000-4000-8000-000000000006',
+        release_manifest_id: VERIFIER_AUTHORITY_RELEASE_MANIFEST_ID,
         run_id: '03850000-0000-4000-8000-000000000501',
         exercise_calls: 6,
         deleted_fixtures: 3,
@@ -616,6 +617,32 @@ test('verifier always finishes and asserts terminal cleanup after injected failu
     )
     assert.ok(ops.calls.includes('finish'))
     assert.equal(ops.calls.at(-1), 'terminal')
+  })
+
+test('verifier finish accepts authority 005 while rollout remains release 006',
+  async () => {
+    assert.equal(VERIFIER_AUTHORITY_RELEASE_MANIFEST_ID,
+      '03850000-0000-4000-8000-000000000005')
+    assert.match(exactApproval(), /03850000-0000-4000-8000-000000000006/)
+    const valid = verifierOps()
+    const result = await exerciseVerifierFinally(valid, {
+      release_manifest_id: '03850000-0000-4000-8000-000000000006',
+    })
+    assert.equal(result.status, 'PASS')
+
+    const wrongAuthority = verifierOps()
+    wrongAuthority.finishVerifier = async () => ({
+      consumed: true,
+      release_manifest_id: '03850000-0000-4000-8000-000000000006',
+      run_id: '03850000-0000-4000-8000-000000000501',
+      exercise_calls: 6,
+      deleted_fixtures: 3,
+      remaining_rows: 0,
+      grants_revoked: true,
+    })
+    await assert.rejects(exerciseVerifierFinally(wrongAuthority, {
+      release_manifest_id: '03850000-0000-4000-8000-000000000006',
+    }), /finish did not consume and clean exact authority/)
   })
 
 test('rollout invokes terminal RPC only after each probe and runs verifier in finally',
@@ -936,7 +963,7 @@ test('verifier SQL scopes service role to RPC inserts, never direct verifier tab
         verifierSql = JSON.parse(init.body).query
         return new Response(JSON.stringify([{
           consumed: true,
-          release_manifest_id: '03850000-0000-4000-8000-000000000006',
+          release_manifest_id: VERIFIER_AUTHORITY_RELEASE_MANIFEST_ID,
           run_id: '03850000-0000-4000-8000-000000000501',
           exercise_calls: 6,
           deleted_fixtures: 3,
@@ -990,6 +1017,34 @@ test('verifier SQL scopes service role to RPC inserts, never direct verifier tab
       /set expires_at = started_at \+ interval '1 microsecond'/i)
     assert.doesNotMatch(verifierSql,
       /set expires_at = clock_timestamp\(\) - interval '1 second'/i)
+
+    const wrongAuthorityOps = new ManagementSqlOps({
+      projectRef: 'fjcsvajkkztvlrpdplwx',
+      accessToken: 'management-access-token-value',
+      hosted: { status: 'PASS' },
+      fetchImpl: async () => new Response(JSON.stringify([{
+        consumed: true,
+        release_manifest_id: '03850000-0000-4000-8000-000000000006',
+        run_id: '03850000-0000-4000-8000-000000000501',
+        exercise_calls: 6,
+        deleted_fixtures: 3,
+        remaining_rows: 0,
+        grants_revoked: true,
+        transition_rows: 6,
+        real_company_sha256: '1'.repeat(64),
+        real_job_sha256: '2'.repeat(64),
+        real_companies_unchanged: true,
+        real_jobs_unchanged: true,
+        heartbeat_advanced: true,
+        sibling_isolation: true,
+        begin_denied: true,
+        exercise_denied: true,
+        finish_denied: true,
+      }]), { status: 200 }),
+    })
+    await assert.rejects(wrongAuthorityOps.runVerifierTransaction({
+      release_manifest_id: '03850000-0000-4000-8000-000000000006',
+    }), /verifier transaction did not finish cleanly/)
   })
 
 test('management SQL errors include bounded diagnostics with credentials redacted',
