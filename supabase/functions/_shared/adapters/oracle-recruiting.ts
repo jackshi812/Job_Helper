@@ -9,7 +9,6 @@ import {
 } from '../bounded-pool.ts'
 import {
   createBrandedScopeEvidence,
-  findAllowedBrandedCategoryTerm,
 } from './scope.ts'
 import type {
   BrandedObservationScopeEvidence,
@@ -31,19 +30,20 @@ export interface OracleRecruitingAdapterOptions {
   detailConcurrency?: number
   totalDurationMs?: number
   now?: () => number
+  wallClockNow?: () => number
 }
 
 interface OracleRequisition {
   id: string
   title: string
   location: string
-  categoryLabel: string
-  categoryFacet: BrandedFacetIdentity
-  postedAt: string | null
+  familyLabel: string
+  titleFacet: BrandedFacetIdentity
+  postedAt: string
 }
 
 interface SliceEvidence {
-  readonly facet: BrandedFacetIdentity
+  readonly titleFacet: BrandedFacetIdentity
   readonly expected: number
   readonly fetched: number
   readonly pages: number
@@ -191,17 +191,35 @@ function exactFacet(
     && match.TotalCount === expectedTotal
 }
 
-function parsePostedDate(value: unknown): string | null | undefined {
-  if (value === undefined || value === null || value === '') return null
+function parsePostedDate(value: unknown): string | undefined {
   if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) {
     return undefined
   }
   return new Date(value).toISOString()
 }
 
+function isRecentPosting(
+  postedAt: string,
+  wallClockNow: number,
+  recentDays: number,
+): boolean {
+  if (!Number.isFinite(wallClockNow)) return false
+  const parsed = Date.parse(postedAt)
+  if (!Number.isFinite(parsed)) return false
+  const now = new Date(wallClockNow)
+  const cutoff = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() - (recentDays - 1),
+  )
+  return parsed >= cutoff && parsed <= wallClockNow + 5 * 60 * 1_000
+}
+
 function parseRequisition(
   value: unknown,
   facet: BrandedFacetIdentity,
+  wallClockNow: number,
+  recentDays: number,
 ): OracleRequisition | null {
   if (!value || typeof value !== 'object') return null
   const raw = value as Record<string, unknown>
@@ -209,23 +227,24 @@ function parseRequisition(
   const title = boundedString(raw.Title, 512)
   const location = boundedString(raw.PrimaryLocation, 1_024)
   const listCountry = boundedString(raw.PrimaryLocationCountry, 8)
-  const categoryLabel = boundedString(raw.JobFamily, 160)
+  const familyLabel = boundedString(raw.JobFunction, 160)
   const postedAt = parsePostedDate(raw.PostedDate)
   if (
     !id
     || !title
     || !location
     || listCountry !== 'US'
-    || !categoryLabel
-    || normalizedLabel(categoryLabel) !== normalizedLabel(facet.expectedLabel)
-    || postedAt === undefined
+    || !familyLabel
+    || normalizedLabel(familyLabel) !== normalizedLabel(facet.expectedLabel)
+    || !postedAt
+    || !isRecentPosting(postedAt, wallClockNow, recentDays)
   ) return null
   return {
     id,
     title,
     location,
-    categoryLabel,
-    categoryFacet: facet,
+    familyLabel,
+    titleFacet: facet,
     postedAt,
   }
 }
@@ -250,7 +269,8 @@ function listUrl(
     limit: String(pageSize),
     offset: String(offset),
     selectedLocationsFacet: identity.countryFacet.id,
-    selectedCategoriesFacet: facet.id,
+    selectedTitlesFacet: facet.id,
+    selectedPostingDatesFacet: identity.postingDateFacet.id,
   }))
   return url
 }
@@ -276,6 +296,7 @@ function parseSlicePage(
   facet: BrandedFacetIdentity,
   requestedOffset: number,
   pageSize: number,
+  wallClockNow: number,
   priorExpected?: number,
 ): {
   expected: number
@@ -298,7 +319,8 @@ function parseSlicePage(
   if (
     page.SiteNumber !== identity.siteNumber
     || page.SelectedLocationsFacet !== identity.countryFacet.id
-    || page.SelectedCategoriesFacet !== facet.id
+    || page.SelectedTitlesFacet !== facet.id
+    || page.SelectedPostingDatesFacet !== identity.postingDateFacet.id
     || !Number.isInteger(page.Offset)
     || page.Offset !== requestedOffset
   ) {
@@ -323,12 +345,18 @@ function parseSlicePage(
     throw new ProviderError('slice_count_mismatch')
   }
   if (
-    !exactFacet(page.categoriesFacet, facet, expected)
+    !exactFacet(page.titlesFacet, facet, expected)
     || !exactFacet(page.locationsFacet, identity.countryFacet, expected)
+    || !exactFacet(page.postingDatesFacet, identity.postingDateFacet, expected)
   ) throw new ProviderError('facet_label_mismatch')
 
   const parsed = page.requisitionList.map((value) =>
-    parseRequisition(value, facet)
+    parseRequisition(
+      value,
+      facet,
+      wallClockNow,
+      identity.postingDateFacet.recentDays,
+    )
   )
   if (parsed.some((requisition) => requisition === null)) {
     throw new ProviderError('provider_schema_invalid')
@@ -337,22 +365,6 @@ function parseSlicePage(
     expected,
     requisitions: parsed as OracleRequisition[],
   }
-}
-
-function detailCategory(
-  raw: Record<string, unknown>,
-  expectedCategory: string,
-): string | null {
-  const expectedTerm = findAllowedBrandedCategoryTerm(expectedCategory)
-  if (!expectedTerm) return null
-  for (const key of ['Category', 'JobFunction'] as const) {
-    const value = boundedString(raw[key], 160)
-    if (
-      value
-      && findAllowedBrandedCategoryTerm(value) === expectedTerm
-    ) return value
-  }
-  return null
 }
 
 function oracleDescription(raw: Record<string, unknown>): string | null {
@@ -377,6 +389,7 @@ async function normalizeDetail(
   payload: unknown,
   listed: OracleRequisition,
   identity: OracleRecruitingBrandedIdentity,
+  wallClockNow: number,
 ): Promise<NormalizedJob> {
   if (!payload || typeof payload !== 'object') {
     throw new ProviderError('provider_schema_invalid')
@@ -397,25 +410,41 @@ async function normalizeDetail(
   if (raw.PrimaryLocationCountry !== 'US') {
     throw new ProviderError('detail_country_ineligible')
   }
-  if (!detailCategory(raw, listed.categoryLabel)) {
+  const detailFamily = boundedString(raw.JobFunction, 160)
+  if (
+    !detailFamily
+    || normalizedLabel(detailFamily) !== normalizedLabel(listed.familyLabel)
+  ) {
     throw new ProviderError('detail_category_ineligible')
   }
   const descriptionHtml = oracleDescription(raw)
   if (!descriptionHtml) throw new ProviderError('detail_evidence_missing')
   const detailTitle = boundedString(raw.Title, 512)
   const detailLocation = boundedString(raw.PrimaryLocation, 1_024)
-  if (!detailTitle || !detailLocation) {
+  if (
+    !detailTitle
+    || !detailLocation
+    || detailTitle !== listed.title
+    || detailLocation !== listed.location
+  ) {
     throw new ProviderError('detail_evidence_missing')
   }
   const detailPostedAt = parsePostedDate(raw.ExternalPostedStartDate)
-  if (detailPostedAt === undefined) {
-    throw new ProviderError('provider_schema_invalid')
+  if (
+    !detailPostedAt
+    || !isRecentPosting(
+      detailPostedAt,
+      wallClockNow,
+      identity.postingDateFacet.recentDays,
+    )
+  ) {
+    throw new ProviderError('detail_posting_date_ineligible')
   }
 
   const scopeEvidence = await createBrandedScopeEvidence({
     sourceKey: identity.sourceKey,
     externalId: listed.id,
-    providerCategoryLabel: listed.categoryLabel,
+    providerCategoryLabel: listed.familyLabel,
     detailCountryCode: 'US',
   })
   return {
@@ -425,7 +454,7 @@ async function normalizeDetail(
     location: detailLocation,
     absoluteUrl:
       `${identity.origin}/hcmUI/CandidateExperience/en/sites/${identity.siteNumber}/job/${listed.id}`,
-    postedAt: detailPostedAt ?? listed.postedAt,
+    postedAt: detailPostedAt,
     descriptionHtml,
     descriptionText: htmlToText(descriptionHtml),
     snapshotPartial: false,
@@ -454,9 +483,11 @@ async function aggregateEvidence(
     sliceDigests: Object.freeze(await Promise.all(slices.map((slice) =>
       sha256Hex([
         identity.sourceKey,
-        slice.facet.id,
-        slice.facet.expectedLabel,
+        slice.titleFacet.id,
+        slice.titleFacet.expectedLabel,
         identity.countryFacet.id,
+        identity.postingDateFacet.id,
+        identity.postingDateFacet.expectedLabel,
         slice.expected,
         slice.fetched,
         slice.pages,
@@ -528,8 +559,11 @@ export async function pollJpmorganOracleRecruiting(
     identity.transport.stopSchedulingAfterMs,
   )
   const now = options.now ?? (() => performance.now())
+  const wallClockNow = (options.wallClockNow ?? Date.now)()
   const startedAt = now()
-  if (!Number.isFinite(startedAt)) return incomplete([], 'invalid_clock')
+  if (!Number.isFinite(startedAt) || !Number.isFinite(wallClockNow)) {
+    return incomplete([], 'invalid_clock')
+  }
   const budget: InvocationBudget = {
     deadline: startedAt + totalDurationMs,
     now,
@@ -539,7 +573,7 @@ export async function pollJpmorganOracleRecruiting(
   const slices: SliceEvidence[] = []
   let totalPages = 0
 
-  for (const facet of identity.categoryFacets) {
+  for (const facet of identity.titleFacets) {
     const slice: OracleRequisition[] = []
     const sliceIds = new Set<string>()
     let expected: number | undefined
@@ -563,6 +597,7 @@ export async function pollJpmorganOracleRecruiting(
           facet,
           slice.length,
           pageSize,
+          wallClockNow,
           expected,
         )
       } catch (error) {
@@ -593,7 +628,7 @@ export async function pollJpmorganOracleRecruiting(
       return incomplete([], 'slice_count_mismatch', union.size, totalPages)
     }
     slices.push({
-      facet,
+      titleFacet: facet,
       expected,
       fetched: slice.length,
       pages: slicePages,
@@ -605,6 +640,8 @@ export async function pollJpmorganOracleRecruiting(
         && (
           existing.title !== requisition.title
           || existing.location !== requisition.location
+          || existing.familyLabel !== requisition.familyLabel
+          || existing.postedAt !== requisition.postedAt
         )
       ) return incomplete([], 'cross_slice_id_drift', union.size, totalPages)
       if (!existing) union.set(requisition.id, requisition)
@@ -636,7 +673,7 @@ export async function pollJpmorganOracleRecruiting(
           budget,
           signal,
         )
-        return normalizeDetail(payload, listed, identity)
+        return normalizeDetail(payload, listed, identity, wallClockNow)
       },
       {
         concurrency: detailConcurrency,
@@ -681,7 +718,7 @@ export async function pollJpmorganOracleRecruiting(
     jobs,
     completeness: 'complete',
     credibleForClosure: true,
-    allowMissingClosure: true,
+    allowMissingClosure: false,
     pageCount: totalPages,
     expectedCount: jobs.length,
     warnings: [],

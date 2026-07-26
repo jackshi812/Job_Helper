@@ -431,30 +431,34 @@ const oracleIdentity = resolveBrandedIdentity(
   ORACLE_JPMC_SOURCE_KEY,
 ) as OracleRecruitingBrandedIdentity
 
+const ORACLE_NOW = Date.parse('2026-07-26T12:00:00.000Z')
+
 const oracleRequisition = (
   id: string,
-  jobFamily = 'Credit Risk',
+  jobFunction = 'Risk',
+  postedDate: unknown = '2026-07-23',
 ) => ({
   Id: id,
-  Title: `Risk Analyst ${id}`,
-  PostedDate: '2026-07-23',
+  Title: `${jobFunction} Analyst ${id}`,
+  PostedDate: postedDate,
   PrimaryLocationCountry: 'US',
   PrimaryLocation: 'New York, NY, United States',
-  JobFamily: jobFamily,
-  JobFunction: 'Risk',
+  JobFamily: 'Professional',
+  JobFunction: jobFunction,
   ShortDescriptionStr: `Manage risk for ${id}.`,
 })
 
 const oracleDetail = (
   id: string,
+  jobFunction = 'Risk',
   overrides: Record<string, unknown> = {},
 ) => ({
   Id: id,
-  Title: `Risk Analyst ${id}`,
+  Title: `${jobFunction} Analyst ${id}`,
   PrimaryLocation: 'New York, NY, United States',
   PrimaryLocationCountry: 'US',
-  JobFunction: 'Risk',
-  Category: 'Credit Risk',
+  JobFunction: jobFunction,
+  Category: 'Professional',
   ExternalDescriptionStr: `<p>Analyze portfolio risk for ${id}.</p>`,
   ExternalResponsibilitiesStr: '<p>Build durable controls.</p>',
   ExternalQualificationsStr: '<p>Financial risk experience.</p>',
@@ -483,8 +487,8 @@ function oracleListEnvelope(
   offset: number,
   total = requisitions.length,
   overrides: Record<string, unknown> = {},
+  titleFacet = oracleIdentity.titleFacets[0],
 ) {
-  const category = oracleIdentity.categoryFacets[0]
   return {
     count: 1,
     hasMore: false,
@@ -496,15 +500,21 @@ function oracleListEnvelope(
       Limit: 1,
       TotalJobsCount: total,
       SelectedLocationsFacet: oracleIdentity.countryFacet.id,
-      SelectedCategoriesFacet: category.id,
-      categoriesFacet: [{
-        Id: Number(category.id),
-        Name: category.expectedLabel,
+      SelectedTitlesFacet: titleFacet.id,
+      SelectedPostingDatesFacet: oracleIdentity.postingDateFacet.id,
+      titlesFacet: [{
+        Id: titleFacet.id,
+        Name: titleFacet.expectedLabel,
         TotalCount: total,
       }],
       locationsFacet: [{
         Id: Number(oracleIdentity.countryFacet.id),
         Name: oracleIdentity.countryFacet.expectedLabel,
+        TotalCount: total,
+      }],
+      postingDatesFacet: [{
+        Id: oracleIdentity.postingDateFacet.id,
+        Name: oracleIdentity.postingDateFacet.expectedLabel,
         TotalCount: total,
       }],
       requisitionList: requisitions,
@@ -513,30 +523,38 @@ function oracleListEnvelope(
   }
 }
 
-function oracleFetch(
-  requisitions = [
-    oracleRequisition('210000001'),
-    oracleRequisition('210000002'),
-  ],
-) {
+function oracleFetch(detailOverrides: Record<string, unknown> = {}) {
+  const byId = new Map(oracleIdentity.titleFacets.map((facet, index) => [
+    String(210000001 + index),
+    facet,
+  ]))
   return vi.fn(async (input: string | URL | Request) => {
     const url = new URL(String(input))
     const finder = oracleFinder(url)
     if (finder.finder === 'findReqs') {
+      const facet = oracleIdentity.titleFacets.find(
+        (candidate) => candidate.id === finder.selectedTitlesFacet,
+      ) ?? oracleIdentity.titleFacets[0]
+      const index = oracleIdentity.titleFacets.indexOf(facet)
+      const requisitions = [
+        oracleRequisition(String(210000001 + index), facet.expectedLabel),
+      ]
       const offset = Number(finder.offset)
       return jsonResponse(oracleListEnvelope(
         requisitions.slice(offset, offset + Number(finder.limit)),
         offset,
         requisitions.length,
         { Limit: Number(finder.limit) },
+        facet,
       ))
     }
+    const facet = byId.get(finder.Id) ?? oracleIdentity.titleFacets[0]
     return jsonResponse({
       count: 1,
       hasMore: false,
       limit: 499,
       offset: 0,
-      items: [oracleDetail(finder.Id)],
+      items: [oracleDetail(finder.Id, facet.expectedLabel, detailOverrides)],
     })
   })
 }
@@ -547,41 +565,39 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     const observation = await pollJpmorganOracleRecruiting(
       oracleIdentity,
       providerFetch,
-      { pageSize: 1, now: () => 0 },
+      { pageSize: 1, now: () => 0, wallClockNow: () => ORACLE_NOW },
     )
 
     expect(observation).toMatchObject({
       completeness: 'complete',
       credibleForClosure: true,
-      allowMissingClosure: true,
-      expectedCount: 2,
-      pageCount: 2,
+      allowMissingClosure: false,
+      expectedCount: 6,
+      pageCount: 6,
       warnings: [],
-      jobs: [
-        {
-          source: 'oracle_recruiting',
-          externalId: '210000001',
-          title: 'Risk Analyst 210000001',
-          location: 'New York, NY, United States',
-          companyName: 'JPMorgan Chase',
-          snapshotPartial: false,
-          scopeEvidence: {
-            sourceKey: ORACLE_JPMC_SOURCE_KEY,
-            providerCategoryLabel: 'credit risk',
-            matchedTerm: 'Risk',
-            detailCountryCode: 'US',
-          },
-        },
-        {
-          source: 'oracle_recruiting',
-          externalId: '210000002',
-        },
-      ],
       scopeEvidence: {
         sourceKey: ORACLE_JPMC_SOURCE_KEY,
-        sliceDigests: [expect.stringMatching(/^[a-f0-9]{64}$/)],
+        sliceDigests: Array.from(
+          { length: 6 },
+          () => expect.stringMatching(/^[a-f0-9]{64}$/),
+        ),
         categoryDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
         countryDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+    })
+    expect(observation.jobs).toHaveLength(6)
+    expect(observation.jobs[0]).toMatchObject({
+      source: 'oracle_recruiting',
+      externalId: '210000001',
+      title: 'Finance Analyst 210000001',
+      location: 'New York, NY, United States',
+      companyName: 'JPMorgan Chase',
+      snapshotPartial: false,
+      scopeEvidence: {
+        sourceKey: ORACLE_JPMC_SOURCE_KEY,
+        providerCategoryLabel: 'finance',
+        matchedTerm: 'Finance',
+        detailCountryCode: 'US',
       },
     })
 
@@ -589,7 +605,7 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
       url: new URL(String(input)),
       init,
     }))
-    expect(requests).toHaveLength(4)
+    expect(requests).toHaveLength(12)
     expect(requests.every(({ url }) => url.origin === oracleIdentity.origin)).toBe(true)
     expect(requests.every(({ init }) => Boolean(init))).toBe(true)
     expect(requests.every(({ init }) =>
@@ -601,7 +617,9 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     const lists = requests.filter(({ url }) =>
       oracleFinder(url).finder === 'findReqs'
     )
-    expect(lists.map(({ url }) => oracleFinder(url).offset)).toEqual(['0', '1'])
+    expect(lists.map(({ url }) => oracleFinder(url).offset)).toEqual(
+      Array.from({ length: 6 }, () => '0'),
+    )
     for (const { url } of lists) {
       const finder = oracleFinder(url)
       expect(url.pathname).toBe(oracleIdentity.listPath)
@@ -612,8 +630,11 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
         siteNumber: oracleIdentity.siteNumber,
         limit: '1',
         selectedLocationsFacet: oracleIdentity.countryFacet.id,
-        selectedCategoriesFacet: oracleIdentity.categoryFacets[0].id,
+        selectedPostingDatesFacet: oracleIdentity.postingDateFacet.id,
       })
+      expect(oracleIdentity.titleFacets.map((facet) => facet.id)).toContain(
+        finder.selectedTitlesFacet,
+      )
     }
   })
 
@@ -623,7 +644,7 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
       ...oracleIdentity,
       siteNumber: 'CX_1002',
       origin: 'https://attacker.example',
-      categoryFacets: [{
+      titleFacets: [{
         id: 'attacker-facet',
         expectedLabel: 'Risk',
       }],
@@ -647,7 +668,10 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
         const finder = oracleFinder(url)
         const offset = Number(finder.offset)
         return jsonResponse(oracleListEnvelope(
-          [oracleRequisition(offset === 0 ? '210000001' : '210000002')],
+          [oracleRequisition(
+            offset === 0 ? '210000001' : '210000002',
+            'Finance',
+          )],
           offset,
           offset === 0 ? 2 : 3,
         ))
@@ -658,7 +682,7 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     [
       'slice offset drift',
       async () => jsonResponse(oracleListEnvelope(
-        [oracleRequisition('210000001')],
+        [oracleRequisition('210000001', 'Finance')],
         5,
         1,
       )),
@@ -668,12 +692,12 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     [
       'facet label drift',
       async () => jsonResponse(oracleListEnvelope(
-        [oracleRequisition('210000001')],
+        [oracleRequisition('210000001', 'Finance')],
         0,
         1,
         {
-          categoriesFacet: [{
-            Id: Number(oracleIdentity.categoryFacets[0].id),
+          titlesFacet: [{
+            Id: oracleIdentity.titleFacets[0].id,
             Name: 'General Operations',
             TotalCount: 1,
           }],
@@ -686,8 +710,8 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
       'duplicate stable ID in one slice',
       async () => jsonResponse(oracleListEnvelope(
         [
-          oracleRequisition('210000001'),
-          oracleRequisition('210000001'),
+          oracleRequisition('210000001', 'Finance'),
+          oracleRequisition('210000001', 'Finance'),
         ],
         0,
         2,
@@ -699,7 +723,7 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     [
       'page cap',
       async () => jsonResponse(oracleListEnvelope(
-        [oracleRequisition('210000001')],
+        [oracleRequisition('210000001', 'Finance')],
         0,
         2,
       )),
@@ -709,7 +733,7 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     [
       'job cap',
       async () => jsonResponse(oracleListEnvelope(
-        [oracleRequisition('210000001')],
+        [oracleRequisition('210000001', 'Finance')],
         0,
         2,
       )),
@@ -725,7 +749,7 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     const observation = await pollJpmorganOracleRecruiting(
       oracleIdentity,
       providerFetch,
-      { ...options, now: () => 0 },
+      { ...options, now: () => 0, wallClockNow: () => ORACLE_NOW },
     )
     expect(observation).toMatchObject({
       credibleForClosure: false,
@@ -764,27 +788,11 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     overrides,
     warning,
   ) => {
-    const providerFetch = vi.fn(async (input: string | URL | Request) => {
-      const url = new URL(String(input))
-      const finder = oracleFinder(url)
-      return finder.finder === 'findReqs'
-        ? jsonResponse(oracleListEnvelope(
-          [oracleRequisition('210000001')],
-          0,
-          1,
-        ))
-        : jsonResponse({
-          count: 1,
-          hasMore: false,
-          limit: 499,
-          offset: 0,
-          items: [oracleDetail('210000001', overrides)],
-        })
-    })
+    const providerFetch = oracleFetch(overrides)
     const observation = await pollJpmorganOracleRecruiting(
       oracleIdentity,
       providerFetch,
-      { pageSize: 1, now: () => 0 },
+      { pageSize: 1, now: () => 0, wallClockNow: () => ORACLE_NOW },
     )
     expect(observation).toMatchObject({
       jobs: [],
@@ -794,19 +802,121 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     })
   })
 
+  it.each([
+    ['stale list date', '2026-07-19', 'provider_schema_invalid'],
+    ['future list date', '2026-07-27', 'provider_schema_invalid'],
+    ['malformed list date', 'not-a-date', 'provider_schema_invalid'],
+    ['missing list date', null, 'provider_schema_invalid'],
+  ])('rejects %s before detail hydration', async (
+    _name,
+    postedDate,
+    warning,
+  ) => {
+    const observation = await pollJpmorganOracleRecruiting(
+      oracleIdentity,
+      async () => jsonResponse(oracleListEnvelope(
+        [oracleRequisition('210000001', 'Finance', postedDate)],
+        0,
+        1,
+      )),
+      { pageSize: 1, now: () => 0, wallClockNow: () => ORACLE_NOW },
+    )
+    expect(observation).toMatchObject({
+      credibleForClosure: false,
+      allowMissingClosure: false,
+      warnings: [warning],
+    })
+  })
+
+  it.each([
+    ['stale detail date', { ExternalPostedStartDate: '2026-07-19' }, 'detail_posting_date_ineligible'],
+    ['future detail date', { ExternalPostedStartDate: '2026-07-27' }, 'detail_posting_date_ineligible'],
+    ['malformed detail date', { ExternalPostedStartDate: 'not-a-date' }, 'detail_posting_date_ineligible'],
+    ['detail title drift', { Title: 'Different title' }, 'detail_evidence_missing'],
+    ['detail location drift', { PrimaryLocation: 'Chicago, IL, United States' }, 'detail_evidence_missing'],
+  ])('rejects %s with closure disabled', async (_name, overrides, warning) => {
+    const observation = await pollJpmorganOracleRecruiting(
+      oracleIdentity,
+      oracleFetch(overrides),
+      { pageSize: 1, now: () => 0, wallClockNow: () => ORACLE_NOW },
+    )
+    expect(observation).toMatchObject({
+      credibleForClosure: false,
+      allowMissingClosure: false,
+      warnings: [warning],
+    })
+  })
+
+  it.each([
+    ['selected title drift', { SelectedTitlesFacet: 'RSK' }, 'slice_identity_mismatch'],
+    ['selected date drift', { SelectedPostingDatesFacet: '30' }, 'slice_identity_mismatch'],
+    [
+      'posting facet label drift',
+      {
+        postingDatesFacet: [{
+          Id: oracleIdentity.postingDateFacet.id,
+          Name: 'Less than 30 days',
+          TotalCount: 1,
+        }],
+      },
+      'facet_label_mismatch',
+    ],
+  ])('rejects %s', async (_name, overrides, warning) => {
+    const observation = await pollJpmorganOracleRecruiting(
+      oracleIdentity,
+      async () => jsonResponse(oracleListEnvelope(
+        [oracleRequisition('210000001', 'Finance')],
+        0,
+        1,
+        overrides,
+      )),
+      { pageSize: 1, now: () => 0, wallClockNow: () => ORACLE_NOW },
+    )
+    expect(observation.warnings).toEqual([warning])
+    expect(observation.allowMissingClosure).toBe(false)
+  })
+
+  it('rejects duplicate IDs whose family drifts across slices', async () => {
+    const observation = await pollJpmorganOracleRecruiting(
+      oracleIdentity,
+      async (input) => {
+        const finder = oracleFinder(new URL(String(input)))
+        const facet = oracleIdentity.titleFacets.find(
+          (candidate) => candidate.id === finder.selectedTitlesFacet,
+        ) ?? oracleIdentity.titleFacets[0]
+        return jsonResponse(oracleListEnvelope(
+          [oracleRequisition('210000001', facet.expectedLabel)],
+          0,
+          1,
+          {},
+          facet,
+        ))
+      },
+      { pageSize: 1, now: () => 0, wallClockNow: () => ORACLE_NOW },
+    )
+    expect(observation.warnings).toEqual(['cross_slice_id_drift'])
+    expect(observation.allowMissingClosure).toBe(false)
+  })
+
   it('bounds detail requests and rejects empty slices without activation evidence', async () => {
     const capped = await pollJpmorganOracleRecruiting(
       oracleIdentity,
       oracleFetch(),
-      { maxDetailRequests: 1, now: () => 0 },
+      { maxDetailRequests: 1, now: () => 0, wallClockNow: () => ORACLE_NOW },
     )
     expect(capped.warnings).toEqual(['detail_cap_exceeded'])
     expect(capped.allowMissingClosure).toBe(false)
 
     const empty = await pollJpmorganOracleRecruiting(
       oracleIdentity,
-      async () => jsonResponse(oracleListEnvelope([], 0, 0)),
-      { pageSize: 1, now: () => 0 },
+      async (input) => {
+        const finder = oracleFinder(new URL(String(input)))
+        const facet = oracleIdentity.titleFacets.find(
+          (candidate) => candidate.id === finder.selectedTitlesFacet,
+        ) ?? oracleIdentity.titleFacets[0]
+        return jsonResponse(oracleListEnvelope([], 0, 0, {}, facet))
+      },
+      { pageSize: 1, now: () => 0, wallClockNow: () => ORACLE_NOW },
     )
     expect(empty).toMatchObject({
       jobs: [],
