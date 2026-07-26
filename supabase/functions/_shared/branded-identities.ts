@@ -66,7 +66,7 @@ export interface GoldmanHigherBrandedIdentity extends BrandedIdentityBase {
   readonly companyName: 'Goldman Sachs'
   readonly graphqlPath: '/gateway/api/v1/graphql'
   readonly listOperation: 'GetRoles'
-  readonly detailOperation: 'GetRoleActionContent'
+  readonly detailOperation: 'GetRoleById'
   readonly countryValue: 'United States'
   readonly categoryFields: readonly ['jobFunction', 'division']
 }
@@ -135,7 +135,7 @@ const goldmanSachsIdentity: GoldmanHigherBrandedIdentity = Object.freeze({
   host: 'api-higher.gs.com',
   graphqlPath: '/gateway/api/v1/graphql',
   listOperation: 'GetRoles',
-  detailOperation: 'GetRoleActionContent',
+  detailOperation: 'GetRoleById',
   countryValue: 'United States',
   categoryFields: Object.freeze(['jobFunction', 'division']),
   transport: transportBounds(100),

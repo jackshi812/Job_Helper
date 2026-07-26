@@ -920,7 +920,10 @@ function goldmanFetch(
     )
     return jsonResponse({
       data: {
-        role: goldmanDetail(listed?.roleId ?? '', sourceId),
+        role: goldmanDetail(listed?.roleId ?? '', sourceId, {
+          jobFunction: listed?.jobFunction,
+          division: listed?.division,
+        }),
       },
     })
   })
