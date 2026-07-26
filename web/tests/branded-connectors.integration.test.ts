@@ -21,7 +21,7 @@ const exactBoards = [
     { ats: 'eightfold', slug: EIGHTFOLD_MORGAN_STANLEY_SOURCE_KEY },
   ],
   [
-    'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions',
+    'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs',
     { ats: 'oracle_recruiting', slug: ORACLE_JPMC_SOURCE_KEY },
   ],
   [
@@ -60,6 +60,17 @@ describe('closed branded connector authorization', () => {
     const detected = detectAts(url)
     expect(detected).toEqual(expected)
     expect(buildEndpoint(detected)).toBe(url)
+  })
+
+  it('accepts the exact JPMorgan requisitions alias but reconstructs the canonical jobs URL', () => {
+    const alias =
+      'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions'
+    const detected = detectAts(alias)
+    expect(detected).toEqual({
+      ats: 'oracle_recruiting',
+      slug: ORACLE_JPMC_SOURCE_KEY,
+    })
+    expect(buildEndpoint(detected)).toBe(exactBoards[1][0])
   })
 
   it.each([

@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "phase": "03.9",
+  "created_at": "2026-07-26T23:55:00Z",
+  "release_manifest_id": "03900000-0000-4000-8000-000000000001",
+  "project_ref": "fjcsvajkkztvlrpdplwx",
+  "source_key": "oracle:jpmc:CX_1001",
+  "site_number": "CX_1001",
+  "public_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs",
+  "source_commit": "87acaa23272660ce6beeb00af52b71c11a9695a4",
+  "source_commit_object_sha256": "f91e015921d63aa4a2434b0754fd9a486e4bbebefcd06144a59a8ce7b81bfe86",
+  "hosted_baseline": {
+    "first_migration": "0001",
+    "last_migration": "0044",
+    "migration_count": 44,
+    "catalog_disposition": "unsupported_with_reason"
+  },
+  "migration": {
+    "version": "0045",
+    "path": "supabase/migrations/0045_phase_03_9_jpmorgan_oracle.sql",
+    "sha256": "47466c1ac50d338c770583b0c3f511c75828db821d2cb4031f3765b0082a8172"
+  },
+  "functions": {
+    "observe-connectors": {
+      "entry_path": "supabase/functions/observe-connectors/index.ts",
+      "entry_sha256": "a8332c6c4522a16a35c009020d5c15178c6ada4909f2cdb67bfad6c8876e3b9f",
+      "bundle_sha256": "6173444897b9ac5c1212f870e8708ea17b45c3f070403b74794d0f208692796e",
+      "verify_jwt": false,
+      "bundle_files": [
+        "supabase/functions/observe-connectors/index.ts",
+        "supabase/functions/_shared/connectors.ts",
+        "supabase/functions/_shared/branded-identities.ts",
+        "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+        "supabase/functions/_shared/adapters/scope.ts",
+        "supabase/functions/_shared/adapters/types.ts",
+        "supabase/functions/_shared/bounded-pool.ts"
+      ]
+    },
+    "poll-tick": {
+      "entry_path": "supabase/functions/poll-tick/index.ts",
+      "entry_sha256": "43a80b9670800fd582bda89b5626aff3c8c6fa1880918029fcdd589cce6089b0",
+      "bundle_sha256": "1e5c7f439a4eefa89bf575ffac7e8090660f11569849b79b732204207700edcc",
+      "verify_jwt": false,
+      "bundle_files": [
+        "supabase/functions/poll-tick/index.ts",
+        "supabase/functions/_shared/connectors.ts",
+        "supabase/functions/_shared/branded-identities.ts",
+        "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+        "supabase/functions/_shared/adapters/scope.ts",
+        "supabase/functions/_shared/adapters/types.ts",
+        "supabase/functions/_shared/bounded-pool.ts",
+        "supabase/functions/_shared/lifecycle.ts"
+      ]
+    }
+  },
+  "scope": {
+    "country": ["300000000289738", "United States"],
+    "posting_date": ["7", "Less than 7 days"],
+    "title_families": [
+      ["FIN", "Finance"],
+      ["D&A", "Data & Analytics"],
+      ["RSK", "Risk"],
+      ["PIM", "Product/Investment Mgmt"],
+      ["S&D", "Strategy & Development"],
+      ["PAA", "Program Analysts & Associate"]
+    ],
+    "allow_missing_closure": false
+  },
+  "protected_sources": [
+    "eightfold:morganstanley",
+    "goldman_higher:roles",
+    "workday:wd12:capitalone:Capital_One",
+    "workday:wd1:fmr:FidelityCareers",
+    "workday:wd5:ms:External",
+    "workday:wd1:ghr:Lateral-US",
+    "workday:wd1:blackrock:BlackRock_Professional",
+    "workday:wd3:barclays:External_Career_Site_Barclays"
+  ],
+  "approved_actions": [
+    "db_push_0045",
+    "deploy_observe-connectors",
+    "deploy_poll-tick",
+    "observe_three_windows",
+    "natural_poll",
+    "owner_browser_uat"
+  ]
+}

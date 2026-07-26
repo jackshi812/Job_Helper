@@ -1,21 +1,33 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import {
-  BRANDED_IDENTITIES,
-} from '../../supabase/functions/_shared/branded-identities'
 
 const sql = readFileSync(fileURLToPath(new URL(
   '../../supabase/migrations/0040_phase_03_8_branded_connectors.sql',
   import.meta.url,
 )), 'utf8')
 
-const candidates = Object.values(BRANDED_IDENTITIES).map((identity) => ({
-  companyName: identity.companyName,
-  provider: identity.provider,
-  sourceKey: identity.sourceKey,
-  publicUrl: identity.publicUrl,
-}))
+const candidates = [
+  {
+    companyName: 'Morgan Stanley',
+    provider: 'eightfold',
+    sourceKey: 'eightfold:morganstanley',
+    publicUrl: 'https://www.morganstanley.com/careers/career-opportunities-search/',
+  },
+  {
+    companyName: 'JPMorgan Chase',
+    provider: 'oracle_recruiting',
+    sourceKey: 'oracle:jpmc:CX_1001',
+    publicUrl:
+      'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions',
+  },
+  {
+    companyName: 'Goldman Sachs',
+    provider: 'goldman_higher',
+    sourceKey: 'goldman_higher:roles',
+    publicUrl: 'https://higher.gs.com/roles',
+  },
+]
 
 const negativeReasons = new Map([
   ['Bank of America', 'primary_portal_html_only_no_structured_machine_contract'],
