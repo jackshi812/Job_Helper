@@ -203,17 +203,17 @@ Plans:
 
 ### Phase 03.8: Monitor and poll the branded banking companies currently on watchlist (INSERTED)
 
-**Goal:** Truthfully determine current monitoring support for Morgan Stanley, Goldman Sachs, JPMorgan Chase, Bank of America, Citi, BlackRock, Wells Fargo, UBS, Barclays, and Charles Schwab, then activate only exact primary-portal identities that prove complete anonymous structured U.S./category-scoped polling while preserving safe degraded-source behavior.
+**Goal:** Truthfully determine current monitoring support for Morgan Stanley, Goldman Sachs, JPMorgan Chase, Bank of America, BlackRock, UBS, Barclays, and Charles Schwab, activating only exact Workday identities that prove complete U.S. polling while preserving safe degraded-source behavior and removing Citi/Wells Fargo from the Phase 03.8 Watchlist scope.
 **Requirements**: DISC-01, DISC-07, DISC-08, DISC-09 (bounded extension; no new requirement ID)
 **Depends on:** Phase 3
 **Success Criteria** (what must be TRUE):
 
-1. Every frozen target has either an exact reviewed monitored identity or a current precise `unsupported_with_reason` outcome; unsupported rows are never labeled monitored.
-2. Every implemented connector accepts only its server-owned primary-portal identity, ingests United States jobs with exact whole-word/phrase provider-category evidence, and treats missing/incomplete/drifted evidence as Degraded with no closures.
+1. Every revised target has either an exact reviewed monitored identity or a current precise `unsupported_with_reason` outcome; Citi and Wells Fargo have no Phase 03.8 catalog/Watchlist row, and unsupported rows are never labeled monitored.
+2. The four Workday candidates accept only their exact server-owned identities, activate only from complete exact United States scope, and treat missing, ignored, heuristic, incomplete, or drifted country evidence as closure-ineligible.
 3. Candidate sources start Experimental at 0/3, activate independently only after three positive clean server-timed observations, and every newly Active family completes one healthy natural scheduled poll on the exact release.
 4. Polling remains bounded and staggered; one company failure cannot block siblings, close last-known jobs, or bypass close/reopen, heartbeat, authorization, or health contracts.
 5. Capital One and Fidelity remain unchanged Active Workday regression sources and are neither re-onboarded nor required to produce a new Phase 03.8 natural poll.
-6. The exact migration/function release passes an explicit production approval and non-TTY schema-push gate, hosted parity/cleanup checks, and signed-in owner UAT of Watchlist state plus one eligible job per newly Active provider family.
+6. Immutable migrations 0040/0041 remain unchanged, 0042 retains its verifier finish repair, and a fresh exact 0042/0043 migration/function release passes explicit production approval, hosted parity/cleanup checks, and signed-in owner UAT of the revised Watchlist state plus one eligible job per newly Active Workday source.
 
 **Plans:** 5/7 plans executed
 
@@ -240,11 +240,11 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 03.8-06-PLAN.md — Roll out each provider family independently through natural scheduled polling or precise Unsupported outcome
+- [ ] 03.8-06-PLAN.md — Extend the generic Workday contract, add forward migration 0043, and prepare an exact local-only release
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 03.8-07-PLAN.md — Complete exact-release signed-in Watchlist and scoped-job UAT
+- [ ] 03.8-07-PLAN.md — Approve and deploy 0042/0043, resolve each Workday candidate independently, clean verifier authority, and complete signed-in Watchlist UAT
 
 ### Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)
 
