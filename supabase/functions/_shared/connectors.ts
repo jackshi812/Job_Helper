@@ -260,7 +260,10 @@ async function verifyWorkday(
   return verification(detected, identity.companyName ?? detected.slug, listing.jobCount)
 }
 
-function requireCompleteBrandedObservation(observation: PollObservation): PollObservation {
+function requireCompleteBrandedObservation(
+  observation: PollObservation,
+  identity: BrandedIdentity,
+): PollObservation {
   if (
     observation.completeness !== 'complete'
     || !observation.credibleForClosure
@@ -268,6 +271,10 @@ function requireCompleteBrandedObservation(observation: PollObservation): PollOb
     || observation.jobs.length === 0
     || observation.expectedCount !== observation.jobs.length
     || !observation.scopeEvidence
+    || (
+      identity.provider === 'oracle_recruiting'
+      && observation.allowMissingClosure !== false
+    )
   ) {
     throw new Error(observation.warnings[0] ?? 'provider_observation_failed')
   }
@@ -294,6 +301,7 @@ async function verifyBranded(
   const identity = brandedIdentityForDetection(detected)
   const observation = requireCompleteBrandedObservation(
     await pollBrandedIdentity(identity, fetchImpl),
+    identity,
   )
   return {
     ...verification(detected, identity.companyName, observation.jobs.length),

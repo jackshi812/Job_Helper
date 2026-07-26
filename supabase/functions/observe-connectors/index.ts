@@ -85,6 +85,10 @@ function isPositiveCompleteEvidence(
   const aggregate = observation.scopeEvidence
   return observation.completeness === 'complete'
     && observation.credibleForClosure
+    && (
+      company.ats_type !== 'oracle_recruiting'
+      || observation.allowMissingClosure === false
+    )
     && observation.warnings.length === 0
     && observation.jobs.length > 0
     && observation.expectedCount === observation.jobs.length

@@ -108,6 +108,9 @@ describe('bounded Active company polling', () => {
     expect(pollTickSource).toMatch(/validateBrandedPersistenceEvidence/)
     expect(pollTickSource).toMatch(/externalIdDigest/)
     expect(pollTickSource).toMatch(/detailCountryCode\s*!==\s*'US'/)
+    expect(pollTickSource).toMatch(
+      /company\.ats_type\s*===\s*'oracle_recruiting'[\s\S]*allowMissingClosure\s*!==\s*false/,
+    )
   })
 
   it('logs only bounded diagnostic codes across the cron trust boundary', () => {

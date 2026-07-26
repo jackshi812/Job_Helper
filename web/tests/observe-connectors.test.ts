@@ -281,6 +281,68 @@ describe('observe-connectors cron-only Experimental lane', () => {
     )
   })
 
+  it('accepts exact JPMorgan proof only with rolling-window closure disabled', async () => {
+    const company = companies[1]
+    const rpc = vi.fn(async (name: string) => ({
+      data: name === 'claim_due_experimental_connectors'
+        ? [company]
+        : [{ accepted: true }],
+      error: null,
+    }))
+    const oracleObservation = (allowMissingClosure: boolean): PollObservation => ({
+      jobs: [{
+        source: 'oracle_recruiting',
+        externalId: '210000001',
+        title: 'Finance Analyst',
+        location: 'New York, NY, United States',
+        absoluteUrl: 'https://jpmc.fa.oraclecloud.com/job/210000001',
+        postedAt: '2026-07-26T00:00:00.000Z',
+        descriptionHtml: '<p>Finance role.</p>',
+        descriptionText: 'Finance role.',
+        snapshotPartial: false,
+        companyName: 'JPMorgan Chase',
+        scopeEvidence: {
+          sourceKey: 'oracle:jpmc:CX_1001',
+          providerCategoryLabel: 'finance',
+          matchedTerm: 'Finance',
+          detailCountryCode: 'US',
+          externalIdDigest: 'a'.repeat(64),
+        },
+      }],
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure,
+      pageCount: 6,
+      expectedCount: 1,
+      warnings: [],
+      scopeEvidence: {
+        sourceKey: 'oracle:jpmc:CX_1001',
+        sliceDigests: Array.from({ length: 6 }, () => 'b'.repeat(64)),
+        categoryDigest: 'c'.repeat(64),
+        countryDigest: 'd'.repeat(64),
+      },
+    })
+    const degraded = vi.fn().mockResolvedValue({ error: null })
+    let closureAllowed = false
+    const handler = createObserveConnectorsHandler({
+      getCronSecret: () => 'cron-secret',
+      createServiceClient: () => ({
+        rpc,
+        from: () => ({ update: () => ({ eq: degraded }) }),
+      }),
+      observeCompany: async () => oracleObservation(closureAllowed),
+      digestEvidence: async () => 'e'.repeat(64),
+      randomUUID: () => '77777777-7777-4777-8777-777777777777',
+    })
+
+    const accepted = await handler(request())
+    await expect(accepted.json()).resolves.toMatchObject({ recorded: 1, degraded: 0 })
+
+    closureAllowed = true
+    const rejected = await handler(request())
+    await expect(rejected.json()).resolves.toMatchObject({ recorded: 0, degraded: 1 })
+  })
+
   it('ignores request-body network, identity, time, digest, and activation fields', async () => {
     const h = harness()
     const response = await h.handler(request('POST', 'cron-secret', {

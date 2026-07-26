@@ -98,6 +98,12 @@ async function validateBrandedPersistenceEvidence(
   if (observation.scopeEvidence?.sourceKey !== company.source_key) {
     throw new Error('invalid_branded_scope_evidence')
   }
+  if (
+    company.ats_type === 'oracle_recruiting'
+    && observation.allowMissingClosure !== false
+  ) {
+    throw new Error('invalid_branded_scope_evidence')
+  }
 
   for (const job of observation.jobs) {
     if (
