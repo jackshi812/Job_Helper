@@ -75,6 +75,18 @@ test('manifest validation rejects missing/extra keys, secrets, aliases, drift, a
   const nonFrozen = clone(await manifestFixture())
   nonFrozen.candidates[0].company = 'Example Bank'
   cases.push(nonFrozen)
+  const missingMigration = clone(await manifestFixture())
+  missingMigration.migration.pending.pop()
+  cases.push(missingMigration)
+  const reorderedMigrations = clone(await manifestFixture())
+  reorderedMigrations.migration.pending.reverse()
+  cases.push(reorderedMigrations)
+  const staleFunction = clone(await manifestFixture())
+  staleFunction.functions['poll-tick'].bundle_manifest_sha256 = '0'.repeat(64)
+  cases.push(staleFunction)
+  const protectedDrift = clone(await manifestFixture())
+  protectedDrift.protected_sources[0].source_key = 'workday:drift'
+  cases.push(protectedDrift)
 
   for (const candidate of cases) {
     assert.throws(() => validateManifest(candidate))
@@ -156,9 +168,10 @@ test('hosted evidence cannot pass from arbitrary nonempty or prefilled sections'
       { status: 'PENDING' },
     ])),
     family_rollout: {
-      eightfold: { status: 'PENDING' },
-      oracle_recruiting: { status: 'PENDING' },
-      goldman_higher: { status: 'PENDING' },
+      morgan_stanley: { status: 'PENDING' },
+      bank_of_america: { status: 'PENDING' },
+      blackrock: { status: 'PENDING' },
+      barclays: { status: 'PENDING' },
     },
     verifier_authority: { status: 'ARMED' },
     cleanup: { status: 'PENDING' },
@@ -222,9 +235,10 @@ test('rollout PASS requires cleanup success, consumed authority, zero residue, a
     status: 'PASS',
     manifest_sha256: sha256(Buffer.from(JSON.stringify(manifest))),
     families: {
-      eightfold: { status: 'PASS' },
-      oracle_recruiting: { status: 'PASS' },
-      goldman_higher: { status: 'PASS' },
+      morgan_stanley: { status: 'PASS' },
+      bank_of_america: { status: 'PASS' },
+      blackrock: { status: 'PASS' },
+      barclays: { status: 'PASS' },
     },
     fault_recovery: { status: 'PASS' },
     cleanup: { status: 'PASS', terminal },
@@ -243,7 +257,7 @@ test('canonical serialization is stable for manifest approval binding', () => {
   )
 })
 
-test('failed-push state requires 0039 parity and no partial 0040 schema residue', async () => {
+test('failed-push state requires 0041 parity and no partial mutation residue', async () => {
   const manifest = await manifestFixture()
   const clean = {
     remote_migrations: manifest.targets.supabase.remote_migrations,

@@ -1,0 +1,718 @@
+{
+  "schema_version": 1,
+  "phase": "03.8",
+  "created_at": "2026-07-26T20:33:13Z",
+  "release_manifest_id": "03850000-0000-4000-8000-000000000006",
+  "accepted_production_source": "ca708524581def9873b6b334187841b9f577f972",
+  "candidate": {
+    "git_sha": "2a498c98c0914a36b3747438d12e84a8b47e8fea",
+    "commit_object_sha256": "aaf9741348c4c9ce41c80e33af4760d606e0430ba0e012fa478e144fe0a24feb",
+    "parent_sha": "00e59179feffed3d4a7bbc14849cca54368f424c",
+    "worktree_path": "/Users/jackshi/Desktop/Job_Copilot",
+    "changed_files": [
+      "scripts/run-phase-03-8-rollout.mjs",
+      "scripts/run-phase-03-8-rollout.test.mjs",
+      "scripts/verify-phase-03-8-hosted.mjs",
+      "scripts/verify-phase-03-8-hosted.test.mjs",
+      "supabase/functions/_shared/adapters/workday.ts",
+      "supabase/functions/_shared/connectors.ts",
+      "supabase/functions/_shared/workday-identities.ts",
+      "supabase/migrations/0043_phase_03_8_workday_candidates.sql",
+      "web/src/lib/watchlist.test.ts",
+      "web/tests/phase-03-8-workday-extension.test.ts",
+      "web/tests/workday-connector.integration.test.ts"
+    ]
+  },
+  "migration": {
+    "hosted_baseline": [
+      "0001",
+      "0002",
+      "0003",
+      "0004",
+      "0005",
+      "0006",
+      "0007",
+      "0008",
+      "0009",
+      "0010",
+      "0011",
+      "0012",
+      "0013",
+      "0014",
+      "0015",
+      "0016",
+      "0017",
+      "0018",
+      "0019",
+      "0020",
+      "0021",
+      "0022",
+      "0023",
+      "0024",
+      "0025",
+      "0026",
+      "0027",
+      "0028",
+      "0029",
+      "0030",
+      "0031",
+      "0032",
+      "0033",
+      "0034",
+      "0035",
+      "0036",
+      "0037",
+      "0038",
+      "0039",
+      "0040",
+      "0041"
+    ],
+    "pending": [
+      {
+        "version": "0042",
+        "path": "supabase/migrations/0042_phase_03_8_verifier_finish_fk_order.sql",
+        "sha256": "132b8a1cc4360edd49f50b79a2dfee6ca3e3bf3d3d8c3974cb74fe06f8195eb5"
+      },
+      {
+        "version": "0043",
+        "path": "supabase/migrations/0043_phase_03_8_workday_candidates.sql",
+        "sha256": "bdcf0ec8d22bea99fef367f48fdc0d1ec56a5c74181b954c75807391091cb246"
+      }
+    ]
+  },
+  "functions": {
+    "verify-board": {
+      "entry_path": "supabase/functions/verify-board/index.ts",
+      "entry_sha256": "558685a237b2efad872de874b95efe7441fe392a0ea5341307391091156b79e8",
+      "bundle_manifest_sha256": "db7dd36815ac9d27add7fd38741a96bc44862f08d04a13030eed6456d143528c",
+      "bundle_files": [
+        {
+          "path": "supabase/functions/_shared/adapters/ashby.ts",
+          "sha256": "d4e77ed191510398fab132106fd31c2a930afdebe74ec96f0840bc640a862eae"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/eightfold.ts",
+          "sha256": "2b95aca198cb3398556b1ec8e0467a6cf53a5bab002b6a7f0c4136d3995038b6"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/goldman-higher.ts",
+          "sha256": "da213c307788c3e38692113d5e73999e9e3bfbb19dda3e7f7e113bc7fd472eb9"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/greenhouse.ts",
+          "sha256": "6d456b757ef39b18435609c1f1833e39f41fb1469321642917247c1d7f337edf"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/lever.ts",
+          "sha256": "79caaca1783f47a83aa8c64491684ab5d1119298bcce3b0a9630db4784511b81"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+          "sha256": "a7ea83d1ca538131e8145a117699c9e8611c6df0dec04fe67252b5a0014a357f"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/paylocity.ts",
+          "sha256": "bb348415a9d059778576d2064f715690b21284b0740257ebf24f8c999446269c"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/recruitee.ts",
+          "sha256": "934e23c9371d1a57fd273fddcd3ae3cf3c3876e5914cd215996104e45d39287c"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/scope.ts",
+          "sha256": "bd669279d805ac949ce73e0a6b8e5d0e32634a040456643d91ffa775c31a632a"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/smartrecruiters.ts",
+          "sha256": "83ea42f88e53e327a9dd0f9ba58774e474f517f7fd703f5c6cb2ae35b2a1c496"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/types.ts",
+          "sha256": "ccfee822bd93cf9d44affc007d7ff97f691084bca1e072afc0100762ac80a07e"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/workday.ts",
+          "sha256": "cbd33a7e610a0a23c583f529649db023bc9c1e6eb6f8015b5ce56026879bf9b7"
+        },
+        {
+          "path": "supabase/functions/_shared/bounded-pool.ts",
+          "sha256": "23683aee938991eba26c6eec4f7cbe30fc7bbe8c65916c87ab72e673e5f5457e"
+        },
+        {
+          "path": "supabase/functions/_shared/branded-identities.ts",
+          "sha256": "653805ba298957fe8c3e89051240fa854b997bb70b1af074608c2fffefa5e71c"
+        },
+        {
+          "path": "supabase/functions/_shared/connectors.ts",
+          "sha256": "eaf189268256ab601579a2ef9758a39170ddf27e9fbcd77cf070b02bca416386"
+        },
+        {
+          "path": "supabase/functions/_shared/detect.ts",
+          "sha256": "46f7d8aa00ad589e5887b47c07b1ac2471f4fe4ecdf7cd504686e5745301a15d"
+        },
+        {
+          "path": "supabase/functions/_shared/deterministic-ranking.ts",
+          "sha256": "b7a64106ffc3228677643a1eb581eef94bc3ab59a82fed57ff7a8d8615aaee7d"
+        },
+        {
+          "path": "supabase/functions/_shared/filters.ts",
+          "sha256": "0ec9d113983d6ea661106d55e2d42991af97f8ac351870d7240bcd7393fae708"
+        },
+        {
+          "path": "supabase/functions/_shared/provider-identities.ts",
+          "sha256": "6f060429cec31ac258baecee1b71bbacba8309bbaf41359847de5e1511dbcd14"
+        },
+        {
+          "path": "supabase/functions/_shared/workday-identities.ts",
+          "sha256": "cf371ef8f6aa9ec5738174d5088dc0637dc92c5f2b7eff6c02a9d9412f868501"
+        },
+        {
+          "path": "supabase/functions/verify-board/index.ts",
+          "sha256": "558685a237b2efad872de874b95efe7441fe392a0ea5341307391091156b79e8"
+        }
+      ],
+      "verify_jwt": true,
+      "current_hosted": {
+        "id": "b1f7f9ea-4423-49c9-97bc-946b374b5a1d",
+        "version": 27,
+        "status": "ACTIVE",
+        "verify_jwt": true
+      }
+    },
+    "observe-connectors": {
+      "entry_path": "supabase/functions/observe-connectors/index.ts",
+      "entry_sha256": "17a64f51015f977948a5a2506ca1ba22ccbead5279c4366b56c49eadc9bb098d",
+      "bundle_manifest_sha256": "f5b3d9848ca9260c65443d5913cb9228563309d86c7cdb2f57ba1ba928e6292c",
+      "bundle_files": [
+        {
+          "path": "supabase/functions/_shared/adapters/ashby.ts",
+          "sha256": "d4e77ed191510398fab132106fd31c2a930afdebe74ec96f0840bc640a862eae"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/eightfold.ts",
+          "sha256": "2b95aca198cb3398556b1ec8e0467a6cf53a5bab002b6a7f0c4136d3995038b6"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/goldman-higher.ts",
+          "sha256": "da213c307788c3e38692113d5e73999e9e3bfbb19dda3e7f7e113bc7fd472eb9"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/greenhouse.ts",
+          "sha256": "6d456b757ef39b18435609c1f1833e39f41fb1469321642917247c1d7f337edf"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/lever.ts",
+          "sha256": "79caaca1783f47a83aa8c64491684ab5d1119298bcce3b0a9630db4784511b81"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+          "sha256": "a7ea83d1ca538131e8145a117699c9e8611c6df0dec04fe67252b5a0014a357f"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/paylocity.ts",
+          "sha256": "bb348415a9d059778576d2064f715690b21284b0740257ebf24f8c999446269c"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/recruitee.ts",
+          "sha256": "934e23c9371d1a57fd273fddcd3ae3cf3c3876e5914cd215996104e45d39287c"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/scope.ts",
+          "sha256": "bd669279d805ac949ce73e0a6b8e5d0e32634a040456643d91ffa775c31a632a"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/smartrecruiters.ts",
+          "sha256": "83ea42f88e53e327a9dd0f9ba58774e474f517f7fd703f5c6cb2ae35b2a1c496"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/types.ts",
+          "sha256": "ccfee822bd93cf9d44affc007d7ff97f691084bca1e072afc0100762ac80a07e"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/workday.ts",
+          "sha256": "cbd33a7e610a0a23c583f529649db023bc9c1e6eb6f8015b5ce56026879bf9b7"
+        },
+        {
+          "path": "supabase/functions/_shared/bounded-pool.ts",
+          "sha256": "23683aee938991eba26c6eec4f7cbe30fc7bbe8c65916c87ab72e673e5f5457e"
+        },
+        {
+          "path": "supabase/functions/_shared/branded-identities.ts",
+          "sha256": "653805ba298957fe8c3e89051240fa854b997bb70b1af074608c2fffefa5e71c"
+        },
+        {
+          "path": "supabase/functions/_shared/connectors.ts",
+          "sha256": "eaf189268256ab601579a2ef9758a39170ddf27e9fbcd77cf070b02bca416386"
+        },
+        {
+          "path": "supabase/functions/_shared/detect.ts",
+          "sha256": "46f7d8aa00ad589e5887b47c07b1ac2471f4fe4ecdf7cd504686e5745301a15d"
+        },
+        {
+          "path": "supabase/functions/_shared/deterministic-ranking.ts",
+          "sha256": "b7a64106ffc3228677643a1eb581eef94bc3ab59a82fed57ff7a8d8615aaee7d"
+        },
+        {
+          "path": "supabase/functions/_shared/filters.ts",
+          "sha256": "0ec9d113983d6ea661106d55e2d42991af97f8ac351870d7240bcd7393fae708"
+        },
+        {
+          "path": "supabase/functions/_shared/provider-identities.ts",
+          "sha256": "6f060429cec31ac258baecee1b71bbacba8309bbaf41359847de5e1511dbcd14"
+        },
+        {
+          "path": "supabase/functions/_shared/workday-identities.ts",
+          "sha256": "cf371ef8f6aa9ec5738174d5088dc0637dc92c5f2b7eff6c02a9d9412f868501"
+        },
+        {
+          "path": "supabase/functions/observe-connectors/index.ts",
+          "sha256": "17a64f51015f977948a5a2506ca1ba22ccbead5279c4366b56c49eadc9bb098d"
+        }
+      ],
+      "verify_jwt": false,
+      "current_hosted": null
+    },
+    "poll-tick": {
+      "entry_path": "supabase/functions/poll-tick/index.ts",
+      "entry_sha256": "71f41745ea12ac950fdf04cd83f630adced3fbe78fd31491e802e7465e780ecc",
+      "bundle_manifest_sha256": "2855aaaba1beab1934eaecfcb7476d22b778ac2b0c2a9486b842b4c272655e77",
+      "bundle_files": [
+        {
+          "path": "supabase/functions/_shared/adapters/ashby.ts",
+          "sha256": "d4e77ed191510398fab132106fd31c2a930afdebe74ec96f0840bc640a862eae"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/eightfold.ts",
+          "sha256": "2b95aca198cb3398556b1ec8e0467a6cf53a5bab002b6a7f0c4136d3995038b6"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/goldman-higher.ts",
+          "sha256": "da213c307788c3e38692113d5e73999e9e3bfbb19dda3e7f7e113bc7fd472eb9"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/greenhouse.ts",
+          "sha256": "6d456b757ef39b18435609c1f1833e39f41fb1469321642917247c1d7f337edf"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/lever.ts",
+          "sha256": "79caaca1783f47a83aa8c64491684ab5d1119298bcce3b0a9630db4784511b81"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+          "sha256": "a7ea83d1ca538131e8145a117699c9e8611c6df0dec04fe67252b5a0014a357f"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/paylocity.ts",
+          "sha256": "bb348415a9d059778576d2064f715690b21284b0740257ebf24f8c999446269c"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/recruitee.ts",
+          "sha256": "934e23c9371d1a57fd273fddcd3ae3cf3c3876e5914cd215996104e45d39287c"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/scope.ts",
+          "sha256": "bd669279d805ac949ce73e0a6b8e5d0e32634a040456643d91ffa775c31a632a"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/smartrecruiters.ts",
+          "sha256": "83ea42f88e53e327a9dd0f9ba58774e474f517f7fd703f5c6cb2ae35b2a1c496"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/types.ts",
+          "sha256": "ccfee822bd93cf9d44affc007d7ff97f691084bca1e072afc0100762ac80a07e"
+        },
+        {
+          "path": "supabase/functions/_shared/adapters/workday.ts",
+          "sha256": "cbd33a7e610a0a23c583f529649db023bc9c1e6eb6f8015b5ce56026879bf9b7"
+        },
+        {
+          "path": "supabase/functions/_shared/bounded-pool.ts",
+          "sha256": "23683aee938991eba26c6eec4f7cbe30fc7bbe8c65916c87ab72e673e5f5457e"
+        },
+        {
+          "path": "supabase/functions/_shared/branded-identities.ts",
+          "sha256": "653805ba298957fe8c3e89051240fa854b997bb70b1af074608c2fffefa5e71c"
+        },
+        {
+          "path": "supabase/functions/_shared/connectors.ts",
+          "sha256": "eaf189268256ab601579a2ef9758a39170ddf27e9fbcd77cf070b02bca416386"
+        },
+        {
+          "path": "supabase/functions/_shared/dedup.ts",
+          "sha256": "dbdbf8e0e3eeec990b0bc8de9acd5d606b562d9b64aebc899cc915d97c75c82b"
+        },
+        {
+          "path": "supabase/functions/_shared/detect.ts",
+          "sha256": "46f7d8aa00ad589e5887b47c07b1ac2471f4fe4ecdf7cd504686e5745301a15d"
+        },
+        {
+          "path": "supabase/functions/_shared/deterministic-ranking.ts",
+          "sha256": "b7a64106ffc3228677643a1eb581eef94bc3ab59a82fed57ff7a8d8615aaee7d"
+        },
+        {
+          "path": "supabase/functions/_shared/filters.ts",
+          "sha256": "0ec9d113983d6ea661106d55e2d42991af97f8ac351870d7240bcd7393fae708"
+        },
+        {
+          "path": "supabase/functions/_shared/lifecycle.ts",
+          "sha256": "b6db7c8a1d05d99b7385f3d4538da064c75f131f89b0e820fe419c8d7562a446"
+        },
+        {
+          "path": "supabase/functions/_shared/provider-identities.ts",
+          "sha256": "6f060429cec31ac258baecee1b71bbacba8309bbaf41359847de5e1511dbcd14"
+        },
+        {
+          "path": "supabase/functions/_shared/workday-identities.ts",
+          "sha256": "cf371ef8f6aa9ec5738174d5088dc0637dc92c5f2b7eff6c02a9d9412f868501"
+        },
+        {
+          "path": "supabase/functions/poll-tick/index.ts",
+          "sha256": "71f41745ea12ac950fdf04cd83f630adced3fbe78fd31491e802e7465e780ecc"
+        }
+      ],
+      "verify_jwt": false,
+      "current_hosted": {
+        "id": "623f09fa-9ff8-4736-a1ae-69b052cf20a9",
+        "version": 30,
+        "status": "ACTIVE",
+        "verify_jwt": false
+      }
+    }
+  },
+  "web": {
+    "deployment_id": "b8b33556-1b6c-4a42-bada-e54e4a2f6855",
+    "immutable_url": "https://b8b33556.job-helper-qs9.pages.dev",
+    "git_sha": "baf81fcaa72443995f227b118d10eec90da25679",
+    "asset_path": "/assets/index-DSR6ZHoJ.js",
+    "asset_sha256": "8e28857fb560b5997865201c75226069e71a973a5fe66451726d52a7d7a41f1f",
+    "asset_bytes": 622411
+  },
+  "targets": {
+    "supabase": {
+      "project_ref": "fjcsvajkkztvlrpdplwx",
+      "project_name": "job-copilot",
+      "remote_migrations": [
+        "0001",
+        "0002",
+        "0003",
+        "0004",
+        "0005",
+        "0006",
+        "0007",
+        "0008",
+        "0009",
+        "0010",
+        "0011",
+        "0012",
+        "0013",
+        "0014",
+        "0015",
+        "0016",
+        "0017",
+        "0018",
+        "0019",
+        "0020",
+        "0021",
+        "0022",
+        "0023",
+        "0024",
+        "0025",
+        "0026",
+        "0027",
+        "0028",
+        "0029",
+        "0030",
+        "0031",
+        "0032",
+        "0033",
+        "0034",
+        "0035",
+        "0036",
+        "0037",
+        "0038",
+        "0039",
+        "0040",
+        "0041"
+      ]
+    },
+    "cloudflare": {
+      "account_id": "c3989e46150d3e2dda972af220a69867",
+      "project": "job-helper",
+      "production_branch": "main",
+      "production_domain": "job-helper-qs9.pages.dev"
+    }
+  },
+  "candidates": [
+    {
+      "company": "Morgan Stanley",
+      "family": "workday",
+      "source_key": "workday:wd5:ms:External",
+      "public_url": "https://ms.wd5.myworkdayjobs.com/en-US/External",
+      "initial_disposition": "unsupported_with_reason",
+      "initial_reason": "pending_current_live_contract_proof"
+    },
+    {
+      "company": "Bank of America",
+      "family": "workday",
+      "source_key": "workday:wd1:ghr:Lateral-US",
+      "public_url": "https://ghr.wd1.myworkdayjobs.com/en-US/Lateral-US",
+      "initial_disposition": "unsupported_with_reason",
+      "initial_reason": "pending_current_live_contract_proof"
+    },
+    {
+      "company": "BlackRock",
+      "family": "workday",
+      "source_key": "workday:wd1:blackrock:BlackRock_Professional",
+      "public_url": "https://blackrock.wd1.myworkdayjobs.com/en-US/BlackRock_Professional",
+      "initial_disposition": "unsupported_with_reason",
+      "initial_reason": "pending_current_live_contract_proof"
+    },
+    {
+      "company": "Barclays",
+      "family": "workday",
+      "source_key": "workday:wd3:barclays:External_Career_Site_Barclays",
+      "public_url": "https://barclays.wd3.myworkdayjobs.com/en-US/External_Career_Site_Barclays",
+      "initial_disposition": "unsupported_with_reason",
+      "initial_reason": "pending_current_live_contract_proof"
+    }
+  ],
+  "catalog": {
+    "initial": [
+      {
+        "company": "Morgan Stanley",
+        "disposition": "unsupported_with_reason",
+        "reason": "pending_current_live_contract_proof",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "Goldman Sachs",
+        "disposition": "unsupported_with_reason",
+        "reason": "public_api_endpoint_not_found",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "JPMorgan Chase",
+        "disposition": "unsupported_with_reason",
+        "reason": "structured_api_contract_not_proven",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "Bank of America",
+        "disposition": "unsupported_with_reason",
+        "reason": "pending_current_live_contract_proof",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "BlackRock",
+        "disposition": "unsupported_with_reason",
+        "reason": "country_filter_unverified",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "UBS",
+        "disposition": "unsupported_with_reason",
+        "reason": "structured_endpoint_requires_html_bootstrap_session",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "Barclays",
+        "disposition": "unsupported_with_reason",
+        "reason": "country_filter_unverified",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "Charles Schwab",
+        "disposition": "unsupported_with_reason",
+        "reason": "radancy_html_only_no_structured_endpoint",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      }
+    ],
+    "terminal": [
+      {
+        "company": "Morgan Stanley",
+        "disposition": "unsupported_with_reason",
+        "reason": "pending_current_live_contract_proof",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "Goldman Sachs",
+        "disposition": "unsupported_with_reason",
+        "reason": "public_api_endpoint_not_found",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "JPMorgan Chase",
+        "disposition": "unsupported_with_reason",
+        "reason": "structured_api_contract_not_proven",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "Bank of America",
+        "disposition": "unsupported_with_reason",
+        "reason": "pending_current_live_contract_proof",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "BlackRock",
+        "disposition": "unsupported_with_reason",
+        "reason": "country_filter_unverified",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "UBS",
+        "disposition": "unsupported_with_reason",
+        "reason": "structured_endpoint_requires_html_bootstrap_session",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "Barclays",
+        "disposition": "unsupported_with_reason",
+        "reason": "country_filter_unverified",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      },
+      {
+        "company": "Charles Schwab",
+        "disposition": "unsupported_with_reason",
+        "reason": "radancy_html_only_no_structured_endpoint",
+        "source_key": null,
+        "scheduled": false,
+        "monitored": false
+      }
+    ]
+  },
+  "protected_sources": [
+    {
+      "source_key": "workday:wd12:capitalone:Capital_One",
+      "company": "Capital One",
+      "fingerprint_sha256": "cc04334cc4436ddda4c9436a0b8c7dc167a27f6f117e8e352ebab3d77145db04"
+    },
+    {
+      "source_key": "workday:wd1:fmr:FidelityCareers",
+      "company": "Fidelity",
+      "fingerprint_sha256": "2a7ab4ff273283da8d3dec3ada84e6281a271c740d1ccbb206d4f2dc90998b29"
+    }
+  ],
+  "verifier": {
+    "script_sha256": "753c3ca07c528dbefefaae82954c75957b5f750545ea29164743248885d8f0af",
+    "run_id": "03850000-0000-4000-8000-000000000501",
+    "faults": [
+      "incomplete_observation",
+      "provider_schema_error",
+      "provider_timeout",
+      "clean_recovery"
+    ],
+    "fixtures": [
+      {
+        "key": "eightfold_fixture",
+        "company_id": "03850000-0000-4000-8000-000000000511",
+        "job_id": "03850000-0000-4000-8000-000000000512",
+        "observation_id": "03850000-0000-4000-8000-000000000513",
+        "initial_version": 0
+      },
+      {
+        "key": "oracle_fixture",
+        "company_id": "03850000-0000-4000-8000-000000000521",
+        "job_id": "03850000-0000-4000-8000-000000000522",
+        "observation_id": "03850000-0000-4000-8000-000000000523",
+        "initial_version": 0
+      },
+      {
+        "key": "goldman_fixture",
+        "company_id": "03850000-0000-4000-8000-000000000531",
+        "job_id": "03850000-0000-4000-8000-000000000532",
+        "observation_id": "03850000-0000-4000-8000-000000000533",
+        "initial_version": 0
+      }
+    ],
+    "limits": {
+      "expires_minutes": 20,
+      "exercise_calls": 12,
+      "companies": 3,
+      "jobs": 3,
+      "observations": 12,
+      "provider_requests": 300,
+      "rows": 5000,
+      "deadline_ms": 1200000,
+      "active_latency_ms": 900000
+    }
+  },
+  "cadence": {
+    "active_minutes": 10,
+    "cron_minutes": 1,
+    "initial_stagger_minutes": 4,
+    "stop_scheduling_ms": 120000
+  },
+  "approved_actions": [
+    "supabase_db_push_linked_0042_0043",
+    "deploy_verify_board",
+    "deploy_observe_connectors",
+    "deploy_poll_tick",
+    "assert_hosted_parity",
+    "rollout_exact_morgan_stanley_workday",
+    "rollout_exact_bank_of_america_workday",
+    "terminalize_blackrock_country_filter_unverified",
+    "terminalize_barclays_country_filter_unverified",
+    "exercise_fixed_disposable_faults",
+    "finish_and_revoke_verifier"
+  ],
+  "baselines": {
+    "captured_at": "2026-07-26T20:33:13Z",
+    "authenticated": true,
+    "dry_run": {
+      "status": "PENDING_EXPLICIT_EGRESS_APPROVAL",
+      "command": "web/node_modules/.bin/supabase db push --linked --dry-run",
+      "proposed": [
+        "0042",
+        "0043"
+      ],
+      "output_sha256": null
+    },
+    "catalog_sha256": "db322515f61236cd8c1caff6682ec967738d3b2fff4cbc8e414003a46d49114c",
+    "companies_sha256": "ee749635de0e0325551071bf97933bca9b30336d83cd2d82d54aa0fa0bf5e07e",
+    "observations_sha256": "0105dd43ee1a2ef29d8b134381763ca316cf7ad101056525a711d8e2e625c894",
+    "jobs_sha256": "116b20e5cb98874a89ad80e673ace21b2df2f4b5d5c352b2767108e16a14e559",
+    "health_sha256": "9a67770f826d34c1c2ed4206ccf2abed0e24358faf2c378826d5b22cbacaa18f",
+    "scheduler_sha256": "89fe2e43d617413f4f208445ce4d927eaff007219b0da549983c758992d92301",
+    "rls_sha256": "186762249c633b700e4932d885bfc7e911d728169e0a22c5ab5691f9baf6c9e5",
+    "grants_sha256": "e56bed15922465f2316d657214fbb8c7b32ce397a84df464411cff6db3c6b639"
+  },
+  "exclusions": [
+    ".planning",
+    ".DS_Store",
+    "scripts/agent-dashboard.mjs",
+    "scripts/agent-dashboard.test.mjs",
+    "web/zh",
+    "secondary_portals",
+    "provider_credentials"
+  ]
+}

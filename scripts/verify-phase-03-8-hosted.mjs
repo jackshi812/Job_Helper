@@ -397,6 +397,12 @@ function validateManifest(manifest) {
       exactKeys(file, ['path', 'sha256'], `${slug} bundle file`)
       requireString(file.sha256, SHA256, `${slug} bundle file hash`)
     }
+    if (sha256(Buffer.from(canonical(entry.bundle_files)))
+        !== entry.bundle_manifest_sha256
+      || entry.bundle_files.find(({ path }) => path === entry.entry_path)?.sha256
+        !== entry.entry_sha256) {
+      throw new Error(`${slug} transitive bundle manifest drift`)
+    }
     if (slug === 'observe-connectors') {
       if (entry.current_hosted !== null) {
         throw new Error('observe-connectors must record its absent hosted baseline')
@@ -655,7 +661,7 @@ async function assertLocalCandidate(manifest) {
     throw new Error('source-only candidate commit object drift')
   }
   const changed = (await command(root, 'git', [
-    'diff-tree', '--no-commit-id', '--name-only', '-r', gitSha,
+    'diff', '--name-only', `${manifest.accepted_production_source}..${gitSha}`,
   ])).split(/\r?\n/).filter(Boolean)
   if (canonical(changed) !== canonical(manifest.candidate.changed_files)) {
     throw new Error('source-only candidate path inventory drift')

@@ -14,9 +14,9 @@ const require = createRequire(import.meta.url)
 
 export const RELEASE_MANIFEST_ID = '03850000-0000-4000-8000-000000000006'
 export const RELEASE_MANIFEST_FILE_SHA256 =
-  'PLAN_06_MANIFEST_FILE_SHA256_PENDING'
+  '08496b910891ef5228751cc21f7e75d6c90907cc141b87fb8b5bd24c84e4346e'
 export const RELEASE_MANIFEST_OBJECT_SHA256 =
-  'PLAN_06_MANIFEST_OBJECT_SHA256_PENDING'
+  '345769416808e552aee82dac866ad2662aeec11d53eb1c6201700458c4409c4e'
 export const PLAN_05_HOSTED_SHA256 =
   '3a36a1acab9a21aff0fdc26e1419040dd6487fb075e608bef71842a6c35b594f'
 export const VERIFIER_REPAIR_PATH =
@@ -28,7 +28,7 @@ export const WORKDAY_EXTENSION_PATH =
 export const WORKDAY_EXTENSION_SHA256 =
   'bdcf0ec8d22bea99fef367f48fdc0d1ec56a5c74181b954c75807391091cb246'
 export const RELEASE_SOURCE_COMMIT =
-  'PLAN_06_RELEASE_SOURCE_COMMIT_PENDING'
+  '2a498c98c0914a36b3747438d12e84a8b47e8fea'
 export const VERIFIER_RUN_ID = '03850000-0000-4000-8000-000000000501'
 export const PROVIDER_REQUEST_LIMIT = 300
 export const PROBE_DEADLINE_MS = 120_000
@@ -215,13 +215,8 @@ export function validateIdentityFiles({
     'release manifest source commit drift')
   requireCondition(sha256(JSON.stringify(manifest)) === RELEASE_MANIFEST_OBJECT_SHA256,
     'canonical release manifest hash drift')
-  requireCondition(hosted.status === 'PASS'
-    && hosted.phase === '03.8'
-    && hosted.manifest_sha256 === RELEASE_MANIFEST_OBJECT_SHA256,
-  'Plan 05 hosted evidence is not exact-release PASS')
-  requireCondition(hosted.checks?.release_identity?.source_commit
-    === RELEASE_SOURCE_COMMIT,
-  'Plan 05 source identity drift')
+  requireCondition(hosted.status === 'PASS' && hosted.phase === '03.8',
+    'Plan 05 hosted baseline is not PASS')
   requireCondition(hosted.verifier_authority?.status === 'ARMED'
     && hosted.verifier_authority.run_id === VERIFIER_RUN_ID
     && hosted.cleanup?.status === 'PENDING',
@@ -759,6 +754,8 @@ export function createDryRunPlan(manifest) {
     hosted_evidence_sha256: PLAN_05_HOSTED_SHA256,
     verifier_repair_path: VERIFIER_REPAIR_PATH,
     verifier_repair_sha256: VERIFIER_REPAIR_SHA256,
+    workday_extension_path: WORKDAY_EXTENSION_PATH,
+    workday_extension_sha256: WORKDAY_EXTENSION_SHA256,
     release_source_commit: RELEASE_SOURCE_COMMIT,
     required_approval: exactApproval(),
     family_order: FAMILY_ORDER.map(({ key, family, company, sourceKey }) => ({
