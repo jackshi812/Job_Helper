@@ -201,6 +201,31 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 03.9: JPMorgan Chase Selective Oracle Monitoring (INSERTED)
+
+**Goal:** Monitor JPMorgan Chase through its exact Oracle `CX_1001` contract, ingesting only United States jobs posted within seven days in the approved Finance, Data & Analytics, Risk, Product/Investment Management, Strategy & Development, and Program Analysts & Associate families, while preserving safe rolling-window lifecycle behavior.
+**Requirements**: DISC-01, DISC-07, DISC-08, DISC-09
+**Depends on:** Phase 03.8
+**Success Criteria** (what must be TRUE):
+
+1. The exact JPMorgan Oracle identity accepts only site `CX_1001`, the exact United States facet, posting-date facet `7`, and the six approved provider-owned title-family facets; caller-controlled or drifted coordinates fail before or during provider access.
+2. Every persisted JPMorgan job has stable-ID, exact U.S., recent posting-date, exact provider-family, full-detail, and bounded digest evidence and then follows the normal user preference pipeline.
+3. Complete selective observations reconcile every requested slice and detail but always set `allowMissingClosure=false`; missing, stale, capped, timed-out, or drifted observations retain last-known jobs and close none.
+4. JPMorgan activates independently only after positive exact live proof, three clean server-timed observations, and one healthy natural scheduled poll; at least one eligible job is persisted on the exact approved release.
+5. A forward-only migration and hash-bound rollout reauthorize only `oracle:jpmc:CX_1001`, preserve every sibling provider and active Workday source, require explicit production approval, and leave zero verifier residue.
+
+**Plans:** 2 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 03.9-01-PLAN.md — Build and freeze the exact selective JPMorgan Oracle release
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03.9-02-PLAN.md — Approve, deploy, activate, verify, and complete owner-browser UAT
+
 ### Phase 03.8: Monitor and poll the branded banking companies currently on watchlist (INSERTED)
 
 **Goal:** Truthfully determine current monitoring support for Morgan Stanley, Goldman Sachs, JPMorgan Chase, Bank of America, BlackRock, UBS, Barclays, and Charles Schwab, activating only exact Workday identities that prove complete U.S. polling while preserving safe degraded-source behavior and removing Citi/Wells Fargo from the Phase 03.8 Watchlist scope.

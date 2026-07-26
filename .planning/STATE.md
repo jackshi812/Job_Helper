@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 03.9
-status: complete
-stopped_at: Phase 03.9 context gathered
-last_updated: "2026-07-26T23:19:56.018Z"
+status: executing
+stopped_at: Phase 03.9 planning complete — ready to execute
+last_updated: "2026-07-26T23:41:59.662Z"
 last_activity: 2026-07-26
-last_activity_desc: Completed selective Workday production recovery
+last_activity_desc: Phase 03.9 planning complete — 2 plans ready
 progress:
   total_phases: 14
   completed_phases: 12
-  total_plans: 73
+  total_plans: 75
   completed_plans: 74
   percent: 86
-current_phase_name: Monitor and poll the branded banking companies currently on watchlist
+current_phase_name: JPMorgan Chase Selective Oracle Monitoring
 ---
 
 # Project State
@@ -24,16 +24,16 @@ current_phase_name: Monitor and poll the branded banking companies currently on 
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 03.8 complete — ready to proceed to Phase 4
+**Current focus:** Phase 03.9 planned — ready to execute JPMorgan Chase selective Oracle monitoring
 
 ## Current Position
 
 Phase: 03.9
-Plan: 0 of 0
-Status: Complete
-Last activity: 2026-07-26 — Completed selective Workday production recovery
+Plan: 0 of 2
+Status: Ready to execute
+Last activity: 2026-07-26 — Phase 03.9 planning complete
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -323,11 +323,12 @@ Recent decisions affecting current work:
 - Phase 03.7 edited: rescoped to a default watchlist-only jobs dashboard while preserving the combined All Jobs view
 - Phase 03.8 inserted after Phase 3: Monitor and poll the branded banking companies currently on watchlist (URGENT)
 - Phase 03.9 inserted after Phase 3: JPMorgan Chase Selective Oracle Monitoring (URGENT)
+- Phase 03.9 edited: locked JPMorgan selective Oracle goal, requirements, dependency, and success criteria
 
 ## Session Continuity
 
-Last session: 2026-07-26T23:19:56.004Z
-Stopped at: Phase 03.9 context gathered
+Last session: 2026-07-26T23:41:59.662Z
+Stopped at: Phase 03.9 planning complete — ready to execute
 Resume file: .planning/phases/03.9-jpmorgan-chase-selective-oracle-monitoring/03.9-CONTEXT.md
 Last session (2026-07-26): Phase 03.8 selective Workday recovery completed; all four requested companies are Active at 3/3 with successful natural polls, 176 exact-scope jobs, migration 0044 parity, protected sources intact, and zero verifier residue.
 Earlier Phase 03.8 closeout (superseded by the recovery above): all four new Workday candidates were precise Unsupported with zero authority; migrations/functions matched that approved release, verifier cleanup was zero-residue, and owner UAT passed.
