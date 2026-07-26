@@ -137,7 +137,7 @@ const goldmanSachsIdentity: GoldmanHigherBrandedIdentity = Object.freeze({
   listOperation: 'GetRoles',
   detailOperation: 'GetRoleById',
   countryValue: 'United States',
-  categoryFields: Object.freeze(['jobFunction', 'division']),
+  categoryFields: Object.freeze(['jobFunction', 'division'] as const),
   transport: transportBounds(100),
 })
 
