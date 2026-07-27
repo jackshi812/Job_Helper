@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   DEFAULT_MANIFEST,
   REPAIR_MANIFEST_ID,
+  CATALOG_REPAIR_MANIFEST_ID,
   dryRunPlan,
   exactApproval,
   executeRelease,
@@ -84,4 +85,28 @@ test('repair approval binds only the amended two-function deployment', async () 
   )
   assert.equal(manifest.hosted_baseline.last_migration, '0045')
   assert.equal(manifest.approved_actions.includes('db_push_0045'), false)
+})
+
+test('catalog repair approval binds only migration 0046 before activation', async () => {
+  const bytes = await readFile(
+    '.planning/phases/03.9-jpmorgan-chase-selective-oracle-monitoring/03.9-03-CATALOG-REPAIR-MANIFEST.json',
+  )
+  const manifest = JSON.parse(bytes)
+  const hashes = await validateManifest(manifest, bytes)
+  assert.equal(manifest.release_manifest_id, CATALOG_REPAIR_MANIFEST_ID)
+  assert.match(
+    exactApproval(manifest, hashes),
+    /^approve Phase 03\.9 JPMorgan catalog repair /,
+  )
+  const calls = []
+  await executeRelease(
+    manifest,
+    exactApproval(manifest, hashes),
+    hashes,
+    async (args) => {
+      calls.push(args)
+      return { stdout: '', stderr: '' }
+    },
+  )
+  assert.deepEqual(calls, [['db', 'push', '--linked', '--yes']])
 })

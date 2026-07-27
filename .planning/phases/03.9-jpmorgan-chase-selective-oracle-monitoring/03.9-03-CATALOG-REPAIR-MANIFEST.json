@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "phase": "03.9",
+  "created_at": "2026-07-27T00:26:00Z",
+  "release_manifest_id": "03900000-0000-4000-8000-000000000003",
+  "supersedes_release_manifest_id": "03900000-0000-4000-8000-000000000002",
+  "reason": "Repair the exact preserved Oracle Recruiting Cloud catalog identity that migration 0045 did not match; no operational JPMorgan authority exists.",
+  "project_ref": "fjcsvajkkztvlrpdplwx",
+  "source_key": "oracle:jpmc:CX_1001",
+  "site_number": "CX_1001",
+  "public_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs",
+  "source_commit": "4b6ef199e4ee4251370387f67915e417f1bef2e7",
+  "source_commit_object_sha256": "0cf93e9f863e831c48e4e9236e766208b2a2063aa8bb194f90e76e510653e921",
+  "hosted_baseline": {
+    "first_migration": "0001",
+    "last_migration": "0045",
+    "migration_count": 45,
+    "catalog_disposition": "unsupported_with_reason",
+    "jpmorgan_company_rows": 0,
+    "jpmorgan_observation_rows": 0
+  },
+  "migration": {
+    "version": "0046",
+    "path": "supabase/migrations/0046_phase_03_9_jpmorgan_catalog_repair.sql",
+    "sha256": "49e5526f533b994326f74868c1a1ba541f1898574297f4cdd11da6b513861d50"
+  },
+  "functions": {
+    "observe-connectors": {
+      "entry_path": "supabase/functions/observe-connectors/index.ts",
+      "entry_sha256": "a8332c6c4522a16a35c009020d5c15178c6ada4909f2cdb67bfad6c8876e3b9f",
+      "bundle_sha256": "2ce687f61657a2d795f784673b7a4612e56abf35ac03b08db82ce65eb8805ea2",
+      "verify_jwt": false,
+      "hosted_version": 6,
+      "bundle_files": [
+        "supabase/functions/observe-connectors/index.ts",
+        "supabase/functions/_shared/connectors.ts",
+        "supabase/functions/_shared/branded-identities.ts",
+        "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+        "supabase/functions/_shared/adapters/scope.ts",
+        "supabase/functions/_shared/adapters/types.ts",
+        "supabase/functions/_shared/bounded-pool.ts"
+      ]
+    },
+    "poll-tick": {
+      "entry_path": "supabase/functions/poll-tick/index.ts",
+      "entry_sha256": "43a80b9670800fd582bda89b5626aff3c8c6fa1880918029fcdd589cce6089b0",
+      "bundle_sha256": "32bbbf2e98cb5b8b1ea64a984dffdf0b51d867a944caf8b89058d01760098d2c",
+      "verify_jwt": false,
+      "hosted_version": 35,
+      "bundle_files": [
+        "supabase/functions/poll-tick/index.ts",
+        "supabase/functions/_shared/connectors.ts",
+        "supabase/functions/_shared/branded-identities.ts",
+        "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+        "supabase/functions/_shared/adapters/scope.ts",
+        "supabase/functions/_shared/adapters/types.ts",
+        "supabase/functions/_shared/bounded-pool.ts",
+        "supabase/functions/_shared/lifecycle.ts"
+      ]
+    }
+  },
+  "scope": {
+    "country": ["300000000289738", "United States"],
+    "posting_date": ["7", "Less than 7 days"],
+    "title_families": [
+      ["FIN", "Finance"],
+      ["D&A", "Data & Analytics"],
+      ["RSK", "Risk"],
+      ["PIM", "Product/Investment Mgmt"],
+      ["S&D", "Strategy & Development"],
+      ["PAA", "Program Analysts & Associate"]
+    ],
+    "allow_missing_closure": false
+  },
+  "live_preflight": {
+    "job_count": 113,
+    "expected_count": 113,
+    "page_count": 8,
+    "slice_count": 6,
+    "warning_count": 0,
+    "evidence_digest": "257296fa985cadec7e158b367e41ff9bae0af302744315742760113683c976d9"
+  },
+  "protected_sources": [
+    "eightfold:morganstanley",
+    "goldman_higher:roles",
+    "workday:wd12:capitalone:Capital_One",
+    "workday:wd1:fmr:FidelityCareers",
+    "workday:wd5:ms:External",
+    "workday:wd1:ghr:Lateral-US",
+    "workday:wd1:blackrock:BlackRock_Professional",
+    "workday:wd3:barclays:External_Career_Site_Barclays"
+  ],
+  "approved_actions": [
+    "db_push_0046",
+    "live_probe",
+    "terminal_admission",
+    "observe_three_windows",
+    "natural_poll",
+    "owner_browser_uat"
+  ]
+}

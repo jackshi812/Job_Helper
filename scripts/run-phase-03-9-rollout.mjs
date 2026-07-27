@@ -12,6 +12,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SUPABASE_CLI = resolve(ROOT, 'web/node_modules/.bin/supabase')
 export const RELEASE_MANIFEST_ID = '03900000-0000-4000-8000-000000000001'
 export const REPAIR_MANIFEST_ID = '03900000-0000-4000-8000-000000000002'
+export const CATALOG_REPAIR_MANIFEST_ID =
+  '03900000-0000-4000-8000-000000000003'
 export const PHASE_DIR =
   '.planning/phases/03.9-jpmorgan-chase-selective-oracle-monitoring'
 export const DEFAULT_MANIFEST = `${PHASE_DIR}/03.9-01-RELEASE-MANIFEST.json`
@@ -43,17 +45,21 @@ export async function validateManifest(manifest, manifestBytes) {
     'manifest version/phase drift')
   const isInitial = manifest.release_manifest_id === RELEASE_MANIFEST_ID
   const isRepair = manifest.release_manifest_id === REPAIR_MANIFEST_ID
-  requireCondition(isInitial || isRepair,
+  const isCatalogRepair =
+    manifest.release_manifest_id === CATALOG_REPAIR_MANIFEST_ID
+  requireCondition(isInitial || isRepair || isCatalogRepair,
     'release manifest ID drift')
   requireCondition(manifest.source_key === 'oracle:jpmc:CX_1001',
     'source identity drift')
   requireCondition(manifest.site_number === 'CX_1001',
     'site identity drift')
-  requireCondition(manifest.migration?.version === '0045',
+  requireCondition(
+    manifest.migration?.version === (isCatalogRepair ? '0046' : '0045'),
     'migration version drift')
   requireCondition(
-    manifest.migration.path ===
-      'supabase/migrations/0045_phase_03_9_jpmorgan_oracle.sql',
+    manifest.migration.path === (isCatalogRepair
+      ? 'supabase/migrations/0046_phase_03_9_jpmorgan_catalog_repair.sql'
+      : 'supabase/migrations/0045_phase_03_9_jpmorgan_oracle.sql'),
     'migration path drift',
   )
   requireCondition(
@@ -84,7 +90,7 @@ export async function validateManifest(manifest, manifestBytes) {
         'db_push_0045,deploy_observe-connectors,deploy_poll-tick,observe_three_windows,natural_poll,owner_browser_uat',
       'approved action inventory drift',
     )
-  } else {
+  } else if (isRepair) {
     requireCondition(
       manifest.supersedes_release_manifest_id === RELEASE_MANIFEST_ID
         && manifest.hosted_baseline?.last_migration === '0045'
@@ -96,6 +102,20 @@ export async function validateManifest(manifest, manifestBytes) {
         'deploy_observe-connectors,deploy_poll-tick,live_probe,observe_three_windows,natural_poll,owner_browser_uat',
       'repair action inventory drift',
     )
+  } else {
+    requireCondition(
+      manifest.supersedes_release_manifest_id === REPAIR_MANIFEST_ID
+        && manifest.hosted_baseline?.last_migration === '0045'
+        && manifest.hosted_baseline?.migration_count === 45
+        && manifest.hosted_baseline?.jpmorgan_company_rows === 0
+        && manifest.hosted_baseline?.jpmorgan_observation_rows === 0,
+      'catalog repair baseline drift',
+    )
+    requireCondition(
+      manifest.approved_actions.join(',') ===
+        'db_push_0046,live_probe,terminal_admission,observe_three_windows,natural_poll,owner_browser_uat',
+      'catalog repair action inventory drift',
+    )
   }
   return {
     manifest_file_sha256: sha256(manifestBytes),
@@ -106,6 +126,16 @@ export async function validateManifest(manifest, manifestBytes) {
 }
 
 export function exactApproval(manifest, hashes) {
+  if (manifest.release_manifest_id === CATALOG_REPAIR_MANIFEST_ID) {
+    return [
+      'approve Phase 03.9 JPMorgan catalog repair',
+      manifest.release_manifest_id,
+      hashes.manifest_file_sha256,
+      hashes.migration_sha256,
+      hashes.observe_sha256,
+      hashes.poll_sha256,
+    ].join(' ')
+  }
   if (manifest.release_manifest_id === REPAIR_MANIFEST_ID) {
     return [
       'approve Phase 03.9 JPMorgan function repair',
@@ -161,10 +191,17 @@ async function runSupabase(args) {
 export async function executeRelease(manifest, approval, hashes, run = runSupabase) {
   requireCondition(approval === exactApproval(manifest, hashes),
     'execution requires the exact manifest/hash-bound approval string')
-  if (manifest.release_manifest_id === RELEASE_MANIFEST_ID) {
+  if (
+    manifest.release_manifest_id === RELEASE_MANIFEST_ID
+    || manifest.release_manifest_id === CATALOG_REPAIR_MANIFEST_ID
+  ) {
     await run(['db', 'push', '--linked', '--yes'])
   }
-  for (const slug of ['observe-connectors', 'poll-tick']) {
+  const deployFunctions =
+    manifest.release_manifest_id !== CATALOG_REPAIR_MANIFEST_ID
+  for (const slug of deployFunctions
+    ? ['observe-connectors', 'poll-tick']
+    : []) {
     const entry = manifest.functions[slug]
     await run([
       'functions', 'deploy', slug,
