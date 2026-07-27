@@ -152,6 +152,7 @@ async function createFixture() {
       allowed_transitions: transitions,
     })
   }
+  mutable_artifacts.sort((left, right) => left.path.localeCompare(right.path))
 
   const manifest = {
     schema_version: 1,
@@ -287,7 +288,7 @@ async function createFixture() {
       algorithm: 'sha256',
       release_prefix: 'approve Phase 03.10 Goldman rollout',
       uat_prefix: 'approve Phase 03.10 Goldman UAT',
-      production_fixture: false,
+      production_release: false,
     },
     approved_actions: [...APPROVED_ACTIONS],
   }
@@ -426,8 +427,12 @@ test('source, byte, target, baseline, action, and function drift fail closed', a
       )
     }
 
-    const changedBytes = Buffer.from(fixture.bytes)
-    changedBytes[changedBytes.length - 2] ^= 1
+    const changedBytes = Buffer.from(
+      fixture.bytes.toString().replace(
+        '2026-07-27T16:00:00.000Z',
+        '2026-07-27T16:00:01.000Z',
+      ),
+    )
     await assert.rejects(
       validateManifest(fixture.manifest, changedBytes, { root: fixture.root }),
       /manifest bytes do not match supplied object/,
@@ -456,6 +461,48 @@ test('migration, entry, bundle, executable, and safety-test drift fail closed', 
       )
       await write(fixture.root, path, original)
     }
+  })
+})
+
+test('post-approval state drift rejects before the first command', async () => {
+  await withFixture(async ({ root, manifest, bytes, hashes }) => {
+    const calls = []
+    const path = PRIVILEGED_EXECUTABLE_PATHS[0]
+    const original = await readFile(join(root, path))
+    await write(root, path, Buffer.concat([original, Buffer.from('drift')]))
+    await assert.rejects(
+      executeRelease(
+        manifest,
+        exactApproval(manifest, hashes),
+        hashes,
+        async (args) => calls.push(args),
+        {
+          root,
+          environment: { SUPABASE_ACCESS_TOKEN: 'TEST_ONLY_NON_PRODUCTION' },
+        },
+      ),
+      /current hash drift/,
+    )
+    assert.deepEqual(calls, [])
+    await write(root, path, original)
+
+    const changed = clone(manifest)
+    changed.hosted_baseline.last_migration = '0048'
+    await assert.rejects(
+      executeRelease(
+        changed,
+        exactApproval(manifest, hashes),
+        hashes,
+        async (args) => calls.push(args),
+        {
+          root,
+          environment: { SUPABASE_ACCESS_TOKEN: 'TEST_ONLY_NON_PRODUCTION' },
+        },
+      ),
+      /manifest bytes do not match supplied object/,
+    )
+    assert.deepEqual(calls, [])
+    assert.ok(bytes.length > 0)
   })
 })
 
