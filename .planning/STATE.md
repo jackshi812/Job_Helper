@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 4
-current_phase_name: Resume Tailoring & Tracker
-status: ready_to_plan
-stopped_at: Completed Phase 03.9 with hosted rollout and owner-browser UAT PASS
-last_updated: "2026-07-27T02:58:44Z"
+current_phase: 03.10
+current_phase_name: Goldman Sachs Selective Higher Monitoring
+status: planning
+stopped_at: Phase 03.10 context gathered
+last_updated: "2026-07-27T14:01:43.712Z"
 last_activity: 2026-07-26
 last_activity_desc: Phase 03.9 completed
 progress:
-  total_phases: 14
+  total_phases: 15
   completed_phases: 13
   total_plans: 75
-  completed_plans: 75
-  percent: 93
+  completed_plans: 76
+  percent: 87
 ---
 
 # Project State
@@ -24,13 +24,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 4 — Resume Tailoring & Tracker
+**Current focus:** Phase 03.10 — Goldman Sachs Selective Higher Monitoring
 
 ## Current Position
 
-Phase: 4 (Resume Tailoring & Tracker) — READY TO PLAN
+Phase: 03.10 (Goldman Sachs Selective Higher Monitoring) — NOT PLANNED
 Plan: Not planned
-Status: Phase 03.9 completed; ready for Phase 4 planning
+Status: Ready to plan; next recommended run: $gsd-plan-phase 03.10
 Last activity: 2026-07-26 — Phase 03.9 completed
 
 Progress: [█████████░] 93%
@@ -326,12 +326,13 @@ Recent decisions affecting current work:
 - Phase 03.8 inserted after Phase 3: Monitor and poll the branded banking companies currently on watchlist (URGENT)
 - Phase 03.9 inserted after Phase 3: JPMorgan Chase Selective Oracle Monitoring (URGENT)
 - Phase 03.9 edited: locked JPMorgan selective Oracle goal, requirements, dependency, and success criteria
+- Phase 03.10 inserted after Phase 3: Goldman Sachs Selective Higher Monitoring (URGENT)
 
 ## Session Continuity
 
-Last session: 2026-07-26T23:58:31.249Z
-Stopped at: Completed Phase 03.9 with hosted rollout and owner-browser UAT PASS
-Resume file: None; Phase 4 is ready to plan
+Last session: 2026-07-27T14:01:43.697Z
+Stopped at: Phase 03.10 context gathered
+Resume file: .planning/phases/03.10-goldman-sachs-selective-higher-monitoring/03.10-CONTEXT.md
 Last session (2026-07-26): Phase 03.8 selective Workday recovery completed; all four requested companies are Active at 3/3 with successful natural polls, 176 exact-scope jobs, migration 0044 parity, protected sources intact, and zero verifier residue.
 Earlier Phase 03.8 closeout (superseded by the recovery above): all four new Workday candidates were precise Unsupported with zero authority; migrations/functions matched that approved release, verifier cleanup was zero-residue, and owner UAT passed.
 Last session (2026-07-25): Phase 03.7 passed local checks, exact-release byte verification, and 3/3 owner-approved signed-in UAT checks on release `baf81fcaa72443995f227b118d10eec90da25679`; no Phase 03.7 gaps remain.
