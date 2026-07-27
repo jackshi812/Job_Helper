@@ -214,7 +214,7 @@ Plans:
 4. Goldman reaches Active only after exact live terminal proof, three distinct clean server-timed observations, replay/same-window rejection, and a later healthy natural scheduled poll; otherwise it remains precise Unsupported with no operational authority.
 5. The forward-only exact-release rollout preserves every sibling source and real user row outside ordinary scheduler timestamps, leaves zero verifier residue, and receives final approval only from the owner's existing signed-in browser.
 
-**Plans:** 4/6 plans executed
+**Plans:** 5/6 plans executed
 
 Plans:
 
@@ -236,7 +236,7 @@ Plans:
 
 **Wave 5** *(blocked on all rollout, activation, hosted-verification, UAT-helper, and safety-test tooling)*
 
-- [ ] 03.10-05-PLAN.md — Finalize the immutable source-commit-bound manifest and exact approval tokens over all completed executable and test bytes
+- [x] 03.10-05-PLAN.md — Finalize the immutable source-commit-bound manifest and exact approval tokens over all completed executable and test bytes
 
 **Wave 6** *(blocked on immutable manifest finalization and owner approvals)*
 
