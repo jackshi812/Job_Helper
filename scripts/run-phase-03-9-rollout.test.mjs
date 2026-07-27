@@ -3,14 +3,18 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import {
   DEFAULT_MANIFEST,
+  REPAIR_MANIFEST_ID,
   dryRunPlan,
   exactApproval,
   executeRelease,
   validateManifest,
 } from './run-phase-03-9-rollout.mjs'
 
+const CURRENT_MANIFEST =
+  '.planning/phases/03.9-jpmorgan-chase-selective-oracle-monitoring/03.9-02-REPAIR-MANIFEST.json'
+
 async function fixture() {
-  const bytes = await readFile(DEFAULT_MANIFEST)
+  const bytes = await readFile(CURRENT_MANIFEST)
   const manifest = JSON.parse(bytes)
   const hashes = await validateManifest(manifest, bytes)
   return { bytes, manifest, hashes }
@@ -36,7 +40,7 @@ test('mutation rejects every non-exact approval before commands run', async () =
   assert.equal(calls, 0)
 })
 
-test('exact approval performs only the finite migration and function actions', async () => {
+test('exact approval performs only the finite function repair actions', async () => {
   const { manifest, hashes } = await fixture()
   const calls = []
   const result = await executeRelease(
@@ -50,14 +54,13 @@ test('exact approval performs only the finite migration and function actions', a
   )
   assert.equal(result.status, 'DEPLOYED_PENDING_ACTIVATION')
   assert.deepEqual(calls, [
-    ['db', 'push', '--linked', '--yes'],
     [
       'functions', 'deploy', 'observe-connectors',
-      '--project-ref', manifest.project_ref, '--no-verify-jwt',
+      '--project-ref', manifest.project_ref, '--no-verify-jwt', '--use-api',
     ],
     [
       'functions', 'deploy', 'poll-tick',
-      '--project-ref', manifest.project_ref, '--no-verify-jwt',
+      '--project-ref', manifest.project_ref, '--no-verify-jwt', '--use-api',
     ],
   ])
 })
@@ -68,4 +71,17 @@ test('manifest contains exact JPMorgan scope and protected siblings', async () =
   assert.equal(manifest.scope.title_families.length, 6)
   assert.ok(manifest.protected_sources.includes('eightfold:morganstanley'))
   assert.ok(manifest.protected_sources.includes('goldman_higher:roles'))
+})
+
+test('repair approval binds only the amended two-function deployment', async () => {
+  const bytes = await readFile(CURRENT_MANIFEST)
+  const manifest = JSON.parse(bytes)
+  const hashes = await validateManifest(manifest, bytes)
+  assert.equal(manifest.release_manifest_id, REPAIR_MANIFEST_ID)
+  assert.match(
+    exactApproval(manifest, hashes),
+    /^approve Phase 03\.9 JPMorgan function repair /,
+  )
+  assert.equal(manifest.hosted_baseline.last_migration, '0045')
+  assert.equal(manifest.approved_actions.includes('db_push_0045'), false)
 })

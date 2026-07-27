@@ -11,6 +11,7 @@ const execFile = promisify(execFileCallback)
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SUPABASE_CLI = resolve(ROOT, 'web/node_modules/.bin/supabase')
 export const RELEASE_MANIFEST_ID = '03900000-0000-4000-8000-000000000001'
+export const REPAIR_MANIFEST_ID = '03900000-0000-4000-8000-000000000002'
 export const PHASE_DIR =
   '.planning/phases/03.9-jpmorgan-chase-selective-oracle-monitoring'
 export const DEFAULT_MANIFEST = `${PHASE_DIR}/03.9-01-RELEASE-MANIFEST.json`
@@ -40,7 +41,9 @@ async function fileHash(path) {
 export async function validateManifest(manifest, manifestBytes) {
   requireCondition(manifest.schema_version === 1 && manifest.phase === '03.9',
     'manifest version/phase drift')
-  requireCondition(manifest.release_manifest_id === RELEASE_MANIFEST_ID,
+  const isInitial = manifest.release_manifest_id === RELEASE_MANIFEST_ID
+  const isRepair = manifest.release_manifest_id === REPAIR_MANIFEST_ID
+  requireCondition(isInitial || isRepair,
     'release manifest ID drift')
   requireCondition(manifest.source_key === 'oracle:jpmc:CX_1001',
     'source identity drift')
@@ -75,11 +78,25 @@ export async function validateManifest(manifest, manifestBytes) {
       `${slug} entry hash drift`,
     )
   }
-  requireCondition(
-    manifest.approved_actions.join(',') ===
-      'db_push_0045,deploy_observe-connectors,deploy_poll-tick,observe_three_windows,natural_poll,owner_browser_uat',
-    'approved action inventory drift',
-  )
+  if (isInitial) {
+    requireCondition(
+      manifest.approved_actions.join(',') ===
+        'db_push_0045,deploy_observe-connectors,deploy_poll-tick,observe_three_windows,natural_poll,owner_browser_uat',
+      'approved action inventory drift',
+    )
+  } else {
+    requireCondition(
+      manifest.supersedes_release_manifest_id === RELEASE_MANIFEST_ID
+        && manifest.hosted_baseline?.last_migration === '0045'
+        && manifest.hosted_baseline?.migration_count === 45,
+      'repair baseline drift',
+    )
+    requireCondition(
+      manifest.approved_actions.join(',') ===
+        'deploy_observe-connectors,deploy_poll-tick,live_probe,observe_three_windows,natural_poll,owner_browser_uat',
+      'repair action inventory drift',
+    )
+  }
   return {
     manifest_file_sha256: sha256(manifestBytes),
     migration_sha256: manifest.migration.sha256,
@@ -89,6 +106,15 @@ export async function validateManifest(manifest, manifestBytes) {
 }
 
 export function exactApproval(manifest, hashes) {
+  if (manifest.release_manifest_id === REPAIR_MANIFEST_ID) {
+    return [
+      'approve Phase 03.9 JPMorgan function repair',
+      manifest.release_manifest_id,
+      hashes.manifest_file_sha256,
+      hashes.observe_sha256,
+      hashes.poll_sha256,
+    ].join(' ')
+  }
   return [
     'approve Phase 03.9 JPMorgan rollout',
     manifest.release_manifest_id,
@@ -135,13 +161,18 @@ async function runSupabase(args) {
 export async function executeRelease(manifest, approval, hashes, run = runSupabase) {
   requireCondition(approval === exactApproval(manifest, hashes),
     'execution requires the exact manifest/hash-bound approval string')
-  await run(['db', 'push', '--linked', '--yes'])
+  if (manifest.release_manifest_id === RELEASE_MANIFEST_ID) {
+    await run(['db', 'push', '--linked', '--yes'])
+  }
   for (const slug of ['observe-connectors', 'poll-tick']) {
     const entry = manifest.functions[slug]
     await run([
       'functions', 'deploy', slug,
       '--project-ref', manifest.project_ref,
       entry.verify_jwt ? '--verify-jwt' : '--no-verify-jwt',
+      ...(manifest.release_manifest_id === REPAIR_MANIFEST_ID
+        ? ['--use-api']
+        : []),
     ])
   }
   return {
