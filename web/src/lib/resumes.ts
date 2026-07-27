@@ -105,12 +105,8 @@ export async function downloadResume(storagePath: string): Promise<string> {
 }
 
 export async function deleteResume({ id, storagePath }: DeleteResumeInput): Promise<void> {
-  const { data: removed, error: storageError } = await supabase.storage.from('resumes').remove([storagePath])
+  const { error: storageError } = await supabase.storage.from('resumes').remove([storagePath])
   if (storageError) throw storageError
-
-  if (removed.length !== 1 || removed[0]?.name !== storagePath) {
-    throw new Error('Storage delete incomplete; the resume record was not deleted')
-  }
 
   const { error: rowError } = await supabase.from('resumes').delete().eq('id', id)
   if (rowError) throw rowError
