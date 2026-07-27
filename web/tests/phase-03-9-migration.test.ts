@@ -10,6 +10,10 @@ const catalogRepairSql = readFileSync(fileURLToPath(new URL(
   '../../supabase/migrations/0046_phase_03_9_jpmorgan_catalog_repair.sql',
   import.meta.url,
 )), 'utf8')
+const companyIdentitySql = readFileSync(fileURLToPath(new URL(
+  '../../supabase/migrations/0047_phase_03_9_jpmorgan_company_identity.sql',
+  import.meta.url,
+)), 'utf8')
 
 const exactSource = 'oracle:jpmc:CX_1001'
 const protectedWorkdaySources = [
@@ -117,6 +121,33 @@ describe('Phase 03.9 JPMorgan catalog forward repair', () => {
       /from public\.branded_connector_terminal_evidence[\s\S]+outcome = 'admit_experimental'/,
     )
     expect(catalogRepairSql).not.toMatch(
+      /delete from public\.(companies|jobs|connector_observations)/,
+    )
+  })
+})
+
+describe('Phase 03.9 JPMorgan company identity forward repair', () => {
+  it('changes only JPMorgan to the canonical jobs path', () => {
+    expect(companyIdentitySql).toContain(
+      'drop constraint companies_branded_identity_check',
+    )
+    expect(companyIdentitySql).toContain(
+      'add constraint companies_branded_identity_check check',
+    )
+    expect(companyIdentitySql).toContain('/sites/CX_1001/jobs')
+    expect(companyIdentitySql).not.toContain('/sites/CX_1001/requisitions')
+  })
+
+  it('preserves every sibling branded identity and fails after admission', () => {
+    expect(companyIdentitySql).toContain('eightfold:morganstanley')
+    expect(companyIdentitySql).toContain('goldman_higher:roles')
+    expect(companyIdentitySql).toContain(
+      'JPMorgan admission state changed before identity repair',
+    )
+    expect(companyIdentitySql).toMatch(
+      /outcome = 'admit_experimental'/,
+    )
+    expect(companyIdentitySql).not.toMatch(
       /delete from public\.(companies|jobs|connector_observations)/,
     )
   })
