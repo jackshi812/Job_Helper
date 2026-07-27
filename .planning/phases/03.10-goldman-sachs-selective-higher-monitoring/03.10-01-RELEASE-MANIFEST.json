@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "phase": "03.10",
-  "created_at": "2026-07-27T19:29:40.567Z",
-  "release_manifest_id": "5c0eff23-52ab-426d-abb4-c19b9553cd0e",
+  "created_at": "2026-07-27T19:49:19.000Z",
+  "release_manifest_id": "2a0c2cf4-8e0f-495c-b045-5e5b50366483",
   "project_ref": "fjcsvajkkztvlrpdplwx",
   "source_key": "goldman_higher:roles",
   "public_url": "https://higher.gs.com/results",
-  "source_commit": "7ec7199096379ed8eb2131cf4e270aa8e907dc0e",
-  "source_commit_object": "7ec7199096379ed8eb2131cf4e270aa8e907dc0e",
+  "source_commit": "daa3f9ed9420a4adff0fbbb1b410d4ff8f55396a",
+  "source_commit_object": "daa3f9ed9420a4adff0fbbb1b410d4ff8f55396a",
   "hosted_baseline": {
     "first_migration": "0001",
     "last_migration": "0049",
@@ -17,10 +17,10 @@
     "terminal_fingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "migration": {
-    "version": "0049",
-    "path": "supabase/migrations/0049_phase_03_10_goldman_30_day.sql",
-    "git_object": "1e5f07b77e79307d529c56073dc7f000e0963be6",
-    "sha256": "74bbf4374d13dd0822f909a2d690106ae31dda26b2abb90488b9a065c258216f"
+    "version": "0050",
+    "path": "supabase/migrations/0050_phase_03_10_goldman_provider_id_regex.sql",
+    "git_object": "7112a0899c954f7ece4e1417c3adc9be5916af89",
+    "sha256": "859d839cae3921fd5f2a3c4f1263c26fa617f208c2c3a30b2a2b56f5a338f5ad"
   },
   "functions": {
     "observe-connectors": {
@@ -119,30 +119,30 @@
   "privileged_executables": [
     {
       "path": "scripts/run-phase-03-10-activation.ts",
-      "git_object": "53274fa28073bf65356a9f492f8d99e398e15cf6",
-      "sha256": "0f1ef87c2342ff4b54940330e1aa665f321d2bfdbefd94fc2ce8fdd02316c600"
+      "git_object": "655dd2ada1958e9206ee37f81ef48ce4ea6aff40",
+      "sha256": "75dd2c6b2f1b3be89a628134bb3d182fe6b18ac406abb327426ae4974fa86808"
     },
     {
       "path": "scripts/run-phase-03-10-rollout.mjs",
-      "git_object": "ea4af76f8eeb8f5656169e12ef05217a4f8c4964",
-      "sha256": "7afb1ae62a08634f070c3cb52cab50569d127a74f658c70b44db6c6404a7f16a"
+      "git_object": "52470a94e507c26995e61c1cca9456e26c8de00a",
+      "sha256": "49cbde9b366562fffa8afaabc40293f8da2199316ede94b7ab0a1b1137c88171"
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.mjs",
-      "git_object": "c24f56c9150a7c59d8736c145d70fcf7a34eaa4c",
-      "sha256": "e2a11add5d0907aa632fea632ed4f948f48f828a53dc1a0b99649fbba954c35d"
+      "git_object": "4b60c00fa7ca78a068cda109390afba844d9ffe0",
+      "sha256": "af731814fc702f5b74aa2500ebb1632bfb108c89cdb23e4570979402006c47f4"
     }
   ],
   "safety_tests": [
     {
       "path": "scripts/run-phase-03-10-activation.test.mjs",
-      "git_object": "48cd37577a04e7e88d975fc775006b6aec16c171",
-      "sha256": "7d0aa1f5200075372dfb19099b4e30aa80616d5cfd9c2778627e83ddd2dc5616"
+      "git_object": "c5d26d496a4e6288bcb1d39e8bf82419556af692",
+      "sha256": "6a76a97e6dc4d71202b3ca352752130200f6fea2289900c7c15e29163d8d65af"
     },
     {
       "path": "scripts/run-phase-03-10-rollout.test.mjs",
-      "git_object": "f5240504c0fe23d3e6e2a5bed1d02ff45ad3cff3",
-      "sha256": "07094e7053272d884b71e598f75f22ffe5d0a61a03f3f3014fb3d8f70171fcb1"
+      "git_object": "6ba9e7120e770ebaa1fb5ebf1b23e968aba6c0dc",
+      "sha256": "29758b53528b4956f86edcac98cefb5eb313fef13e33a8b469250a33880090c5"
     },
     {
       "path": "scripts/verify-job-retention.test.mjs",
@@ -151,8 +151,8 @@
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.test.mjs",
-      "git_object": "e1a38b2cf7db349995737812eee0fc837a410606",
-      "sha256": "43daad1ca24483bc1ada6af995bea08417aea15bef196160729a1c58c076c865"
+      "git_object": "d73c0aabf2cbe5d6268afdd2455a27bdcbf8d9c7",
+      "sha256": "9ae771d659881544e63a1ba3c5d078dd73ae79069dc473817671222a9d3766cf"
     },
     {
       "path": "web/tests/branded-adapters.test.ts",
@@ -186,8 +186,8 @@
     },
     {
       "path": "web/tests/phase-03-10-migration.test.ts",
-      "git_object": "55004c5e6fbe620e8f9ed7357b922030cf19484d",
-      "sha256": "db0db7ae35d48a6f9021787e74c1047c2a3ba1096c00085c1cd7db870ecbb529"
+      "git_object": "f64f44f8de9262773ba06e8bf2543e08fe167788",
+      "sha256": "fbd9dcf95ebae7f5e648ee7b951c663c93b88af1ae2daa95fa3ecc0d91f1b410"
     },
     {
       "path": "web/tests/poll-tick.test.ts",
@@ -198,23 +198,23 @@
   "immutable_source": [
     {
       "path": "scripts/run-phase-03-10-activation.test.mjs",
-      "git_object": "48cd37577a04e7e88d975fc775006b6aec16c171",
-      "sha256": "7d0aa1f5200075372dfb19099b4e30aa80616d5cfd9c2778627e83ddd2dc5616"
+      "git_object": "c5d26d496a4e6288bcb1d39e8bf82419556af692",
+      "sha256": "6a76a97e6dc4d71202b3ca352752130200f6fea2289900c7c15e29163d8d65af"
     },
     {
       "path": "scripts/run-phase-03-10-activation.ts",
-      "git_object": "53274fa28073bf65356a9f492f8d99e398e15cf6",
-      "sha256": "0f1ef87c2342ff4b54940330e1aa665f321d2bfdbefd94fc2ce8fdd02316c600"
+      "git_object": "655dd2ada1958e9206ee37f81ef48ce4ea6aff40",
+      "sha256": "75dd2c6b2f1b3be89a628134bb3d182fe6b18ac406abb327426ae4974fa86808"
     },
     {
       "path": "scripts/run-phase-03-10-rollout.mjs",
-      "git_object": "ea4af76f8eeb8f5656169e12ef05217a4f8c4964",
-      "sha256": "7afb1ae62a08634f070c3cb52cab50569d127a74f658c70b44db6c6404a7f16a"
+      "git_object": "52470a94e507c26995e61c1cca9456e26c8de00a",
+      "sha256": "49cbde9b366562fffa8afaabc40293f8da2199316ede94b7ab0a1b1137c88171"
     },
     {
       "path": "scripts/run-phase-03-10-rollout.test.mjs",
-      "git_object": "f5240504c0fe23d3e6e2a5bed1d02ff45ad3cff3",
-      "sha256": "07094e7053272d884b71e598f75f22ffe5d0a61a03f3f3014fb3d8f70171fcb1"
+      "git_object": "6ba9e7120e770ebaa1fb5ebf1b23e968aba6c0dc",
+      "sha256": "29758b53528b4956f86edcac98cefb5eb313fef13e33a8b469250a33880090c5"
     },
     {
       "path": "scripts/verify-job-retention.test.mjs",
@@ -223,13 +223,13 @@
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.mjs",
-      "git_object": "c24f56c9150a7c59d8736c145d70fcf7a34eaa4c",
-      "sha256": "e2a11add5d0907aa632fea632ed4f948f48f828a53dc1a0b99649fbba954c35d"
+      "git_object": "4b60c00fa7ca78a068cda109390afba844d9ffe0",
+      "sha256": "af731814fc702f5b74aa2500ebb1632bfb108c89cdb23e4570979402006c47f4"
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.test.mjs",
-      "git_object": "e1a38b2cf7db349995737812eee0fc837a410606",
-      "sha256": "43daad1ca24483bc1ada6af995bea08417aea15bef196160729a1c58c076c865"
+      "git_object": "d73c0aabf2cbe5d6268afdd2455a27bdcbf8d9c7",
+      "sha256": "9ae771d659881544e63a1ba3c5d078dd73ae79069dc473817671222a9d3766cf"
     },
     {
       "path": "supabase/functions/_shared/adapters/ashby.ts",
@@ -357,9 +357,9 @@
       "sha256": "558685a237b2efad872de874b95efe7441fe392a0ea5341307391091156b79e8"
     },
     {
-      "path": "supabase/migrations/0049_phase_03_10_goldman_30_day.sql",
-      "git_object": "1e5f07b77e79307d529c56073dc7f000e0963be6",
-      "sha256": "74bbf4374d13dd0822f909a2d690106ae31dda26b2abb90488b9a065c258216f"
+      "path": "supabase/migrations/0050_phase_03_10_goldman_provider_id_regex.sql",
+      "git_object": "7112a0899c954f7ece4e1417c3adc9be5916af89",
+      "sha256": "859d839cae3921fd5f2a3c4f1263c26fa617f208c2c3a30b2a2b56f5a338f5ad"
     },
     {
       "path": "web/tests/branded-adapters.test.ts",
@@ -393,8 +393,8 @@
     },
     {
       "path": "web/tests/phase-03-10-migration.test.ts",
-      "git_object": "55004c5e6fbe620e8f9ed7357b922030cf19484d",
-      "sha256": "db0db7ae35d48a6f9021787e74c1047c2a3ba1096c00085c1cd7db870ecbb529"
+      "git_object": "f64f44f8de9262773ba06e8bf2543e08fe167788",
+      "sha256": "fbd9dcf95ebae7f5e648ee7b951c663c93b88af1ae2daa95fa3ecc0d91f1b410"
     },
     {
       "path": "web/tests/poll-tick.test.ts",
@@ -600,7 +600,7 @@
     "production_release": true
   },
   "approved_actions": [
-    "verify_migration_0049",
+    "db_push_0050",
     "deploy_verify-board",
     "deploy_observe-connectors",
     "deploy_poll-tick",
