@@ -28,7 +28,7 @@
     "apply_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/210774113"
   },
   "required_approval": "approve Phase 03.9 JPMorgan UAT 03900000-0000-4000-8000-000000000004 8ef23eb5bbf02857f84e92dc7d409df38db904dcacca2dc85ddd1c2ff2c69bff",
-  "status": "PENDING_OWNER_BROWSER",
-  "owner_attestation": null,
-  "approved_at": null
+  "status": "PASS",
+  "owner_attestation": "approve Phase 03.9 JPMorgan UAT 03900000-0000-4000-8000-000000000004 8ef23eb5bbf02857f84e92dc7d409df38db904dcacca2dc85ddd1c2ff2c69bff",
+  "approved_at": "2026-07-27T02:58:44Z"
 }
