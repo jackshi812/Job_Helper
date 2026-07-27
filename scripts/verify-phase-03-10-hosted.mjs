@@ -95,6 +95,33 @@ function requireCondition(condition, message) {
   if (!condition) throw new Error(message)
 }
 
+export function normalizedHostedFileHash({
+  path,
+  hostedBytes,
+  localBytes,
+  expectedSha256,
+}) {
+  const hostedSha256 = sha256(hostedBytes)
+  if (hostedSha256 === expectedSha256) {
+    return { sha256: hostedSha256, type_only_server_erasure: false }
+  }
+  const localSource = localBytes.toString()
+  const typeOnlySource = localSource
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/[^\n]*/g, '')
+  const runtimeSyntax =
+    /\b(?:const|let|var|function|class|enum|namespace)\b|(?:^|\n)\s*import\s+(?!type\b)|\bexport\s+default\b/
+  requireCondition(
+    path === 'supabase/functions/_shared/adapters/types.ts'
+      && hostedBytes.toString().trim() === ''
+      && sha256(localBytes) === expectedSha256
+      && localSource.trim().length > 0
+      && !runtimeSyntax.test(typeOnlySource),
+    `${path} hosted source drift`,
+  )
+  return { sha256: expectedSha256, type_only_server_erasure: true }
+}
+
 function manifestWebCommit(manifest) {
   return manifest.web_deployment?.commit_sha
     ?? manifest.web_deployment?.source_commit
@@ -194,8 +221,20 @@ async function hostedFunctionEvidence(manifest, inventory, slug) {
       `${slug} hosted bundle path drift`,
     )
     const entries = []
+    const typeOnlyErasures = []
     for (const path of paths) {
-      entries.push([path, sha256(await readFile(join(root, path)))])
+      const expected = manifest.immutable_source.find(
+        (entry) => entry.path === path,
+      )
+      requireCondition(expected, `${slug} manifest bundle entry missing`)
+      const normalized = normalizedHostedFileHash({
+        path,
+        hostedBytes: await readFile(join(root, path)),
+        localBytes: await readFile(join(ROOT, path)),
+        expectedSha256: expected.sha256,
+      })
+      entries.push([path, normalized.sha256])
+      if (normalized.type_only_server_erasure) typeOnlyErasures.push(path)
     }
     const entrySha = entries.find(([path]) => path === entryPath)?.[1]
     const bundleSha = sha256(canonical(entries))
@@ -210,6 +249,7 @@ async function hostedFunctionEvidence(manifest, inventory, slug) {
       verify_jwt: metadata.verify_jwt,
       entry_sha256: entrySha,
       bundle_sha256: bundleSha,
+      type_only_server_erasures: typeOnlyErasures,
     }
   } finally {
     await rm(root, { recursive: true, force: true })

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { test } from 'node:test'
 
 import {
@@ -8,6 +9,7 @@ import {
   buildUatRecord,
   evaluateHostedSnapshot,
   exactUatApproval,
+  normalizedHostedFileHash,
   uatApprovalPayload,
 } from './verify-phase-03-10-hosted.mjs'
 
@@ -17,6 +19,42 @@ const SOURCE_KEY = 'goldman_higher:roles'
 const PUBLIC_URL = 'https://higher.gs.com/results'
 const APPLY_URL =
   'https://hdpc.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/LateralHiring/job/180084/apply/email'
+
+test('hosted parity permits only exact type-only server erasure', () => {
+  const typePath = 'supabase/functions/_shared/adapters/types.ts'
+  const typeBytes = Buffer.from(
+    'export type Example = string\nexport interface Shape { value: string }\n',
+  )
+  const expectedSha256 = createHash('sha256').update(typeBytes).digest('hex')
+  assert.deepEqual(
+    normalizedHostedFileHash({
+      path: typePath,
+      hostedBytes: Buffer.alloc(0),
+      localBytes: typeBytes,
+      expectedSha256,
+    }),
+    { sha256: expectedSha256, type_only_server_erasure: true },
+  )
+  const runtimeBytes = Buffer.from('export const runtime = 1\n')
+  assert.throws(
+    () => normalizedHostedFileHash({
+      path: typePath,
+      hostedBytes: Buffer.alloc(0),
+      localBytes: runtimeBytes,
+      expectedSha256: createHash('sha256').update(runtimeBytes).digest('hex'),
+    }),
+    /hosted source drift/,
+  )
+  assert.throws(
+    () => normalizedHostedFileHash({
+      path: 'supabase/functions/poll-tick/index.ts',
+      hostedBytes: Buffer.alloc(0),
+      localBytes: typeBytes,
+      expectedSha256,
+    }),
+    /hosted source drift/,
+  )
+})
 
 const manifest = {
   schema_version: 1,
