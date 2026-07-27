@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
   "phase": "03.10",
-  "created_at": "2026-07-27T19:14:44.044Z",
-  "release_manifest_id": "2303383e-9220-4b58-a9cb-67b2bf732796",
+  "created_at": "2026-07-27T19:29:40.567Z",
+  "release_manifest_id": "5c0eff23-52ab-426d-abb4-c19b9553cd0e",
   "project_ref": "fjcsvajkkztvlrpdplwx",
   "source_key": "goldman_higher:roles",
   "public_url": "https://higher.gs.com/results",
-  "source_commit": "cb2178a153962b96dea25cd3947ea931a284dc73",
-  "source_commit_object": "cb2178a153962b96dea25cd3947ea931a284dc73",
+  "source_commit": "7ec7199096379ed8eb2131cf4e270aa8e907dc0e",
+  "source_commit_object": "7ec7199096379ed8eb2131cf4e270aa8e907dc0e",
   "hosted_baseline": {
     "first_migration": "0001",
-    "last_migration": "0048",
-    "migration_count": 48,
+    "last_migration": "0049",
+    "migration_count": 49,
     "catalog_fingerprint": "cc2333b38d1805eb9428ac866678f11b8da7fd820683c9185bcab7943d80a73b",
     "company_fingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     "terminal_fingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -50,7 +50,7 @@
         "supabase/functions/_shared/workday-identities.ts",
         "supabase/functions/observe-connectors/index.ts"
       ],
-      "bundle_sha256": "94cb093c1b88bc32c51156124ac380a93a05efb977705bd2269936c4ad67dcc2",
+      "bundle_sha256": "5e61699fdbaed47c74e66f443ab08a20fa2ab67d4e109dad09e5e088199e2411",
       "verify_jwt": false
     },
     "poll-tick": {
@@ -82,7 +82,7 @@
         "supabase/functions/_shared/workday-identities.ts",
         "supabase/functions/poll-tick/index.ts"
       ],
-      "bundle_sha256": "e3fc4de7406796fc2fd467a6067ef5821d11cfaa9c3c001d9cca216676ddba33",
+      "bundle_sha256": "3d6772ceda6d86e02cd91f96966023d0645ee352369e14fe27387cac5393a622",
       "verify_jwt": false
     },
     "verify-board": {
@@ -112,7 +112,7 @@
         "supabase/functions/_shared/workday-identities.ts",
         "supabase/functions/verify-board/index.ts"
       ],
-      "bundle_sha256": "9911327a072eeb8f0f6346594ed1125f9c11ae22bf7b1cd15b42b87e60388c1e",
+      "bundle_sha256": "dc2f6f07e40476165fd17b2c5d731320768a81ee14102e0ca43935dbc96e88eb",
       "verify_jwt": true
     }
   },
@@ -124,8 +124,8 @@
     },
     {
       "path": "scripts/run-phase-03-10-rollout.mjs",
-      "git_object": "3f22ade38412f34074121f374de9f1d19fda8ba5",
-      "sha256": "4355bd37f1df9c1e5d5413d28fb15e814c2cd23c2c59e6c4baac9094e01dc244"
+      "git_object": "ea4af76f8eeb8f5656169e12ef05217a4f8c4964",
+      "sha256": "7afb1ae62a08634f070c3cb52cab50569d127a74f658c70b44db6c6404a7f16a"
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.mjs",
@@ -141,8 +141,8 @@
     },
     {
       "path": "scripts/run-phase-03-10-rollout.test.mjs",
-      "git_object": "f10eab0fb0b9eb984b5f96c4b4e897aaef59370b",
-      "sha256": "e6b7ae199f4573bc2af9f738aca7337996819014148274630f644b2290c93b5e"
+      "git_object": "f5240504c0fe23d3e6e2a5bed1d02ff45ad3cff3",
+      "sha256": "07094e7053272d884b71e598f75f22ffe5d0a61a03f3f3014fb3d8f70171fcb1"
     },
     {
       "path": "scripts/verify-job-retention.test.mjs",
@@ -156,8 +156,8 @@
     },
     {
       "path": "web/tests/branded-adapters.test.ts",
-      "git_object": "230972dfc67d159e1bde93471747363909973e62",
-      "sha256": "4460e5c5032179f42cd6b07c477b6b7deeba2af74ee6e5a697feb638fb1e9b93"
+      "git_object": "c46792548edc05419cab3a5b136dcb477c767075",
+      "sha256": "880204a9ba2b598199e06486598d4e3a30ed56dd77e726f76589aadba80aa97a"
     },
     {
       "path": "web/tests/branded-connectors.integration.test.ts",
@@ -208,13 +208,13 @@
     },
     {
       "path": "scripts/run-phase-03-10-rollout.mjs",
-      "git_object": "3f22ade38412f34074121f374de9f1d19fda8ba5",
-      "sha256": "4355bd37f1df9c1e5d5413d28fb15e814c2cd23c2c59e6c4baac9094e01dc244"
+      "git_object": "ea4af76f8eeb8f5656169e12ef05217a4f8c4964",
+      "sha256": "7afb1ae62a08634f070c3cb52cab50569d127a74f658c70b44db6c6404a7f16a"
     },
     {
       "path": "scripts/run-phase-03-10-rollout.test.mjs",
-      "git_object": "f10eab0fb0b9eb984b5f96c4b4e897aaef59370b",
-      "sha256": "e6b7ae199f4573bc2af9f738aca7337996819014148274630f644b2290c93b5e"
+      "git_object": "f5240504c0fe23d3e6e2a5bed1d02ff45ad3cff3",
+      "sha256": "07094e7053272d884b71e598f75f22ffe5d0a61a03f3f3014fb3d8f70171fcb1"
     },
     {
       "path": "scripts/verify-job-retention.test.mjs",
@@ -243,8 +243,8 @@
     },
     {
       "path": "supabase/functions/_shared/adapters/goldman-higher.ts",
-      "git_object": "caf4e886157ecc1ae350cb78f2ca6d53bfa9ccb2",
-      "sha256": "536af5672e560450f454ddc7980d69ff209adaabe95a619a9d260aae3845e625"
+      "git_object": "b044b6faa86d0ab6bc38ab92cfb5dc9014fd6549",
+      "sha256": "573171e8e5757d85a6f81870b8433cd0bb93f18bf3aa471effc9f77e71c0ec99"
     },
     {
       "path": "supabase/functions/_shared/adapters/greenhouse.ts",
@@ -363,8 +363,8 @@
     },
     {
       "path": "web/tests/branded-adapters.test.ts",
-      "git_object": "230972dfc67d159e1bde93471747363909973e62",
-      "sha256": "4460e5c5032179f42cd6b07c477b6b7deeba2af74ee6e5a697feb638fb1e9b93"
+      "git_object": "c46792548edc05419cab3a5b136dcb477c767075",
+      "sha256": "880204a9ba2b598199e06486598d4e3a30ed56dd77e726f76589aadba80aa97a"
     },
     {
       "path": "web/tests/branded-connectors.integration.test.ts",
@@ -600,7 +600,7 @@
     "production_release": true
   },
   "approved_actions": [
-    "db_push_0049",
+    "verify_migration_0049",
     "deploy_verify-board",
     "deploy_observe-connectors",
     "deploy_poll-tick",
