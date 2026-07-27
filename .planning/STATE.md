@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 4
-current_phase_name: Resume Tailoring & Tracker
+current_phase_name: Application Tracker
 status: executing
-stopped_at: Completed 03.10-06-PLAN.md
-last_updated: "2026-07-27T20:42:42.520Z"
+stopped_at: Phase 4 context gathered
+last_updated: "2026-07-27T22:19:21.958Z"
 last_activity: 2026-07-27
-last_activity_desc: Phase 03.10 complete, transitioned to Phase 4
+last_activity_desc: Phase 4 narrowed to application tracking; automated resume tailoring removed
 progress:
   total_phases: 15
   completed_phases: 14
   total_plans: 81
-  completed_plans: 81
+  completed_plans: 82
   percent: 93
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-27)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 4 — Resume Tailoring & Tracker
+**Current focus:** Phase 4 — Application Tracker
 
 ## Current Position
 
-Phase: 4 — Resume Tailoring & Tracker
+Phase: 4 — Application Tracker
 Plan: Not started
 Status: Ready to execute
-Last activity: 2026-07-27 — Phase 03.10 complete, transitioned to Phase 4
+Last activity: 2026-07-27 — Phase 4 narrowed to application tracking; automated resume tailoring removed
 
 Progress: [█████████░] 93%
 
@@ -299,6 +299,7 @@ Recent decisions affecting current work:
 - [Phase 03.10]: PENDING rollout, hosted, evidence, and UAT templates remain mutable only through exact listed writers and transitions while their initial objects and hashes anchor the evidence chain.
 - [Phase 03.10]: The owner-UAT token remains uncreated until hosted and rollout evidence hashes exist; no owner attestation was fabricated.
 - [Phase 03.10]: Source commit f0f2706d458e16b90c33f357598a59f671020856 supersedes the prior c728fff authority after lifecycle-test repair; manifest 38ff04fb-2601-4faa-a53f-8ec7d6a0cb4b and its later preflight commit are metadata only.
+- [Phase 4]: Automated resume tailoring removed; users prepare job-specific resumes manually outside the app. — The owner prefers manual tailoring and wants Phase 4 focused on application tracking.
 
 ### Pending Todos
 
@@ -321,7 +322,6 @@ Recent decisions affecting current work:
 
 - [Phase 2 verification]: cron-job.org failure email delivery and HTTP 200 recovery were observed, but recovery-email receipt was user-waived and remains unverified; do not record it as passed.
 - [Phase 02.1 UAT]: offline Watchlist removal can remain indefinitely at `Removing…` with both actions disabled and no modal error. Curi Capital remained after recovery. The user accepted deferring the fix and Checks 6-8; do not record the behavior as passed.
-- [Phase 4]: Highest-uncertainty area (DOCX XML run-splitting, truthful-edit prompting, CloudConvert fidelity + PII posture) — research flagged for deeper research during planning
 
 ### Roadmap Evolution
 
@@ -340,12 +340,13 @@ Recent decisions affecting current work:
 - Phase 03.9 inserted after Phase 3: JPMorgan Chase Selective Oracle Monitoring (URGENT)
 - Phase 03.9 edited: locked JPMorgan selective Oracle goal, requirements, dependency, and success criteria
 - Phase 03.10 inserted after Phase 3: Goldman Sachs Selective Higher Monitoring (URGENT)
+- Phase 4 edited: edited fields: title, goal, requirements, success_criteria; automated resume tailoring removed from v1
 
 ## Session Continuity
 
-Last session: 2026-07-27T16:10:37.274Z
-Stopped at: Completed 03.10-05-PLAN.md
-Resume file: None
+Last session: 2026-07-27T22:19:21.948Z
+Stopped at: Phase 4 context gathered
+Resume file: .planning/phases/04-application-tracker/04-CONTEXT.md
 Last session (2026-07-26): Phase 03.8 selective Workday recovery completed; all four requested companies are Active at 3/3 with successful natural polls, 176 exact-scope jobs, migration 0044 parity, protected sources intact, and zero verifier residue.
 Earlier Phase 03.8 closeout (superseded by the recovery above): all four new Workday candidates were precise Unsupported with zero authority; migrations/functions matched that approved release, verifier cleanup was zero-residue, and owner UAT passed.
 Last session (2026-07-25): Phase 03.7 passed local checks, exact-release byte verification, and 3/3 owner-approved signed-in UAT checks on release `baf81fcaa72443995f227b118d10eec90da25679`; no Phase 03.7 gaps remain.
