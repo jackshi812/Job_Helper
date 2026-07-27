@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "phase": "03.10",
-  "created_at": "2026-07-27T16:04:59.309Z",
-  "release_manifest_id": "9ddeda04-84d3-4562-b405-2e1374a84d8b",
+  "created_at": "2026-07-27T16:15:03.418Z",
+  "release_manifest_id": "38ff04fb-2601-4faa-a53f-8ec7d6a0cb4b",
   "project_ref": "fjcsvajkkztvlrpdplwx",
   "source_key": "goldman_higher:roles",
   "public_url": "https://higher.gs.com/results",
-  "source_commit": "c728fffd86b64b5c776b402cd89e3c011740159b",
-  "source_commit_object": "c728fffd86b64b5c776b402cd89e3c011740159b",
+  "source_commit": "f0f2706d458e16b90c33f357598a59f671020856",
+  "source_commit_object": "f0f2706d458e16b90c33f357598a59f671020856",
   "hosted_baseline": {
     "first_migration": "0001",
     "last_migration": "0047",
@@ -141,8 +141,8 @@
     },
     {
       "path": "scripts/run-phase-03-10-rollout.test.mjs",
-      "git_object": "3d1c2b88dd7e2c1b70b1ba253ee649bde7473ce2",
-      "sha256": "251044336cc68a1afa36939012997316650cfa2370ca224865d71424a4661c57"
+      "git_object": "e2f88e15b7fcfc28a75bcd52c385be0210b78901",
+      "sha256": "f5215d916ed1322c4c187d947e1360404a04f295288e60079dd9eb76c6a5dfb1"
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.test.mjs",
@@ -208,8 +208,8 @@
     },
     {
       "path": "scripts/run-phase-03-10-rollout.test.mjs",
-      "git_object": "3d1c2b88dd7e2c1b70b1ba253ee649bde7473ce2",
-      "sha256": "251044336cc68a1afa36939012997316650cfa2370ca224865d71424a4661c57"
+      "git_object": "e2f88e15b7fcfc28a75bcd52c385be0210b78901",
+      "sha256": "f5215d916ed1322c4c187d947e1360404a04f295288e60079dd9eb76c6a5dfb1"
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.mjs",
