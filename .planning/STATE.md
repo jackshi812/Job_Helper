@@ -6,9 +6,9 @@ current_phase: 4
 current_phase_name: Application Tracker
 status: executing
 stopped_at: Phase 4 context gathered
-last_updated: "2026-07-27T22:19:21.958Z"
+last_updated: "2026-07-27T23:25:06Z"
 last_activity: 2026-07-27
-last_activity_desc: Phase 4 narrowed to application tracking; automated resume tailoring removed
+last_activity_desc: Best Fit resume routing decoupled from full ranking and deployed page-by-page
 progress:
   total_phases: 15
   completed_phases: 14
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-07-27)
 Phase: 4 — Application Tracker
 Plan: Not started
 Status: Ready to execute
-Last activity: 2026-07-27 — Phase 4 narrowed to application tracking; automated resume tailoring removed
+Last activity: 2026-07-27 — Best Fit resume routing decoupled from full ranking and deployed page-by-page
 
 Progress: [█████████░] 93%
 
@@ -317,6 +317,7 @@ Recent decisions affecting current work:
 | 260716-nw6 | Enforce current-password reauthentication in Settings changePassword (CR-01/T-01-07) | 2026-07-16 | def0e91 | [260716-nw6-enforce-current-password-reauthenticatio](./quick/260716-nw6-enforce-current-password-reauthenticatio/) |
 | 2 | Raise the July 20 score-call cap to 499 with automatic UTC rollover | 2026-07-20 | 1e169cc | — |
 | 3 | Restrict All jobs to confirmed preference-pass rows regardless of score | 2026-07-20 | 7ef01d8 | — |
+| 260727-ozt | Decouple Best Fit resume routing from full ranking and route loaded dashboard pages lazily | 2026-07-27 | 1caaa5c | [260727-ozt-decouple-best-fit-resume-routing-from-fu](./quick/260727-ozt-decouple-best-fit-resume-routing-from-fu/) |
 
 ### Blockers/Concerns
 
