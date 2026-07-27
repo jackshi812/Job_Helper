@@ -957,6 +957,8 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
 const goldmanIdentity = resolveBrandedIdentity(
   GOLDMAN_HIGHER_SOURCE_KEY,
 ) as GoldmanHigherBrandedIdentity
+const GOLDMAN_NOW = Date.parse('2026-07-27T12:00:00.000Z')
+const GOLDMAN_BOUNDARY = '2026-07-20T12:00:00.000Z'
 
 const goldmanRole = (
   roleId: string,
@@ -964,6 +966,7 @@ const goldmanRole = (
   jobFunction = 'Credit Risk',
   division = 'Risk Division',
   country = 'United States',
+  startDate: unknown = '2026-07-24T12:00:00.000Z',
 ) => ({
   roleId,
   corporateTitle: 'Associate',
@@ -976,10 +979,12 @@ const goldmanRole = (
     city: 'New York',
   }],
   status: 'POSTED',
+  externalJobStatus: 'POSTED',
+  startDate,
   division,
   skills: ['Risk systems'],
   jobType: null,
-  externalSource: { sourceId },
+  externalSource: { sourceId, externalSourceType: 'ORACLE' },
 })
 
 const goldmanDetail = (
@@ -999,17 +1004,21 @@ const goldmanDetail = (
   }],
   division: 'Risk Division',
   descriptionHtml: `<p>Build risk technology for ${roleId}.</p>`,
+  startDate: '2026-07-24T12:00:00.000Z',
+  recruitingType: 'GS_MID_CAREER',
   jobType: null,
   skillset: ['Risk systems'],
   compensation: null,
   applyActive: true,
   status: 'POSTED',
+  externalJobStatus: 'POSTED',
   externalSource: {
     externalApplicationUrl:
       `https://hdpc.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/LateralHiring/job/${sourceId}/apply/email`,
     applyInExternalSource: true,
     sourceId,
     secondarySourceId: `secondary-${sourceId}`,
+    externalSourceType: 'ORACLE',
   },
   ...overrides,
 })
@@ -1025,10 +1034,28 @@ async function graphqlBody(init?: RequestInit): Promise<GraphqlRequest> {
 }
 
 function goldmanFetch(
-  roles = [
-    goldmanRole('gs-role-1', '177001', 'Credit Risk'),
-    goldmanRole('gs-role-2', '177002', 'Technology', 'Engineering Division'),
-  ],
+  slices: Record<'EARLY_CAREER' | 'PROFESSIONAL', ReturnType<typeof goldmanRole>[]> = {
+    EARLY_CAREER: [
+      goldmanRole(
+        'gs-role-1',
+        '177001',
+        'Credit Risk',
+        'Risk Division',
+        'United States',
+        '2026-07-24T12:00:00.000Z',
+      ),
+    ],
+    PROFESSIONAL: [
+      goldmanRole(
+        'gs-role-2',
+        '177002',
+        'Technology',
+        'Engineering Division',
+        'United States',
+        '2026-07-25T12:00:00.000Z',
+      ),
+    ],
+  },
 ) {
   return vi.fn(async (
     _input: string | URL | Request,
@@ -1038,45 +1065,71 @@ function goldmanFetch(
     if (request.operationName === 'GetRoles') {
       const input = request.variables.searchQueryInput as {
         page: { pageNumber: number; pageSize: number }
+        experiences: ['EARLY_CAREER'] | ['PROFESSIONAL']
       }
+      const roles = slices[input.experiences[0]]
       const start = input.page.pageNumber * input.page.pageSize
+      const items = roles.slice(start, start + input.page.pageSize)
       return jsonResponse({
         data: {
           roleSearch: {
+            page: {
+              pageSize: input.page.pageSize,
+              pageNumber: input.page.pageNumber,
+              hasNext: start + items.length < roles.length,
+            },
             totalCount: roles.length,
-            items: roles.slice(start, start + input.page.pageSize),
+            items,
           },
         },
       })
     }
     const sourceId = String(request.variables.externalSourceId)
-    const listed = roles.find((role) =>
-      role.externalSource.sourceId === sourceId
+    const listed = Object.values(slices).flat().find(
+      (role) => role.externalSource.sourceId === sourceId,
     )
     return jsonResponse({
       data: {
         role: goldmanDetail(listed?.roleId ?? '', sourceId, {
           jobFunction: listed?.jobFunction,
           division: listed?.division,
+          startDate: listed?.startDate,
+          recruitingType: listed?.roleId === 'gs-role-1'
+            ? 'GS_EARLY_CAREER'
+            : 'GS_MID_CAREER',
         }),
       },
     })
   })
 }
 
+function oneGoldmanRole(
+  role: ReturnType<typeof goldmanRole>,
+  experience: 'EARLY_CAREER' | 'PROFESSIONAL' = 'PROFESSIONAL',
+) {
+  return {
+    EARLY_CAREER: experience === 'EARLY_CAREER' ? [role] : [],
+    PROFESSIONAL: experience === 'PROFESSIONAL' ? [role] : [],
+  }
+}
+
 describe('Goldman Higher adapter', () => {
-  it('reconciles complete GraphQL pagination and admits only positive trusted U.S. category evidence', async () => {
+  it('reconciles Early Career and Professional independently before hydrating the selected union', async () => {
     const providerFetch = goldmanFetch()
     const observation = await pollGoldmanHigher(
       goldmanIdentity,
       providerFetch,
-      { pageSize: 1, now: () => 0 },
+      {
+        pageSize: 1,
+        now: () => 0,
+        wallClockNow: () => GOLDMAN_NOW,
+      },
     )
 
     expect(observation).toMatchObject({
       completeness: 'complete',
       credibleForClosure: true,
-      allowMissingClosure: true,
+      allowMissingClosure: false,
       expectedCount: 2,
       pageCount: 2,
       warnings: [],
@@ -1087,12 +1140,22 @@ describe('Goldman Higher adapter', () => {
           title: 'Risk Engineer gs-role-1',
           location: 'New York, NY, United States',
           companyName: 'Goldman Sachs',
+          postedAt: '2026-07-24T12:00:00.000Z',
+          absoluteUrl:
+            'https://hdpc.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/LateralHiring/job/177001/apply/email',
           snapshotPartial: false,
           scopeEvidence: {
             sourceKey: GOLDMAN_HIGHER_SOURCE_KEY,
+            selectionMode: 'recent_exact_us_provider_category',
+            recentHours: 168,
+            providerSourceId: '177001',
+            providerCategoryField: 'jobFunction',
             providerCategoryLabel: 'credit risk',
             matchedTerm: 'Risk',
             detailCountryCode: 'US',
+            postedAt: '2026-07-24T12:00:00.000Z',
+            recruitingType: 'GS_EARLY_CAREER',
+            externalIdDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
           },
         },
         {
@@ -1103,9 +1166,17 @@ describe('Goldman Higher adapter', () => {
       ],
       scopeEvidence: {
         sourceKey: GOLDMAN_HIGHER_SOURCE_KEY,
-        sliceDigests: [expect.stringMatching(/^[a-f0-9]{64}$/)],
+        selectionMode: 'recent_exact_us_provider_category',
+        recentHours: 168,
+        sliceDigests: [
+          expect.stringMatching(/^[a-f0-9]{64}$/),
+          expect.stringMatching(/^[a-f0-9]{64}$/),
+        ],
+        jobDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
         categoryDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
         countryDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+        freshnessDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+        applicationDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
       },
     })
 
@@ -1130,11 +1201,12 @@ describe('Goldman Higher adapter', () => {
     const lists = requests.filter(({ body }) =>
       body.operationName === goldmanIdentity.listOperation
     )
+    expect(lists).toHaveLength(2)
     expect(lists.map(({ body }) =>
       (body.variables.searchQueryInput as {
-        page: { pageNumber: number }
-      }).page.pageNumber
-    )).toEqual([0, 1])
+        experiences: string[]
+      }).experiences
+    )).toEqual([['EARLY_CAREER'], ['PROFESSIONAL']])
     for (const { body } of lists) {
       expect(body.query).toContain('query GetRoles(')
       expect(body.query).toContain('roleSearch(searchQueryInput: $searchQueryInput)')
@@ -1142,10 +1214,13 @@ describe('Goldman Higher adapter', () => {
         searchQueryInput: {
           page: { pageSize: 1, pageNumber: expect.any(Number) },
           filters: [],
-          experiences: ['EARLY_CAREER', 'PROFESSIONAL'],
+          experiences: [expect.stringMatching(/^(EARLY_CAREER|PROFESSIONAL)$/)],
           searchTerm: '',
         },
       })
+      expect(body.query).toContain('page {')
+      expect(body.query).toContain('startDate')
+      expect(body.query).not.toContain('lastPostedDate')
     }
     const details = requests.filter(({ body }) =>
       body.operationName === goldmanIdentity.detailOperation
@@ -1153,8 +1228,219 @@ describe('Goldman Higher adapter', () => {
     expect(details).toHaveLength(2)
     expect(details.every(({ body }) =>
       body.query.includes('query GetRoleById(')
+      && body.query.includes('recruitingType')
+      && body.query.includes('externalSourceType')
       && body.variables.externalSourceFetch === true
     )).toBe(true)
+  })
+
+  it('accepts the exact inclusive 168-hour boundary and preserves division evidence', async () => {
+    const role = goldmanRole(
+      'gs-boundary',
+      '177010',
+      '',
+      'Capital Markets Technology',
+      'United States',
+      GOLDMAN_BOUNDARY,
+    )
+    const observation = await pollGoldmanHigher(
+      goldmanIdentity,
+      goldmanFetch(oneGoldmanRole(role, 'EARLY_CAREER')),
+      {
+        now: () => 0,
+        wallClockNow: () => GOLDMAN_NOW,
+      },
+    )
+
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure: false,
+      jobs: [{
+        postedAt: GOLDMAN_BOUNDARY,
+        scopeEvidence: {
+          providerCategoryField: 'division',
+          providerCategoryLabel: 'capital markets technology',
+          matchedTerm: 'Capital Markets',
+          recruitingType: 'GS_EARLY_CAREER',
+        },
+      }],
+    })
+  })
+
+  it.each([
+    ['one millisecond stale', '2026-07-20T11:59:59.999Z'],
+    ['future', '2026-07-27T12:00:00.001Z'],
+    ['malformed', 'not-a-date'],
+    ['missing', null],
+  ])('rejects %s list startDate before detail hydration', async (
+    _name,
+    startDate,
+  ) => {
+    const role = goldmanRole(
+      'gs-date',
+      '177011',
+      'Risk',
+      '',
+      'United States',
+      startDate,
+    )
+    const providerFetch = goldmanFetch(oneGoldmanRole(role))
+    const observation = await pollGoldmanHigher(
+      goldmanIdentity,
+      providerFetch,
+      {
+        now: () => 0,
+        wallClockNow: () => GOLDMAN_NOW,
+      },
+    )
+
+    expect(observation).toMatchObject({
+      jobs: [],
+      credibleForClosure: false,
+      allowMissingClosure: false,
+      warnings: ['posting_date_ineligible'],
+    })
+    expect(providerFetch.mock.calls.filter(([, init]) =>
+      String(init?.body).includes('"operationName":"GetRoleById"')
+    )).toHaveLength(0)
+  })
+
+  it.each([
+    ['detail startDate drift', { startDate: '2026-07-24T12:00:00.001Z' }, 'detail_posting_date_mismatch'],
+    ['missing recruiting type', { recruitingType: null }, 'detail_population_ineligible'],
+    ['unrequested recruiting type', { recruitingType: 'CAMPUS' }, 'detail_population_ineligible'],
+    ['external status drift', { externalJobStatus: 'UNPOSTED' }, 'detail_evidence_missing'],
+    [
+      'external source drift',
+      {
+        externalSource: {
+          externalApplicationUrl:
+            'https://hdpc.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/LateralHiring/job/177012/apply/email',
+          applyInExternalSource: true,
+          sourceId: '177012',
+          secondarySourceId: 'secondary-177012',
+          externalSourceType: 'OTHER',
+        },
+      },
+      'detail_evidence_missing',
+    ],
+  ])('rejects %s with selective closure disabled', async (
+    _name,
+    overrides,
+    warning,
+  ) => {
+    const role = goldmanRole('gs-detail', '177012')
+    const providerFetch = goldmanFetch(oneGoldmanRole(role))
+    providerFetch.mockImplementation(async (
+      _input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const request = await graphqlBody(init)
+      if (request.operationName === 'GetRoles') {
+        const input = request.variables.searchQueryInput as {
+          page: { pageNumber: number; pageSize: number }
+          experiences: ['EARLY_CAREER'] | ['PROFESSIONAL']
+        }
+        const roles = oneGoldmanRole(role)[input.experiences[0]]
+        const start = input.page.pageNumber * input.page.pageSize
+        const items = roles.slice(start, start + input.page.pageSize)
+        return jsonResponse({
+          data: {
+            roleSearch: {
+              page: {
+                pageSize: input.page.pageSize,
+                pageNumber: input.page.pageNumber,
+                hasNext: start + items.length < roles.length,
+              },
+              totalCount: roles.length,
+              items,
+            },
+          },
+        })
+      }
+      return jsonResponse({
+        data: {
+          role: goldmanDetail('gs-detail', '177012', overrides),
+        },
+      })
+    })
+
+    const observation = await pollGoldmanHigher(
+      goldmanIdentity,
+      providerFetch,
+      {
+        now: () => 0,
+        wallClockNow: () => GOLDMAN_NOW,
+      },
+    )
+    expect(observation).toMatchObject({
+      jobs: [],
+      credibleForClosure: false,
+      allowMissingClosure: false,
+      warnings: [warning],
+    })
+  })
+
+  it.each([
+    '?redirect=https://attacker.example',
+    '/extra',
+    '#fragment',
+  ])('rejects same-host Oracle Apply URL suffix %s', async (suffix) => {
+    const role = goldmanRole('gs-apply', '177013')
+    const providerFetch = goldmanFetch(oneGoldmanRole(role))
+    const exact =
+      'https://hdpc.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/LateralHiring/job/177013/apply/email'
+    providerFetch.mockImplementation(async (
+      _input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const request = await graphqlBody(init)
+      if (request.operationName === 'GetRoles') {
+        const input = request.variables.searchQueryInput as {
+          page: { pageNumber: number; pageSize: number }
+          experiences: ['EARLY_CAREER'] | ['PROFESSIONAL']
+        }
+        const roles = oneGoldmanRole(role)[input.experiences[0]]
+        return jsonResponse({
+          data: {
+            roleSearch: {
+              page: {
+                pageSize: input.page.pageSize,
+                pageNumber: input.page.pageNumber,
+                hasNext: false,
+              },
+              totalCount: roles.length,
+              items: roles,
+            },
+          },
+        })
+      }
+      return jsonResponse({
+        data: {
+          role: goldmanDetail('gs-apply', '177013', {
+            externalSource: {
+              externalApplicationUrl: `${exact}${suffix}`,
+              applyInExternalSource: true,
+              sourceId: '177013',
+              secondarySourceId: 'secondary-177013',
+              externalSourceType: 'ORACLE',
+            },
+          }),
+        },
+      })
+    })
+
+    const observation = await pollGoldmanHigher(
+      goldmanIdentity,
+      providerFetch,
+      { now: () => 0, wallClockNow: () => GOLDMAN_NOW },
+    )
+    expect(observation).toMatchObject({
+      jobs: [],
+      allowMissingClosure: false,
+      warnings: ['detail_evidence_missing'],
+    })
   })
 
   it('rejects caller-selected operation, variables, host, and path before fetch', async () => {
