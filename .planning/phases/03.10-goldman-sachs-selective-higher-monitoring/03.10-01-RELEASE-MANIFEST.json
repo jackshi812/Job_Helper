@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "phase": "03.10",
-  "created_at": "2026-07-27T19:10:51.539Z",
-  "release_manifest_id": "77f4063c-8a2f-43ac-b5b1-3f41f5747ac8",
+  "created_at": "2026-07-27T19:14:44.044Z",
+  "release_manifest_id": "2303383e-9220-4b58-a9cb-67b2bf732796",
   "project_ref": "fjcsvajkkztvlrpdplwx",
   "source_key": "goldman_higher:roles",
   "public_url": "https://higher.gs.com/results",
-  "source_commit": "c7cfbaccbc8f6f89ec2d785a1c49a03ccc4bd470",
-  "source_commit_object": "c7cfbaccbc8f6f89ec2d785a1c49a03ccc4bd470",
+  "source_commit": "cb2178a153962b96dea25cd3947ea931a284dc73",
+  "source_commit_object": "cb2178a153962b96dea25cd3947ea931a284dc73",
   "hosted_baseline": {
     "first_migration": "0001",
     "last_migration": "0048",
@@ -19,8 +19,8 @@
   "migration": {
     "version": "0049",
     "path": "supabase/migrations/0049_phase_03_10_goldman_30_day.sql",
-    "git_object": "1b1b572848be7089b11b97956fa35debaf819a0a",
-    "sha256": "0a375423078fe1ae59653558813fc6b69a19caad93e004a4356f3876abc69720"
+    "git_object": "1e5f07b77e79307d529c56073dc7f000e0963be6",
+    "sha256": "74bbf4374d13dd0822f909a2d690106ae31dda26b2abb90488b9a065c258216f"
   },
   "functions": {
     "observe-connectors": {
@@ -186,8 +186,8 @@
     },
     {
       "path": "web/tests/phase-03-10-migration.test.ts",
-      "git_object": "e2c956c0e72c1367343055c22b61ef74b16f5cda",
-      "sha256": "f52e9076e4709ebaaa67d9452c9242b72552e7ba92f37c39cc07aeecb4dd164b"
+      "git_object": "55004c5e6fbe620e8f9ed7357b922030cf19484d",
+      "sha256": "db0db7ae35d48a6f9021787e74c1047c2a3ba1096c00085c1cd7db870ecbb529"
     },
     {
       "path": "web/tests/poll-tick.test.ts",
@@ -358,8 +358,8 @@
     },
     {
       "path": "supabase/migrations/0049_phase_03_10_goldman_30_day.sql",
-      "git_object": "1b1b572848be7089b11b97956fa35debaf819a0a",
-      "sha256": "0a375423078fe1ae59653558813fc6b69a19caad93e004a4356f3876abc69720"
+      "git_object": "1e5f07b77e79307d529c56073dc7f000e0963be6",
+      "sha256": "74bbf4374d13dd0822f909a2d690106ae31dda26b2abb90488b9a065c258216f"
     },
     {
       "path": "web/tests/branded-adapters.test.ts",
@@ -393,8 +393,8 @@
     },
     {
       "path": "web/tests/phase-03-10-migration.test.ts",
-      "git_object": "e2c956c0e72c1367343055c22b61ef74b16f5cda",
-      "sha256": "f52e9076e4709ebaaa67d9452c9242b72552e7ba92f37c39cc07aeecb4dd164b"
+      "git_object": "55004c5e6fbe620e8f9ed7357b922030cf19484d",
+      "sha256": "db0db7ae35d48a6f9021787e74c1047c2a3ba1096c00085c1cd7db870ecbb529"
     },
     {
       "path": "web/tests/poll-tick.test.ts",
