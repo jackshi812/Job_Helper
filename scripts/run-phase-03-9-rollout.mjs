@@ -108,7 +108,8 @@ export async function validateManifest(manifest, manifestBytes) {
         && manifest.hosted_baseline?.last_migration === '0045'
         && manifest.hosted_baseline?.migration_count === 45
         && manifest.hosted_baseline?.jpmorgan_company_rows === 0
-        && manifest.hosted_baseline?.jpmorgan_observation_rows === 0,
+        && manifest.hosted_baseline?.jpmorgan_observation_rows === 0
+        && manifest.hosted_baseline?.jpmorgan_unsupported_terminal_rows === 4,
       'catalog repair baseline drift',
     )
     requireCondition(
