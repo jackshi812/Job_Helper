@@ -69,18 +69,15 @@ begin
 end;
 $migration$;
 
--- Re-open only the exact Goldman catalog candidate. Historical Unsupported
--- terminal evidence remains immutable and the new rollout must earn fresh
--- activation authority.
+-- Refresh only the exact Goldman catalog candidate's scope description.
+-- Preserve its prior Unsupported disposition until the new bounded probe earns
+-- either fresh Experimental authority or a fresh precise Unsupported terminal.
 do $migration$
 declare
   v_rows integer;
 begin
   update public.source_coverage_catalog
-  set disposition = 'candidate',
-      unsupported_reason = null,
-      source_key = null,
-      access_evidence =
+  set access_evidence =
         'Exact two-population Higher scope uses a rolling 30-day posting window plus page/count, detail, category, country, and Oracle Apply evidence.',
       verified_at = current_date
   where company_name = 'Goldman Sachs'

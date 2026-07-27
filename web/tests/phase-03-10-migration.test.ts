@@ -207,13 +207,16 @@ describe('Phase 03.10 forward-only Goldman 30-day migration', () => {
     expect(sql49).toContain('pg_get_functiondef')
   })
 
-  it('reopens only the exact posting-date-ineligible Goldman candidate', () => {
+  it('refreshes only the exact posting-date-ineligible Goldman candidate', () => {
     expect(sql49).toContain("company_name = 'Goldman Sachs'")
     expect(sql49).toContain("provider = 'Goldman Higher'")
     expect(sql49).toContain("careers_url = 'https://higher.gs.com/results'")
     expect(sql49).toContain("disposition = 'unsupported_with_reason'")
     expect(sql49).toContain("unsupported_reason = 'posting_date_ineligible'")
-    expect(sql49).toContain("set disposition = 'candidate'")
+    expect(sql49).toContain('rolling 30-day posting window')
+    expect(sql49).not.toMatch(/\bset\s+disposition\s*=/i)
+    expect(sql49).not.toMatch(/\bset\s+unsupported_reason\s*=/i)
+    expect(sql49).not.toMatch(/\bset\s+source_key\s*=/i)
     expect(sql49).toContain('if v_rows <> 1')
   })
 })
