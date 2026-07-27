@@ -60,17 +60,28 @@ describe('branded connector identities', () => {
     expect(resolveBrandedIdentity(GOLDMAN_HIGHER_SOURCE_KEY)).toMatchObject({
       provider: 'goldman_higher',
       companyName: 'Goldman Sachs',
+      publicUrl: 'https://higher.gs.com/results',
+      publicUrlAliases: [
+        'https://higher.gs.com/results',
+        'https://higher.gs.com/results/',
+        'https://higher.gs.com/roles',
+        'https://higher.gs.com/roles/',
+      ],
       host: 'api-higher.gs.com',
       graphqlPath: '/gateway/api/v1/graphql',
       listOperation: 'GetRoles',
       detailOperation: 'GetRoleById',
+      applyHost: 'hdpc.fa.us2.oraclecloud.com',
+      applySite: 'LateralHiring',
+      applyPathPrefix: '/hcmUI/CandidateExperience/en/sites/LateralHiring/job/',
+      applyPathSuffix: '/apply/email',
     })
   })
 
   it.each([
     ['https://www.morganstanley.com/careers/career-opportunities-search/', EIGHTFOLD_MORGAN_STANLEY_SOURCE_KEY],
     ['https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs', ORACLE_JPMC_SOURCE_KEY],
-    ['https://higher.gs.com/roles', GOLDMAN_HIGHER_SOURCE_KEY],
+    ['https://higher.gs.com/results', GOLDMAN_HIGHER_SOURCE_KEY],
   ])('resolves only the exact reviewed public URL %s', (publicUrl, sourceKey) => {
     expect(resolveBrandedPublicUrl(publicUrl)?.sourceKey).toBe(sourceKey)
     expect(resolveBrandedPublicUrl(publicUrl)?.sourceKey).toBe(sourceKey)
@@ -87,6 +98,17 @@ describe('branded connector identities', () => {
   })
 
   it.each([
+    'https://higher.gs.com/results',
+    'https://higher.gs.com/results/',
+    'https://higher.gs.com/roles',
+    'https://higher.gs.com/roles/',
+  ])('resolves Goldman navigation literal %s to the same frozen identity', (publicUrl) => {
+    const canonical = resolveBrandedIdentity(GOLDMAN_HIGHER_SOURCE_KEY)
+    expect(resolveBrandedPublicUrl(publicUrl)).toBe(canonical)
+    expect(canonical?.publicUrl).toBe('https://higher.gs.com/results')
+  })
+
+  it.each([
     'http://www.morganstanley.com/careers/career-opportunities-search/',
     'https://user:password@www.morganstanley.com/careers/career-opportunities-search/',
     'https://www.morganstanley.com:444/careers/career-opportunities-search/',
@@ -98,7 +120,14 @@ describe('branded connector identities', () => {
     'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions?q=risk',
     'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs/',
     'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs#finance',
-    'https://higher.gs.com/roles/',
+    'https://higher.gs.com/results?query=technology',
+    'https://higher.gs.com/results#technology',
+    'https://user:password@higher.gs.com/results',
+    'https://higher.gs.com:444/results',
+    'https://higher.gs.com/results/technology',
+    'https://higher.gs.com/%72esults',
+    'https://higher.gs.com/jobs',
+    'https://higher.gs.com.evil.example/results',
     'https://higher.gs.com/roles#technology',
     'https://api-higher.gs.com/gateway/api/v1/graphql',
   ])('rejects hostile or drifted public URL %s before network access', async (publicUrl) => {
@@ -139,6 +168,9 @@ describe('branded connector identities', () => {
         expect(Object.isFrozen(identity.titleFacets)).toBe(true)
         expect(identity.titleFacets.every(Object.isFrozen)).toBe(true)
         expect(Object.isFrozen(identity.postingDateFacet)).toBe(true)
+        expect(Object.isFrozen(identity.publicUrlAliases)).toBe(true)
+      }
+      if (identity.provider === 'goldman_higher') {
         expect(Object.isFrozen(identity.publicUrlAliases)).toBe(true)
       }
     }

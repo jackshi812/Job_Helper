@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ALLOWED_BRANDED_CATEGORY_TERMS,
   createBrandedScopeEvidence,
+  createGoldmanHigherScopeEvidence,
   findAllowedBrandedCategoryTerm,
   findAllowedBrandedCategoryTermForSource,
   hasUnitedStatesDetailEvidence,
@@ -94,6 +95,19 @@ describe('United States detail evidence', () => {
 })
 
 describe('durable branded scope evidence', () => {
+  const goldmanInput = {
+    sourceKey: 'goldman_higher:roles' as const,
+    externalId: '180084_GS_MID_CAREER',
+    providerSourceId: '180084',
+    providerCategoryField: 'jobFunction' as const,
+    providerCategoryLabel: 'Capital Markets Technology',
+    detailCountryCode: 'US' as const,
+    postedAt: '2026-07-24T18:03:34.000Z',
+    recruitingType: 'GS_MID_CAREER' as const,
+    selectionMode: 'recent_exact_us_provider_category' as const,
+    recentHours: 168 as const,
+  }
+
   it.each([
     ['Finance', 'Finance'],
     ['Data & Analytics', 'Data'],
@@ -158,6 +172,58 @@ describe('durable branded scope evidence', () => {
     })
     expect(evidence.externalIdDigest).not.toBe(otherExternalId.externalIdDigest)
     expect(Object.isFrozen(evidence)).toBe(true)
+  })
+
+  it('creates exact immutable Goldman evidence with field-preserving category proof', async () => {
+    const evidence = await createGoldmanHigherScopeEvidence(goldmanInput)
+
+    expect(evidence).toEqual({
+      sourceKey: 'goldman_higher:roles',
+      selectionMode: 'recent_exact_us_provider_category',
+      recentHours: 168,
+      providerSourceId: '180084',
+      providerCategoryField: 'jobFunction',
+      providerCategoryLabel: 'capital markets technology',
+      matchedTerm: 'Capital Markets',
+      detailCountryCode: 'US',
+      postedAt: '2026-07-24T18:03:34.000Z',
+      recruitingType: 'GS_MID_CAREER',
+      externalIdDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+    })
+    expect(Object.isFrozen(evidence)).toBe(true)
+  })
+
+  it.each([
+    ['externalId', '180085_GS_MID_CAREER'],
+    ['providerSourceId', '180085'],
+    ['providerCategoryField', 'division'],
+    ['providerCategoryLabel', 'Investment Research'],
+    ['detailCountryCode', 'CA'],
+    ['postedAt', '2026-07-24T18:03:35.000Z'],
+    ['recruitingType', 'GS_EARLY_CAREER'],
+  ] as const)('binds Goldman digest to %s', async (field, value) => {
+    const baseline = await createGoldmanHigherScopeEvidence(goldmanInput)
+    const changed = await createGoldmanHigherScopeEvidence({
+      ...goldmanInput,
+      [field]: value,
+    })
+    expect(changed.externalIdDigest).not.toBe(baseline.externalIdDigest)
+  })
+
+  it.each([
+    { providerSourceId: 'not-numeric' },
+    { providerCategoryField: 'title' },
+    { providerCategoryLabel: 'Database Administration' },
+    { detailCountryCode: 'USA' },
+    { postedAt: '2026-07-24' },
+    { recruitingType: 'CAMPUS' },
+    { selectionMode: 'recent_exact_us' },
+    { recentHours: 167 },
+  ])('rejects drifted Goldman evidence %#', async (change) => {
+    await expect(createGoldmanHigherScopeEvidence({
+      ...goldmanInput,
+      ...change,
+    } as never)).rejects.toThrow()
   })
 
   it.each([
