@@ -1387,42 +1387,113 @@ describe('Goldman Higher adapter', () => {
     })
   })
 
-  it.each([
-    ['one millisecond stale', '2026-06-27T11:59:59.999Z'],
-    ['future', '2026-07-27T12:00:00.001Z'],
-    ['malformed', 'not-a-date'],
-    ['missing', null],
-  ])('rejects %s list startDate before detail hydration', async (
-    _name,
-    startDate,
-  ) => {
-    const role = goldmanRole(
-      'gs-date',
+  it('filters unprovable list dates before ingesting recent roles', async () => {
+    const stale = goldmanRole(
+      'gs-stale',
       '177011',
       'Risk',
       '',
       'United States',
-      startDate,
+      '2026-06-27T11:59:59.999Z',
     )
-    const providerFetch = goldmanFetch(oneGoldmanRole(role))
+    const recent = goldmanRole(
+      'gs-recent',
+      '177012',
+      'Finance',
+      '',
+      'United States',
+      '2026-07-24T12:00:00.000Z',
+    )
+    const future = goldmanRole(
+      'gs-future',
+      '177013',
+      'Risk',
+      '',
+      'United States',
+      '2026-07-27T12:00:00.001Z',
+    )
+    const malformed = goldmanRole(
+      'gs-malformed',
+      '177014',
+      'Risk',
+      '',
+      'United States',
+      'not-a-date',
+    )
+    const missing = goldmanRole(
+      'gs-missing',
+      '177015',
+      'Risk',
+      '',
+      'United States',
+      null,
+    )
+    const providerFetch = goldmanFetch({
+      EARLY_CAREER: [],
+      PROFESSIONAL: [stale, future, malformed, missing, recent],
+    })
     const observation = await pollGoldmanHigher(
       goldmanIdentity,
       providerFetch,
-      {
-        now: () => 0,
-        wallClockNow: () => GOLDMAN_NOW,
-      },
+      { now: () => 0, wallClockNow: () => GOLDMAN_NOW },
     )
 
     expect(observation).toMatchObject({
-      jobs: [],
-      credibleForClosure: false,
+      completeness: 'complete',
+      credibleForClosure: true,
       allowMissingClosure: false,
-      warnings: ['posting_date_ineligible'],
+      expectedCount: 1,
+      warnings: [],
+      jobs: [{ externalId: 'gs-recent' }],
     })
     expect(providerFetch.mock.calls.filter(([, init]) =>
       String(init?.body).includes('"operationName":"GetRoleById"')
-    )).toHaveLength(0)
+    )).toHaveLength(1)
+  })
+
+  it('keeps complete details while excluding incomplete selected roles', async () => {
+    const valid = goldmanRole('gs-valid-detail', '177016')
+    const invalid = goldmanRole('gs-invalid-detail', '177017')
+    const baseFetch = goldmanFetch({
+      EARLY_CAREER: [],
+      PROFESSIONAL: [valid, invalid],
+    })
+    const providerFetch = vi.fn(async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const request = await graphqlBody(init)
+      const response = await baseFetch(input, init)
+      if (request.operationName !== 'GetRoleById') return response
+      const payload = await response.json() as {
+        data: { role: Record<string, unknown> }
+      }
+      if (request.variables.externalSourceId === '177016') {
+        payload.data.role.descriptionHtml =
+          '<p>Line one.</p>\n\t<p>Line two.</p>\r\n'
+      } else {
+        payload.data.role.recruitingType = 'CAMPUS'
+      }
+      return jsonResponse(payload)
+    })
+
+    const observation = await pollGoldmanHigher(
+      goldmanIdentity,
+      providerFetch,
+      { now: () => 0, wallClockNow: () => GOLDMAN_NOW },
+    )
+
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure: false,
+      expectedCount: 1,
+      warnings: [],
+      jobs: [{
+        externalId: 'gs-valid-detail',
+        descriptionHtml: '<p>Line one.</p>\n\t<p>Line two.</p>',
+      }],
+    })
   })
 
   it.each([

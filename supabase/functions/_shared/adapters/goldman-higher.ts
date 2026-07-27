@@ -290,6 +290,15 @@ function boundedString(
   return normalized || allowEmpty ? normalized : null
 }
 
+function boundedHtml(value: unknown, maxLength: number): string | null {
+  if (
+    typeof value !== 'string'
+    || value.length > maxLength
+    || /[\p{Cf}\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/u.test(value)
+  ) return null
+  return value.trim() || null
+}
+
 function stableRoleId(value: unknown): string | null {
   const id = boundedString(value, 256)
   return id && /^[A-Za-z0-9_-]+$/.test(id) ? id : null
@@ -418,7 +427,7 @@ function parseListRole(
   }
   const postedAt = canonicalPostedAt(raw.startDate)
   if (!postedAt || !isRecentPosting(postedAt, wallClockNow)) {
-    throw new ProviderError('posting_date_ineligible')
+    return { role: null, categoryMissing: false, eligible: false }
   }
 
   const selectedLocation = selectedUsLocation(locations)
@@ -551,7 +560,7 @@ async function normalizeDetail(
     throw new ProviderError('detail_id_mismatch')
   }
   const title = boundedString(raw.jobTitle, 512)
-  const descriptionHtml = boundedString(
+  const descriptionHtml = boundedHtml(
     raw.descriptionHtml,
     MAX_DESCRIPTION_LENGTH,
   )
@@ -968,7 +977,7 @@ export async function pollGoldmanHigher(
     if (outcome.status === 'fulfilled') jobs.push(outcome.value)
   }
   const failed = outcomes.find((outcome) => outcome.status === 'rejected')
-  if (failed?.status === 'rejected') {
+  if (jobs.length === 0 && failed?.status === 'rejected') {
     return incomplete(jobs, errorCode(failed.reason), eligible.length, pageCount)
   }
   if (scheduled.length !== eligible.length) {
