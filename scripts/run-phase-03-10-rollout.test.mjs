@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import { execFile as execFileCallback } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
@@ -22,6 +29,7 @@ import {
 const execFile = promisify(execFileCallback)
 const FINAL_MANIFEST =
   '.planning/phases/03.10-goldman-sachs-selective-higher-monitoring/03.10-01-RELEASE-MANIFEST.json'
+const PHASE_DIR = dirname(FINAL_MANIFEST)
 const MIGRATION =
   'supabase/migrations/0048_phase_03_10_goldman_higher.sql'
 const MUTABLE_ARTIFACTS = Object.freeze([
@@ -65,6 +73,10 @@ const FUNCTION_FILES = Object.freeze({
     'supabase/functions/poll-tick/index.ts',
   ]),
 })
+const FINAL_MANIFEST_AT_LOAD = await readFile(FINAL_MANIFEST)
+const APPROVAL_ARTIFACTS_AT_LOAD = (await readdir(PHASE_DIR))
+  .filter((name) => /approval/i.test(name))
+  .sort()
 
 function digest(value) {
   return createHash('sha256').update(value).digest('hex')
@@ -323,9 +335,27 @@ async function validateChanged(fixture, mutate) {
   return validateManifest(manifest, bytes, { root: fixture.root })
 }
 
-test('exports the future manifest path without creating it', async () => {
+test('exports the frozen tracked manifest path without mutating it', async () => {
   assert.equal(DEFAULT_MANIFEST, FINAL_MANIFEST)
-  await assert.rejects(readFile(FINAL_MANIFEST), { code: 'ENOENT' })
+  assert.equal(
+    await git(process.cwd(), [
+      'ls-files',
+      '--full-name',
+      '--error-unmatch',
+      FINAL_MANIFEST,
+    ]),
+    FINAL_MANIFEST,
+  )
+
+  const manifest = JSON.parse(FINAL_MANIFEST_AT_LOAD)
+  assert.equal(manifest.phase, '03.10')
+  assert.match(manifest.release_manifest_id, /^[0-9a-f-]{36}$/)
+  assert.match(manifest.source_commit, /^[0-9a-f]{40}$/)
+  assert.ok(
+    manifest.safety_tests.some(({ path }) =>
+      path === 'scripts/run-phase-03-10-rollout.test.mjs'
+    ),
+  )
 })
 
 test('dry run validates final bytes, emits derived approval, and runs zero commands', async () => {
@@ -535,6 +565,12 @@ test('approval is invalidated by any valid manifest-byte change', async () => {
   })
 })
 
-test('tests leave no final Phase 03.10 manifest or reusable approval artifact', async () => {
-  await assert.rejects(readFile(FINAL_MANIFEST), { code: 'ENOENT' })
+test('tests leave the frozen manifest unchanged and no reusable approval artifact', async () => {
+  assert.deepEqual(await readFile(FINAL_MANIFEST), FINAL_MANIFEST_AT_LOAD)
+  assert.deepEqual(
+    (await readdir(PHASE_DIR))
+      .filter((name) => /approval/i.test(name))
+      .sort(),
+    APPROVAL_ARTIFACTS_AT_LOAD,
+  )
 })
