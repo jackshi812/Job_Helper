@@ -43,6 +43,18 @@ test('all future projection inserts fail closed for a dismissed provider identit
   assert.match(sql, /then\s+return null;/i)
 })
 
+test('the hosted legacy dismissal update becomes the same permanent deletion', () => {
+  assert.match(sql, /create trigger delete_legacy_dismissed_user_job/i)
+  assert.match(sql, /after update of dismissed_at on public\.user_jobs/i)
+  const functionSql = sql.match(
+    /create function public\.delete_legacy_dismissed_user_job[\s\S]+?\n\$\$;/i,
+  )?.[0] ?? ''
+  assert.match(functionSql, /old\.dismissed_at is null and new\.dismissed_at is not null/i)
+  assert.match(functionSql, /insert into public\.user_job_dismissals/i)
+  assert.match(functionSql, /delete from public\.user_jobs/i)
+  assert.doesNotMatch(functionSql, /delete from public\.jobs/i)
+})
+
 test('permanent dismissal is authenticated, user-scoped, and never deletes shared jobs', () => {
   const functionSql = sql.match(
     /create function public\.dismiss_job_permanently[\s\S]+?\n\$\$;/i,

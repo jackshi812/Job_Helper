@@ -1131,6 +1131,45 @@ create trigger prevent_dismissed_user_job_reinsert
 before insert on public.user_jobs
 for each row execute function public.prevent_dismissed_user_job_reinsert();
 
+-- Keep the currently hosted client safe during rollout. Its legacy dismissal
+-- update is converted transactionally into the same compact tombstone plus
+-- user-only projection deletion as the new RPC.
+create function public.delete_legacy_dismissed_user_job()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  dismissed_source text;
+  dismissed_external_id text;
+begin
+  if old.dismissed_at is null and new.dismissed_at is not null then
+    select job.source, job.external_id
+    into dismissed_source, dismissed_external_id
+    from public.jobs as job
+    where job.id = new.job_id;
+
+    insert into public.user_job_dismissals (user_id, source, external_id)
+    values (new.user_id, dismissed_source, dismissed_external_id)
+    on conflict (user_id, source, external_id) do nothing;
+
+    delete from public.user_jobs
+    where id = new.id
+      and user_id = new.user_id;
+  end if;
+
+  return null;
+end;
+$$;
+
+revoke execute on function public.delete_legacy_dismissed_user_job()
+  from public, anon, authenticated;
+
+create trigger delete_legacy_dismissed_user_job
+after update of dismissed_at on public.user_jobs
+for each row execute function public.delete_legacy_dismissed_user_job();
+
 create function public.dismiss_job_permanently(p_user_job_id uuid)
 returns boolean
 language plpgsql
