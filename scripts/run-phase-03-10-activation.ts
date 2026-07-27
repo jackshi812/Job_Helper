@@ -41,7 +41,7 @@ const REST_ROOT = `https://${PROJECT_REF}.supabase.co/rest/v1`
 const execFile = promisify(execFileCallback)
 const HASH = /^[a-f0-9]{64}$/
 const NUMERIC_SOURCE_ID = /^[0-9]{1,256}$/
-const RECENT_HOURS = 168
+const RECENT_HOURS = 720
 const ALLOWED_CATEGORY_TERMS = new Set([
   'Data',
   'Technology',

@@ -75,7 +75,7 @@ async function goldmanAggregateMatchesJobs(
     aggregate?.sourceKey !== 'goldman_higher:roles'
     || !('selectionMode' in aggregate)
     || aggregate.selectionMode !== 'recent_exact_us_provider_category'
-    || aggregate.recentHours !== 168
+    || aggregate.recentHours !== 720
     || aggregate.sliceDigests.length !== 2
     || !aggregate.sliceDigests.every((digest) => SHA256_HEX.test(digest))
     || !SHA256_HEX.test(aggregate.jobDigest)
@@ -96,7 +96,7 @@ async function goldmanAggregateMatchesJobs(
       && 'selectionMode' in evidence
       && evidence.sourceKey === 'goldman_higher:roles'
       && evidence.selectionMode === 'recent_exact_us_provider_category'
-      && evidence.recentHours === 168
+      && evidence.recentHours === 720
       && /^[0-9]+$/.test(evidence.providerSourceId)
       && (
         evidence.providerCategoryField === 'jobFunction'

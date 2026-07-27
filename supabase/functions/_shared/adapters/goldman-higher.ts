@@ -88,7 +88,7 @@ class ProviderError extends Error {
 const REQUEST_TIMEOUT_MS = 15_000
 const MAX_DESCRIPTION_LENGTH = 200_000
 const textEncoder = new TextEncoder()
-const RECENT_HOURS = 168
+const RECENT_HOURS = 720
 const GOLDMAN_EXPERIENCES = Object.freeze([
   'EARLY_CAREER',
   'PROFESSIONAL',

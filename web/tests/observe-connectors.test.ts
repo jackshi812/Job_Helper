@@ -108,7 +108,7 @@ function goldmanObservation(): PollObservation {
     scopeEvidence: {
       sourceKey: 'goldman_higher:roles' as const,
       selectionMode: 'recent_exact_us_provider_category' as const,
-      recentHours: 168 as const,
+      recentHours: 720 as const,
       providerSourceId: '1500123456789',
       providerCategoryField: 'jobFunction' as const,
       providerCategoryLabel: 'risk',
@@ -130,7 +130,7 @@ function goldmanObservation(): PollObservation {
     scopeEvidence: {
       sourceKey: 'goldman_higher:roles',
       selectionMode: 'recent_exact_us_provider_category',
-      recentHours: 168,
+      recentHours: 720,
       sliceDigests: ['2'.repeat(64), '3'.repeat(64)],
       jobDigest: digestJson([[
         job.externalId,

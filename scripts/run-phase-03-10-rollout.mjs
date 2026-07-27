@@ -26,7 +26,7 @@ export const PROJECT_REF = 'fjcsvajkkztvlrpdplwx'
 export const SOURCE_KEY = 'goldman_higher:roles'
 export const PUBLIC_URL = 'https://higher.gs.com/results'
 export const MIGRATION_PATH =
-  'supabase/migrations/0048_phase_03_10_goldman_higher.sql'
+  'supabase/migrations/0049_phase_03_10_goldman_30_day.sql'
 
 export const PRIVILEGED_EXECUTABLE_PATHS = Object.freeze([
   'scripts/run-phase-03-10-activation.ts',
@@ -50,7 +50,7 @@ export const SAFETY_TEST_PATHS = Object.freeze([
 ])
 
 export const APPROVED_ACTIONS = Object.freeze([
-  'verify_migration_0048',
+  'db_push_0049',
   'deploy_verify-board',
   'deploy_observe-connectors',
   'deploy_poll-tick',
@@ -470,7 +470,7 @@ function validateImmutableInventories(manifest) {
     'sha256',
   ], 'migration')
   requireCondition(
-    manifest.migration.version === '0048'
+    manifest.migration.version === '0049'
       && manifest.migration.path === MIGRATION_PATH,
     'migration identity drift',
   )
@@ -552,7 +552,7 @@ function validateScope(value) {
   ], 'scope')
   requireCondition(
     value.country === 'US'
-      && value.recent_hours === 168
+      && value.recent_hours === 720
       && value.allow_missing_closure === false,
     'selective scope drift',
   )
@@ -870,6 +870,25 @@ function requireAppliedMigration0048(stdout) {
   )
 }
 
+function requireAppliedMigration0049(stdout) {
+  let parsed
+  try {
+    parsed = JSON.parse(stdout)
+  } catch {
+    throw new Error('hosted migration history is not valid JSON')
+  }
+  const migrations = parsed?.migrations
+  requireCondition(Array.isArray(migrations), 'hosted migration history missing')
+  requireCondition(
+    migrations.length === 49
+      && migrations[0]?.local === '0001'
+      && migrations[0]?.remote === '0001'
+      && migrations.at(-1)?.local === '0049'
+      && migrations.at(-1)?.remote === '0049',
+    'hosted migration 0049 is not the exact applied release',
+  )
+}
+
 export async function executeRelease(
   manifest,
   approval,
@@ -917,6 +936,9 @@ export async function executeRelease(
 
   const migrationHistory = await run(['migration', 'list', '--linked'], execution)
   requireAppliedMigration0048(migrationHistory.stdout)
+  await run(['db', 'push', '--linked', '--yes'], execution)
+  const appliedHistory = await run(['migration', 'list', '--linked'], execution)
+  requireAppliedMigration0049(appliedHistory.stdout)
   for (const slug of FUNCTION_SLUGS) {
     const entry = manifest.functions[slug]
     const args = [

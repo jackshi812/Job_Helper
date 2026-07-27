@@ -200,7 +200,7 @@ describe('planCompanySync', () => {
         scopeEvidence: {
           sourceKey: 'goldman_higher:roles',
           selectionMode: 'recent_exact_us_provider_category',
-          recentHours: 168,
+          recentHours: 720,
           providerSourceId: '1500123456789',
           providerCategoryField: 'jobFunction',
           providerCategoryLabel: 'risk',

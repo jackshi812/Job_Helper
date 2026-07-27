@@ -26,8 +26,8 @@ const manifest = {
   public_url: PUBLIC_URL,
   source_commit: '1'.repeat(40),
   migration: {
-    path: 'supabase/migrations/0048_phase_03_10_goldman_higher.sql',
-    version: '0048',
+    path: 'supabase/migrations/0049_phase_03_10_goldman_30_day.sql',
+    version: '0049',
     sha256: SHA('2'),
   },
   functions: {
@@ -88,7 +88,7 @@ function passingSnapshot() {
       web_asset_sha256: manifest.web_deployment.asset_sha256,
     },
     migration: {
-      version: '0048',
+      version: '0049',
       path: manifest.migration.path,
       sha256: manifest.migration.sha256,
       status: 'APPLIED',
@@ -214,7 +214,7 @@ test('reports exact Active PASS only when every independent hosted check passes'
 const negativeCases = [
   ['migration history/hash', (value) => {
     value.migration.sha256 = SHA('0')
-  }, 'migration_0048'],
+  }, 'migration_0049'],
   ['function version', (value) => {
     value.functions['poll-tick'].version = 999
   }, 'function_parity'],
@@ -243,7 +243,7 @@ const negativeCases = [
     value.qualifying_jobs[0].posted_at = null
   }, 'qualifying_job'],
   ['stale startDate', (value) => {
-    value.qualifying_jobs[0].posted_at = '2026-07-19T15:59:59.999Z'
+    value.qualifying_jobs[0].posted_at = '2026-06-27T15:59:59.999Z'
   }, 'qualifying_job'],
   ['wrong source', (value) => {
     value.qualifying_jobs[0].source = 'oracle_recruiting'
@@ -405,7 +405,7 @@ function pendingUat() {
     rollout_verification_sha256: SHA('c'),
     source_key: SOURCE_KEY,
     migration: {
-      version: '0048',
+      version: '0049',
       sha256: manifest.migration.sha256,
     },
     functions: Object.fromEntries(

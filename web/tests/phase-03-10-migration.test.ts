@@ -7,6 +7,13 @@ const migrationPath = fileURLToPath(new URL(
   import.meta.url,
 ))
 const sql = existsSync(migrationPath) ? readFileSync(migrationPath, 'utf8') : ''
+const migration49Path = fileURLToPath(new URL(
+  '../../supabase/migrations/0049_phase_03_10_goldman_30_day.sql',
+  import.meta.url,
+))
+const sql49 = existsSync(migration49Path)
+  ? readFileSync(migration49Path, 'utf8')
+  : ''
 
 const exactSource = 'goldman_higher:roles'
 const protectedWorkdaySources = [
@@ -164,5 +171,49 @@ describe('Phase 03.10 forward-only Goldman Higher migration', () => {
         `grant execute on function public\\.${signature}[\\s\\S]*?to service_role`,
       ))
     }
+  })
+})
+
+describe('Phase 03.10 forward-only Goldman 30-day migration', () => {
+  it('is one bounded transaction and never rewrites migration history', () => {
+    expect(sql49.trimStart()).toMatch(/^begin;/i)
+    expect(sql49.trimEnd()).toMatch(/commit;$/i)
+    expect(sql49).toContain("set local lock_timeout = '5s'")
+    expect(sql49).toContain("set local statement_timeout = '60s'")
+    expect(sql49).not.toMatch(
+      /\b(drop|alter|update|delete|insert into)\s+supabase_migrations\./i,
+    )
+  })
+
+  it('replaces exactly the Goldman 168-hour evidence and digest constants', () => {
+    expect(sql49).toContain(
+      "(scope_evidence -> ''recentHours''::text) = ''168''::jsonb",
+    )
+    expect(sql49).toContain(
+      "(scope_evidence -> ''recentHours''::text) = ''720''::jsonb",
+    )
+    expect(sql49).toContain("'to_json(168)::text'")
+    expect(sql49).toContain("'to_json(720)::text'")
+    expect(sql49).toContain('jobs_scope_evidence_check')
+    expect(sql49).toContain('pg_get_constraintdef')
+  })
+
+  it('widens only Active Goldman feed visibility to 720 hours', () => {
+    expect(sql49).toContain(
+      'public.dashboard_feed_page(text,text,text[],text[],text,jsonb,integer)',
+    )
+    expect(sql49).toContain("'interval ''168 hours'''")
+    expect(sql49).toContain("'interval ''720 hours'''")
+    expect(sql49).toContain('pg_get_functiondef')
+  })
+
+  it('reopens only the exact posting-date-ineligible Goldman candidate', () => {
+    expect(sql49).toContain("company_name = 'Goldman Sachs'")
+    expect(sql49).toContain("provider = 'Goldman Higher'")
+    expect(sql49).toContain("careers_url = 'https://higher.gs.com/results'")
+    expect(sql49).toContain("disposition = 'unsupported_with_reason'")
+    expect(sql49).toContain("unsupported_reason = 'posting_date_ineligible'")
+    expect(sql49).toContain("set disposition = 'candidate'")
+    expect(sql49).toContain('if v_rows <> 1')
   })
 })

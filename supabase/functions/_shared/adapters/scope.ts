@@ -133,7 +133,7 @@ export interface CreateGoldmanHigherScopeEvidenceInput {
   sourceKey: 'goldman_higher:roles'
   externalId: string
   selectionMode: 'recent_exact_us_provider_category'
-  recentHours: 168
+  recentHours: 720
   providerSourceId: string
   providerCategoryField: 'jobFunction' | 'division'
   providerCategoryLabel: string
@@ -151,7 +151,7 @@ export async function createGoldmanHigherScopeEvidence(
   if (input.selectionMode !== 'recent_exact_us_provider_category') {
     throw new Error('invalid_selection_mode')
   }
-  if (input.recentHours !== 168) throw new Error('invalid_recent_hours')
+  if (input.recentHours !== 720) throw new Error('invalid_recent_hours')
   if (!isBounded(input.externalId, MAX_EXTERNAL_ID_CODE_POINTS, MAX_EXTERNAL_ID_BYTES)) {
     throw new Error('invalid_external_id')
   }

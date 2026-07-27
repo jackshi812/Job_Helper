@@ -36,7 +36,7 @@ export type GoldmanHigherRecruitingType =
 export interface GoldmanHigherJobScopeEvidence {
   readonly sourceKey: 'goldman_higher:roles'
   readonly selectionMode: 'recent_exact_us_provider_category'
-  readonly recentHours: 168
+  readonly recentHours: 720
   readonly providerSourceId: string
   readonly providerCategoryField: 'jobFunction' | 'division'
   readonly providerCategoryLabel: string
@@ -57,7 +57,7 @@ export interface GoldmanHigherJobScopeEvidence {
 export interface GoldmanHigherObservationScopeEvidence {
   readonly sourceKey: 'goldman_higher:roles'
   readonly selectionMode: 'recent_exact_us_provider_category'
-  readonly recentHours: 168
+  readonly recentHours: 720
   readonly sliceDigests: readonly [string, string]
   readonly jobDigest: string
   readonly categoryDigest: string

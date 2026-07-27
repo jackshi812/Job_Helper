@@ -27,7 +27,7 @@ const SOURCE_KEY = 'goldman_higher:roles'
 const PUBLIC_URL = 'https://higher.gs.com/results'
 const HASH = /^[a-f0-9]{64}$/
 const SOURCE_COMMIT = /^[a-f0-9]{40}$/
-const RECENT_HOURS = 168
+const RECENT_HOURS = 720
 const FUNCTION_SLUGS = Object.freeze([
   'verify-board',
   'observe-connectors',
@@ -274,7 +274,7 @@ function exactRelease(manifest, snapshot) {
 }
 
 function exactMigration(manifest, snapshot) {
-  return snapshot.migration?.version === '0048'
+  return snapshot.migration?.version === '0049'
     && snapshot.migration?.path === manifest.migration?.path
     && snapshot.migration?.sha256 === manifest.migration?.sha256
     && snapshot.migration?.status === 'APPLIED'
@@ -374,12 +374,12 @@ export async function collectUnsupportedSnapshot(
   `)
   const versions = migrations.map(({ version }) => String(version))
   const expectedVersions = Array.from(
-    { length: 48 },
+    { length: 49 },
     (_, index) => String(index + 1).padStart(4, '0'),
   )
   requireCondition(
     canonical(versions) === canonical(expectedVersions),
-    'hosted migration history is not exactly 0001..0048',
+    'hosted migration history is not exactly 0001..0049',
   )
 
   const [catalogRows, stateRows, aclRows, terminalRows] = await Promise.all([
@@ -491,7 +491,7 @@ export async function collectUnsupportedSnapshot(
       web_asset_sha256: manifest.web_deployment?.asset_sha256,
     },
     migration: {
-      version: '0048',
+      version: '0049',
       path: manifest.migration.path,
       sha256: manifest.migration.sha256,
       status: 'APPLIED',
@@ -544,7 +544,7 @@ export function evaluateHostedSnapshot(manifest, snapshot) {
     : []
   const checks = {
     exact_release: exactRelease(manifest, snapshot),
-    migration_0048: exactMigration(manifest, snapshot),
+    migration_0049: exactMigration(manifest, snapshot),
     function_parity: exactFunctions(manifest, snapshot),
     exact_identity: exactIdentity(snapshot, unsupported),
     service_role_acl: snapshot.acl?.service_role_execute === true
@@ -592,7 +592,7 @@ export function evaluateHostedSnapshot(manifest, snapshot) {
   const activePass = activeTerminal && Object.values(checks).every(Boolean)
   const unsupportedRequired = [
     'exact_release',
-    'migration_0048',
+    'migration_0049',
     'function_parity',
     'exact_identity',
     'service_role_acl',
@@ -632,7 +632,7 @@ export function evaluateHostedSnapshot(manifest, snapshot) {
 
 const UNSUPPORTED_REQUIRED_CHECKS = Object.freeze([
   'exact_release',
-  'migration_0048',
+  'migration_0049',
   'function_parity',
   'exact_identity',
   'service_role_acl',
@@ -780,7 +780,7 @@ export function exactUatApproval(manifest, record) {
 }
 
 function exactUatRuntime(manifest, record) {
-  return record.migration?.version === '0048'
+  return record.migration?.version === '0049'
     && record.migration?.sha256 === manifest.migration?.sha256
     && FUNCTION_SLUGS.every((slug) =>
       record.functions?.[slug]?.status === 'ACTIVE'

@@ -31,7 +31,7 @@ const FINAL_MANIFEST =
   '.planning/phases/03.10-goldman-sachs-selective-higher-monitoring/03.10-01-RELEASE-MANIFEST.json'
 const PHASE_DIR = dirname(FINAL_MANIFEST)
 const MIGRATION =
-  'supabase/migrations/0048_phase_03_10_goldman_higher.sql'
+  'supabase/migrations/0049_phase_03_10_goldman_30_day.sql'
 const MUTABLE_ARTIFACTS = Object.freeze([
   [
     '.planning/phases/03.10-goldman-sachs-selective-higher-monitoring/03.10-01-ROLLOUT-VERIFICATION.json',
@@ -185,7 +185,7 @@ async function createFixture() {
       terminal_fingerprint: digest('terminal'),
     },
     migration: {
-      version: '0048',
+      version: '0049',
       ...byPath.get(MIGRATION),
     },
     functions,
@@ -203,7 +203,7 @@ async function createFixture() {
     },
     scope: {
       country: 'US',
-      recent_hours: 168,
+      recent_hours: 720,
       populations: ['EARLY_CAREER', 'PROFESSIONAL'],
       category_terms: [
         'Data',
@@ -392,10 +392,11 @@ test('non-exact approval rejects before the first command', async () => {
   })
 })
 
-test('exact approval verifies applied 0048 and deploys only the three listed functions', async () => {
+test('exact approval pushes 0049 then deploys only the three listed functions', async () => {
   await withFixture(async ({ root, manifest, hashes }) => {
     const calls = []
     const telemetrySettings = []
+    let migrationLists = 0
     const result = await executeRelease(
       manifest,
       exactApproval(manifest, hashes),
@@ -406,7 +407,9 @@ test('exact approval verifies applied 0048 and deploys only the three listed fun
         return {
           stdout: args[0] === 'migration'
             ? JSON.stringify({
-                migrations: Array.from({ length: 48 }, (_, index) => {
+                migrations: Array.from({
+                  length: migrationLists++ === 0 ? 48 : 49,
+                }, (_, index) => {
                   const version = String(index + 1).padStart(4, '0')
                   return { local: version, remote: version, time: version }
                 }),
@@ -422,6 +425,8 @@ test('exact approval verifies applied 0048 and deploys only the three listed fun
     )
     assert.equal(result.status, 'DEPLOYED_PENDING_ACTIVATION')
     assert.deepEqual(calls, [
+      ['migration', 'list', '--linked'],
+      ['db', 'push', '--linked', '--yes'],
       ['migration', 'list', '--linked'],
       [
         'functions',
@@ -450,7 +455,7 @@ test('exact approval verifies applied 0048 and deploys only the three listed fun
         '--no-verify-jwt',
       ],
     ])
-    assert.deepEqual(telemetrySettings, ['1', '1', '1', '1'])
+    assert.deepEqual(telemetrySettings, ['1', '1', '1', '1', '1', '1'])
   })
 })
 
@@ -482,6 +487,43 @@ test('missing hosted migration 0048 stops before every function deployment', asy
       /migration 0048 is not the exact applied baseline/,
     )
     assert.deepEqual(calls, [['migration', 'list', '--linked']])
+  })
+})
+
+test('missing hosted migration 0049 after push stops before every function deployment', async () => {
+  await withFixture(async ({ root, manifest, hashes }) => {
+    const calls = []
+    await assert.rejects(
+      executeRelease(
+        manifest,
+        exactApproval(manifest, hashes),
+        hashes,
+        async (args) => {
+          calls.push(args)
+          return {
+            stdout: args[0] === 'migration'
+              ? JSON.stringify({
+                  migrations: Array.from({ length: 48 }, (_, index) => {
+                    const version = String(index + 1).padStart(4, '0')
+                    return { local: version, remote: version, time: version }
+                  }),
+                })
+              : '',
+            stderr: '',
+          }
+        },
+        {
+          root,
+          environment: { SUPABASE_ACCESS_TOKEN: 'TEST_ONLY_NON_PRODUCTION' },
+        },
+      ),
+      /migration 0049 is not the exact applied release/,
+    )
+    assert.deepEqual(calls, [
+      ['migration', 'list', '--linked'],
+      ['db', 'push', '--linked', '--yes'],
+      ['migration', 'list', '--linked'],
+    ])
   })
 })
 

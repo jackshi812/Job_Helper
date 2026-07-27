@@ -105,7 +105,7 @@ describe('durable branded scope evidence', () => {
     postedAt: '2026-07-24T18:03:34.000Z',
     recruitingType: 'GS_MID_CAREER' as const,
     selectionMode: 'recent_exact_us_provider_category' as const,
-    recentHours: 168 as const,
+    recentHours: 720 as const,
   }
 
   it.each([
@@ -180,7 +180,7 @@ describe('durable branded scope evidence', () => {
     expect(evidence).toEqual({
       sourceKey: 'goldman_higher:roles',
       selectionMode: 'recent_exact_us_provider_category',
-      recentHours: 168,
+      recentHours: 720,
       providerSourceId: '180084',
       providerCategoryField: 'jobFunction',
       providerCategoryLabel: 'capital markets technology',
@@ -217,7 +217,7 @@ describe('durable branded scope evidence', () => {
     { postedAt: '2026-07-24' },
     { recruitingType: 'CAMPUS' },
     { selectionMode: 'recent_exact_us' },
-    { recentHours: 167 },
+    { recentHours: 719 },
   ])('rejects drifted Goldman evidence %#', async (change) => {
     await expect(createGoldmanHigherScopeEvidence({
       ...goldmanInput,

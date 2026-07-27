@@ -958,7 +958,7 @@ const goldmanIdentity = resolveBrandedIdentity(
   GOLDMAN_HIGHER_SOURCE_KEY,
 ) as GoldmanHigherBrandedIdentity
 const GOLDMAN_NOW = Date.parse('2026-07-27T12:00:00.000Z')
-const GOLDMAN_BOUNDARY = '2026-07-20T12:00:00.000Z'
+const GOLDMAN_BOUNDARY = '2026-06-27T12:00:00.000Z'
 
 const goldmanRole = (
   roleId: string,
@@ -1171,7 +1171,7 @@ describe('Goldman Higher adapter', () => {
           scopeEvidence: {
             sourceKey: GOLDMAN_HIGHER_SOURCE_KEY,
             selectionMode: 'recent_exact_us_provider_category',
-            recentHours: 168,
+            recentHours: 720,
             providerSourceId: '177001',
             providerCategoryField: 'jobFunction',
             providerCategoryLabel: 'credit risk',
@@ -1191,7 +1191,7 @@ describe('Goldman Higher adapter', () => {
       scopeEvidence: {
         sourceKey: GOLDMAN_HIGHER_SOURCE_KEY,
         selectionMode: 'recent_exact_us_provider_category',
-        recentHours: 168,
+        recentHours: 720,
         sliceDigests: [
           expect.stringMatching(/^[a-f0-9]{64}$/),
           expect.stringMatching(/^[a-f0-9]{64}$/),
@@ -1258,7 +1258,7 @@ describe('Goldman Higher adapter', () => {
     )).toBe(true)
   })
 
-  it('accepts the exact inclusive 168-hour boundary and preserves division evidence', async () => {
+  it('accepts the exact inclusive 720-hour boundary and preserves division evidence', async () => {
     const role = goldmanRole(
       'gs-boundary',
       '177010',
@@ -1388,7 +1388,7 @@ describe('Goldman Higher adapter', () => {
   })
 
   it.each([
-    ['one millisecond stale', '2026-07-20T11:59:59.999Z'],
+    ['one millisecond stale', '2026-06-27T11:59:59.999Z'],
     ['future', '2026-07-27T12:00:00.001Z'],
     ['malformed', 'not-a-date'],
     ['missing', null],

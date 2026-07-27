@@ -151,7 +151,7 @@ async function validateBrandedPersistenceEvidence(
       aggregate?.sourceKey !== 'goldman_higher:roles'
       || !('selectionMode' in aggregate)
       || aggregate.selectionMode !== 'recent_exact_us_provider_category'
-      || aggregate.recentHours !== 168
+      || aggregate.recentHours !== 720
       || aggregate.sliceDigests.length !== 2
       || !aggregate.sliceDigests.every((digest) => SHA256_HEX.test(digest))
     ) throw new Error('invalid_branded_scope_evidence')

@@ -75,7 +75,7 @@ function qualifyingJob(overrides = {}) {
     scopeEvidence: {
       sourceKey: GOLDMAN_SOURCE_KEY,
       selectionMode: 'recent_exact_us_provider_category',
-      recentHours: 168,
+      recentHours: 720,
       providerSourceId: '180084',
       providerCategoryField: 'division',
       providerCategoryLabel: 'global investment research division',
@@ -102,7 +102,7 @@ function completeObservation(overrides = {}) {
     scopeEvidence: {
       sourceKey: GOLDMAN_SOURCE_KEY,
       selectionMode: 'recent_exact_us_provider_category',
-      recentHours: 168,
+      recentHours: 720,
       sliceDigests: ['b'.repeat(64), 'c'.repeat(64)],
       jobDigest: 'd'.repeat(64),
       categoryDigest: 'e'.repeat(64),
@@ -294,10 +294,17 @@ test('exactProbe accepts only complete qualifying D-19 evidence', async () => {
   assert.equal(result.sample_job.source, 'goldman_higher')
   assert.match(result.evidence_digest, /^[a-f0-9]{64}$/)
 
+  const staleJob = qualifyingJob({
+    postedAt: '2026-06-27T15:59:59.999Z',
+  })
+  staleJob.scopeEvidence = {
+    ...staleJob.scopeEvidence,
+    postedAt: staleJob.postedAt,
+  }
   await assert.rejects(
     exactProbe({
       observation: completeObservation({
-        jobs: [qualifyingJob({ postedAt: '2026-07-19T15:59:59.999Z' })],
+        jobs: [staleJob],
       }),
       now: NOW,
       checkApply: async () => true,

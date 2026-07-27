@@ -283,7 +283,7 @@ function requireCompleteBrandedObservation(
         || !('selectionMode' in observation.scopeEvidence)
         || observation.scopeEvidence.selectionMode
           !== 'recent_exact_us_provider_category'
-        || observation.scopeEvidence.recentHours !== 168
+        || observation.scopeEvidence.recentHours !== 720
         || observation.scopeEvidence.sliceDigests.length !== 2
       )
     )
