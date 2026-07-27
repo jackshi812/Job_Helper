@@ -238,7 +238,7 @@ if (typeof Deno !== 'undefined') {
   Deno.serve(createRouteDashboardResumesHandler({
     createAuthClient: () => createClient(
       url,
-      requiredEnvironment('SUPABASE_PUBLISHABLE_KEY'),
+      requiredEnvironment('SUPABASE_ANON_KEY'),
       options,
     ) as unknown as AuthClient,
     createServiceClient: () => createClient(
