@@ -214,7 +214,7 @@ Plans:
 4. Goldman reaches Active only after exact live terminal proof, three distinct clean server-timed observations, replay/same-window rejection, and a later healthy natural scheduled poll; otherwise it remains precise Unsupported with no operational authority.
 5. The forward-only exact-release rollout preserves every sibling source and real user row outside ordinary scheduler timestamps, leaves zero verifier residue, and receives final approval only from the owner's existing signed-in browser.
 
-**Plans:** 4 plans
+**Plans:** 5 plans
 
 Plans:
 
@@ -228,11 +228,15 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03.10-03-PLAN.md — Freeze the exact approval-bound release, activation, verification, cleanup, and UAT tooling
+- [ ] 03.10-03-PLAN.md — Freeze the immutable approval-bound release manifest and deployment controller
 
-**Wave 4** *(blocked on Wave 3 completion and owner approvals)*
+**Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 03.10-04-PLAN.md — Push, deploy, activate or terminalize Unsupported, verify isolation, clean up, and complete owner-browser UAT
+- [ ] 03.10-04-PLAN.md — Build and behavior-test activation, hosted verification, cleanup, and owner-UAT tooling
+
+**Wave 5** *(blocked on Wave 4 completion and owner approvals)*
+
+- [ ] 03.10-05-PLAN.md — Push, deploy, activate or terminalize Unsupported, verify isolation, clean up, and complete owner-browser UAT
 
 ### Phase 03.9: JPMorgan Chase Selective Oracle Monitoring (INSERTED)
 
