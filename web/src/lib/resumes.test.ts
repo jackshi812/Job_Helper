@@ -241,16 +241,31 @@ describe('deleteResume', () => {
     expect(supabase.rpc).not.toHaveBeenCalled()
   })
 
-  it('does not delete the row when storage returns an empty success response', async () => {
+  it('deletes the row when storage returns its normal empty success response', async () => {
     vi.mocked(supabase.storage.from).mockReturnValue({
       remove: vi.fn().mockResolvedValue({ data: [], error: null }),
+    } as never)
+    const eq = vi.fn().mockResolvedValue({ error: null })
+    const rowDelete = vi.fn().mockReturnValue({ eq })
+    vi.mocked(supabase.from).mockReturnValue({ delete: rowDelete } as never)
+
+    await expect(
+      deleteResume({ id: 'resume-id', storagePath: `${user.id}/resume.docx` }),
+    ).resolves.toBeUndefined()
+    expect(rowDelete).toHaveBeenCalledOnce()
+    expect(eq).toHaveBeenCalledWith('id', 'resume-id')
+  })
+
+  it('does not delete the row when storage reports an error', async () => {
+    vi.mocked(supabase.storage.from).mockReturnValue({
+      remove: vi.fn().mockResolvedValue({ data: null, error: new Error('storage failed') }),
     } as never)
     const rowDelete = vi.fn()
     vi.mocked(supabase.from).mockReturnValue({ delete: rowDelete } as never)
 
-    await expect(deleteResume({ id: 'resume-id', storagePath: `${user.id}/resume.docx` })).rejects.toThrow(
-      'Storage delete incomplete',
-    )
+    await expect(
+      deleteResume({ id: 'resume-id', storagePath: `${user.id}/resume.docx` }),
+    ).rejects.toThrow('storage failed')
     expect(rowDelete).not.toHaveBeenCalled()
   })
 })
