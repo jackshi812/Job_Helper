@@ -1,34 +1,139 @@
 {
   "schema_version": 1,
   "phase": "03.10",
-  "release_manifest_id": null,
-  "status": "PENDING",
-  "terminal_kind": "PENDING",
-  "source_key": "goldman_higher:roles",
-  "owner_browser_required": true,
-  "codex_browser_used": false,
+  "release_manifest_id": "c378b665-d6fc-49a0-bf71-a5d15f3cabd5",
+  "status": "PASS",
+  "terminal_kind": "ACTIVE",
   "checks": {
-    "exact_release": { "status": "PENDING" },
-    "migration_0048": { "status": "PENDING" },
-    "function_parity": { "status": "PENDING" },
-    "exact_identity": { "status": "PENDING" },
-    "service_role_acl": { "status": "PENDING" },
-    "activation_windows": { "status": "PENDING" },
-    "replay_same_window": { "status": "PENDING" },
-    "no_fourth_invocation": { "status": "PENDING" },
-    "natural_poll": { "status": "PENDING" },
-    "qualifying_job": { "status": "PENDING" },
-    "closure_disabled": { "status": "PENDING" },
-    "feed_aging": { "status": "PENDING" },
-    "protected_sources": { "status": "PENDING" },
-    "user_data": { "status": "PENDING" },
-    "cleanup_every_exit": { "status": "PENDING" },
-    "zero_residue": { "status": "PENDING" },
-    "secret_redaction": { "status": "PENDING" },
-    "unsupported_no_authority": { "status": "PENDING" },
-    "monitored_source": { "status": "PENDING" }
+    "exact_release": {
+      "status": "PASS"
+    },
+    "migration_0050": {
+      "status": "PASS"
+    },
+    "function_parity": {
+      "status": "PASS"
+    },
+    "exact_identity": {
+      "status": "PASS"
+    },
+    "service_role_acl": {
+      "status": "PASS"
+    },
+    "activation_windows": {
+      "status": "PASS"
+    },
+    "replay_same_window": {
+      "status": "PASS"
+    },
+    "no_fourth_invocation": {
+      "status": "PASS"
+    },
+    "natural_poll": {
+      "status": "PASS"
+    },
+    "qualifying_job": {
+      "status": "PASS"
+    },
+    "closure_disabled": {
+      "status": "PASS"
+    },
+    "feed_aging": {
+      "status": "PASS"
+    },
+    "protected_sources": {
+      "status": "PASS"
+    },
+    "user_data": {
+      "status": "PASS"
+    },
+    "cleanup_every_exit": {
+      "status": "PASS"
+    },
+    "zero_residue": {
+      "status": "PASS"
+    },
+    "secret_redaction": {
+      "status": "PASS"
+    },
+    "unsupported_no_authority": {
+      "status": "PASS"
+    },
+    "monitored_source": {
+      "status": "PASS"
+    }
   },
-  "evidence": null,
-  "production_claim": false,
-  "note": "Template only. No hosted verification was performed by Plan 04."
+  "evidence": {
+    "source_key": "goldman_higher:roles",
+    "careers_url": "https://higher.gs.com/results",
+    "terminal": {
+      "outcome": "admit_experimental",
+      "reason": null,
+      "operational_authority": true
+    },
+    "release": {
+      "release_manifest_id": "c378b665-d6fc-49a0-bf71-a5d15f3cabd5",
+      "manifest_file_sha256": "d7ac436331ff609fcfe08a897bdcf37d46105066798230113ec8f3ef183b97a8",
+      "source_commit": "b47376e730bb87f1d916a6d1c58c132b650bd616",
+      "web_commit_sha": "baf81fcaa72443995f227b118d10eec90da25679",
+      "web_asset_sha256": "8e28857fb560b5997865201c75226069e71a973a5fe66451726d52a7d7a41f1f"
+    },
+    "migration": {
+      "version": "0050",
+      "path": "supabase/migrations/0050_phase_03_10_goldman_provider_id_regex.sql",
+      "sha256": "859d839cae3921fd5f2a3c4f1263c26fa617f208c2c3a30b2a2b56f5a338f5ad",
+      "status": "APPLIED",
+      "history_exact": true
+    },
+    "functions": {
+      "verify-board": {
+        "status": "ACTIVE",
+        "version": 36,
+        "verify_jwt": true,
+        "entry_sha256": "558685a237b2efad872de874b95efe7441fe392a0ea5341307391091156b79e8",
+        "bundle_sha256": "dc2f6f07e40476165fd17b2c5d731320768a81ee14102e0ca43935dbc96e88eb",
+        "type_only_server_erasures": [
+          "supabase/functions/_shared/adapters/types.ts"
+        ]
+      },
+      "observe-connectors": {
+        "status": "ACTIVE",
+        "version": 12,
+        "verify_jwt": false,
+        "entry_sha256": "bbfc2b128af6ee0b53c69384e2ce02d0cd6b623dc2afe86dee9e90ed0cdfca3c",
+        "bundle_sha256": "5e61699fdbaed47c74e66f443ab08a20fa2ab67d4e109dad09e5e088199e2411",
+        "type_only_server_erasures": [
+          "supabase/functions/_shared/adapters/types.ts"
+        ]
+      },
+      "poll-tick": {
+        "status": "ACTIVE",
+        "version": 41,
+        "verify_jwt": false,
+        "entry_sha256": "a5baaa1b6e138090fc835b77fb2f78ba4b046259d1ce7b43a219d10c908000a8",
+        "bundle_sha256": "3d6772ceda6d86e02cd91f96966023d0645ee352369e14fe27387cac5393a622",
+        "type_only_server_erasures": [
+          "supabase/functions/_shared/adapters/types.ts"
+        ]
+      }
+    },
+    "sample_job": {
+      "source": "goldman_higher",
+      "source_key": "goldman_higher:roles",
+      "external_id": "179694_GS_EARLY_CAREER",
+      "observed_at": "2026-07-27T20:29:29.211+00:00",
+      "posted_at": "2026-07-27T19:22:17+00:00",
+      "country_code": "US",
+      "category_field": "jobFunction",
+      "category_label": "credit risk",
+      "matched_term": "Risk",
+      "recruiting_type": "GS_EARLY_CAREER",
+      "description_text": "Divisional Overview The Risk Division is a team of specialists charged with managing the firms credit, market, liquidity, and operational risk. Whether assessing the creditworthiness of the firms counterparties, monitoring market risks associated with trading activities, or offering analytical and regulatory compliance support, our work contributes directly to the firms success. The division is ideal for collaborative individuals who have strong ethics and attention to detail. Credit Risk (CR) is responsible for managing the firms credit exposure to its trading and lending counterparties. Leveraging its extensive expertise in financial, credit and risk analysis, CR ensures that credit exposure to our counterparts is managed within the firms risk appetite. CR operates through 12 different offices around the world and credit professionals work closely with many areas of the firm. Given this structure, CR professionals gain diverse financial experience and a broad perspective on how the entire firm functions. The interaction with numerous departments and the range of projects that ensue allow for a challenging, varied, and multi-dimensional work environment. Responsibilities Assess the credit and financial strength of the firm&#39;s Private Equity borrowers and counterparts by performing fundamental credit analysis. Review and approve loan transactions and determine appetite and regulatory ratings Coordinate with Global Banking and Markets, Legal, Operations and Compliance departments to approve derivatives business and ensure appropriate documentation, limits, and risk mitigants to protect against a counterpart default and minimize potential losses Analyze the risks inherent in the products GS transacts, including lending and derivative products Perform sector analysis regularly to assess portfolio concentration or trends Monitor, manage and report exposures at a counterpart, product, and portfolio level Basic Qualifications Bachelor&#39;s degree Excellent academic record Demonstrable track record of achievement and independent decision making Strong communication skills (written and verbal) Excellent attention to detail and strong analytical skills Ability to work in a fast-paced environment Integrity, ethical standards and sound judgment 0-2 years of experience in a financial services role with preferable Fund, Hedge Fund, or Private Equity Fund experience Understanding of investment banking products including loan products and derivatives Skills Functional Expertise and Technical Skills – Ability to learn quickly Teamwork – Strong team player, works well under pressure, and collaborates with others across teams and business units Communication Skills – Communicates in a clear and concise manner, shares information/new ideas with peer group and team, and escalates as appropriate Judgment and Problem Solving – Thinks ahead, anticipates questions, plans for contingencies, finds alternative solutions, and identifies clear objectives. Sees the big picture and effectively analyzes complex issues Creativity and Influence – Looks for new ways to improve current processes and develop creative solutions with practical value Proactive ownership – Ability to self-direct in executing tasks Continuous Development – Values constant self-improvement and learning",
+      "snapshot_partial": false,
+      "absolute_url": "https://hdpc.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/LateralHiring/job/179694/apply/email",
+      "provider_source_id": "179694",
+      "apply_reachable": true,
+      "scope_evidence_matches": true
+    }
+  }
 }
