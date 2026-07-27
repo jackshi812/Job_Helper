@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "phase": "03.10",
-  "created_at": "2026-07-27T18:36:23.000Z",
-  "release_manifest_id": "33072ed5-6ac8-4609-a1f0-66815a94adae",
+  "created_at": "2026-07-27T18:47:49.000Z",
+  "release_manifest_id": "64c0c4df-f1ad-46a8-8cac-43c612a9eafb",
   "project_ref": "fjcsvajkkztvlrpdplwx",
   "source_key": "goldman_higher:roles",
   "public_url": "https://higher.gs.com/results",
-  "source_commit": "b6d1b5e6d187e77789e749e5068ebfcc0ca96c9d",
-  "source_commit_object": "b6d1b5e6d187e77789e749e5068ebfcc0ca96c9d",
+  "source_commit": "8647ce8b12bc25c49cfa1fd724282385b570936c",
+  "source_commit_object": "8647ce8b12bc25c49cfa1fd724282385b570936c",
   "hosted_baseline": {
     "first_migration": "0001",
     "last_migration": "0048",
@@ -119,8 +119,8 @@
   "privileged_executables": [
     {
       "path": "scripts/run-phase-03-10-activation.ts",
-      "git_object": "0b18b337e2d1207dba92a5cb6afc42bed9d122fe",
-      "sha256": "5711ffafc56a95ade001d7e40cb7a42762cc8930939f180a441d344f045ca61f"
+      "git_object": "b69a8d58c5e011206667e121d54e388d834cd137",
+      "sha256": "37af61cefc208d886fd54f6b17ad3100f2713984f80b9cd4832ef48ec223ab98"
     },
     {
       "path": "scripts/run-phase-03-10-rollout.mjs",
@@ -129,15 +129,15 @@
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.mjs",
-      "git_object": "76a62b5ca5eb0a2a2e4c96095a5bc19f22a5962c",
-      "sha256": "c2b16fa61e5231a15a44351ad56409e424a4c65c0f0fa53a70d651ba97fe09b0"
+      "git_object": "fb4f5c01eda29ae5682c8124fb43d27d7f94f21b",
+      "sha256": "8794d22b8ac4d4e933e0947a51a0ed75225a335b45ed028e3824941cc4fc6a24"
     }
   ],
   "safety_tests": [
     {
       "path": "scripts/run-phase-03-10-activation.test.mjs",
-      "git_object": "96a93609da5b0ebf65b87c2545555547affa267d",
-      "sha256": "9dc4a6f24ed9e3508432524c5ebfcb1302494a16093de142927ff6c8a0baa6a6"
+      "git_object": "33f0d9d15f344c12a395106c404984f15e751b08",
+      "sha256": "845b50625b4cd1efa0bfa3825587fa9931edc36facc5532f3f273b936dfcd371"
     },
     {
       "path": "scripts/run-phase-03-10-rollout.test.mjs",
@@ -151,8 +151,8 @@
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.test.mjs",
-      "git_object": "f19a4a6bcaedfa0ba762392a485fe364f7a2218c",
-      "sha256": "10844cbe8904507f5347bb40ec454e98309d84db2e6b25646416ac31415c1b58"
+      "git_object": "22c4e86cfdfd9c98b60f7ddbfa52ef0518413f0b",
+      "sha256": "c4d143ddd2d5e1a789f29ef46fb1729116866b295d27244b8ea56d52e28e5f49"
     },
     {
       "path": "web/tests/branded-adapters.test.ts",
@@ -198,13 +198,13 @@
   "immutable_source": [
     {
       "path": "scripts/run-phase-03-10-activation.test.mjs",
-      "git_object": "96a93609da5b0ebf65b87c2545555547affa267d",
-      "sha256": "9dc4a6f24ed9e3508432524c5ebfcb1302494a16093de142927ff6c8a0baa6a6"
+      "git_object": "33f0d9d15f344c12a395106c404984f15e751b08",
+      "sha256": "845b50625b4cd1efa0bfa3825587fa9931edc36facc5532f3f273b936dfcd371"
     },
     {
       "path": "scripts/run-phase-03-10-activation.ts",
-      "git_object": "0b18b337e2d1207dba92a5cb6afc42bed9d122fe",
-      "sha256": "5711ffafc56a95ade001d7e40cb7a42762cc8930939f180a441d344f045ca61f"
+      "git_object": "b69a8d58c5e011206667e121d54e388d834cd137",
+      "sha256": "37af61cefc208d886fd54f6b17ad3100f2713984f80b9cd4832ef48ec223ab98"
     },
     {
       "path": "scripts/run-phase-03-10-rollout.mjs",
@@ -223,13 +223,13 @@
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.mjs",
-      "git_object": "76a62b5ca5eb0a2a2e4c96095a5bc19f22a5962c",
-      "sha256": "c2b16fa61e5231a15a44351ad56409e424a4c65c0f0fa53a70d651ba97fe09b0"
+      "git_object": "fb4f5c01eda29ae5682c8124fb43d27d7f94f21b",
+      "sha256": "8794d22b8ac4d4e933e0947a51a0ed75225a335b45ed028e3824941cc4fc6a24"
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.test.mjs",
-      "git_object": "f19a4a6bcaedfa0ba762392a485fe364f7a2218c",
-      "sha256": "10844cbe8904507f5347bb40ec454e98309d84db2e6b25646416ac31415c1b58"
+      "git_object": "22c4e86cfdfd9c98b60f7ddbfa52ef0518413f0b",
+      "sha256": "c4d143ddd2d5e1a789f29ef46fb1729116866b295d27244b8ea56d52e28e5f49"
     },
     {
       "path": "supabase/functions/_shared/adapters/ashby.ts",
