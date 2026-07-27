@@ -16,7 +16,6 @@ import {
   relativePostedTime,
   safeApplyUrl,
   tierPresentation,
-  undismissJob,
   undoJobApplied,
   type DashboardFeedCursor,
   type DashboardFeedPage,
@@ -28,7 +27,7 @@ import { vi } from 'vitest'
 const queryMock = vi.hoisted(() => {
   const calls: Array<[string, ...unknown[]]> = []
   let rows: FeedRow[] = []
-  let rpcRows: unknown[] = []
+  let rpcData: unknown = []
   const builder = {
     select: vi.fn((...args: unknown[]) => {
       calls.push(['select', ...args])
@@ -75,14 +74,14 @@ const queryMock = vi.hoisted(() => {
     from: vi.fn(() => builder),
     rpc: vi.fn(async (...args: unknown[]) => {
       calls.push(['rpc', ...args])
-      return { data: rpcRows, error: null }
+      return { data: rpcData, error: null }
     }),
     setRows(next: FeedRow[]) {
       rows = next
       calls.length = 0
     },
-    setRpcRows(next: unknown[]) {
-      rpcRows = next
+    setRpcRows(next: unknown) {
+      rpcData = next
       calls.length = 0
     },
   }
@@ -429,13 +428,13 @@ describe('Dashboard cursor validation and stable merge', () => {
   })
 })
 
-describe('mutually exclusive lifecycle mutations', () => {
-  it('marks applied, undoes applied, dismisses, and restores with exact payloads', async () => {
+describe('lifecycle mutations', () => {
+  it('marks applied and permanently dismisses only through the authenticated RPC', async () => {
+    queryMock.setRpcRows(true)
     queryMock.setRows([])
     await markJobApplied('job-1')
     await undoJobApplied('job-1')
     await dismissJob('job-1')
-    await undismissJob('job-1')
 
     const updates = queryMock.calls.filter(([method]) => method === 'update')
     expect(updates[0]?.[1]).toMatchObject({
@@ -443,18 +442,16 @@ describe('mutually exclusive lifecycle mutations', () => {
       dismissed_at: null,
     })
     expect(updates[1]).toEqual(['update', { applied_at: null }])
-    expect(updates[2]?.[1]).toMatchObject({
-      dismissed_at: expect.any(String),
-      applied_at: null,
-    })
-    expect(updates[3]).toEqual(['update', { dismissed_at: null }])
-    expect(queryMock.calls.filter(([method]) => method === 'eq')).toEqual([
-      ['eq', 'id', 'job-1'],
-      ['eq', 'id', 'job-1'],
-      ['eq', 'id', 'job-1'],
-      ['eq', 'id', 'job-1'],
+    expect(queryMock.calls).toContainEqual([
+      'rpc',
+      'dismiss_job_permanently',
+      { p_user_job_id: 'job-1' },
     ])
-    expect(queryMock.from).toHaveBeenCalledWith('user_jobs')
     expect(queryMock.from).not.toHaveBeenCalledWith('jobs')
+  })
+
+  it('fails closed when the permanent-dismiss RPC cannot find an owned row', async () => {
+    queryMock.setRpcRows(false)
+    await expect(dismissJob('missing')).rejects.toThrow('user_job_not_found')
   })
 })

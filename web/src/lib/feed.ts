@@ -638,8 +638,9 @@ export async function getFeedJob(userJobId: string): Promise<FeedRow> {
   return row
 }
 
-// Mutations — only seen_at/dismissed_at are grant-writable (Plan 03 column
-// grants); every helper throws on error.
+// Mutations. Dismissal is an authenticated RPC because it atomically records a
+// compact provider-identity tombstone and permanently removes only this user's
+// heavy projection. It never deletes the shared jobs row.
 
 // Conditional: chain .is('seen_at', null) so a detail re-mount never rewrites an
 // existing timestamp (Codex markSeen concern) — the New badge clears once.
@@ -654,24 +655,12 @@ export async function markSeen(userJobId: string): Promise<void> {
 }
 
 export async function dismissJob(userJobId: string): Promise<void> {
-  const { error } = await supabase
-    .from('user_jobs')
-    .update({
-      dismissed_at: new Date().toISOString(),
-      applied_at: null,
-    })
-    .eq('id', userJobId)
+  const { data, error } = await supabase.rpc('dismiss_job_permanently', {
+    p_user_job_id: userJobId,
+  })
 
   if (error) throw error
-}
-
-export async function undismissJob(userJobId: string): Promise<void> {
-  const { error } = await supabase
-    .from('user_jobs')
-    .update({ dismissed_at: null })
-    .eq('id', userJobId)
-
-  if (error) throw error
+  if (data !== true) throw new Error('user_job_not_found')
 }
 
 export async function markJobApplied(userJobId: string): Promise<void> {

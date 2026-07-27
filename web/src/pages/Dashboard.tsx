@@ -17,7 +17,6 @@ import {
   mergeDashboardFeedPages,
   safeApplyUrl,
   tierPresentation,
-  undismissJob,
   undoJobApplied,
   type DashboardFeedOrder,
   type DashboardFeedPage,
@@ -469,21 +468,7 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
     },
     onSuccess: async (_data, _id, context) => {
       if (lifecycle === 'active') await refillVisibleQueue(context.continuationCursor)
-    },
-    onSettled: () => queryClient.invalidateQueries({
-      queryKey: ['dashboard-feed'],
-      refetchType: 'inactive',
-    }),
-  })
-
-  const restoreMutation = useMutation({
-    mutationFn: undismissJob,
-    onMutate: snapshotAndRemove,
-    onError: (_error, _id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData<DashboardInfiniteData>(feedKey, context.previous)
-      }
-      setLifecycleError('Couldn’t restore this job. Try again from Show dismissed.')
+      setQueueAnnouncement(`Dismissed ${context.title} permanently.`)
     },
     onSettled: () => queryClient.invalidateQueries({
       queryKey: ['dashboard-feed'],
@@ -529,7 +514,6 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['dashboard-feed'] }),
   })
   const lifecycleMutationPending = dismissMutation.isPending
-    || restoreMutation.isPending
     || markAppliedMutation.isPending
     || undoAppliedMutation.isPending
 
@@ -679,17 +663,6 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
           }`}
         >
           Show applied
-        </button>
-        <button
-          type="button"
-          aria-pressed={lifecycle === 'dismissed'}
-          onClick={() => setLifecycle((current) =>
-            toggleDashboardLifecycle(current, 'dismissed'))}
-          className={`${filterButtonBase} ${
-            lifecycle === 'dismissed' ? filterActive : filterInactive
-          }`}
-        >
-          Show dismissed
         </button>
       </div>
 
@@ -1193,21 +1166,7 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
                           >
                             Undo applied
                           </button>
-                        ) : (
-                          <button
-                            ref={(node) => {
-                              if (node) actionRefs.current.set(row.id, node)
-                              else actionRefs.current.delete(row.id)
-                            }}
-                            type="button"
-                            disabled={lifecycleMutationPending}
-                            aria-label={`Restore ${jobTitle}`}
-                            onClick={() => restoreMutation.mutate(row.id)}
-                            className="min-h-9 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-60 [@media(pointer:coarse)]:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
-                          >
-                            Restore
-                          </button>
-                        )}
+                        ) : null}
                       </div>
                     </td>
                   </tr>

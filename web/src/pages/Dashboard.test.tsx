@@ -127,7 +127,8 @@ describe('Dashboard precision controls', () => {
     expect(markup).toContain('>Watchlist Jobs</h1>')
     expect(markup).toContain('role="group"')
     expect(markup).toContain('aria-label="Lifecycle view"')
-    expect(markup).toMatch(/aria-pressed="false"[^>]*>Show applied<\/button>[\s\S]*aria-pressed="false"[^>]*>Show dismissed<\/button>/)
+    expect(markup).toMatch(/aria-pressed="false"[^>]*>Show applied<\/button>/)
+    expect(markup).not.toContain('Show dismissed')
     expect(markup).toContain(
       'New postings from watched companies ranked against your preferences, newest first.',
     )
@@ -246,7 +247,8 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('mutationFn: markJobApplied')
     expect(dashboardSource).toContain('mutationFn: undoJobApplied')
     expect(dashboardSource).toContain('mutationFn: dismissJob')
-    expect(dashboardSource).toContain('mutationFn: undismissJob')
+    expect(dashboardSource).not.toContain('mutationFn: undismissJob')
+    expect(dashboardSource).toContain('Dismissed ${context.title} permanently.')
     expect(dashboardSource).not.toMatch(/onClick=\{[^}]*markJobApplied[^}]*\}[\s\S]*Apply/)
     expect(dashboardSource).not.toContain('<dialog')
     expect(dashboardSource).not.toContain('ConfirmDialog')
@@ -297,7 +299,7 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('ariaSort={scoreAriaSort}')
     expect(dashboardSource).toContain("const scoreAriaSort = lifecycle === 'active'")
     expect(dashboardSource).toContain('Undo applied')
-    expect(dashboardSource).toContain('Restore')
+    expect(dashboardSource).not.toContain('Restore')
   })
 
   it('uses one native score checkbox group with immediate zero-to-three tier state', () => {
