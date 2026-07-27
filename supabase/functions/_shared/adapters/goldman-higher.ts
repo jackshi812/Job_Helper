@@ -7,11 +7,13 @@ import {
   runBoundedPool,
 } from '../bounded-pool.ts'
 import {
-  createBrandedScopeEvidence,
+  createGoldmanHigherScopeEvidence,
   findAllowedBrandedCategoryTerm,
 } from './scope.ts'
 import type {
-  BrandedObservationScopeEvidence,
+  GoldmanHigherNormalizedJob,
+  GoldmanHigherObservationScopeEvidence,
+  GoldmanHigherRecruitingType,
   NormalizedJob,
   PollObservation,
 } from './types.ts'
@@ -30,6 +32,7 @@ export interface GoldmanHigherAdapterOptions {
   detailConcurrency?: number
   totalDurationMs?: number
   now?: () => number
+  wallClockNow?: () => number
 }
 
 interface HigherLocation {
@@ -43,9 +46,29 @@ interface HigherRole {
   roleId: string
   sourceId: string
   title: string
+  categoryField: 'jobFunction' | 'division'
   categoryLabel: string
-  categoryTerm: string
+  categoryTerm:
+    | 'Data'
+    | 'Technology'
+    | 'Finance'
+    | 'Investment'
+    | 'Research'
+    | 'Risk'
+    | 'Capital Markets'
   locations: HigherLocation[]
+  selectedLocation: HigherLocation
+  postedAt: string
+}
+
+type GoldmanExperience = 'EARLY_CAREER' | 'PROFESSIONAL'
+
+interface SliceEvidence {
+  readonly experience: GoldmanExperience
+  readonly expected: number
+  readonly fetched: number
+  readonly pages: number
+  readonly pageSize: number
 }
 
 interface InvocationBudget {
@@ -61,12 +84,20 @@ class ProviderError extends Error {
 
 const REQUEST_TIMEOUT_MS = 15_000
 const MAX_DESCRIPTION_LENGTH = 200_000
-const HIGHER_PUBLIC_ORIGIN = 'https://higher.gs.com'
-const GOLDMAN_APPLY_HOST = 'hdpc.fa.us2.oraclecloud.com'
 const textEncoder = new TextEncoder()
+const RECENT_HOURS = 168
+const GOLDMAN_EXPERIENCES = Object.freeze([
+  'EARLY_CAREER',
+  'PROFESSIONAL',
+] as const)
 
 const GET_ROLES_QUERY = `query GetRoles($searchQueryInput: RoleSearchQueryInput!) {
   roleSearch(searchQueryInput: $searchQueryInput) {
+    page {
+      pageSize
+      pageNumber
+      hasNext
+    }
     totalCount
     items {
       roleId
@@ -80,6 +111,8 @@ const GET_ROLES_QUERY = `query GetRoles($searchQueryInput: RoleSearchQueryInput!
         city
       }
       status
+      externalJobStatus
+      startDate
       division
       skills
       jobType {
@@ -88,6 +121,7 @@ const GET_ROLES_QUERY = `query GetRoles($searchQueryInput: RoleSearchQueryInput!
       }
       externalSource {
         sourceId
+        externalSourceType
       }
     }
   }
@@ -113,6 +147,8 @@ const GET_ROLE_BY_ID_QUERY = `query GetRoleById(
     }
     division
     descriptionHtml
+    startDate
+    recruitingType
     jobType {
       code
       description
@@ -125,11 +161,13 @@ const GET_ROLE_BY_ID_QUERY = `query GetRoleById(
     }
     applyActive
     status
+    externalJobStatus
     externalSource {
       externalApplicationUrl
       applyInExternalSource
       sourceId
       secondarySourceId
+      externalSourceType
     }
   }
 }`
@@ -256,7 +294,7 @@ function stableRoleId(value: unknown): string | null {
 
 function stableSourceId(value: unknown): string | null {
   const id = boundedString(value, 256)
-  return id && /^[A-Za-z0-9_-]+$/.test(id) ? id : null
+  return id && /^[0-9]+$/.test(id) ? id : null
 }
 
 function parseLocations(value: unknown): HigherLocation[] | null {
@@ -285,29 +323,63 @@ function parseLocations(value: unknown): HigherLocation[] | null {
   return parsed
 }
 
-function trustedCategory(
-  raw: Record<string, unknown>,
-): {
+function normalizedLabel(value: string): string {
+  return value.normalize('NFKC').toLocaleLowerCase('en-US')
+    .replace(/\s+/gu, ' ').trim()
+}
+
+function trustedCategory(raw: Record<string, unknown>): {
+  field: 'jobFunction' | 'division' | null
   label: string | null
-  term: string | null
+  term: HigherRole['categoryTerm'] | null
   missing: boolean
 } {
-  const labels: string[] = []
   for (const field of ['jobFunction', 'division'] as const) {
     const value = boundedString(raw[field], 160, true)
-    if (value === null) return { label: null, term: null, missing: true }
-    if (value) labels.push(value)
+    if (value === null) {
+      return { field: null, label: null, term: null, missing: true }
+    }
+    if (!value) continue
+    const term = findAllowedBrandedCategoryTerm(value)
+    if (term) {
+      return {
+        field,
+        label: normalizedLabel(value),
+        term,
+        missing: false,
+      }
+    }
   }
-  if (labels.length === 0) return { label: null, term: null, missing: true }
-  for (const label of labels) {
-    const term = findAllowedBrandedCategoryTerm(label)
-    if (term) return { label, term, missing: false }
-  }
-  return { label: null, term: null, missing: false }
+  const missing = ['jobFunction', 'division'].every((field) =>
+    boundedString(raw[field], 160, true) === ''
+  )
+  return { field: null, label: null, term: null, missing }
+}
+
+function canonicalPostedAt(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null
+}
+
+function isRecentPosting(postedAt: string, wallClockNow: number): boolean {
+  const parsed = Date.parse(postedAt)
+  return Number.isFinite(parsed)
+    && parsed >= wallClockNow - RECENT_HOURS * 60 * 60 * 1_000
+    && parsed <= wallClockNow
+}
+
+function selectedUsLocation(
+  locations: readonly HigherLocation[],
+): HigherLocation | null {
+  return locations.find((location) =>
+    location.primary && location.country === 'United States'
+  ) ?? locations.find((location) => location.country === 'United States') ?? null
 }
 
 function parseListRole(
   value: unknown,
+  wallClockNow: number,
 ): {
   role: HigherRole | null
   categoryMissing: boolean
@@ -320,11 +392,13 @@ function parseListRole(
   const roleId = stableRoleId(raw.roleId)
   const title = boundedString(raw.jobTitle, 512)
   const status = boundedString(raw.status, 64)
+  const externalJobStatus = boundedString(raw.externalJobStatus, 64)
   const locations = parseLocations(raw.locations)
   if (
     !roleId
     || !title
     || status !== 'POSTED'
+    || externalJobStatus !== 'POSTED'
     || !locations
     || !raw.externalSource
     || typeof raw.externalSource !== 'object'
@@ -332,19 +406,27 @@ function parseListRole(
   const sourceId = stableSourceId(
     (raw.externalSource as Record<string, unknown>).sourceId,
   )
-  if (!sourceId) throw new ProviderError('provider_schema_invalid')
-
-  const hasUsLocation = locations.some((location) =>
-    location.country === 'United States'
+  const externalSourceType = boundedString(
+    (raw.externalSource as Record<string, unknown>).externalSourceType,
+    64,
   )
-  if (!hasUsLocation) {
+  if (!sourceId || externalSourceType !== 'ORACLE') {
+    throw new ProviderError('provider_schema_invalid')
+  }
+  const postedAt = canonicalPostedAt(raw.startDate)
+  if (!postedAt || !isRecentPosting(postedAt, wallClockNow)) {
+    throw new ProviderError('posting_date_ineligible')
+  }
+
+  const selectedLocation = selectedUsLocation(locations)
+  if (!selectedLocation) {
     return { role: null, categoryMissing: false, eligible: false }
   }
   const category = trustedCategory(raw)
   if (category.missing) {
     return { role: null, categoryMissing: true, eligible: false }
   }
-  if (!category.label || !category.term) {
+  if (!category.field || !category.label || !category.term) {
     return { role: null, categoryMissing: false, eligible: false }
   }
   return {
@@ -352,9 +434,12 @@ function parseListRole(
       roleId,
       sourceId,
       title,
+      categoryField: category.field,
       categoryLabel: category.label,
       categoryTerm: category.term,
       locations,
+      selectedLocation,
+      postedAt,
     },
     categoryMissing: false,
     eligible: true,
@@ -363,6 +448,8 @@ function parseListRole(
 
 function parseListEnvelope(
   envelope: Record<string, unknown>,
+  requestedPageNumber: number,
+  requestedPageSize: number,
   priorExpected?: number,
 ): {
   expected: number
@@ -385,33 +472,53 @@ function parseListEnvelope(
   if (priorExpected !== undefined && expected !== priorExpected) {
     throw new ProviderError('count_mismatch')
   }
+  if (!raw.page || typeof raw.page !== 'object') {
+    throw new ProviderError('provider_schema_invalid')
+  }
+  const page = raw.page as Record<string, unknown>
+  if (page.pageNumber !== requestedPageNumber) {
+    throw new ProviderError('page_number_mismatch')
+  }
+  if (page.pageSize !== requestedPageSize) {
+    throw new ProviderError('page_size_mismatch')
+  }
+  const fetchedThrough = requestedPageNumber * requestedPageSize
+    + raw.items.length
+  if (
+    typeof page.hasNext !== 'boolean'
+    || page.hasNext !== (fetchedThrough < expected)
+  ) {
+    throw new ProviderError('page_metadata_mismatch')
+  }
   return { expected, items: raw.items }
 }
 
 function formattedLocation(locations: readonly HigherLocation[]): string {
-  const location = locations.find((candidate) =>
-    candidate.primary && candidate.country === 'United States'
-  ) ?? locations.find((candidate) => candidate.country === 'United States')
+  const location = selectedUsLocation(locations)
   if (!location) return ''
   return [location.city, location.state, location.country]
     .filter((part): part is string => Boolean(part))
     .join(', ')
 }
 
-function safeApplyUrl(value: unknown, sourceId: string): string | null {
+function safeGoldmanApplyUrl(
+  value: unknown,
+  sourceId: string,
+  identity: GoldmanHigherBrandedIdentity,
+): string | null {
   if (typeof value !== 'string' || value.length > 2_048) return null
   try {
     const url = new URL(value)
+    const expectedPath =
+      `${identity.applyPathPrefix}${sourceId}${identity.applyPathSuffix}`
     return url.protocol === 'https:'
-      && url.hostname === GOLDMAN_APPLY_HOST
+      && url.hostname === identity.applyHost
       && !url.username
       && !url.password
       && !url.port
+      && !url.search
       && !url.hash
-      && url.pathname.startsWith(
-        '/hcmUI/CandidateExperience/en/sites/',
-      )
-      && url.pathname.includes(`/job/${encodeURIComponent(sourceId)}/apply/`)
+      && url.pathname === expectedPath
       ? url.toString()
       : null
   } catch {
@@ -427,7 +534,8 @@ async function normalizeDetail(
   envelope: Record<string, unknown>,
   listed: HigherRole,
   identity: GoldmanHigherBrandedIdentity,
-): Promise<NormalizedJob> {
+  wallClockNow: number,
+): Promise<GoldmanHigherNormalizedJob> {
   if (!envelope.data || typeof envelope.data !== 'object') {
     throw new ProviderError('provider_schema_invalid')
   }
@@ -445,20 +553,37 @@ async function normalizeDetail(
     MAX_DESCRIPTION_LENGTH,
   )
   const locations = parseLocations(raw.locations)
-  if (!locations?.some((location) => location.country === 'United States')) {
+  const detailLocation = locations && selectedUsLocation(locations)
+  if (!detailLocation) {
     throw new ProviderError('detail_country_ineligible')
   }
   const detailCategory = trustedCategory(raw)
   if (
     detailCategory.missing
+    || detailCategory.field !== listed.categoryField
     || !detailCategory.label
+    || detailCategory.label !== listed.categoryLabel
     || detailCategory.term !== listed.categoryTerm
   ) throw new ProviderError('detail_category_ineligible')
+  const detailPostedAt = canonicalPostedAt(raw.startDate)
+  if (
+    !detailPostedAt
+    || !isRecentPosting(detailPostedAt, wallClockNow)
+    || detailPostedAt !== listed.postedAt
+  ) throw new ProviderError('detail_posting_date_mismatch')
+  const recruitingType = boundedString(raw.recruitingType, 64)
+  if (
+    recruitingType !== 'GS_EARLY_CAREER'
+    && recruitingType !== 'GS_MID_CAREER'
+  ) throw new ProviderError('detail_population_ineligible')
   if (
     !title
     || !descriptionHtml
+    || title !== listed.title
+    || JSON.stringify(detailLocation) !== JSON.stringify(listed.selectedLocation)
     || raw.applyActive !== true
     || raw.status !== 'POSTED'
+    || raw.externalJobStatus !== 'POSTED'
     || !raw.externalSource
     || typeof raw.externalSource !== 'object'
   ) throw new ProviderError('detail_evidence_missing')
@@ -466,28 +591,36 @@ async function normalizeDetail(
   if (stableSourceId(externalSource.sourceId) !== listed.sourceId) {
     throw new ProviderError('detail_id_mismatch')
   }
+  const absoluteUrl = safeGoldmanApplyUrl(
+    externalSource.externalApplicationUrl,
+    listed.sourceId,
+    identity,
+  )
   if (
     externalSource.applyInExternalSource !== true
-    || !safeApplyUrl(
-      externalSource.externalApplicationUrl,
-      listed.sourceId,
-    )
+    || externalSource.externalSourceType !== 'ORACLE'
+    || !absoluteUrl
   ) throw new ProviderError('detail_evidence_missing')
 
-  const scopeEvidence = await createBrandedScopeEvidence({
+  const scopeEvidence = await createGoldmanHigherScopeEvidence({
     sourceKey: identity.sourceKey,
     externalId: listed.roleId,
+    selectionMode: 'recent_exact_us_provider_category',
+    recentHours: RECENT_HOURS,
+    providerSourceId: listed.sourceId,
+    providerCategoryField: listed.categoryField,
     providerCategoryLabel: listed.categoryLabel,
     detailCountryCode: 'US',
+    postedAt: detailPostedAt,
+    recruitingType: recruitingType as GoldmanHigherRecruitingType,
   })
   return {
     source: 'goldman_higher',
     externalId: listed.roleId,
     title,
     location: formattedLocation(locations),
-    absoluteUrl:
-      `${HIGHER_PUBLIC_ORIGIN}/roles/${encodeURIComponent(listed.roleId)}`,
-    postedAt: null,
+    absoluteUrl,
+    postedAt: detailPostedAt,
     descriptionHtml,
     descriptionText: htmlToText(descriptionHtml),
     snapshotPartial: false,
@@ -508,25 +641,58 @@ async function sha256Hex(value: unknown): Promise<string> {
 
 async function aggregateEvidence(
   identity: GoldmanHigherBrandedIdentity,
-  rawExpected: number,
-  pageCount: number,
-  jobs: readonly NormalizedJob[],
-): Promise<BrandedObservationScopeEvidence> {
+  slices: readonly SliceEvidence[],
+  jobs: readonly GoldmanHigherNormalizedJob[],
+): Promise<GoldmanHigherObservationScopeEvidence> {
+  const sortedJobs = [...jobs].sort((left, right) =>
+    left.externalId.localeCompare(right.externalId)
+  )
+  const sliceDigests = await Promise.all(slices.map((slice) =>
+    sha256Hex([
+      identity.sourceKey,
+      slice.experience,
+      slice.expected,
+      slice.fetched,
+      slice.pages,
+      slice.pageSize,
+    ])
+  ))
+  if (sliceDigests.length !== 2) throw new ProviderError('slice_evidence_invalid')
   return Object.freeze({
     sourceKey: identity.sourceKey,
-    sliceDigests: Object.freeze([
-      await sha256Hex([
-        identity.sourceKey,
-        identity.listOperation,
-        rawExpected,
-        pageCount,
-      ]),
-    ]),
+    selectionMode: 'recent_exact_us_provider_category',
+    recentHours: RECENT_HOURS,
+    sliceDigests: Object.freeze(sliceDigests) as readonly [string, string],
+    jobDigest: await sha256Hex(
+      sortedJobs.map((job) => [job.externalId, job.scopeEvidence.externalIdDigest]),
+    ),
     categoryDigest: await sha256Hex(
-      jobs.map((job) => job.scopeEvidence?.providerCategoryLabel),
+      sortedJobs.map((job) => [
+        job.externalId,
+        job.scopeEvidence.providerCategoryField,
+        job.scopeEvidence.providerCategoryLabel,
+        job.scopeEvidence.matchedTerm,
+      ]),
     ),
     countryDigest: await sha256Hex(
-      jobs.map((job) => job.scopeEvidence?.detailCountryCode),
+      sortedJobs.map((job) => [
+        job.externalId,
+        job.scopeEvidence.detailCountryCode,
+      ]),
+    ),
+    freshnessDigest: await sha256Hex(
+      sortedJobs.map((job) => [
+        job.externalId,
+        job.scopeEvidence.postedAt,
+        job.scopeEvidence.recentHours,
+      ]),
+    ),
+    applicationDigest: await sha256Hex(
+      sortedJobs.map((job) => [
+        job.externalId,
+        job.scopeEvidence.providerSourceId,
+        job.absoluteUrl,
+      ]),
     ),
   })
 }
@@ -588,96 +754,161 @@ export async function pollGoldmanHigher(
     identity.transport.stopSchedulingAfterMs,
   )
   const now = options.now ?? (() => performance.now())
+  const wallClockNow = (options.wallClockNow ?? Date.now)()
   const startedAt = now()
-  if (!Number.isFinite(startedAt)) return incomplete([], 'invalid_clock')
+  if (!Number.isFinite(startedAt) || !Number.isFinite(wallClockNow)) {
+    return incomplete([], 'invalid_clock')
+  }
   const budget: InvocationBudget = {
     deadline: startedAt + totalDurationMs,
     now,
   }
 
-  const eligible: HigherRole[] = []
-  const seenRoleIds = new Set<string>()
-  const seenSourceIds = new Set<string>()
-  let rawFetched = 0
-  let expectedCount: number | undefined
+  const unionByRoleId = new Map<string, HigherRole>()
+  const unionBySourceId = new Map<string, HigherRole>()
+  const slices: SliceEvidence[] = []
   let pageCount = 0
+  let rawRoleCount = 0
   let categoryEvidenceMissing = false
 
-  while (rawFetched < (expectedCount ?? Number.POSITIVE_INFINITY)) {
-    if (pageCount >= maxPages) {
-      return incomplete([], 'page_cap_exceeded', eligible.length, pageCount)
-    }
-    let page: { expected: number; items: unknown[] }
-    try {
-      const envelope = await requestGraphql(
-        identity,
-        identity.listOperation,
-        GET_ROLES_QUERY,
-        {
-          searchQueryInput: {
-            page: { pageSize, pageNumber: pageCount },
-            filters: [],
-            experiences: ['EARLY_CAREER', 'PROFESSIONAL'],
-            searchTerm: '',
-          },
-        },
-        fetchImpl,
-        maxBytes,
-        budget,
-      )
-      page = parseListEnvelope(envelope, expectedCount)
-    } catch (error) {
-      return incomplete([], errorCode(error), eligible.length, pageCount)
-    }
-    if (expectedCount === undefined) expectedCount = page.expected
-    if (expectedCount > maxJobs) {
-      return incomplete([], 'job_cap_exceeded', eligible.length, pageCount + 1)
-    }
-    if (page.items.length > pageSize) {
-      return incomplete([], 'provider_schema_invalid', eligible.length, pageCount + 1)
-    }
+  for (const experience of GOLDMAN_EXPERIENCES) {
+    const sliceRoles: HigherRole[] = []
+    const sliceRoleIds = new Set<string>()
+    const sliceSourceIds = new Set<string>()
+    let expected: number | undefined
+    let slicePages = 0
+    let rawFetched = 0
 
-    for (const item of page.items) {
-      let parsed: ReturnType<typeof parseListRole>
+    while (rawFetched < (expected ?? Number.POSITIVE_INFINITY)) {
+      if (slicePages >= maxPages || pageCount >= maxPages) {
+        return incomplete([], 'page_cap_exceeded', unionByRoleId.size, pageCount)
+      }
+      let page: { expected: number; items: unknown[] }
       try {
-        parsed = parseListRole(item)
+        const envelope = await requestGraphql(
+          identity,
+          identity.listOperation,
+          GET_ROLES_QUERY,
+          {
+            searchQueryInput: {
+              page: { pageSize, pageNumber: slicePages },
+              filters: [],
+              experiences: [experience],
+              searchTerm: '',
+            },
+          },
+          fetchImpl,
+          maxBytes,
+          budget,
+        )
+        page = parseListEnvelope(
+          envelope,
+          slicePages,
+          pageSize,
+          expected,
+        )
       } catch (error) {
-        return incomplete([], errorCode(error), eligible.length, pageCount + 1)
+        return incomplete([], errorCode(error), unionByRoleId.size, pageCount)
       }
-      const raw = item as Record<string, unknown>
-      const roleId = stableRoleId(raw.roleId)
-      const externalSource = raw.externalSource as Record<string, unknown>
-      const sourceId = stableSourceId(externalSource.sourceId)
-      if (!roleId || !sourceId) {
-        return incomplete([], 'provider_schema_invalid', eligible.length, pageCount + 1)
+      if (expected === undefined) expected = page.expected
+      if ((expected ?? 0) > maxJobs) {
+        return incomplete([], 'job_cap_exceeded', unionByRoleId.size, pageCount + 1)
       }
-      if (seenRoleIds.has(roleId)) {
-        return incomplete([], 'duplicate_id', eligible.length, pageCount + 1)
+      if (page.items.length > pageSize) {
+        return incomplete(
+          [],
+          'provider_schema_invalid',
+          unionByRoleId.size,
+          pageCount + 1,
+        )
       }
-      if (seenSourceIds.has(sourceId)) {
-        return incomplete([], 'duplicate_source_id', eligible.length, pageCount + 1)
+
+      for (const item of page.items) {
+        let parsed: ReturnType<typeof parseListRole>
+        try {
+          parsed = parseListRole(item, wallClockNow)
+        } catch (error) {
+          return incomplete(
+            [],
+            errorCode(error),
+            unionByRoleId.size,
+            pageCount + 1,
+          )
+        }
+        const raw = item as Record<string, unknown>
+        const roleId = stableRoleId(raw.roleId)
+        const externalSource = raw.externalSource as Record<string, unknown>
+        const sourceId = stableSourceId(externalSource.sourceId)
+        if (!roleId || !sourceId) {
+          return incomplete(
+            [],
+            'provider_schema_invalid',
+            unionByRoleId.size,
+            pageCount + 1,
+          )
+        }
+        if (sliceRoleIds.has(roleId)) {
+          return incomplete([], 'duplicate_id', unionByRoleId.size, pageCount + 1)
+        }
+        if (sliceSourceIds.has(sourceId)) {
+          return incomplete(
+            [],
+            'duplicate_source_id',
+            unionByRoleId.size,
+            pageCount + 1,
+          )
+        }
+        sliceRoleIds.add(roleId)
+        sliceSourceIds.add(sourceId)
+        categoryEvidenceMissing ||= parsed.categoryMissing
+        if (parsed.eligible && parsed.role) sliceRoles.push(parsed.role)
       }
-      seenRoleIds.add(roleId)
-      seenSourceIds.add(sourceId)
-      categoryEvidenceMissing ||= parsed.categoryMissing
-      if (parsed.eligible && parsed.role) eligible.push(parsed.role)
+      rawFetched += page.items.length
+      slicePages += 1
+      pageCount += 1
+      if (rawFetched > (expected ?? 0)) {
+        return incomplete([], 'count_mismatch', unionByRoleId.size, pageCount)
+      }
+      if (rawFetched < (expected ?? 0) && page.items.length === 0) {
+        return incomplete([], 'count_mismatch', unionByRoleId.size, pageCount)
+      }
     }
-    rawFetched += page.items.length
-    pageCount += 1
-    if (rawFetched > expectedCount) {
-      return incomplete([], 'count_mismatch', eligible.length, pageCount)
+
+    if (expected === undefined || rawFetched !== expected) {
+      return incomplete([], 'count_mismatch', unionByRoleId.size, pageCount)
     }
-    if (rawFetched < expectedCount && page.items.length === 0) {
-      return incomplete([], 'count_mismatch', eligible.length, pageCount)
+    slices.push({
+      experience,
+      expected,
+      fetched: rawFetched,
+      pages: slicePages,
+      pageSize,
+    })
+    rawRoleCount += rawFetched
+    if (rawRoleCount > maxJobs) {
+      return incomplete([], 'job_cap_exceeded', unionByRoleId.size, pageCount)
+    }
+    for (const role of sliceRoles) {
+      const roleMatch = unionByRoleId.get(role.roleId)
+      const sourceMatch = unionBySourceId.get(role.sourceId)
+      if (
+        (roleMatch && JSON.stringify(roleMatch) !== JSON.stringify(role))
+        || (sourceMatch && sourceMatch.roleId !== role.roleId)
+      ) {
+        return incomplete([], 'cross_slice_id_drift', unionByRoleId.size, pageCount)
+      }
+      if (!roleMatch) unionByRoleId.set(role.roleId, role)
+      if (!sourceMatch) unionBySourceId.set(role.sourceId, role)
+      if (unionByRoleId.size > maxJobs) {
+        return incomplete([], 'job_cap_exceeded', unionByRoleId.size, pageCount)
+      }
     }
   }
 
-  if (expectedCount === undefined || rawFetched !== expectedCount) {
-    return incomplete([], 'count_mismatch', eligible.length, pageCount)
-  }
   if (categoryEvidenceMissing) {
     return incomplete([], 'category_evidence_missing', 0, pageCount)
   }
+  const eligible = [...unionByRoleId.values()]
   if (eligible.length === 0) {
     return incomplete([], 'zero_eligible_jobs', 0, pageCount)
   }
@@ -686,8 +917,8 @@ export async function pollGoldmanHigher(
   }
 
   const scheduled = eligible.slice(0, maxDetailRequests)
-  const jobs: NormalizedJob[] = []
-  let outcomes: PromiseSettledResult<NormalizedJob>[]
+  const jobs: GoldmanHigherNormalizedJob[] = []
+  let outcomes: PromiseSettledResult<GoldmanHigherNormalizedJob>[]
   try {
     outcomes = await runBoundedPool(
       scheduled,
@@ -705,7 +936,12 @@ export async function pollGoldmanHigher(
           budget,
           signal,
         )
-        return normalizeDetail(envelope, listed, identity)
+        return normalizeDetail(
+          envelope,
+          listed,
+          identity,
+          wallClockNow,
+        )
       },
       {
         concurrency: detailConcurrency,
@@ -717,7 +953,7 @@ export async function pollGoldmanHigher(
     if (error instanceof BoundedPoolDeadlineError) {
       for (const settled of error.outcomes) {
         if (settled.outcome.status === 'fulfilled') {
-          jobs.push(settled.outcome.value as NormalizedJob)
+          jobs.push(settled.outcome.value as GoldmanHigherNormalizedJob)
         }
       }
       return incomplete(jobs, 'deadline_exceeded', eligible.length, pageCount)
@@ -740,15 +976,10 @@ export async function pollGoldmanHigher(
     jobs,
     completeness: 'complete',
     credibleForClosure: true,
-    allowMissingClosure: true,
+    allowMissingClosure: false,
     pageCount,
     expectedCount: jobs.length,
     warnings: [],
-    scopeEvidence: await aggregateEvidence(
-      identity,
-      expectedCount,
-      pageCount,
-      jobs,
-    ),
+    scopeEvidence: await aggregateEvidence(identity, slices, jobs),
   }
 }

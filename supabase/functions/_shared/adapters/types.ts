@@ -104,15 +104,22 @@ type WorkdayNormalizedJob = NormalizedJobFields & {
   scopeEvidence?: WorkdayJobScopeEvidence
 }
 
-type BrandedNormalizedJob = NormalizedJobFields & {
-  source: BrandedJobSource
-  scopeEvidence: BrandedJobScopeEvidence | GoldmanHigherJobScopeEvidence
+type ExistingBrandedNormalizedJob = NormalizedJobFields & {
+  source: Exclude<BrandedJobSource, 'goldman_higher'>
+  scopeEvidence: BrandedJobScopeEvidence
+}
+
+export type GoldmanHigherNormalizedJob = NormalizedJobFields & {
+  source: 'goldman_higher'
+  postedAt: string
+  scopeEvidence: GoldmanHigherJobScopeEvidence
 }
 
 export type NormalizedJob =
   | ExistingNormalizedJob
   | WorkdayNormalizedJob
-  | BrandedNormalizedJob
+  | ExistingBrandedNormalizedJob
+  | GoldmanHigherNormalizedJob
 
 export type PollCompleteness = 'complete' | 'partial' | 'unknown'
 

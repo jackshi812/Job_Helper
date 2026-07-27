@@ -1033,6 +1033,29 @@ async function graphqlBody(init?: RequestInit): Promise<GraphqlRequest> {
   return JSON.parse(String(init?.body)) as GraphqlRequest
 }
 
+function goldmanListEnvelope(
+  items: unknown[],
+  pageNumber: number,
+  pageSize: number,
+  totalCount = items.length,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    data: {
+      roleSearch: {
+        page: {
+          pageSize,
+          pageNumber,
+          hasNext: pageNumber * pageSize + items.length < totalCount,
+        },
+        totalCount,
+        items,
+        ...overrides,
+      },
+    },
+  }
+}
+
 function goldmanFetch(
   slices: Record<'EARLY_CAREER' | 'PROFESSIONAL', ReturnType<typeof goldmanRole>[]> = {
     EARLY_CAREER: [
@@ -1095,6 +1118,7 @@ function goldmanFetch(
           division: listed?.division,
           startDate: listed?.startDate,
           recruitingType: listed?.roleId === 'gs-role-1'
+            || slices.EARLY_CAREER.includes(listed!)
             ? 'GS_EARLY_CAREER'
             : 'GS_MID_CAREER',
         }),
@@ -1265,6 +1289,101 @@ describe('Goldman Higher adapter', () => {
           recruitingType: 'GS_EARLY_CAREER',
         },
       }],
+    })
+  })
+
+  it('deduplicates only after both population slices independently reconcile', async () => {
+    const role = goldmanRole('gs-shared', '177020')
+    const observation = await pollGoldmanHigher(
+      goldmanIdentity,
+      goldmanFetch({
+        EARLY_CAREER: [role],
+        PROFESSIONAL: [{ ...role }],
+      }),
+      { now: () => 0, wallClockNow: () => GOLDMAN_NOW },
+    )
+
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      expectedCount: 1,
+      pageCount: 2,
+      allowMissingClosure: false,
+      scopeEvidence: {
+        sliceDigests: [
+          expect.stringMatching(/^[a-f0-9]{64}$/),
+          expect.stringMatching(/^[a-f0-9]{64}$/),
+        ],
+      },
+    })
+    expect(observation.jobs).toHaveLength(1)
+  })
+
+  it('rejects cross-population identity drift after each slice reconciles', async () => {
+    const role = goldmanRole('gs-shared', '177021')
+    const observation = await pollGoldmanHigher(
+      goldmanIdentity,
+      goldmanFetch({
+        EARLY_CAREER: [role],
+        PROFESSIONAL: [{
+          ...role,
+          jobTitle: 'Drifted title',
+        }],
+      }),
+      { now: () => 0, wallClockNow: () => GOLDMAN_NOW },
+    )
+
+    expect(observation).toMatchObject({
+      jobs: [],
+      credibleForClosure: false,
+      allowMissingClosure: false,
+      warnings: ['cross_slice_id_drift'],
+    })
+  })
+
+  it.each([
+    ['page number', { pageNumber: 1 }, 'page_number_mismatch'],
+    ['page size', { pageSize: 99 }, 'page_size_mismatch'],
+    ['hasNext', { hasNext: true }, 'page_metadata_mismatch'],
+  ])('rejects %s metadata drift independently', async (
+    _name,
+    pageOverride,
+    warning,
+  ) => {
+    const role = goldmanRole('gs-page', '177022')
+    const providerFetch = vi.fn(async (
+      _input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const request = await graphqlBody(init)
+      const input = request.variables.searchQueryInput as {
+        page: { pageNumber: number; pageSize: number }
+      }
+      return jsonResponse({
+        data: {
+          roleSearch: {
+            page: {
+              pageSize: input.page.pageSize,
+              pageNumber: input.page.pageNumber,
+              hasNext: false,
+              ...pageOverride,
+            },
+            totalCount: 1,
+            items: [role],
+          },
+        },
+      })
+    })
+    const observation = await pollGoldmanHigher(
+      goldmanIdentity,
+      providerFetch,
+      { now: () => 0, wallClockNow: () => GOLDMAN_NOW },
+    )
+
+    expect(observation).toMatchObject({
+      jobs: [],
+      credibleForClosure: false,
+      allowMissingClosure: false,
+      warnings: [warning],
     })
   })
 
@@ -1482,52 +1601,67 @@ describe('Goldman Higher adapter', () => {
       ) => {
         const request = await graphqlBody(init)
         const input = request.variables.searchQueryInput as {
-          page: { pageNumber: number }
+          page: { pageNumber: number; pageSize: number }
+          experiences: ['EARLY_CAREER'] | ['PROFESSIONAL']
         }
-        return jsonResponse({
-          data: {
-            roleSearch: {
-              totalCount: input.page.pageNumber === 0 ? 2 : 3,
-              items: [goldmanRole(
-                `gs-${input.page.pageNumber}`,
-                `17700${input.page.pageNumber}`,
-              )],
-            },
-          },
-        })
+        if (input.experiences[0] === 'PROFESSIONAL') {
+          return jsonResponse(goldmanListEnvelope(
+            [],
+            input.page.pageNumber,
+            input.page.pageSize,
+            0,
+          ))
+        }
+        return jsonResponse(goldmanListEnvelope(
+          [goldmanRole(
+            `gs-${input.page.pageNumber}`,
+            `17700${input.page.pageNumber + 1}`,
+          )],
+          input.page.pageNumber,
+          input.page.pageSize,
+          input.page.pageNumber === 0 ? 2 : 3,
+        ))
       },
       { pageSize: 1 },
       'count_mismatch',
     ],
     [
       'duplicate role ID',
-      async () => jsonResponse({
-        data: {
-          roleSearch: {
-            totalCount: 2,
-            items: [
-              goldmanRole('gs-role-1', '177001'),
-              goldmanRole('gs-role-1', '177002'),
-            ],
-          },
-        },
-      }),
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        const request = await graphqlBody(init)
+        const input = request.variables.searchQueryInput as {
+          page: { pageNumber: number; pageSize: number }
+        }
+        return jsonResponse(goldmanListEnvelope(
+          [
+            goldmanRole('gs-role-1', '177001'),
+            goldmanRole('gs-role-1', '177002'),
+          ],
+          input.page.pageNumber,
+          input.page.pageSize,
+          2,
+        ))
+      },
       {},
       'duplicate_id',
     ],
     [
       'duplicate source ID',
-      async () => jsonResponse({
-        data: {
-          roleSearch: {
-            totalCount: 2,
-            items: [
-              goldmanRole('gs-role-1', '177001'),
-              goldmanRole('gs-role-2', '177001'),
-            ],
-          },
-        },
-      }),
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        const request = await graphqlBody(init)
+        const input = request.variables.searchQueryInput as {
+          page: { pageNumber: number; pageSize: number }
+        }
+        return jsonResponse(goldmanListEnvelope(
+          [
+            goldmanRole('gs-role-1', '177001'),
+            goldmanRole('gs-role-2', '177001'),
+          ],
+          input.page.pageNumber,
+          input.page.pageSize,
+          2,
+        ))
+      },
       {},
       'duplicate_source_id',
     ],
@@ -1539,36 +1673,38 @@ describe('Goldman Higher adapter', () => {
       ) => {
         const request = await graphqlBody(init)
         const input = request.variables.searchQueryInput as {
-          page: { pageNumber: number }
+          page: { pageNumber: number; pageSize: number }
         }
-        return jsonResponse({
-          data: {
-            roleSearch: {
-              totalCount: 2,
-              items: [goldmanRole(
-                `gs-${input.page.pageNumber}`,
-                `17700${input.page.pageNumber}`,
-              )],
-            },
-          },
-        })
+        return jsonResponse(goldmanListEnvelope(
+          [goldmanRole(
+            `gs-${input.page.pageNumber}`,
+            `17700${input.page.pageNumber + 1}`,
+          )],
+          input.page.pageNumber,
+          input.page.pageSize,
+          2,
+        ))
       },
       { pageSize: 1, maxPages: 1 },
       'page_cap_exceeded',
     ],
     [
       'job cap',
-      async () => jsonResponse({
-        data: {
-          roleSearch: {
-            totalCount: 2,
-            items: [
-              goldmanRole('gs-role-1', '177001'),
-              goldmanRole('gs-role-2', '177002'),
-            ],
-          },
-        },
-      }),
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        const request = await graphqlBody(init)
+        const input = request.variables.searchQueryInput as {
+          page: { pageNumber: number; pageSize: number }
+        }
+        return jsonResponse(goldmanListEnvelope(
+          [
+            goldmanRole('gs-role-1', '177001'),
+            goldmanRole('gs-role-2', '177002'),
+          ],
+          input.page.pageNumber,
+          input.page.pageSize,
+          2,
+        ))
+      },
       { maxJobs: 1 },
       'job_cap_exceeded',
     ],
@@ -1581,7 +1717,7 @@ describe('Goldman Higher adapter', () => {
     const observation = await pollGoldmanHigher(
       goldmanIdentity,
       providerFetch,
-      { ...options, now: () => 0 },
+      { ...options, now: () => 0, wallClockNow: () => GOLDMAN_NOW },
     )
     expect(observation).toMatchObject({
       credibleForClosure: false,
@@ -1621,8 +1757,8 @@ describe('Goldman Higher adapter', () => {
   ) => {
     const observation = await pollGoldmanHigher(
       goldmanIdentity,
-      goldmanFetch([role]),
-      { now: () => 0 },
+      goldmanFetch(oneGoldmanRole(role)),
+      { now: () => 0, wallClockNow: () => GOLDMAN_NOW },
     )
     expect(observation).toMatchObject({
       jobs: [],
@@ -1651,6 +1787,28 @@ describe('Goldman Higher adapter', () => {
       'detail category drift',
       { jobFunction: 'Operations', division: 'Operations' },
       'detail_category_ineligible',
+    ],
+    [
+      'selected category field drift',
+      { jobFunction: '', division: 'Credit Risk' },
+      'detail_category_ineligible',
+    ],
+    [
+      'detail title drift',
+      { jobTitle: 'Different title' },
+      'detail_evidence_missing',
+    ],
+    [
+      'detail location drift',
+      {
+        locations: [{
+          primary: true,
+          state: 'IL',
+          country: 'United States',
+          city: 'Chicago',
+        }],
+      },
+      'detail_evidence_missing',
     ],
     [
       'missing description',
@@ -1685,20 +1843,29 @@ describe('Goldman Higher adapter', () => {
       init?: RequestInit,
     ) => {
       const request = await graphqlBody(init)
-      return request.operationName === 'GetRoles'
-        ? jsonResponse({
-          data: { roleSearch: { totalCount: 1, items: [role] } },
-        })
-        : jsonResponse({
-          data: {
-            role: goldmanDetail('gs-role-1', '177001', overrides),
-          },
-        })
+      if (request.operationName === 'GetRoles') {
+        const input = request.variables.searchQueryInput as {
+          page: { pageNumber: number; pageSize: number }
+          experiences: ['EARLY_CAREER'] | ['PROFESSIONAL']
+        }
+        const roles = oneGoldmanRole(role)[input.experiences[0]]
+        return jsonResponse(goldmanListEnvelope(
+          roles,
+          input.page.pageNumber,
+          input.page.pageSize,
+          roles.length,
+        ))
+      }
+      return jsonResponse({
+        data: {
+          role: goldmanDetail('gs-role-1', '177001', overrides),
+        },
+      })
     })
     const observation = await pollGoldmanHigher(
       goldmanIdentity,
       providerFetch,
-      { now: () => 0 },
+      { now: () => 0, wallClockNow: () => GOLDMAN_NOW },
     )
     expect(observation).toMatchObject({
       jobs: [],
@@ -1712,7 +1879,11 @@ describe('Goldman Higher adapter', () => {
     const detailCap = await pollGoldmanHigher(
       goldmanIdentity,
       goldmanFetch(),
-      { maxDetailRequests: 1, now: () => 0 },
+      {
+        maxDetailRequests: 1,
+        now: () => 0,
+        wallClockNow: () => GOLDMAN_NOW,
+      },
     )
     expect(detailCap.warnings).toEqual(['detail_cap_exceeded'])
     expect(detailCap.allowMissingClosure).toBe(false)
@@ -1726,19 +1897,21 @@ describe('Goldman Higher adapter', () => {
       nowMs = 100
       const request = await graphqlBody(init)
       expect(request.operationName).toBe('GetRoles')
-      return jsonResponse({
-        data: {
-          roleSearch: {
-            totalCount: 1,
-            items: [goldmanRole('gs-role-1', '177001')],
-          },
-        },
-      })
+      return jsonResponse(goldmanListEnvelope(
+        [goldmanRole('gs-role-1', '177001')],
+        0,
+        100,
+        1,
+      ))
     })
     const deadline = await pollGoldmanHigher(
       goldmanIdentity,
       providerFetch,
-      { totalDurationMs: 50, now: () => nowMs },
+      {
+        totalDurationMs: 50,
+        now: () => nowMs,
+        wallClockNow: () => GOLDMAN_NOW,
+      },
     )
     expect(providerFetch).toHaveBeenCalledTimes(1)
     expect(deadline.warnings).toEqual(['deadline_exceeded'])

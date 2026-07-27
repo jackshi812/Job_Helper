@@ -272,8 +272,20 @@ function requireCompleteBrandedObservation(
     || observation.expectedCount !== observation.jobs.length
     || !observation.scopeEvidence
     || (
-      identity.provider === 'oracle_recruiting'
+      (identity.provider === 'oracle_recruiting'
+        || identity.provider === 'goldman_higher')
       && observation.allowMissingClosure !== false
+    )
+    || (
+      identity.provider === 'goldman_higher'
+      && (
+        observation.scopeEvidence.sourceKey !== identity.sourceKey
+        || !('selectionMode' in observation.scopeEvidence)
+        || observation.scopeEvidence.selectionMode
+          !== 'recent_exact_us_provider_category'
+        || observation.scopeEvidence.recentHours !== 168
+        || observation.scopeEvidence.sliceDigests.length !== 2
+      )
     )
   ) {
     throw new Error(observation.warnings[0] ?? 'provider_observation_failed')

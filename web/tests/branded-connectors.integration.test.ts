@@ -25,7 +25,7 @@ const exactBoards = [
     { ats: 'oracle_recruiting', slug: ORACLE_JPMC_SOURCE_KEY },
   ],
   [
-    'https://higher.gs.com/roles',
+    'https://higher.gs.com/results',
     { ats: 'goldman_higher', slug: GOLDMAN_HIGHER_SOURCE_KEY },
   ],
 ] as const
@@ -71,6 +71,19 @@ describe('closed branded connector authorization', () => {
       slug: ORACLE_JPMC_SOURCE_KEY,
     })
     expect(buildEndpoint(detected)).toBe(exactBoards[1][0])
+  })
+
+  it.each([
+    'https://higher.gs.com/results/',
+    'https://higher.gs.com/roles',
+    'https://higher.gs.com/roles/',
+  ])('accepts Goldman alias %s but reconstructs canonical results URL', (alias) => {
+    const detected = detectAts(alias)
+    expect(detected).toEqual({
+      ats: 'goldman_higher',
+      slug: GOLDMAN_HIGHER_SOURCE_KEY,
+    })
+    expect(buildEndpoint(detected)).toBe(exactBoards[2][0])
   })
 
   it.each([
