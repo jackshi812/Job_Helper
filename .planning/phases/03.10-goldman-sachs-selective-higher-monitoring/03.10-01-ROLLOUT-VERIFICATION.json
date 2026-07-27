@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "phase": "03.10",
+  "status": "PENDING",
+  "source_key": "goldman_higher:roles",
+  "release_manifest_id": null,
+  "manifest_file_sha256": null,
+  "source_commit": null,
+  "migration": {
+    "path": "supabase/migrations/0048_phase_03_10_goldman_higher.sql",
+    "status": "PENDING"
+  },
+  "functions": {
+    "verify-board": "PENDING",
+    "observe-connectors": "PENDING",
+    "poll-tick": "PENDING"
+  },
+  "terminal": "PENDING",
+  "activation": "PENDING",
+  "natural_poll": "PENDING",
+  "qualifying_job": "PENDING",
+  "feed_aging": "PENDING",
+  "protected_snapshot": "PENDING",
+  "cleanup": "PENDING",
+  "redaction": "PENDING",
+  "production_claim": false,
+  "note": "Template only. Plan 04 performs no hosted mutation or activation."
+}

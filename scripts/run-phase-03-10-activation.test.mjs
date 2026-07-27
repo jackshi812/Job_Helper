@@ -339,6 +339,8 @@ test('incomplete proof takes only precise Unsupported with zero authority', asyn
     fixture.calls.includes('privileged:unsupported-no-authority'),
     true,
   )
+  assert.equal(fixture.calls.includes('privileged:cleanup'), true)
+  assert.equal(fixture.calls.includes('privileged:residue'), true)
 })
 
 test('protected comparison ignores only enumerated scheduler-owned fields', () => {
@@ -393,6 +395,38 @@ for (const failAt of [
     assert.equal(serialized.includes(SECRET), false)
   })
 }
+
+test('cleanup and zero residue run on timeout and assertion exits', async () => {
+  const timeout = harness({ states: [activeState(1)] })
+  await assert.rejects(
+    timeout.controller.execute({
+      manifest: timeout.manifest,
+      manifestBytes: timeout.manifestBytes,
+      approval: timeout.approval,
+      outputPath: 'out.json',
+      evidencePath: 'out.md',
+    }),
+    /activation_timeout/,
+  )
+  assert.equal(timeout.calls.includes('privileged:cleanup'), true)
+  assert.equal(timeout.calls.includes('privileged:residue'), true)
+
+  const invalid = activeState(1)
+  invalid.company.source_key = 'oracle:jpmc:CX_1001'
+  const assertion = harness({ states: [invalid] })
+  await assert.rejects(
+    assertion.controller.execute({
+      manifest: assertion.manifest,
+      manifestBytes: assertion.manifestBytes,
+      approval: assertion.approval,
+      outputPath: 'out.json',
+      evidencePath: 'out.md',
+    }),
+    /activation_window_evidence_invalid/,
+  )
+  assert.equal(assertion.calls.includes('privileged:cleanup'), true)
+  assert.equal(assertion.calls.includes('privileged:residue'), true)
+})
 
 test('residue and protected user drift fail closed after cleanup', async () => {
   const drift = harness({
