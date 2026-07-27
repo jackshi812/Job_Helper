@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "phase": "03.10",
-  "created_at": "2026-07-27T19:05:24.582Z",
-  "release_manifest_id": "617fce1b-9a11-4f3a-91ff-f472f06f73bd",
+  "created_at": "2026-07-27T19:10:51.539Z",
+  "release_manifest_id": "77f4063c-8a2f-43ac-b5b1-3f41f5747ac8",
   "project_ref": "fjcsvajkkztvlrpdplwx",
   "source_key": "goldman_higher:roles",
   "public_url": "https://higher.gs.com/results",
-  "source_commit": "b8767db600e8f87ba7918af83262223e66bb6b68",
-  "source_commit_object": "b8767db600e8f87ba7918af83262223e66bb6b68",
+  "source_commit": "c7cfbaccbc8f6f89ec2d785a1c49a03ccc4bd470",
+  "source_commit_object": "c7cfbaccbc8f6f89ec2d785a1c49a03ccc4bd470",
   "hosted_baseline": {
     "first_migration": "0001",
     "last_migration": "0048",
@@ -124,8 +124,8 @@
     },
     {
       "path": "scripts/run-phase-03-10-rollout.mjs",
-      "git_object": "480db0949bcd71f64d5037c50cc56b5450a15915",
-      "sha256": "60bbf99ffce02c5a9350b3a91648deed983795c906e4aebd74357181b151e426"
+      "git_object": "3f22ade38412f34074121f374de9f1d19fda8ba5",
+      "sha256": "4355bd37f1df9c1e5d5413d28fb15e814c2cd23c2c59e6c4baac9094e01dc244"
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.mjs",
@@ -141,8 +141,8 @@
     },
     {
       "path": "scripts/run-phase-03-10-rollout.test.mjs",
-      "git_object": "feeb090b51896075dbe421f0017dc17d1d5b3778",
-      "sha256": "5b153a3e46ff72021139a8e7417dc41ba7b409edbda5a36f989786f0c999be2e"
+      "git_object": "f10eab0fb0b9eb984b5f96c4b4e897aaef59370b",
+      "sha256": "e6b7ae199f4573bc2af9f738aca7337996819014148274630f644b2290c93b5e"
     },
     {
       "path": "scripts/verify-job-retention.test.mjs",
@@ -208,13 +208,13 @@
     },
     {
       "path": "scripts/run-phase-03-10-rollout.mjs",
-      "git_object": "480db0949bcd71f64d5037c50cc56b5450a15915",
-      "sha256": "60bbf99ffce02c5a9350b3a91648deed983795c906e4aebd74357181b151e426"
+      "git_object": "3f22ade38412f34074121f374de9f1d19fda8ba5",
+      "sha256": "4355bd37f1df9c1e5d5413d28fb15e814c2cd23c2c59e6c4baac9094e01dc244"
     },
     {
       "path": "scripts/run-phase-03-10-rollout.test.mjs",
-      "git_object": "feeb090b51896075dbe421f0017dc17d1d5b3778",
-      "sha256": "5b153a3e46ff72021139a8e7417dc41ba7b409edbda5a36f989786f0c999be2e"
+      "git_object": "f10eab0fb0b9eb984b5f96c4b4e897aaef59370b",
+      "sha256": "e6b7ae199f4573bc2af9f738aca7337996819014148274630f644b2290c93b5e"
     },
     {
       "path": "scripts/verify-job-retention.test.mjs",
