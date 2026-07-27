@@ -178,8 +178,8 @@ async function createFixture() {
     source_commit_object: await git(root, ['rev-parse', `${sourceCommit}^{commit}`]),
     hosted_baseline: {
       first_migration: '0001',
-      last_migration: '0048',
-      migration_count: 48,
+      last_migration: '0049',
+      migration_count: 49,
       catalog_fingerprint: digest('catalog'),
       company_fingerprint: digest('company'),
       terminal_fingerprint: digest('terminal'),
@@ -392,11 +392,10 @@ test('non-exact approval rejects before the first command', async () => {
   })
 })
 
-test('exact approval pushes 0049 then deploys only the three listed functions', async () => {
+test('exact approval verifies 0049 then deploys only the three listed functions', async () => {
   await withFixture(async ({ root, manifest, hashes }) => {
     const calls = []
     const telemetrySettings = []
-    let migrationLists = 0
     const result = await executeRelease(
       manifest,
       exactApproval(manifest, hashes),
@@ -404,7 +403,6 @@ test('exact approval pushes 0049 then deploys only the three listed functions', 
       async (args, execution) => {
         calls.push(args)
         telemetrySettings.push(execution.env.SUPABASE_TELEMETRY_DISABLED)
-        const beforePush = args[0] === 'migration' && migrationLists++ === 0
         return {
           stdout: args[0] === 'migration'
             ? JSON.stringify({
@@ -412,7 +410,7 @@ test('exact approval pushes 0049 then deploys only the three listed functions', 
                   const version = String(index + 1).padStart(4, '0')
                   return {
                     local: version,
-                    remote: beforePush && version === '0049' ? '' : version,
+                    remote: version,
                     time: version,
                   }
                 }),
@@ -428,8 +426,6 @@ test('exact approval pushes 0049 then deploys only the three listed functions', 
     )
     assert.equal(result.status, 'DEPLOYED_PENDING_ACTIVATION')
     assert.deepEqual(calls, [
-      ['migration', 'list', '--linked'],
-      ['db', 'push', '--linked', '--yes'],
       ['migration', 'list', '--linked'],
       [
         'functions',
@@ -458,11 +454,11 @@ test('exact approval pushes 0049 then deploys only the three listed functions', 
         '--no-verify-jwt',
       ],
     ])
-    assert.deepEqual(telemetrySettings, ['1', '1', '1', '1', '1', '1'])
+    assert.deepEqual(telemetrySettings, ['1', '1', '1', '1'])
   })
 })
 
-test('missing hosted migration 0048 stops before every function deployment', async () => {
+test('missing hosted migration 0049 stops before every function deployment', async () => {
   await withFixture(async ({ root, manifest, hashes }) => {
     const calls = []
     await assert.rejects(
@@ -474,9 +470,13 @@ test('missing hosted migration 0048 stops before every function deployment', asy
           calls.push(args)
           return {
             stdout: JSON.stringify({
-              migrations: Array.from({ length: 47 }, (_, index) => {
+              migrations: Array.from({ length: 49 }, (_, index) => {
                 const version = String(index + 1).padStart(4, '0')
-                return { local: version, remote: version, time: version }
+                return {
+                  local: version,
+                  remote: version === '0049' ? '' : version,
+                  time: version,
+                }
               }),
             }),
             stderr: '',
@@ -487,13 +487,13 @@ test('missing hosted migration 0048 stops before every function deployment', asy
           environment: { SUPABASE_ACCESS_TOKEN: 'TEST_ONLY_NON_PRODUCTION' },
         },
       ),
-      /migration 0048 is not the exact applied baseline/,
+      /migration 0049 is not the exact applied release/,
     )
     assert.deepEqual(calls, [['migration', 'list', '--linked']])
   })
 })
 
-test('missing hosted migration 0049 after push stops before every function deployment', async () => {
+test('interior hosted migration drift stops before every function deployment', async () => {
   await withFixture(async ({ root, manifest, hashes }) => {
     const calls = []
     await assert.rejects(
@@ -510,7 +510,7 @@ test('missing hosted migration 0049 after push stops before every function deplo
                     const version = String(index + 1).padStart(4, '0')
                     return {
                       local: version,
-                      remote: version === '0049' ? '' : version,
+                      remote: version === '0024' ? '9999' : version,
                       time: version,
                     }
                   }),
@@ -527,8 +527,6 @@ test('missing hosted migration 0049 after push stops before every function deplo
       /migration 0049 is not the exact applied release/,
     )
     assert.deepEqual(calls, [
-      ['migration', 'list', '--linked'],
-      ['db', 'push', '--linked', '--yes'],
       ['migration', 'list', '--linked'],
     ])
   })

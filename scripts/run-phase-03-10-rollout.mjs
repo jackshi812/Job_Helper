@@ -50,7 +50,7 @@ export const SAFETY_TEST_PATHS = Object.freeze([
 ])
 
 export const APPROVED_ACTIONS = Object.freeze([
-  'db_push_0049',
+  'verify_migration_0049',
   'deploy_verify-board',
   'deploy_observe-connectors',
   'deploy_poll-tick',
@@ -366,8 +366,8 @@ function validateHostedBaseline(value) {
   ], 'hosted baseline')
   requireCondition(
     value.first_migration === '0001'
-      && value.last_migration === '0048'
-      && value.migration_count === 48,
+      && value.last_migration === '0049'
+      && value.migration_count === 49,
     'hosted baseline drift',
   )
   for (const field of [
@@ -851,28 +851,6 @@ async function runSupabase(args, execution) {
   })
 }
 
-function requireAppliedMigration0048(stdout) {
-  let parsed
-  try {
-    parsed = JSON.parse(stdout)
-  } catch {
-    throw new Error('hosted migration history is not valid JSON')
-  }
-  const migrations = parsed?.migrations
-  requireCondition(Array.isArray(migrations), 'hosted migration history missing')
-  const appliedBaseline = migrations.slice(0, 48)
-  requireCondition(
-    migrations.length === 49
-      && appliedBaseline.every((migration, index) => {
-        const version = String(index + 1).padStart(4, '0')
-        return migration?.local === version && migration?.remote === version
-      })
-      && migrations[48]?.local === '0049'
-      && migrations[48]?.remote === '',
-    'hosted migration 0048 is not the exact applied baseline',
-  )
-}
-
 function requireAppliedMigration0049(stdout) {
   let parsed
   try {
@@ -938,10 +916,7 @@ export async function executeRelease(
   }
 
   const migrationHistory = await run(['migration', 'list', '--linked'], execution)
-  requireAppliedMigration0048(migrationHistory.stdout)
-  await run(['db', 'push', '--linked', '--yes'], execution)
-  const appliedHistory = await run(['migration', 'list', '--linked'], execution)
-  requireAppliedMigration0049(appliedHistory.stdout)
+  requireAppliedMigration0049(migrationHistory.stdout)
   for (const slug of FUNCTION_SLUGS) {
     const entry = manifest.functions[slug]
     const args = [
