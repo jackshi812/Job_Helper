@@ -214,17 +214,17 @@ Plans:
 4. Goldman reaches Active only after exact live terminal proof, three distinct clean server-timed observations, replay/same-window rejection, and a later healthy natural scheduled poll; otherwise it remains precise Unsupported with no operational authority.
 5. The forward-only exact-release rollout preserves every sibling source and real user row outside ordinary scheduler timestamps, leaves zero verifier residue, and receives final approval only from the owner's existing signed-in browser.
 
-**Plans:** 6 plans
+**Plans:** 2/6 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 03.10-01-PLAN.md — Implement the frozen two-population exact-168-hour Goldman observation contract
+- [x] 03.10-01-PLAN.md — Implement the frozen two-population exact-168-hour Goldman observation contract
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03.10-02-PLAN.md — Integrate Goldman evidence into persistence, activation, scheduling, and Active-feed aging
+- [x] 03.10-02-PLAN.md — Integrate Goldman evidence into persistence, activation, scheduling, and Active-feed aging
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
