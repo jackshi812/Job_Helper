@@ -1,6 +1,10 @@
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.110.7'
 import { type NormalizedJob } from '../_shared/adapters/types.ts'
-import { createBrandedScopeEvidence } from '../_shared/adapters/scope.ts'
+import {
+  createBrandedScopeEvidence,
+  createGoldmanHigherScopeEvidence,
+} from '../_shared/adapters/scope.ts'
+import { resolveBrandedIdentity } from '../_shared/branded-identities.ts'
 import {
   BoundedPoolDeadlineError,
   DEFAULT_BRANDED_COMPANY_CONCURRENCY,
@@ -42,6 +46,39 @@ const BRANDED_PROVIDERS = new Set([
   'oracle_recruiting',
   'goldman_higher',
 ])
+const SHA256_HEX = /^[a-f0-9]{64}$/
+
+async function sha256Json(value: unknown): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(JSON.stringify(value)),
+  )
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+function hasExactGoldmanApplyUrl(
+  absoluteUrl: string,
+  providerSourceId: string,
+): boolean {
+  const identity = resolveBrandedIdentity('goldman_higher:roles')
+  if (!identity || identity.provider !== 'goldman_higher') return false
+  try {
+    const url = new URL(absoluteUrl)
+    return url.protocol === 'https:'
+      && url.hostname === identity.applyHost
+      && !url.username
+      && !url.password
+      && !url.port
+      && !url.search
+      && !url.hash
+      && url.pathname ===
+        `${identity.applyPathPrefix}${providerSourceId}${identity.applyPathSuffix}`
+  } catch {
+    return false
+  }
+}
 
 function diagnosticCode(error: unknown) {
   const message = error instanceof Error ? error.message : String(error)
@@ -99,10 +136,121 @@ async function validateBrandedPersistenceEvidence(
     throw new Error('invalid_branded_scope_evidence')
   }
   if (
-    company.ats_type === 'oracle_recruiting'
+    (
+      company.ats_type === 'oracle_recruiting'
+      || company.ats_type === 'goldman_higher'
+    )
     && observation.allowMissingClosure !== false
   ) {
     throw new Error('invalid_branded_scope_evidence')
+  }
+
+  if (company.ats_type === 'goldman_higher') {
+    const aggregate = observation.scopeEvidence
+    if (
+      aggregate?.sourceKey !== 'goldman_higher:roles'
+      || !('selectionMode' in aggregate)
+      || aggregate.selectionMode !== 'recent_exact_us_provider_category'
+      || aggregate.recentHours !== 168
+      || aggregate.sliceDigests.length !== 2
+      || !aggregate.sliceDigests.every((digest) => SHA256_HEX.test(digest))
+    ) throw new Error('invalid_branded_scope_evidence')
+
+    const jobs = [...observation.jobs].sort((left, right) =>
+      left.externalId.localeCompare(right.externalId)
+    )
+    for (const job of jobs) {
+      if (
+        job.source !== 'goldman_higher'
+        || !job.scopeEvidence
+        || !('selectionMode' in job.scopeEvidence)
+        || job.postedAt !== job.scopeEvidence.postedAt
+        || job.snapshotPartial
+        || !job.descriptionHtml
+        || !job.descriptionText
+        || !hasExactGoldmanApplyUrl(
+          job.absoluteUrl,
+          job.scopeEvidence.providerSourceId,
+        )
+      ) throw new Error('invalid_branded_scope_evidence')
+
+      const expected = await createGoldmanHigherScopeEvidence({
+        sourceKey: 'goldman_higher:roles',
+        externalId: job.externalId,
+        selectionMode: job.scopeEvidence.selectionMode,
+        recentHours: job.scopeEvidence.recentHours,
+        providerSourceId: job.scopeEvidence.providerSourceId,
+        providerCategoryField: job.scopeEvidence.providerCategoryField,
+        providerCategoryLabel: job.scopeEvidence.providerCategoryLabel,
+        detailCountryCode: job.scopeEvidence.detailCountryCode,
+        postedAt: job.scopeEvidence.postedAt,
+        recruitingType: job.scopeEvidence.recruitingType,
+      })
+      if (
+        expected.sourceKey !== job.scopeEvidence.sourceKey
+        || expected.selectionMode !== job.scopeEvidence.selectionMode
+        || expected.recentHours !== job.scopeEvidence.recentHours
+        || expected.providerSourceId !== job.scopeEvidence.providerSourceId
+        || expected.providerCategoryField
+          !== job.scopeEvidence.providerCategoryField
+        || expected.providerCategoryLabel
+          !== job.scopeEvidence.providerCategoryLabel
+        || expected.matchedTerm !== job.scopeEvidence.matchedTerm
+        || expected.detailCountryCode !== job.scopeEvidence.detailCountryCode
+        || expected.postedAt !== job.scopeEvidence.postedAt
+        || expected.recruitingType !== job.scopeEvidence.recruitingType
+        || expected.externalIdDigest !== job.scopeEvidence.externalIdDigest
+      ) throw new Error('invalid_branded_scope_evidence')
+    }
+
+    if (
+      aggregate.jobDigest !== await sha256Json(
+        jobs.map((job) => [
+          job.externalId,
+          job.scopeEvidence?.externalIdDigest,
+        ]),
+      )
+      || aggregate.categoryDigest !== await sha256Json(
+        jobs.map((job) => {
+          const evidence = job.scopeEvidence!
+          return [
+            job.externalId,
+            'providerCategoryField' in evidence
+              ? evidence.providerCategoryField
+              : null,
+            evidence.providerCategoryLabel,
+            evidence.matchedTerm,
+          ]
+        }),
+      )
+      || aggregate.countryDigest !== await sha256Json(
+        jobs.map((job) => [
+          job.externalId,
+          job.scopeEvidence?.detailCountryCode,
+        ]),
+      )
+      || aggregate.freshnessDigest !== await sha256Json(
+        jobs.map((job) => {
+          const evidence = job.scopeEvidence!
+          return [
+            job.externalId,
+            'postedAt' in evidence ? evidence.postedAt : null,
+            'recentHours' in evidence ? evidence.recentHours : null,
+          ]
+        }),
+      )
+      || aggregate.applicationDigest !== await sha256Json(
+        jobs.map((job) => {
+          const evidence = job.scopeEvidence!
+          return [
+            job.externalId,
+            'providerSourceId' in evidence ? evidence.providerSourceId : null,
+            job.absoluteUrl,
+          ]
+        }),
+      )
+    ) throw new Error('invalid_branded_scope_evidence')
+    return
   }
 
   for (const job of observation.jobs) {

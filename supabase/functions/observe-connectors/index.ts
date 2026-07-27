@@ -57,10 +57,116 @@ function boundedCode(error: unknown): string {
     : 'experimental_observation_failed'
 }
 
-function isPositiveCompleteEvidence(
+const GOLDMAN_CATEGORY_TERMS = new Set([
+  'Data',
+  'Technology',
+  'Finance',
+  'Investment',
+  'Research',
+  'Risk',
+  'Capital Markets',
+])
+
+async function goldmanAggregateMatchesJobs(
+  observation: PollObservation,
+): Promise<boolean> {
+  const aggregate = observation.scopeEvidence
+  if (
+    aggregate?.sourceKey !== 'goldman_higher:roles'
+    || !('selectionMode' in aggregate)
+    || aggregate.selectionMode !== 'recent_exact_us_provider_category'
+    || aggregate.recentHours !== 168
+    || aggregate.sliceDigests.length !== 2
+    || !aggregate.sliceDigests.every((digest) => SHA256_HEX.test(digest))
+    || !SHA256_HEX.test(aggregate.jobDigest)
+    || !SHA256_HEX.test(aggregate.categoryDigest)
+    || !SHA256_HEX.test(aggregate.countryDigest)
+    || !SHA256_HEX.test(aggregate.freshnessDigest)
+    || !SHA256_HEX.test(aggregate.applicationDigest)
+  ) return false
+
+  const jobs = [...observation.jobs].sort((left, right) =>
+    left.externalId.localeCompare(right.externalId)
+  )
+  if (!jobs.every((job) => {
+    const evidence = job.scopeEvidence
+    return job.source === 'goldman_higher'
+      && job.postedAt !== null
+      && evidence !== undefined
+      && 'selectionMode' in evidence
+      && evidence.sourceKey === 'goldman_higher:roles'
+      && evidence.selectionMode === 'recent_exact_us_provider_category'
+      && evidence.recentHours === 168
+      && /^[0-9]+$/.test(evidence.providerSourceId)
+      && (
+        evidence.providerCategoryField === 'jobFunction'
+        || evidence.providerCategoryField === 'division'
+      )
+      && evidence.providerCategoryLabel.length > 0
+      && GOLDMAN_CATEGORY_TERMS.has(evidence.matchedTerm)
+      && evidence.detailCountryCode === 'US'
+      && job.postedAt === evidence.postedAt
+      && (
+        evidence.recruitingType === 'GS_EARLY_CAREER'
+        || evidence.recruitingType === 'GS_MID_CAREER'
+      )
+      && SHA256_HEX.test(evidence.externalIdDigest)
+  })) return false
+
+  const digest = async (value: unknown) => sha256Hex(JSON.stringify(value))
+  return aggregate.jobDigest === await digest(
+    jobs.map((job) => [
+      job.externalId,
+      job.scopeEvidence && 'externalIdDigest' in job.scopeEvidence
+        ? job.scopeEvidence.externalIdDigest
+        : null,
+    ]),
+  )
+    && aggregate.categoryDigest === await digest(
+      jobs.map((job) => {
+        const evidence = job.scopeEvidence!
+        return [
+          job.externalId,
+          'providerCategoryField' in evidence
+            ? evidence.providerCategoryField
+            : null,
+          evidence.providerCategoryLabel,
+          evidence.matchedTerm,
+        ]
+      }),
+    )
+    && aggregate.countryDigest === await digest(
+      jobs.map((job) => [
+        job.externalId,
+        job.scopeEvidence?.detailCountryCode,
+      ]),
+    )
+    && aggregate.freshnessDigest === await digest(
+      jobs.map((job) => {
+        const evidence = job.scopeEvidence!
+        return [
+          job.externalId,
+          'postedAt' in evidence ? evidence.postedAt : null,
+          'recentHours' in evidence ? evidence.recentHours : null,
+        ]
+      }),
+    )
+    && aggregate.applicationDigest === await digest(
+      jobs.map((job) => {
+        const evidence = job.scopeEvidence!
+        return [
+          job.externalId,
+          'providerSourceId' in evidence ? evidence.providerSourceId : null,
+          job.absoluteUrl,
+        ]
+      }),
+    )
+}
+
+async function isPositiveCompleteEvidence(
   company: ExperimentalCompany,
   observation: PollObservation,
-): boolean {
+): Promise<boolean> {
   if (company.ats_type === 'workday') {
     return observation.completeness === 'complete'
       && observation.credibleForClosure
@@ -80,6 +186,16 @@ function isPositiveCompleteEvidence(
           && evidence.titleKeywords.length <= 16
           && evidence.providerFacetLabels.length <= 16
       })
+  }
+
+  if (company.ats_type === 'goldman_higher') {
+    return observation.completeness === 'complete'
+      && observation.credibleForClosure
+      && observation.allowMissingClosure === false
+      && observation.warnings.length === 0
+      && observation.jobs.length > 0
+      && observation.expectedCount === observation.jobs.length
+      && await goldmanAggregateMatchesJobs(observation)
   }
 
   const aggregate = observation.scopeEvidence
@@ -122,6 +238,23 @@ function evidenceInput(
   company: ExperimentalCompany,
   observation: PollObservation,
 ): string {
+  if (
+    company.ats_type === 'goldman_higher'
+    && observation.scopeEvidence
+    && 'selectionMode' in observation.scopeEvidence
+  ) {
+    return JSON.stringify([
+      company.source_key,
+      observation.jobs.length,
+      observation.expectedCount,
+      observation.scopeEvidence.sliceDigests,
+      observation.scopeEvidence.jobDigest,
+      observation.scopeEvidence.categoryDigest,
+      observation.scopeEvidence.countryDigest,
+      observation.scopeEvidence.freshnessDigest,
+      observation.scopeEvidence.applicationDigest,
+    ])
+  }
   return JSON.stringify([
     company.source_key,
     observation.jobs.length,
@@ -156,7 +289,7 @@ async function recordObservation(
     dependencies.observeCompany
       ?? ((candidate) => observeConnector(candidate))
   )(company)
-  if (!isPositiveCompleteEvidence(company, observation)) {
+  if (!(await isPositiveCompleteEvidence(company, observation))) {
     throw new Error(observation.warnings[0] ?? 'ineligible_observation')
   }
 

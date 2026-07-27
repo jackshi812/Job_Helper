@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
@@ -87,34 +88,39 @@ function positiveObservation(): PollObservation {
   }
 }
 
+function digestJson(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex')
+}
+
 function goldmanObservation(): PollObservation {
-  return {
-    jobs: [{
-      source: 'goldman_higher',
-      externalId: '137650',
-      title: 'Risk Analyst',
-      location: 'New York, NY, United States',
-      absoluteUrl:
-        'https://hdpc.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/LateralHiring/job/1500123456789/apply/email',
+  const job = {
+    source: 'goldman_higher' as const,
+    externalId: '137650',
+    title: 'Risk Analyst',
+    location: 'New York, NY, United States',
+    absoluteUrl:
+      'https://hdpc.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/LateralHiring/job/1500123456789/apply/email',
+    postedAt: '2026-07-26T00:00:00.000Z',
+    descriptionHtml: '<p>Full risk role description.</p>',
+    descriptionText: 'Full risk role description.',
+    snapshotPartial: false,
+    companyName: 'Goldman Sachs',
+    scopeEvidence: {
+      sourceKey: 'goldman_higher:roles' as const,
+      selectionMode: 'recent_exact_us_provider_category' as const,
+      recentHours: 168 as const,
+      providerSourceId: '1500123456789',
+      providerCategoryField: 'jobFunction' as const,
+      providerCategoryLabel: 'risk',
+      matchedTerm: 'Risk' as const,
+      detailCountryCode: 'US' as const,
       postedAt: '2026-07-26T00:00:00.000Z',
-      descriptionHtml: '<p>Full risk role description.</p>',
-      descriptionText: 'Full risk role description.',
-      snapshotPartial: false,
-      companyName: 'Goldman Sachs',
-      scopeEvidence: {
-        sourceKey: 'goldman_higher:roles',
-        selectionMode: 'recent_exact_us_provider_category',
-        recentHours: 168,
-        providerSourceId: '1500123456789',
-        providerCategoryField: 'jobFunction',
-        providerCategoryLabel: 'risk',
-        matchedTerm: 'Risk',
-        detailCountryCode: 'US',
-        postedAt: '2026-07-26T00:00:00.000Z',
-        recruitingType: 'GS_MID_CAREER',
-        externalIdDigest: '1'.repeat(64),
-      },
-    }],
+      recruitingType: 'GS_MID_CAREER' as const,
+      externalIdDigest: '1'.repeat(64),
+    },
+  }
+  return {
+    jobs: [job],
     completeness: 'complete',
     credibleForClosure: true,
     allowMissingClosure: false,
@@ -126,11 +132,30 @@ function goldmanObservation(): PollObservation {
       selectionMode: 'recent_exact_us_provider_category',
       recentHours: 168,
       sliceDigests: ['2'.repeat(64), '3'.repeat(64)],
-      jobDigest: '4'.repeat(64),
-      categoryDigest: '5'.repeat(64),
-      countryDigest: '6'.repeat(64),
-      freshnessDigest: '7'.repeat(64),
-      applicationDigest: '8'.repeat(64),
+      jobDigest: digestJson([[
+        job.externalId,
+        job.scopeEvidence.externalIdDigest,
+      ]]),
+      categoryDigest: digestJson([[
+        job.externalId,
+        job.scopeEvidence.providerCategoryField,
+        job.scopeEvidence.providerCategoryLabel,
+        job.scopeEvidence.matchedTerm,
+      ]]),
+      countryDigest: digestJson([[
+        job.externalId,
+        job.scopeEvidence.detailCountryCode,
+      ]]),
+      freshnessDigest: digestJson([[
+        job.externalId,
+        job.scopeEvidence.postedAt,
+        job.scopeEvidence.recentHours,
+      ]]),
+      applicationDigest: digestJson([[
+        job.externalId,
+        job.scopeEvidence.providerSourceId,
+        job.absoluteUrl,
+      ]]),
     },
   }
 }
