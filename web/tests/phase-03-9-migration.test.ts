@@ -6,6 +6,10 @@ const sql = readFileSync(fileURLToPath(new URL(
   '../../supabase/migrations/0045_phase_03_9_jpmorgan_oracle.sql',
   import.meta.url,
 )), 'utf8')
+const catalogRepairSql = readFileSync(fileURLToPath(new URL(
+  '../../supabase/migrations/0046_phase_03_9_jpmorgan_catalog_repair.sql',
+  import.meta.url,
+)), 'utf8')
 
 const exactSource = 'oracle:jpmc:CX_1001'
 const protectedWorkdaySources = [
@@ -87,5 +91,33 @@ describe('Phase 03.9 forward-only JPMorgan Oracle migration', () => {
     expect(sql).not.toMatch(/\b(drop|alter|update|delete|insert into)\s+supabase_migrations\./i)
     expect(sql.trimStart().startsWith('begin;')).toBe(true)
     expect(sql.trimEnd().endsWith('commit;')).toBe(true)
+  })
+})
+
+describe('Phase 03.9 JPMorgan catalog forward repair', () => {
+  it('updates only the exact preserved Oracle Recruiting Cloud row', () => {
+    expect(catalogRepairSql).toContain(
+      "provider = 'Oracle Recruiting Cloud'",
+    )
+    expect(catalogRepairSql).toContain(
+      "unsupported_reason = 'pending_current_live_contract_proof'",
+    )
+    expect(catalogRepairSql).toContain('/sites/CX_1001/requisitions')
+    expect(catalogRepairSql).toContain('/sites/CX_1001/jobs')
+    expect(catalogRepairSql).toMatch(
+      /select count\(\*\)[\s\S]+<> 1[\s\S]+exact pre-repair JPMorgan catalog row missing/,
+    )
+  })
+
+  it('fails closed after any JPMorgan operational admission', () => {
+    expect(catalogRepairSql).toMatch(
+      /from public\.companies[\s\S]+source_key = 'oracle:jpmc:CX_1001'/,
+    )
+    expect(catalogRepairSql).toMatch(
+      /from public\.branded_connector_terminal_evidence[\s\S]+outcome = 'admit_experimental'/,
+    )
+    expect(catalogRepairSql).not.toMatch(
+      /delete from public\.(companies|jobs|connector_observations)/,
+    )
   })
 })
