@@ -9,6 +9,7 @@ import { promisify } from 'node:util'
 
 const execFile = promisify(execFileCallback)
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const SUPABASE_CLI = resolve(ROOT, 'web/node_modules/.bin/supabase')
 export const RELEASE_MANIFEST_ID = '03900000-0000-4000-8000-000000000001'
 export const PHASE_DIR =
   '.planning/phases/03.9-jpmorgan-chase-selective-oracle-monitoring'
@@ -124,13 +125,21 @@ function parseArgs(argv) {
 }
 
 async function runSupabase(args) {
-  return execFile('supabase', args, { cwd: ROOT, maxBuffer: 10_000_000 })
+  requireCondition(
+    process.env.SUPABASE_ACCESS_TOKEN?.trim(),
+    'SUPABASE_ACCESS_TOKEN is required for non-interactive rollout',
+  )
+  return execFile(SUPABASE_CLI, args, {
+    cwd: ROOT,
+    env: process.env,
+    maxBuffer: 10_000_000,
+  })
 }
 
 export async function executeRelease(manifest, approval, hashes, run = runSupabase) {
   requireCondition(approval === exactApproval(manifest, hashes),
     'execution requires the exact manifest/hash-bound approval string')
-  await run(['db', 'push', '--include-all'])
+  await run(['db', 'push', '--linked', '--yes'])
   for (const slug of ['observe-connectors', 'poll-tick']) {
     const entry = manifest.functions[slug]
     await run([

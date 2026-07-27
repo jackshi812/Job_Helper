@@ -50,7 +50,7 @@ test('exact approval performs only the finite migration and function actions', a
   )
   assert.equal(result.status, 'DEPLOYED_PENDING_ACTIVATION')
   assert.deepEqual(calls, [
-    ['db', 'push', '--include-all'],
+    ['db', 'push', '--linked', '--yes'],
     [
       'functions', 'deploy', 'observe-connectors',
       '--project-ref', manifest.project_ref, '--no-verify-jwt',
