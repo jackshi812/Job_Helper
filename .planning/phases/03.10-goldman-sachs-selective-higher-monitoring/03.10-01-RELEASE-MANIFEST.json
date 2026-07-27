@@ -1,0 +1,605 @@
+{
+  "schema_version": 1,
+  "phase": "03.10",
+  "created_at": "2026-07-27T16:04:59.309Z",
+  "release_manifest_id": "9ddeda04-84d3-4562-b405-2e1374a84d8b",
+  "project_ref": "fjcsvajkkztvlrpdplwx",
+  "source_key": "goldman_higher:roles",
+  "public_url": "https://higher.gs.com/results",
+  "source_commit": "c728fffd86b64b5c776b402cd89e3c011740159b",
+  "source_commit_object": "c728fffd86b64b5c776b402cd89e3c011740159b",
+  "hosted_baseline": {
+    "first_migration": "0001",
+    "last_migration": "0047",
+    "migration_count": 47,
+    "catalog_fingerprint": "cc2333b38d1805eb9428ac866678f11b8da7fd820683c9185bcab7943d80a73b",
+    "company_fingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "terminal_fingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "migration": {
+    "version": "0048",
+    "path": "supabase/migrations/0048_phase_03_10_goldman_higher.sql",
+    "git_object": "d9e6b9bfe3465b9b50c9ade5fdf7a5fcab054a75",
+    "sha256": "71ebee0b111ad34720b420a4233b83b8b47ecac75242e63b3bbcec50e7e7063e"
+  },
+  "functions": {
+    "observe-connectors": {
+      "entry_path": "supabase/functions/observe-connectors/index.ts",
+      "entry_git_object": "8b986959671fa9e914f79a42a86dd4f0c60285a7",
+      "entry_sha256": "51d2c26212c57d7a88659001e6d872fb8f335726b3f76e58c987a99ff002501d",
+      "bundle_files": [
+        "supabase/functions/_shared/adapters/ashby.ts",
+        "supabase/functions/_shared/adapters/eightfold.ts",
+        "supabase/functions/_shared/adapters/goldman-higher.ts",
+        "supabase/functions/_shared/adapters/greenhouse.ts",
+        "supabase/functions/_shared/adapters/lever.ts",
+        "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+        "supabase/functions/_shared/adapters/paylocity.ts",
+        "supabase/functions/_shared/adapters/recruitee.ts",
+        "supabase/functions/_shared/adapters/scope.ts",
+        "supabase/functions/_shared/adapters/smartrecruiters.ts",
+        "supabase/functions/_shared/adapters/types.ts",
+        "supabase/functions/_shared/adapters/workday.ts",
+        "supabase/functions/_shared/bounded-pool.ts",
+        "supabase/functions/_shared/branded-identities.ts",
+        "supabase/functions/_shared/connectors.ts",
+        "supabase/functions/_shared/detect.ts",
+        "supabase/functions/_shared/deterministic-ranking.ts",
+        "supabase/functions/_shared/filters.ts",
+        "supabase/functions/_shared/provider-identities.ts",
+        "supabase/functions/_shared/workday-identities.ts",
+        "supabase/functions/observe-connectors/index.ts"
+      ],
+      "bundle_sha256": "42f300d8e697732731c1c82afdba38b50fe56e6cd686e9cfd7cfa573028cbfcf",
+      "verify_jwt": false
+    },
+    "poll-tick": {
+      "entry_path": "supabase/functions/poll-tick/index.ts",
+      "entry_git_object": "464f6967f7633d45624608eb50706698cbb3a475",
+      "entry_sha256": "136500f68013d5c013f4414d92f91c922967e482e9e21bcd8349cedb7cc8459c",
+      "bundle_files": [
+        "supabase/functions/_shared/adapters/ashby.ts",
+        "supabase/functions/_shared/adapters/eightfold.ts",
+        "supabase/functions/_shared/adapters/goldman-higher.ts",
+        "supabase/functions/_shared/adapters/greenhouse.ts",
+        "supabase/functions/_shared/adapters/lever.ts",
+        "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+        "supabase/functions/_shared/adapters/paylocity.ts",
+        "supabase/functions/_shared/adapters/recruitee.ts",
+        "supabase/functions/_shared/adapters/scope.ts",
+        "supabase/functions/_shared/adapters/smartrecruiters.ts",
+        "supabase/functions/_shared/adapters/types.ts",
+        "supabase/functions/_shared/adapters/workday.ts",
+        "supabase/functions/_shared/bounded-pool.ts",
+        "supabase/functions/_shared/branded-identities.ts",
+        "supabase/functions/_shared/connectors.ts",
+        "supabase/functions/_shared/dedup.ts",
+        "supabase/functions/_shared/detect.ts",
+        "supabase/functions/_shared/deterministic-ranking.ts",
+        "supabase/functions/_shared/filters.ts",
+        "supabase/functions/_shared/lifecycle.ts",
+        "supabase/functions/_shared/provider-identities.ts",
+        "supabase/functions/_shared/workday-identities.ts",
+        "supabase/functions/poll-tick/index.ts"
+      ],
+      "bundle_sha256": "c3f17504eff88a44708d88d1a1eecc08ec525597009ae977b300bf66eb24f65c",
+      "verify_jwt": false
+    },
+    "verify-board": {
+      "entry_path": "supabase/functions/verify-board/index.ts",
+      "entry_git_object": "5d981af780a23638bd685de9a3b712364ee21122",
+      "entry_sha256": "558685a237b2efad872de874b95efe7441fe392a0ea5341307391091156b79e8",
+      "bundle_files": [
+        "supabase/functions/_shared/adapters/ashby.ts",
+        "supabase/functions/_shared/adapters/eightfold.ts",
+        "supabase/functions/_shared/adapters/goldman-higher.ts",
+        "supabase/functions/_shared/adapters/greenhouse.ts",
+        "supabase/functions/_shared/adapters/lever.ts",
+        "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+        "supabase/functions/_shared/adapters/paylocity.ts",
+        "supabase/functions/_shared/adapters/recruitee.ts",
+        "supabase/functions/_shared/adapters/scope.ts",
+        "supabase/functions/_shared/adapters/smartrecruiters.ts",
+        "supabase/functions/_shared/adapters/types.ts",
+        "supabase/functions/_shared/adapters/workday.ts",
+        "supabase/functions/_shared/bounded-pool.ts",
+        "supabase/functions/_shared/branded-identities.ts",
+        "supabase/functions/_shared/connectors.ts",
+        "supabase/functions/_shared/detect.ts",
+        "supabase/functions/_shared/deterministic-ranking.ts",
+        "supabase/functions/_shared/filters.ts",
+        "supabase/functions/_shared/provider-identities.ts",
+        "supabase/functions/_shared/workday-identities.ts",
+        "supabase/functions/verify-board/index.ts"
+      ],
+      "bundle_sha256": "a332558919b1867030b02b5471aba78cacc79b07c8c1738f7804f2e1b3e6673f",
+      "verify_jwt": true
+    }
+  },
+  "privileged_executables": [
+    {
+      "path": "scripts/run-phase-03-10-activation.ts",
+      "git_object": "0b18b337e2d1207dba92a5cb6afc42bed9d122fe",
+      "sha256": "5711ffafc56a95ade001d7e40cb7a42762cc8930939f180a441d344f045ca61f"
+    },
+    {
+      "path": "scripts/run-phase-03-10-rollout.mjs",
+      "git_object": "b38cace45f1a0433160720cfc015e3a6d37e5496",
+      "sha256": "58229f472761285d65e70394cb7d60b0a2686644954ad7824c9b57b515b87f7f"
+    },
+    {
+      "path": "scripts/verify-phase-03-10-hosted.mjs",
+      "git_object": "76a62b5ca5eb0a2a2e4c96095a5bc19f22a5962c",
+      "sha256": "c2b16fa61e5231a15a44351ad56409e424a4c65c0f0fa53a70d651ba97fe09b0"
+    }
+  ],
+  "safety_tests": [
+    {
+      "path": "scripts/run-phase-03-10-activation.test.mjs",
+      "git_object": "db281b2fa68b14e714b9ee9caf70db8fe4210ce0",
+      "sha256": "3bf9a579a262e9b38c868a8e702ac6a1e27495a55bd78c402b15b1eb068e19d0"
+    },
+    {
+      "path": "scripts/run-phase-03-10-rollout.test.mjs",
+      "git_object": "3d1c2b88dd7e2c1b70b1ba253ee649bde7473ce2",
+      "sha256": "251044336cc68a1afa36939012997316650cfa2370ca224865d71424a4661c57"
+    },
+    {
+      "path": "scripts/verify-phase-03-10-hosted.test.mjs",
+      "git_object": "f19a4a6bcaedfa0ba762392a485fe364f7a2218c",
+      "sha256": "10844cbe8904507f5347bb40ec454e98309d84db2e6b25646416ac31415c1b58"
+    },
+    {
+      "path": "web/tests/branded-adapters.test.ts",
+      "git_object": "52c5f3ce408a458526b0d9ec8b95141a71e88780",
+      "sha256": "ed893460ff362ae474f3f2ecb0ddc85f8ced87e203a3177dc45a1961988545df"
+    },
+    {
+      "path": "web/tests/branded-connectors.integration.test.ts",
+      "git_object": "3dc8fb48eadd0cb57d6f6f67edcc4db4fac95c1c",
+      "sha256": "f874ab7a5341986754f4206d756d7171c518f16543c36f1fa92bb483f617b124"
+    },
+    {
+      "path": "web/tests/branded-identities.test.ts",
+      "git_object": "5dd69f8ceddd8f82b8d94fd2e50c73e28aa8caee",
+      "sha256": "59dac0bebbac48878d07ac8016fba948d1732f924b60993660e89c90e2264c40"
+    },
+    {
+      "path": "web/tests/branded-scope.test.ts",
+      "git_object": "122d69aba92cd7d5d4b3b6ce2a27ae3eef6533d4",
+      "sha256": "98d510ebcd254ed5429522a1db9c3e47775b1463008154f376dbf364ff45a855"
+    },
+    {
+      "path": "web/tests/lifecycle.test.ts",
+      "git_object": "e131a6c5b867fe705417f7b0faba2fa904f54b2d",
+      "sha256": "e893db5daecc340f0fbc8ce098cb85601e9b4afbac42f5b4c9cb44082b4121d1"
+    },
+    {
+      "path": "web/tests/observe-connectors.test.ts",
+      "git_object": "0c33872db3c43b4e204d3e073f666c19298729f4",
+      "sha256": "e108d49718aa79735dae649a7b2eaf54f847463295a4f70bf17ea52bd6bf3aa1"
+    },
+    {
+      "path": "web/tests/phase-03-10-migration.test.ts",
+      "git_object": "940b8c020f837e720f2cc8060ec1e1bd17b1eff7",
+      "sha256": "0824a2ac8f8e99a6574a77d06bb9a444d3558c0a2ba3c45876402bf0c467eea6"
+    },
+    {
+      "path": "web/tests/poll-tick.test.ts",
+      "git_object": "03ed7d42a3e8578e65df7507b26f360ce8fefe3e",
+      "sha256": "66e4a19cda78d60b8eaf5c4367d7365605f69aca6e8b6d529974f0d8098472c7"
+    }
+  ],
+  "immutable_source": [
+    {
+      "path": "scripts/run-phase-03-10-activation.test.mjs",
+      "git_object": "db281b2fa68b14e714b9ee9caf70db8fe4210ce0",
+      "sha256": "3bf9a579a262e9b38c868a8e702ac6a1e27495a55bd78c402b15b1eb068e19d0"
+    },
+    {
+      "path": "scripts/run-phase-03-10-activation.ts",
+      "git_object": "0b18b337e2d1207dba92a5cb6afc42bed9d122fe",
+      "sha256": "5711ffafc56a95ade001d7e40cb7a42762cc8930939f180a441d344f045ca61f"
+    },
+    {
+      "path": "scripts/run-phase-03-10-rollout.mjs",
+      "git_object": "b38cace45f1a0433160720cfc015e3a6d37e5496",
+      "sha256": "58229f472761285d65e70394cb7d60b0a2686644954ad7824c9b57b515b87f7f"
+    },
+    {
+      "path": "scripts/run-phase-03-10-rollout.test.mjs",
+      "git_object": "3d1c2b88dd7e2c1b70b1ba253ee649bde7473ce2",
+      "sha256": "251044336cc68a1afa36939012997316650cfa2370ca224865d71424a4661c57"
+    },
+    {
+      "path": "scripts/verify-phase-03-10-hosted.mjs",
+      "git_object": "76a62b5ca5eb0a2a2e4c96095a5bc19f22a5962c",
+      "sha256": "c2b16fa61e5231a15a44351ad56409e424a4c65c0f0fa53a70d651ba97fe09b0"
+    },
+    {
+      "path": "scripts/verify-phase-03-10-hosted.test.mjs",
+      "git_object": "f19a4a6bcaedfa0ba762392a485fe364f7a2218c",
+      "sha256": "10844cbe8904507f5347bb40ec454e98309d84db2e6b25646416ac31415c1b58"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/ashby.ts",
+      "git_object": "3eca7b3494d3b7c18ebfec825f394ef0b66ff03d",
+      "sha256": "d4e77ed191510398fab132106fd31c2a930afdebe74ec96f0840bc640a862eae"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/eightfold.ts",
+      "git_object": "13fd94f363ed7489081dae410eba4c9d3bb51a08",
+      "sha256": "2b95aca198cb3398556b1ec8e0467a6cf53a5bab002b6a7f0c4136d3995038b6"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/goldman-higher.ts",
+      "git_object": "9a6ad8ef5ef9b72ba1281de60784cc4749fbc436",
+      "sha256": "f41821df7d7f0a21293484cbc07a065ee09cac426be9f12113607c672a85d97f"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/greenhouse.ts",
+      "git_object": "3d319a09afc229c3310cbabcd410bc11a69de593",
+      "sha256": "6d456b757ef39b18435609c1f1833e39f41fb1469321642917247c1d7f337edf"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/lever.ts",
+      "git_object": "92c3185f28a8de68d460c0a20250817469c4c215",
+      "sha256": "79caaca1783f47a83aa8c64491684ab5d1119298bcce3b0a9630db4784511b81"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+      "git_object": "f3640301db4204de192a14d2ae0390f8b5a985f3",
+      "sha256": "ae166bb0d1c97fe420cdc446b33dfe63a0d13a16afeafabfd6e74147f0f14208"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/paylocity.ts",
+      "git_object": "aede23a31afcf357540ac7768d6bde2a49f2f46c",
+      "sha256": "bb348415a9d059778576d2064f715690b21284b0740257ebf24f8c999446269c"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/recruitee.ts",
+      "git_object": "92422b7a8a8e55f3c98f1cde6871c0d652aac549",
+      "sha256": "934e23c9371d1a57fd273fddcd3ae3cf3c3876e5914cd215996104e45d39287c"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/scope.ts",
+      "git_object": "c50e61ad51ae1ce7d347af64bbe6d126d3e806ef",
+      "sha256": "4c12a29a3ae3e7904997dbbbac199d3bff94987c74081136e59971f02bb8b043"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/smartrecruiters.ts",
+      "git_object": "56edc2a2d273278b9d57c3e7887b2671f1c1fefe",
+      "sha256": "83ea42f88e53e327a9dd0f9ba58774e474f517f7fd703f5c6cb2ae35b2a1c496"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/types.ts",
+      "git_object": "00654186ca487364171b95befebd30aba1bbfedb",
+      "sha256": "bc23c7b11cd21c7bb7533a58cc010c18286ea3ae7aa15e6ab5f59f8f05109966"
+    },
+    {
+      "path": "supabase/functions/_shared/adapters/workday.ts",
+      "git_object": "6cb01e19f0bff2aee4089bd5e508d8bbddf7b46d",
+      "sha256": "99e5c76ea159514c316e28a8ef6526034bab78992bb72318938b3878f7d50852"
+    },
+    {
+      "path": "supabase/functions/_shared/bounded-pool.ts",
+      "git_object": "ffb855ef76991f650bac22529fcb8acc6230c10c",
+      "sha256": "23683aee938991eba26c6eec4f7cbe30fc7bbe8c65916c87ab72e673e5f5457e"
+    },
+    {
+      "path": "supabase/functions/_shared/branded-identities.ts",
+      "git_object": "f5875c331679f01d44c674c95ae083255e6d9c92",
+      "sha256": "e10ead93ab095cb9df6a51e6fbead3ce7d7105de84b7d4a5d09535ad8c2d2591"
+    },
+    {
+      "path": "supabase/functions/_shared/connectors.ts",
+      "git_object": "95e38d2055fc2d6ec03ff0c67966b3fe565ad990",
+      "sha256": "40a8b1ba924443f6644b94eea8ccd5597c7dc33bbb5bedfaa29769bf226eb5f9"
+    },
+    {
+      "path": "supabase/functions/_shared/dedup.ts",
+      "git_object": "e633b9cdd881c5e465610cff3ab4a0e7b5141818",
+      "sha256": "dbdbf8e0e3eeec990b0bc8de9acd5d606b562d9b64aebc899cc915d97c75c82b"
+    },
+    {
+      "path": "supabase/functions/_shared/detect.ts",
+      "git_object": "71587ae9730d0601f09661cb756b931eabbf3de8",
+      "sha256": "46f7d8aa00ad589e5887b47c07b1ac2471f4fe4ecdf7cd504686e5745301a15d"
+    },
+    {
+      "path": "supabase/functions/_shared/deterministic-ranking.ts",
+      "git_object": "8ca821fd58ed1bc0d006bb03cca5c41ccb4c2ced",
+      "sha256": "b7a64106ffc3228677643a1eb581eef94bc3ab59a82fed57ff7a8d8615aaee7d"
+    },
+    {
+      "path": "supabase/functions/_shared/filters.ts",
+      "git_object": "0d8403ac28c46225f8b4b689be6947898a85f883",
+      "sha256": "0ec9d113983d6ea661106d55e2d42991af97f8ac351870d7240bcd7393fae708"
+    },
+    {
+      "path": "supabase/functions/_shared/lifecycle.ts",
+      "git_object": "a90d16c450db4a6907f13aa23d5364339d96da49",
+      "sha256": "b6db7c8a1d05d99b7385f3d4538da064c75f131f89b0e820fe419c8d7562a446"
+    },
+    {
+      "path": "supabase/functions/_shared/provider-identities.ts",
+      "git_object": "139fbdcbcbaec9da76f888c8b7b8672489d71a06",
+      "sha256": "6f060429cec31ac258baecee1b71bbacba8309bbaf41359847de5e1511dbcd14"
+    },
+    {
+      "path": "supabase/functions/_shared/workday-identities.ts",
+      "git_object": "1871029ea72f790dc70e1a5e724273a967cb1f5f",
+      "sha256": "59644df326d17fba54ac677b8f0eef17d5f05627467ced0d80e298deba92f302"
+    },
+    {
+      "path": "supabase/functions/observe-connectors/index.ts",
+      "git_object": "8b986959671fa9e914f79a42a86dd4f0c60285a7",
+      "sha256": "51d2c26212c57d7a88659001e6d872fb8f335726b3f76e58c987a99ff002501d"
+    },
+    {
+      "path": "supabase/functions/poll-tick/index.ts",
+      "git_object": "464f6967f7633d45624608eb50706698cbb3a475",
+      "sha256": "136500f68013d5c013f4414d92f91c922967e482e9e21bcd8349cedb7cc8459c"
+    },
+    {
+      "path": "supabase/functions/verify-board/index.ts",
+      "git_object": "5d981af780a23638bd685de9a3b712364ee21122",
+      "sha256": "558685a237b2efad872de874b95efe7441fe392a0ea5341307391091156b79e8"
+    },
+    {
+      "path": "supabase/migrations/0048_phase_03_10_goldman_higher.sql",
+      "git_object": "d9e6b9bfe3465b9b50c9ade5fdf7a5fcab054a75",
+      "sha256": "71ebee0b111ad34720b420a4233b83b8b47ecac75242e63b3bbcec50e7e7063e"
+    },
+    {
+      "path": "web/tests/branded-adapters.test.ts",
+      "git_object": "52c5f3ce408a458526b0d9ec8b95141a71e88780",
+      "sha256": "ed893460ff362ae474f3f2ecb0ddc85f8ced87e203a3177dc45a1961988545df"
+    },
+    {
+      "path": "web/tests/branded-connectors.integration.test.ts",
+      "git_object": "3dc8fb48eadd0cb57d6f6f67edcc4db4fac95c1c",
+      "sha256": "f874ab7a5341986754f4206d756d7171c518f16543c36f1fa92bb483f617b124"
+    },
+    {
+      "path": "web/tests/branded-identities.test.ts",
+      "git_object": "5dd69f8ceddd8f82b8d94fd2e50c73e28aa8caee",
+      "sha256": "59dac0bebbac48878d07ac8016fba948d1732f924b60993660e89c90e2264c40"
+    },
+    {
+      "path": "web/tests/branded-scope.test.ts",
+      "git_object": "122d69aba92cd7d5d4b3b6ce2a27ae3eef6533d4",
+      "sha256": "98d510ebcd254ed5429522a1db9c3e47775b1463008154f376dbf364ff45a855"
+    },
+    {
+      "path": "web/tests/lifecycle.test.ts",
+      "git_object": "e131a6c5b867fe705417f7b0faba2fa904f54b2d",
+      "sha256": "e893db5daecc340f0fbc8ce098cb85601e9b4afbac42f5b4c9cb44082b4121d1"
+    },
+    {
+      "path": "web/tests/observe-connectors.test.ts",
+      "git_object": "0c33872db3c43b4e204d3e073f666c19298729f4",
+      "sha256": "e108d49718aa79735dae649a7b2eaf54f847463295a4f70bf17ea52bd6bf3aa1"
+    },
+    {
+      "path": "web/tests/phase-03-10-migration.test.ts",
+      "git_object": "940b8c020f837e720f2cc8060ec1e1bd17b1eff7",
+      "sha256": "0824a2ac8f8e99a6574a77d06bb9a444d3558c0a2ba3c45876402bf0c467eea6"
+    },
+    {
+      "path": "web/tests/poll-tick.test.ts",
+      "git_object": "03ed7d42a3e8578e65df7507b26f360ce8fefe3e",
+      "sha256": "66e4a19cda78d60b8eaf5c4367d7365605f69aca6e8b6d529974f0d8098472c7"
+    }
+  ],
+  "mutable_artifacts": [
+    {
+      "path": ".planning/phases/03.10-goldman-sachs-selective-higher-monitoring/03.10-01-HOSTED-VERIFICATION.json",
+      "git_object": "053afcd59c08ec4984204063cace9132f188543d",
+      "initial_sha256": "1dcc009c562bef712360f16a4c3e20f8ed86933710ab26835fa15c7f67f58067",
+      "initial_status": "PENDING",
+      "allowed_writer": "scripts/verify-phase-03-10-hosted.mjs",
+      "allowed_transitions": [
+        "PENDING",
+        "PASS",
+        "UNSUPPORTED"
+      ]
+    },
+    {
+      "path": ".planning/phases/03.10-goldman-sachs-selective-higher-monitoring/03.10-01-ROLLOUT-EVIDENCE.md",
+      "git_object": "017e2b3b48a6b3b00462c75fb1f4f8ea87178135",
+      "initial_sha256": "59e524c9a7ff5b5d7bb19ba0eb24f6bd6bc29b33b81e97b5ce147675861933f7",
+      "initial_status": "PENDING",
+      "allowed_writer": "scripts/run-phase-03-10-activation.ts",
+      "allowed_transitions": [
+        "PENDING",
+        "PASS",
+        "UNSUPPORTED"
+      ]
+    },
+    {
+      "path": ".planning/phases/03.10-goldman-sachs-selective-higher-monitoring/03.10-01-ROLLOUT-VERIFICATION.json",
+      "git_object": "8d4da6475124529e79aba16a0f98ef2cdc87dcb9",
+      "initial_sha256": "45ec1ad356df0646c3f8211dd7f5f6bfac20c30e9705d850baa2ebe22d8fb015",
+      "initial_status": "PENDING",
+      "allowed_writer": "scripts/run-phase-03-10-activation.ts",
+      "allowed_transitions": [
+        "PENDING",
+        "PASS",
+        "UNSUPPORTED"
+      ]
+    },
+    {
+      "path": ".planning/phases/03.10-goldman-sachs-selective-higher-monitoring/03.10-UAT.json",
+      "git_object": "12b4d579ba455fd94fbacc1a777650e92b6fdb08",
+      "initial_sha256": "3cc1cf1cbcc8615037351f8162623ab1ac01bf2d1e1935df6113b42ec4b640b7",
+      "initial_status": "PENDING_OWNER_BROWSER",
+      "allowed_writer": "scripts/verify-phase-03-10-hosted.mjs",
+      "allowed_transitions": [
+        "PENDING_OWNER_BROWSER",
+        "PASS",
+        "UNSUPPORTED"
+      ]
+    },
+    {
+      "path": ".planning/phases/03.10-goldman-sachs-selective-higher-monitoring/03.10-UAT.md",
+      "git_object": "6a378e0a1aa0bd3bfcb0f5808fd47cf8940dc500",
+      "initial_sha256": "80d39cc16d576add712ad709ce2a20514349975296c2daf80b4b9c181f9d0bb9",
+      "initial_status": "PENDING_OWNER_BROWSER",
+      "allowed_writer": "scripts/verify-phase-03-10-hosted.mjs",
+      "allowed_transitions": [
+        "PENDING_OWNER_BROWSER",
+        "PASS",
+        "UNSUPPORTED"
+      ]
+    }
+  ],
+  "web_deployment": {
+    "unchanged": true,
+    "source_commit": "baf81fcaa72443995f227b118d10eec90da25679",
+    "deployment_id": "b8b33556-1b6c-4a42-bada-e54e4a2f6855",
+    "asset_sha256": "8e28857fb560b5997865201c75226069e71a973a5fe66451726d52a7d7a41f1f"
+  },
+  "scope": {
+    "country": "US",
+    "recent_hours": 168,
+    "populations": [
+      "EARLY_CAREER",
+      "PROFESSIONAL"
+    ],
+    "category_terms": [
+      "Data",
+      "Technology",
+      "Finance",
+      "Investment",
+      "Research",
+      "Risk",
+      "Capital Markets"
+    ],
+    "allow_missing_closure": false
+  },
+  "terminal": {
+    "outcomes": [
+      "positive",
+      "unsupported"
+    ],
+    "exactly_one": true,
+    "max_accepted_observations": 3,
+    "fourth_invocation_allowed": false,
+    "later_scheduler_owned_natural_poll": true,
+    "qualifying_persisted_role_required_for_positive": true
+  },
+  "protected_snapshot": {
+    "scope_complete": true,
+    "protected_sources": [
+      "eightfold:morganstanley",
+      "oracle:jpmc:CX_1001",
+      "paylocity:schwab",
+      "workday:wd12:capitalone:Capital_One",
+      "workday:wd1:blackrock:BlackRock_Professional",
+      "workday:wd1:fmr:FidelityCareers",
+      "workday:wd1:ghr:Lateral-US",
+      "workday:wd1:nasdaq:Global_External_Site",
+      "workday:wd1:statestreet:Global",
+      "workday:wd3:barclays:External_Career_Site_Barclays",
+      "workday:wd5:morningstar:morningstar",
+      "workday:wd5:ms:External",
+      "workday:wd5:spgi:SPGI_Careers"
+    ],
+    "source_count": 13,
+    "catalog_fingerprint": "fce4b056a6a89ee38608fa48c8732e106fa8bc6d8f25522c1df7d68ba9bd6211",
+    "company_fingerprint": "8804d3cfeea8c0103314ae17b6d1758295d1aa1a1683bd098465f77816fc0dc3",
+    "job_fingerprint": "a1d19dd968f38dff095e8386497ae7f6047d9ad13af72ce690e1e7729b2ec52b",
+    "user_fingerprint": "0a95e18f5416605064fd60b2590ed765dd6783ca8c25cea1473afb718684af7e",
+    "cron_fingerprint": "47b6bc64cf23cff64d9377b3ab385d58f72c6849b81f784d7db9fb76123faad3",
+    "function_fingerprint": "cd1d9deb3d2f183be03f711821f76fce810b5299a3814aedaba0ac7015f3c723",
+    "scheduler_excluded_fields": [
+      "companies.consecutive_failures",
+      "companies.last_error",
+      "companies.last_error_code",
+      "companies.last_observation_count",
+      "companies.last_polled_at",
+      "companies.last_success_at",
+      "companies.next_poll_at",
+      "pipeline_heartbeat.last_success_at",
+      "pipeline_heartbeat.last_tick_at"
+    ]
+  },
+  "cleanup": {
+    "namespace": "phase-03-10-goldman-verifier",
+    "verifier_ids": [
+      "275466ec-de5a-42ae-8c76-309674aca7ab",
+      "9ddf4e0d-a83d-4d8a-a3a8-4c277f8d9188",
+      "85d01f18-d77f-4f65-b0a3-f055676027a8"
+    ],
+    "on_exit": [
+      "success",
+      "unsupported",
+      "error",
+      "timeout",
+      "assertion_failure",
+      "artifact_write_failure"
+    ],
+    "zero_residue_required": true
+  },
+  "acl": {
+    "service_role_only": [
+      "finalize_goldman_higher_candidate",
+      "record_connector_observation",
+      "claim_due_experimental_connectors",
+      "claim_due_companies"
+    ],
+    "denied_roles": [
+      "public",
+      "anon",
+      "authenticated"
+    ]
+  },
+  "redaction": {
+    "credentials_source": "environment_only",
+    "recursive": true,
+    "secret_environment_variables": [
+      "CRON_SECRET",
+      "SUPABASE_ACCESS_TOKEN",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "outputs": [
+      "errors",
+      "logs",
+      "json",
+      "markdown",
+      "nested_causes"
+    ]
+  },
+  "uat": {
+    "status": "PENDING_OWNER_BROWSER",
+    "owner_browser_required": true,
+    "codex_browser_used": false,
+    "owner_attestation": null,
+    "checks": [
+      "watchlist_identity",
+      "active_or_unsupported_outcome",
+      "qualifying_job_detail",
+      "working_apply_link"
+    ]
+  },
+  "approval_contract": {
+    "algorithm": "sha256",
+    "release_prefix": "approve Phase 03.10 Goldman rollout",
+    "uat_prefix": "approve Phase 03.10 Goldman UAT",
+    "production_release": true
+  },
+  "approved_actions": [
+    "db_push_0048",
+    "deploy_verify-board",
+    "deploy_observe-connectors",
+    "deploy_poll-tick",
+    "zero_mutation_live_probe",
+    "positive_or_unsupported_terminal",
+    "observe_up_to_three_windows_no_fourth",
+    "natural_scheduler_poll",
+    "persisted_job_feed_aging_isolation_checks",
+    "cleanup_every_exit",
+    "owner_browser_uat"
+  ]
+}
