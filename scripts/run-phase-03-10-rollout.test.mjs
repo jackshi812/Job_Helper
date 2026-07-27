@@ -404,14 +404,17 @@ test('exact approval pushes 0049 then deploys only the three listed functions', 
       async (args, execution) => {
         calls.push(args)
         telemetrySettings.push(execution.env.SUPABASE_TELEMETRY_DISABLED)
+        const beforePush = args[0] === 'migration' && migrationLists++ === 0
         return {
           stdout: args[0] === 'migration'
             ? JSON.stringify({
-                migrations: Array.from({
-                  length: migrationLists++ === 0 ? 48 : 49,
-                }, (_, index) => {
+                migrations: Array.from({ length: 49 }, (_, index) => {
                   const version = String(index + 1).padStart(4, '0')
-                  return { local: version, remote: version, time: version }
+                  return {
+                    local: version,
+                    remote: beforePush && version === '0049' ? '' : version,
+                    time: version,
+                  }
                 }),
               })
             : '',
@@ -503,9 +506,13 @@ test('missing hosted migration 0049 after push stops before every function deplo
           return {
             stdout: args[0] === 'migration'
               ? JSON.stringify({
-                  migrations: Array.from({ length: 48 }, (_, index) => {
+                  migrations: Array.from({ length: 49 }, (_, index) => {
                     const version = String(index + 1).padStart(4, '0')
-                    return { local: version, remote: version, time: version }
+                    return {
+                      local: version,
+                      remote: version === '0049' ? '' : version,
+                      time: version,
+                    }
                   }),
                 })
               : '',

@@ -860,12 +860,15 @@ function requireAppliedMigration0048(stdout) {
   }
   const migrations = parsed?.migrations
   requireCondition(Array.isArray(migrations), 'hosted migration history missing')
+  const appliedBaseline = migrations.slice(0, 48)
   requireCondition(
-    migrations.length === 48
-      && migrations[0]?.local === '0001'
-      && migrations[0]?.remote === '0001'
-      && migrations.at(-1)?.local === '0048'
-      && migrations.at(-1)?.remote === '0048',
+    migrations.length === 49
+      && appliedBaseline.every((migration, index) => {
+        const version = String(index + 1).padStart(4, '0')
+        return migration?.local === version && migration?.remote === version
+      })
+      && migrations[48]?.local === '0049'
+      && migrations[48]?.remote === '',
     'hosted migration 0048 is not the exact applied baseline',
   )
 }
@@ -881,10 +884,10 @@ function requireAppliedMigration0049(stdout) {
   requireCondition(Array.isArray(migrations), 'hosted migration history missing')
   requireCondition(
     migrations.length === 49
-      && migrations[0]?.local === '0001'
-      && migrations[0]?.remote === '0001'
-      && migrations.at(-1)?.local === '0049'
-      && migrations.at(-1)?.remote === '0049',
+      && migrations.every((migration, index) => {
+        const version = String(index + 1).padStart(4, '0')
+        return migration?.local === version && migration?.remote === version
+      }),
     'hosted migration 0049 is not the exact applied release',
   )
 }
