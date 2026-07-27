@@ -37,6 +37,7 @@ export const PRIVILEGED_EXECUTABLE_PATHS = Object.freeze([
 export const SAFETY_TEST_PATHS = Object.freeze([
   'scripts/run-phase-03-10-activation.test.mjs',
   'scripts/run-phase-03-10-rollout.test.mjs',
+  'scripts/verify-job-retention.test.mjs',
   'scripts/verify-phase-03-10-hosted.test.mjs',
   'web/tests/branded-adapters.test.ts',
   'web/tests/branded-connectors.integration.test.ts',
