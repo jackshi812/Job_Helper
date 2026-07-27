@@ -20,10 +20,10 @@ describe('uploadResume', () => {
     vi.mocked(supabase.rpc).mockReset().mockResolvedValue({ error: null } as never)
   })
 
-  it('rejects a disallowed extension before making a network call', async () => {
-    const file = new File(['plain text'], 'resume.txt', { type: 'text/plain' })
+  it('rejects PDF before making a network call because Best Fit requires DOCX', async () => {
+    const file = new File(['pdf'], 'resume.pdf', { type: 'application/pdf' })
 
-    await expect(uploadResume(file)).rejects.toThrow('Only DOCX and PDF files are allowed')
+    await expect(uploadResume(file)).rejects.toThrow('Best Fit currently supports DOCX files only')
     expect(supabase.auth.getUser).not.toHaveBeenCalled()
     expect(supabase.storage.from).not.toHaveBeenCalled()
     expect(supabase.from).not.toHaveBeenCalled()
@@ -34,15 +34,15 @@ describe('uploadResume', () => {
     vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue(uuid)
     vi.mocked(supabase.auth.getUser).mockResolvedValue({ data: { user }, error: null } as never)
 
-    const upload = vi.fn().mockResolvedValue({ data: { path: `${user.id}/${uuid}.pdf` }, error: null })
+    const upload = vi.fn().mockResolvedValue({ data: { path: `${user.id}/${uuid}.docx` }, error: null })
     vi.mocked(supabase.storage.from).mockReturnValue({ upload, remove: vi.fn() } as never)
 
     const row = {
       id: '33333333-3333-4333-8333-333333333333',
-      filename: 'Jack Resume.pdf',
+      filename: 'Jack Resume.docx',
       display_name: null,
-      storage_path: `${user.id}/${uuid}.pdf`,
-      size_bytes: 3,
+      storage_path: `${user.id}/${uuid}.docx`,
+      size_bytes: 4,
       created_at: '2026-07-16T00:00:00.000Z',
     }
     const single = vi.fn().mockResolvedValue({ data: row, error: null })
@@ -50,17 +50,22 @@ describe('uploadResume', () => {
     const insert = vi.fn().mockReturnValue({ select })
     vi.mocked(supabase.from).mockReturnValue({ insert } as never)
 
-    await expect(uploadResume(new File(['pdf'], row.filename, { type: 'application/pdf' }))).resolves.toEqual(row)
+    await expect(uploadResume(new File(['docx'], row.filename, {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }))).resolves.toEqual(row)
     expect(upload).toHaveBeenCalledWith(
-      `${user.id}/${uuid}.pdf`,
+      `${user.id}/${uuid}.docx`,
       expect.any(File),
-      { contentType: 'application/pdf', upsert: false },
+      {
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        upsert: false,
+      },
     )
     expect(insert).toHaveBeenCalledWith({
       filename: row.filename,
       display_name: null,
-      storage_path: `${user.id}/${uuid}.pdf`,
-      size_bytes: 3,
+      storage_path: `${user.id}/${uuid}.docx`,
+      size_bytes: 4,
     })
     expect(supabase.rpc).not.toHaveBeenCalled()
   })
@@ -74,10 +79,10 @@ describe('uploadResume', () => {
     } as never)
     const row = {
       id: '77777777-7777-4777-8777-777777777777',
-      filename: 'resume.pdf',
+      filename: 'resume.docx',
       display_name: null,
-      storage_path: `${user.id}/66666666-6666-4666-8666-666666666666.pdf`,
-      size_bytes: 3,
+      storage_path: `${user.id}/66666666-6666-4666-8666-666666666666.docx`,
+      size_bytes: 4,
       created_at: '2026-07-23T00:00:00.000Z',
     }
     const single = vi.fn().mockResolvedValue({ data: row, error: null })
@@ -86,7 +91,7 @@ describe('uploadResume', () => {
     } as never)
     vi.mocked(supabase.rpc).mockRejectedValue(new Error('refresh unavailable'))
 
-    await expect(uploadResume(new File(['pdf'], 'resume.pdf'))).resolves.toEqual(row)
+    await expect(uploadResume(new File(['docx'], 'resume.docx'))).resolves.toEqual(row)
     expect(supabase.rpc).not.toHaveBeenCalled()
   })
 
@@ -125,7 +130,7 @@ describe('uploadResume', () => {
     it('stores null when no display name is supplied', async () => {
       const insert = mockSuccessfulUpload()
 
-      await uploadResume(new File(['pdf'], 'resume.pdf'))
+      await uploadResume(new File(['docx'], 'resume.docx'))
 
       expect(insert).toHaveBeenCalledWith(expect.objectContaining({ display_name: null }))
     })
@@ -133,7 +138,7 @@ describe('uploadResume', () => {
     it('trims a supplied display name before storing it', async () => {
       const insert = mockSuccessfulUpload()
 
-      await uploadResume(new File(['pdf'], 'resume.pdf'), '  Backend CV  ')
+      await uploadResume(new File(['docx'], 'resume.docx'), '  Backend CV  ')
 
       expect(insert).toHaveBeenCalledWith(expect.objectContaining({ display_name: 'Backend CV' }))
     })
@@ -141,7 +146,7 @@ describe('uploadResume', () => {
     it('collapses a whitespace-only display name to null', async () => {
       const insert = mockSuccessfulUpload()
 
-      await uploadResume(new File(['pdf'], 'resume.pdf'), '   ')
+      await uploadResume(new File(['docx'], 'resume.docx'), '   ')
 
       expect(insert).toHaveBeenCalledWith(expect.objectContaining({ display_name: null }))
     })
@@ -151,7 +156,9 @@ describe('uploadResume', () => {
 
       // A display name ending in an allowed extension must not smuggle the file past
       // validation — allowedExtension reads file.name only (T-WUI-02).
-      await expect(uploadResume(file, 'Anything.pdf')).rejects.toThrow('Only DOCX and PDF files are allowed')
+      await expect(uploadResume(file, 'Anything.docx')).rejects.toThrow(
+        'Best Fit currently supports DOCX files only',
+      )
       expect(supabase.auth.getUser).not.toHaveBeenCalled()
       expect(supabase.storage.from).not.toHaveBeenCalled()
       expect(supabase.from).not.toHaveBeenCalled()
