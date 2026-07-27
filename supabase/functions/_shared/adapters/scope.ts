@@ -1,6 +1,8 @@
 import type {
   BrandedJobScopeEvidence,
   BrandedJobSourceKey,
+  GoldmanHigherJobScopeEvidence,
+  GoldmanHigherRecruitingType,
 } from './types.ts'
 
 export const ALLOWED_BRANDED_CATEGORY_TERMS = Object.freeze([
@@ -125,6 +127,104 @@ export interface CreateBrandedScopeEvidenceInput {
   externalId: string
   providerCategoryLabel: string
   detailCountryCode: string
+}
+
+export interface CreateGoldmanHigherScopeEvidenceInput {
+  sourceKey: 'goldman_higher:roles'
+  externalId: string
+  selectionMode: 'recent_exact_us_provider_category'
+  recentHours: 168
+  providerSourceId: string
+  providerCategoryField: 'jobFunction' | 'division'
+  providerCategoryLabel: string
+  detailCountryCode: 'US'
+  postedAt: string
+  recruitingType: GoldmanHigherRecruitingType
+}
+
+export async function createGoldmanHigherScopeEvidence(
+  input: CreateGoldmanHigherScopeEvidenceInput,
+): Promise<GoldmanHigherJobScopeEvidence> {
+  if (input.sourceKey !== 'goldman_higher:roles') {
+    throw new Error('unsupported_branded_source')
+  }
+  if (input.selectionMode !== 'recent_exact_us_provider_category') {
+    throw new Error('invalid_selection_mode')
+  }
+  if (input.recentHours !== 168) throw new Error('invalid_recent_hours')
+  if (!isBounded(input.externalId, MAX_EXTERNAL_ID_CODE_POINTS, MAX_EXTERNAL_ID_BYTES)) {
+    throw new Error('invalid_external_id')
+  }
+  if (
+    !isBounded(
+      input.providerSourceId,
+      MAX_EXTERNAL_ID_CODE_POINTS,
+      MAX_EXTERNAL_ID_BYTES,
+    )
+    || !/^[0-9]+$/.test(input.providerSourceId)
+  ) {
+    throw new Error('invalid_provider_source_id')
+  }
+  if (
+    input.providerCategoryField !== 'jobFunction'
+    && input.providerCategoryField !== 'division'
+  ) {
+    throw new Error('invalid_provider_category_field')
+  }
+  if (!isBounded(
+    input.providerCategoryLabel,
+    MAX_CATEGORY_CODE_POINTS,
+    MAX_CATEGORY_BYTES,
+  )) {
+    throw new Error('invalid_provider_category')
+  }
+  const matchedTerm = findAllowedBrandedCategoryTerm(input.providerCategoryLabel)
+  if (!matchedTerm) throw new Error('provider_category_ineligible')
+  if (!hasUnitedStatesDetailEvidence(input.detailCountryCode)) {
+    throw new Error('detail_country_ineligible')
+  }
+  const postedAtEpoch = Date.parse(input.postedAt)
+  if (
+    !Number.isFinite(postedAtEpoch)
+    || new Date(postedAtEpoch).toISOString() !== input.postedAt
+  ) {
+    throw new Error('invalid_posted_at')
+  }
+  if (
+    input.recruitingType !== 'GS_EARLY_CAREER'
+    && input.recruitingType !== 'GS_MID_CAREER'
+  ) {
+    throw new Error('invalid_recruiting_type')
+  }
+
+  const providerCategoryLabel = normalizedCategoryLabel(input.providerCategoryLabel)
+  const externalIdDigest = await sha256Hex(JSON.stringify([
+    input.sourceKey,
+    input.externalId,
+    input.selectionMode,
+    input.recentHours,
+    input.providerSourceId,
+    input.providerCategoryField,
+    providerCategoryLabel,
+    matchedTerm,
+    'US',
+    input.postedAt,
+    input.recruitingType,
+  ]))
+
+  return Object.freeze({
+    sourceKey: input.sourceKey,
+    selectionMode: input.selectionMode,
+    recentHours: input.recentHours,
+    providerSourceId: input.providerSourceId,
+    providerCategoryField: input.providerCategoryField,
+    providerCategoryLabel,
+    matchedTerm,
+    detailCountryCode: 'US',
+    postedAt: input.postedAt,
+    recruitingType: input.recruitingType,
+    externalIdDigest,
+  })
 }
 
 export async function createBrandedScopeEvidence(

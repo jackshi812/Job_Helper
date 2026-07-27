@@ -29,6 +29,43 @@ export interface BrandedObservationScopeEvidence {
   readonly countryDigest: string
 }
 
+export type GoldmanHigherRecruitingType =
+  | 'GS_EARLY_CAREER'
+  | 'GS_MID_CAREER'
+
+export interface GoldmanHigherJobScopeEvidence {
+  readonly sourceKey: 'goldman_higher:roles'
+  readonly selectionMode: 'recent_exact_us_provider_category'
+  readonly recentHours: 168
+  readonly providerSourceId: string
+  readonly providerCategoryField: 'jobFunction' | 'division'
+  readonly providerCategoryLabel: string
+  readonly matchedTerm:
+    | 'Data'
+    | 'Technology'
+    | 'Finance'
+    | 'Investment'
+    | 'Research'
+    | 'Risk'
+    | 'Capital Markets'
+  readonly detailCountryCode: 'US'
+  readonly postedAt: string
+  readonly recruitingType: GoldmanHigherRecruitingType
+  readonly externalIdDigest: string
+}
+
+export interface GoldmanHigherObservationScopeEvidence {
+  readonly sourceKey: 'goldman_higher:roles'
+  readonly selectionMode: 'recent_exact_us_provider_category'
+  readonly recentHours: 168
+  readonly sliceDigests: readonly [string, string]
+  readonly jobDigest: string
+  readonly categoryDigest: string
+  readonly countryDigest: string
+  readonly freshnessDigest: string
+  readonly applicationDigest: string
+}
+
 interface NormalizedJobFields {
   externalId: string
   title: string
@@ -69,7 +106,7 @@ type WorkdayNormalizedJob = NormalizedJobFields & {
 
 type BrandedNormalizedJob = NormalizedJobFields & {
   source: BrandedJobSource
-  scopeEvidence: BrandedJobScopeEvidence
+  scopeEvidence: BrandedJobScopeEvidence | GoldmanHigherJobScopeEvidence
 }
 
 export type NormalizedJob =
@@ -97,5 +134,7 @@ export interface PollObservation {
    * Bounded aggregate evidence for Phase 03.8 provider slices. Full provider
    * payloads and per-job labels remain on the normalized job contract instead.
    */
-  scopeEvidence?: BrandedObservationScopeEvidence
+  scopeEvidence?:
+    | BrandedObservationScopeEvidence
+    | GoldmanHigherObservationScopeEvidence
 }

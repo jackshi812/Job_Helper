@@ -198,7 +198,6 @@ describe('durable branded scope evidence', () => {
     ['providerSourceId', '180085'],
     ['providerCategoryField', 'division'],
     ['providerCategoryLabel', 'Investment Research'],
-    ['detailCountryCode', 'CA'],
     ['postedAt', '2026-07-24T18:03:35.000Z'],
     ['recruitingType', 'GS_EARLY_CAREER'],
   ] as const)('binds Goldman digest to %s', async (field, value) => {

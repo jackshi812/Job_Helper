@@ -73,6 +73,16 @@ export interface GoldmanHigherBrandedIdentity extends BrandedIdentityBase {
   readonly detailOperation: 'GetRoleById'
   readonly countryValue: 'United States'
   readonly categoryFields: readonly ['jobFunction', 'division']
+  readonly publicUrlAliases: readonly [
+    'https://higher.gs.com/results',
+    'https://higher.gs.com/results/',
+    'https://higher.gs.com/roles',
+    'https://higher.gs.com/roles/',
+  ]
+  readonly applyHost: 'hdpc.fa.us2.oraclecloud.com'
+  readonly applySite: 'LateralHiring'
+  readonly applyPathPrefix: '/hcmUI/CandidateExperience/en/sites/LateralHiring/job/'
+  readonly applyPathSuffix: '/apply/email'
 }
 
 export type BrandedIdentity =
@@ -146,7 +156,7 @@ const goldmanSachsIdentity: GoldmanHigherBrandedIdentity = Object.freeze({
   provider: 'goldman_higher',
   sourceKey: GOLDMAN_HIGHER_SOURCE_KEY,
   companyName: 'Goldman Sachs',
-  publicUrl: 'https://higher.gs.com/roles',
+  publicUrl: 'https://higher.gs.com/results',
   origin: 'https://api-higher.gs.com',
   host: 'api-higher.gs.com',
   graphqlPath: '/gateway/api/v1/graphql',
@@ -154,6 +164,16 @@ const goldmanSachsIdentity: GoldmanHigherBrandedIdentity = Object.freeze({
   detailOperation: 'GetRoleById',
   countryValue: 'United States',
   categoryFields: Object.freeze(['jobFunction', 'division'] as const),
+  publicUrlAliases: Object.freeze([
+    'https://higher.gs.com/results',
+    'https://higher.gs.com/results/',
+    'https://higher.gs.com/roles',
+    'https://higher.gs.com/roles/',
+  ] as const),
+  applyHost: 'hdpc.fa.us2.oraclecloud.com',
+  applySite: 'LateralHiring',
+  applyPathPrefix: '/hcmUI/CandidateExperience/en/sites/LateralHiring/job/',
+  applyPathSuffix: '/apply/email',
   transport: transportBounds(100),
 })
 
@@ -173,8 +193,9 @@ export function resolveBrandedPublicUrl(publicUrl: string): BrandedIdentity | nu
   for (const identity of Object.values(BRANDED_IDENTITIES)) {
     if (identity.publicUrl === publicUrl) return identity
     if (
-      identity.provider === 'oracle_recruiting'
-      && identity.publicUrlAliases.includes(publicUrl)
+      (identity.provider === 'oracle_recruiting'
+        || identity.provider === 'goldman_higher')
+      && (identity.publicUrlAliases as readonly string[]).includes(publicUrl)
     ) return identity
   }
   return null
