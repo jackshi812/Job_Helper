@@ -12,6 +12,13 @@ import {
 const SECRET = 'synthetic-service-role-secret-non-production'
 const NOW = Date.parse('2026-07-27T16:00:00.000Z')
 
+test('production Goldman adapter imports under the strip-only activation runtime', async () => {
+  const adapter = await import(
+    '../supabase/functions/_shared/adapters/goldman-higher.ts'
+  )
+  assert.equal(typeof adapter.pollGoldmanHigher, 'function')
+})
+
 function qualifyingJob(overrides = {}) {
   return {
     source: 'goldman_higher',
