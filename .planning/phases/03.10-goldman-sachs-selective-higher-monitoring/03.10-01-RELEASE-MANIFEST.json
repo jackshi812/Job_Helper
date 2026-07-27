@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "phase": "03.10",
-  "created_at": "2026-07-27T20:01:24.000Z",
-  "release_manifest_id": "88cff23e-dac0-47c2-a41a-521d99ad8d94",
+  "created_at": "2026-07-27T20:30:39.000Z",
+  "release_manifest_id": "1a2a2c39-c01d-4b17-bb53-7fcc33c571fb",
   "project_ref": "fjcsvajkkztvlrpdplwx",
   "source_key": "goldman_higher:roles",
   "public_url": "https://higher.gs.com/results",
-  "source_commit": "dece02439957b075d33d97e56765b5c154fa4be4",
-  "source_commit_object": "dece02439957b075d33d97e56765b5c154fa4be4",
+  "source_commit": "dbb0fac1f26a39e113f198861c87ba180f4e9bcb",
+  "source_commit_object": "dbb0fac1f26a39e113f198861c87ba180f4e9bcb",
   "hosted_baseline": {
     "first_migration": "0001",
     "last_migration": "0050",
@@ -129,8 +129,8 @@
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.mjs",
-      "git_object": "4b60c00fa7ca78a068cda109390afba844d9ffe0",
-      "sha256": "af731814fc702f5b74aa2500ebb1632bfb108c89cdb23e4570979402006c47f4"
+      "git_object": "7e43e4ef2c483231c1418a4c712ab4fe6ee9e73e",
+      "sha256": "1124c86ddb0535417c96e770dca97f811d453b8da087e753e6cdbc64dc44cbf6"
     }
   ],
   "safety_tests": [
@@ -151,8 +151,8 @@
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.test.mjs",
-      "git_object": "d73c0aabf2cbe5d6268afdd2455a27bdcbf8d9c7",
-      "sha256": "9ae771d659881544e63a1ba3c5d078dd73ae79069dc473817671222a9d3766cf"
+      "git_object": "dbb18c2ff7993e8041def59f1ab9108940b97009",
+      "sha256": "5bc96b00d64b031386f9b5fb4462608779e6a28712e1f16c8e89ec2842078c38"
     },
     {
       "path": "web/tests/branded-adapters.test.ts",
@@ -223,13 +223,13 @@
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.mjs",
-      "git_object": "4b60c00fa7ca78a068cda109390afba844d9ffe0",
-      "sha256": "af731814fc702f5b74aa2500ebb1632bfb108c89cdb23e4570979402006c47f4"
+      "git_object": "7e43e4ef2c483231c1418a4c712ab4fe6ee9e73e",
+      "sha256": "1124c86ddb0535417c96e770dca97f811d453b8da087e753e6cdbc64dc44cbf6"
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.test.mjs",
-      "git_object": "d73c0aabf2cbe5d6268afdd2455a27bdcbf8d9c7",
-      "sha256": "9ae771d659881544e63a1ba3c5d078dd73ae79069dc473817671222a9d3766cf"
+      "git_object": "dbb18c2ff7993e8041def59f1ab9108940b97009",
+      "sha256": "5bc96b00d64b031386f9b5fb4462608779e6a28712e1f16c8e89ec2842078c38"
     },
     {
       "path": "supabase/functions/_shared/adapters/ashby.ts",
