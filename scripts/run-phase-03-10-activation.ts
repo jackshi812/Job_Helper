@@ -361,6 +361,61 @@ function isExpectedProbeRejection(error: unknown): boolean {
       .test(error.message)
 }
 
+export function normalizeUnsupportedRolloutRecord({
+  manifest,
+  hashes,
+  record,
+}: {
+  manifest: JsonRecord
+  hashes: JsonRecord
+  record: JsonRecord
+}): JsonRecord {
+  const reason = String(record.unsupported_reason ?? '')
+  requireCondition(
+    record.schema_version === 1
+      && record.phase === '03.10'
+      && record.release_manifest_id === manifest.release_manifest_id
+      && record.source_key === GOLDMAN_SOURCE_KEY
+      && record.status === 'UNSUPPORTED'
+      && [...UNSUPPORTED_REASON_BY_WARNING.values()].includes(reason),
+    'existing Unsupported rollout record is invalid',
+  )
+  const terminal = record.terminal as JsonRecord | undefined
+  requireCondition(
+    terminal?.accepted === true
+      && terminal.reason === 'recorded_unsupported'
+      && terminal.result_activation_state === 'disabled',
+    'existing Unsupported terminal is invalid',
+  )
+  const web = manifest.web_deployment as JsonRecord | undefined
+  return {
+    ...record,
+    release: {
+      source_commit: manifest.source_commit,
+      manifest_file_sha256: hashes.manifest_file_sha256,
+      web_commit_sha: web?.commit_sha,
+      web_asset_sha256: web?.asset_sha256,
+    },
+    terminal: {
+      outcome: 'unsupported',
+      reason,
+      operational_authority: false,
+      accepted: true,
+      rpc_reason: terminal.reason,
+      result_activation_state: terminal.result_activation_state,
+    },
+    cleanup: {
+      every_exit: true,
+      verifier_residue_count: 0,
+      attempted: true,
+      zero_residue: true,
+    },
+    redaction: {
+      credential_leak_count: 0,
+    },
+  }
+}
+
 function validateActivationState(state: JsonRecord): {
   company: JsonRecord
   observations: JsonRecord[]
@@ -476,6 +531,70 @@ export function createActivationController(dependencies: ActivationDependencies)
       const probe = await readProbe()
       safeLog({ stage: 'probe_only_passed', probe })
       return probe
+    },
+
+    async finalizeExistingUnsupported({
+      manifest,
+      manifestBytes,
+      approval,
+      record,
+      outputPath,
+      evidencePath,
+    }: {
+      manifest: JsonRecord
+      manifestBytes: Uint8Array
+      approval: string
+      record: JsonRecord
+      outputPath: string
+      evidencePath: string
+    }): Promise<JsonRecord> {
+      const hashes = await dependencies.validateManifest(manifest, manifestBytes)
+      requireCondition(
+        approval === dependencies.exactApproval(manifest, hashes),
+        'execution requires the exact manifest-derived approval string',
+      )
+      const privileged = await dependencies.createPrivilegedClient(manifest)
+      const protectedBefore = await privileged.snapshotProtected()
+      requireCondition(
+        await privileged.assertUnsupportedNoAuthority(),
+        'unsupported_authority_present',
+      )
+      await privileged.cleanup()
+      requireCondition(
+        await privileged.residueCount() === 0,
+        'verifier residue remains',
+      )
+      const protectedAfter = await privileged.snapshotProtected()
+      requireCondition(
+        protectedSnapshotsEqual(protectedBefore, protectedAfter),
+        'protected snapshot drift',
+      )
+      const normalized = normalizeUnsupportedRolloutRecord({
+        manifest,
+        hashes,
+        record,
+      })
+      const safeResult = redactSecrets(normalized, secrets) as JsonRecord
+      await dependencies.writeArtifact(
+        outputPath,
+        `${JSON.stringify(safeResult, null, 2)}\n`,
+      )
+      await dependencies.writeArtifact(
+        evidencePath,
+        redactText([
+          '# Phase 03.10 Rollout Evidence',
+          '',
+          'Status: UNSUPPORTED',
+          `Source: ${GOLDMAN_SOURCE_KEY}`,
+          `Reason: ${String(safeResult.unsupported_reason)}`,
+          `Release manifest: ${String(manifest.release_manifest_id)}`,
+          '',
+          'No monitoring authority was granted. Protected data is unchanged and verifier residue is zero.',
+          '',
+        ].join('\n'), secrets),
+      )
+      safeLog({ stage: 'unsupported_evidence_finalized', result: safeResult })
+      return safeResult
     },
 
     async execute({
@@ -981,15 +1100,17 @@ function createDefaultDependencies(): ActivationDependencies {
 
 function parseArgs(argv: readonly string[]) {
   const result: {
-    mode: 'probe-only' | 'execute'
+    mode: 'probe-only' | 'execute' | 'finalize-unsupported'
     manifest: string | null
     approval: string | null
+    record: string
     output: string
     evidence: string
   } = {
     mode: 'probe-only',
     manifest: null,
     approval: null,
+    record: DEFAULT_ROLLOUT_OUTPUT,
     output: DEFAULT_ROLLOUT_OUTPUT,
     evidence: DEFAULT_ROLLOUT_EVIDENCE,
   }
@@ -997,17 +1118,24 @@ function parseArgs(argv: readonly string[]) {
     const argument = argv[index]
     if (argument === '--probe-only') result.mode = 'probe-only'
     else if (argument === '--execute') result.mode = 'execute'
+    else if (argument === '--finalize-unsupported') {
+      result.mode = 'finalize-unsupported'
+    }
     else if (argument === '--manifest') result.manifest = argv[++index] ?? null
     else if (argument === '--approve') result.approval = argv[++index] ?? null
+    else if (argument === '--record') result.record = argv[++index] ?? ''
     else if (argument === '--output') result.output = argv[++index] ?? ''
     else if (argument === '--evidence') result.evidence = argv[++index] ?? ''
     else throw new Error(`unknown argument: ${argument}`)
   }
-  if (result.mode === 'execute') {
-    requireCondition(result.manifest, '--manifest is required for --execute')
-    requireCondition(result.approval, '--approve is required for --execute')
-    requireCondition(result.output, '--output is required for --execute')
-    requireCondition(result.evidence, '--evidence is required for --execute')
+  if (result.mode !== 'probe-only') {
+    requireCondition(result.manifest, '--manifest is required for execution')
+    requireCondition(result.approval, '--approve is required for execution')
+    requireCondition(result.output, '--output is required for execution')
+    requireCondition(result.evidence, '--evidence is required for execution')
+    if (result.mode === 'finalize-unsupported') {
+      requireCondition(result.record, '--record is required for finalization')
+    }
   }
   return result
 }
@@ -1022,6 +1150,21 @@ async function main() {
   }
   const manifestBytes = await readFile(resolve(ROOT, args.manifest!))
   const manifest = JSON.parse(manifestBytes.toString()) as JsonRecord
+  if (args.mode === 'finalize-unsupported') {
+    const record = JSON.parse(
+      await readFile(resolve(ROOT, args.record), 'utf8'),
+    ) as JsonRecord
+    const result = await controller.finalizeExistingUnsupported({
+      manifest,
+      manifestBytes,
+      approval: args.approval!,
+      record,
+      outputPath: args.output,
+      evidencePath: args.evidence,
+    })
+    process.stdout.write(`PHASE_03_10_RESULT=${JSON.stringify(result)}\n`)
+    return
+  }
   const result = await controller.execute({
     manifest,
     manifestBytes,

@@ -5,6 +5,7 @@ import {
   assertHostedRecord,
   assertRolloutRecord,
   assertUatRecord,
+  buildUatRecord,
   evaluateHostedSnapshot,
   exactUatApproval,
   uatApprovalPayload,
@@ -397,7 +398,9 @@ function pendingUat() {
       Object.entries(manifest.functions).map(([slug, value]) => [
         slug,
         {
+          status: 'ACTIVE',
           version: value.version,
+          verify_jwt: value.verify_jwt,
           bundle_sha256: value.bundle_sha256,
         },
       ]),
@@ -458,6 +461,51 @@ test('UAT PASS requires the exact owner signal and forbids Codex browser use', (
   codex.codex_browser_used = true
   codex.required_approval = exactUatApproval(manifest, codex)
   assert.throws(() => assertUatRecord(manifest, codex), /Codex browser/)
+})
+
+test('Unsupported UAT binds Not monitored expectations and exact owner signal', () => {
+  const snapshot = passingSnapshot()
+  snapshot.catalog = {
+    company_name: 'Goldman Sachs',
+    provider: 'Goldman Higher',
+    careers_url: PUBLIC_URL,
+    source_key: null,
+    disposition: 'unsupported_with_reason',
+  }
+  snapshot.company = null
+  snapshot.activation = {
+    observations: [],
+    replay_rejected: true,
+    same_window_rejected: true,
+    fourth_invocation_count: 0,
+  }
+  snapshot.eligible_job_count = 0
+  snapshot.qualifying_jobs = []
+  snapshot.terminal = {
+    outcome: 'unsupported',
+    reason: 'posting_date_ineligible',
+    operational_authority: false,
+  }
+  const hosted = evaluateHostedSnapshot(manifest, snapshot)
+  const rollout = passingRollout()
+  rollout.status = 'UNSUPPORTED'
+  rollout.terminal = {
+    outcome: 'unsupported',
+    reason: 'posting_date_ineligible',
+    operational_authority: false,
+  }
+  const record = buildUatRecord(manifest, hosted, rollout, {
+    manifest_file_sha256: SHA('a'),
+    hosted_verification_sha256: SHA('b'),
+    rollout_verification_sha256: SHA('c'),
+  })
+  assert.equal(record.status, 'PENDING_OWNER_BROWSER')
+  assert.equal(record.expected_watchlist.monitored, false)
+  assert.equal(record.expected_job, null)
+  assert.equal(assertUatRecord(manifest, record).status, 'PENDING_OWNER_BROWSER')
+  record.status = 'UNSUPPORTED'
+  record.owner_attestation = record.required_approval
+  assert.equal(assertUatRecord(manifest, record).status, 'UNSUPPORTED')
 })
 
 test('fabricated or reused UAT signals fail after any bound field changes', () => {

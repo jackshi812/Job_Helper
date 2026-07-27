@@ -5,6 +5,7 @@ import {
   GOLDMAN_SOURCE_KEY,
   createActivationController,
   exactProbe,
+  normalizeUnsupportedRolloutRecord,
   protectedSnapshotsEqual,
   redactSecrets,
 } from './run-phase-03-10-activation.ts'
@@ -17,6 +18,46 @@ test('production Goldman adapter imports under the strip-only activation runtime
     '../supabase/functions/_shared/adapters/goldman-higher.ts'
   )
   assert.equal(typeof adapter.pollGoldmanHigher, 'function')
+})
+
+test('Unsupported rollout normalization binds release, zero authority, cleanup, and redaction', () => {
+  const result = normalizeUnsupportedRolloutRecord({
+    manifest: {
+      release_manifest_id: 'release-id',
+      source_commit: 'a'.repeat(40),
+      web_deployment: {
+        commit_sha: 'b'.repeat(40),
+        asset_sha256: 'c'.repeat(64),
+      },
+    },
+    hashes: { manifest_file_sha256: 'd'.repeat(64) },
+    record: {
+      schema_version: 1,
+      phase: '03.10',
+      release_manifest_id: 'release-id',
+      source_key: GOLDMAN_SOURCE_KEY,
+      status: 'UNSUPPORTED',
+      unsupported_reason: 'posting_date_ineligible',
+      terminal: {
+        accepted: true,
+        reason: 'recorded_unsupported',
+        result_activation_state: 'disabled',
+      },
+      protected_sources_unchanged: true,
+    },
+  })
+  assert.deepEqual(result.terminal, {
+    outcome: 'unsupported',
+    reason: 'posting_date_ineligible',
+    operational_authority: false,
+    accepted: true,
+    rpc_reason: 'recorded_unsupported',
+    result_activation_state: 'disabled',
+  })
+  assert.equal(result.release.manifest_file_sha256, 'd'.repeat(64))
+  assert.equal(result.cleanup.every_exit, true)
+  assert.equal(result.cleanup.verifier_residue_count, 0)
+  assert.equal(result.redaction.credential_leak_count, 0)
 })
 
 function qualifyingJob(overrides = {}) {
