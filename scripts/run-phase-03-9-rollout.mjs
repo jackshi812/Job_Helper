@@ -125,10 +125,6 @@ function parseArgs(argv) {
 }
 
 async function runSupabase(args) {
-  requireCondition(
-    process.env.SUPABASE_ACCESS_TOKEN?.trim(),
-    'SUPABASE_ACCESS_TOKEN is required for non-interactive rollout',
-  )
   return execFile(SUPABASE_CLI, args, {
     cwd: ROOT,
     env: process.env,
