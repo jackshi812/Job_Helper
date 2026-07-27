@@ -438,7 +438,7 @@ interface ActivationDependencies {
     probe: () => Promise<JsonRecord>
     checkApply: (url: string) => Promise<boolean>
   }>
-  createPrivilegedClient: () => Promise<{
+  createPrivilegedClient: (manifest: JsonRecord) => Promise<{
     snapshotProtected: () => Promise<JsonRecord>
     finalizeTerminal: (input: JsonRecord) => Promise<JsonRecord>
     readSchedulerStatus: () => Promise<JsonRecord>
@@ -499,7 +499,7 @@ export function createActivationController(dependencies: ActivationDependencies)
 
       // Privileged construction is deliberately after exact manifest approval.
       const readOnly = await dependencies.createReadOnlyClient()
-      const privileged = await dependencies.createPrivilegedClient()
+      const privileged = await dependencies.createPrivilegedClient(manifest)
       const protectedBefore = await privileged.snapshotProtected()
       let result: JsonRecord | null = null
       let primaryError: Error | null = null
@@ -848,9 +848,24 @@ function createDefaultDependencies(): ActivationDependencies {
         },
       }
     },
-    async createPrivilegedClient() {
+    async createPrivilegedClient(manifest) {
       const key = await serviceRoleKey()
       secrets.push(key)
+      const verifierIds = Array.isArray(
+        (manifest.cleanup as JsonRecord | undefined)?.verifier_ids,
+      )
+        ? ((manifest.cleanup as JsonRecord).verifier_ids as unknown[])
+          .map(String)
+        : []
+      requireCondition(
+        verifierIds.length > 0
+          && verifierIds.every((id) =>
+            /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
+              .test(id)
+          ),
+        'manifest verifier IDs unavailable',
+      )
+      const verifierFilter = encodeURIComponent(`(${verifierIds.join(',')})`)
       let companyId: string | null = null
       async function company(): Promise<JsonRecord | null> {
         const rows = (await rest(
@@ -922,22 +937,35 @@ function createDefaultDependencies(): ActivationDependencies {
           return current === null
         },
         async cleanup() {
-          // The production manifest supplies verifier-owned rows. This controller
-          // never bulk-deletes source or user data; terminal cleanup is owned by
-          // the exact migration/RPC and residue assertions below.
+          // Delete only manifest-bound verifier UUIDs. Source and real-user rows
+          // are never selected by a broad predicate.
+          await rest(key, `user_jobs?id=in.${verifierFilter}`, {
+            method: 'DELETE',
+          })
+          await rest(key, `connector_observations?observation_id=in.${verifierFilter}`, {
+            method: 'DELETE',
+          })
+          await rest(key, `jobs?id=in.${verifierFilter}`, {
+            method: 'DELETE',
+          })
         },
         async residueCount() {
-          const current = await company()
-          if (!current || !companyId) return 0
-          const observations = await rest(
-            key,
-            'connector_observations?select=id&company_id=eq.'
-              + encodeURIComponent(companyId),
-            { count: true },
-          )
-          return Number(observations.count ?? 0) > 3
-            ? Number(observations.count)
-            : 0
+          const [userRows, observations, jobs] = await Promise.all([
+            rest(key, `user_jobs?select=id&id=in.${verifierFilter}`, {
+              count: true,
+            }),
+            rest(
+              key,
+              `connector_observations?select=observation_id&observation_id=in.${verifierFilter}`,
+              { count: true },
+            ),
+            rest(key, `jobs?select=id&id=in.${verifierFilter}`, {
+              count: true,
+            }),
+          ])
+          return Number(userRows.count ?? 0)
+            + Number(observations.count ?? 0)
+            + Number(jobs.count ?? 0)
         },
       }
     },
