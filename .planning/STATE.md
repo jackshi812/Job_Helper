@@ -6,7 +6,7 @@ current_phase: 03.10
 current_phase_name: Goldman Sachs Selective Higher Monitoring
 status: executing
 stopped_at: Completed 03.10-05-PLAN.md
-last_updated: "2026-07-27T16:10:37.286Z"
+last_updated: "2026-07-27T16:17:31.909Z"
 last_activity: 2026-07-27
 last_activity_desc: Phase 03.10 execution started
 progress:
@@ -297,6 +297,7 @@ Recent decisions affecting current work:
 - [Phase 03.10]: Function bundle identity is the sorted recursive repository-local import closure for verify-board, observe-connectors, and poll-tick, with JWT settings frozen independently.
 - [Phase 03.10]: PENDING rollout, hosted, evidence, and UAT templates remain mutable only through exact listed writers and transitions while their initial objects and hashes anchor the evidence chain.
 - [Phase 03.10]: The owner-UAT token remains uncreated until hosted and rollout evidence hashes exist; no owner attestation was fabricated.
+- [Phase 03.10]: Source commit f0f2706d458e16b90c33f357598a59f671020856 supersedes the prior c728fff authority after lifecycle-test repair; manifest 38ff04fb-2601-4faa-a53f-8ec7d6a0cb4b and its later preflight commit are metadata only.
 
 ### Pending Todos
 
