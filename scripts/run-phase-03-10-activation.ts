@@ -393,7 +393,7 @@ export function normalizeUnsupportedRolloutRecord({
     release: {
       source_commit: manifest.source_commit,
       manifest_file_sha256: hashes.manifest_file_sha256,
-      web_commit_sha: web?.commit_sha,
+      web_commit_sha: web?.commit_sha ?? web?.source_commit,
       web_asset_sha256: web?.asset_sha256,
     },
     terminal: {

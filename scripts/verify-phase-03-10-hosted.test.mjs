@@ -315,6 +315,20 @@ for (const [name, mutate, failedCheck] of negativeCases) {
   })
 }
 
+test('production web source_commit shape satisfies exact release parity', () => {
+  const productionManifest = structuredClone(manifest)
+  productionManifest.web_deployment.source_commit =
+    productionManifest.web_deployment.commit_sha
+  delete productionManifest.web_deployment.commit_sha
+  const snapshot = passingSnapshot()
+  snapshot.release.web_commit_sha =
+    productionManifest.web_deployment.source_commit
+  assert.equal(
+    evaluateHostedSnapshot(productionManifest, snapshot).status,
+    'PASS',
+  )
+})
+
 test('precise Unsupported remains explicit, isolated, cleaned, and non-monitored', () => {
   const snapshot = passingSnapshot()
   snapshot.catalog.disposition = 'unsupported_with_reason'

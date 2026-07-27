@@ -26,7 +26,7 @@ test('Unsupported rollout normalization binds release, zero authority, cleanup, 
       release_manifest_id: 'release-id',
       source_commit: 'a'.repeat(40),
       web_deployment: {
-        commit_sha: 'b'.repeat(40),
+        source_commit: 'b'.repeat(40),
         asset_sha256: 'c'.repeat(64),
       },
     },
@@ -55,6 +55,7 @@ test('Unsupported rollout normalization binds release, zero authority, cleanup, 
     result_activation_state: 'disabled',
   })
   assert.equal(result.release.manifest_file_sha256, 'd'.repeat(64))
+  assert.equal(result.release.web_commit_sha, 'b'.repeat(40))
   assert.equal(result.cleanup.every_exit, true)
   assert.equal(result.cleanup.verifier_residue_count, 0)
   assert.equal(result.redaction.credential_leak_count, 0)

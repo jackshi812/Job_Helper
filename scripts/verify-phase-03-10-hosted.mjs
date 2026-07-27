@@ -95,6 +95,11 @@ function requireCondition(condition, message) {
   if (!condition) throw new Error(message)
 }
 
+function manifestWebCommit(manifest) {
+  return manifest.web_deployment?.commit_sha
+    ?? manifest.web_deployment?.source_commit
+}
+
 function requiredEnvironment(name) {
   const value = process.env[name]?.trim()
   requireCondition(value, `${name} is required`)
@@ -263,7 +268,7 @@ function exactRelease(manifest, snapshot) {
     && HASH.test(snapshot.release?.manifest_file_sha256 ?? '')
     && snapshot.release?.source_commit === manifest.source_commit
     && SOURCE_COMMIT.test(snapshot.release?.source_commit ?? '')
-    && snapshot.release?.web_commit_sha === manifest.web_deployment?.commit_sha
+    && snapshot.release?.web_commit_sha === manifestWebCommit(manifest)
     && snapshot.release?.web_asset_sha256
       === manifest.web_deployment?.asset_sha256
 }
@@ -482,7 +487,7 @@ export async function collectUnsupportedSnapshot(
       release_manifest_id: manifest.release_manifest_id,
       manifest_file_sha256: sha256(manifestBytes),
       source_commit: manifest.source_commit,
-      web_commit_sha: manifest.web_deployment?.commit_sha,
+      web_commit_sha: manifestWebCommit(manifest),
       web_asset_sha256: manifest.web_deployment?.asset_sha256,
     },
     migration: {
@@ -705,7 +710,7 @@ export function assertRolloutRecord(manifest, record) {
     )
     requireCondition(
       record.release?.source_commit === manifest.source_commit
-        && record.release?.web_commit_sha === manifest.web_deployment?.commit_sha
+        && record.release?.web_commit_sha === manifestWebCommit(manifest)
         && record.release?.web_asset_sha256
           === manifest.web_deployment?.asset_sha256
         && HASH.test(record.release?.manifest_file_sha256 ?? ''),
@@ -791,7 +796,7 @@ function exactUatRuntime(manifest, record) {
       && record.functions?.[slug]?.bundle_sha256
         === manifest.functions?.[slug]?.bundle_sha256
     )
-    && record.web?.commit_sha === manifest.web_deployment?.commit_sha
+    && record.web?.commit_sha === manifestWebCommit(manifest)
     && record.web?.asset_sha256 === manifest.web_deployment?.asset_sha256
 }
 
@@ -908,7 +913,7 @@ export function buildUatRecord(
     migration: hostedRecord.evidence.migration,
     functions: hostedRecord.evidence.functions,
     web: {
-      commit_sha: manifest.web_deployment.commit_sha,
+      commit_sha: manifestWebCommit(manifest),
       asset_sha256: manifest.web_deployment.asset_sha256,
     },
     observed: unsupported
