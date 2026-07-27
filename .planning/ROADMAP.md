@@ -203,18 +203,19 @@ Plans:
 
 ### Phase 03.10: Goldman Sachs Selective Higher Monitoring (INSERTED)
 
-**Goal:** Monitor Goldman Sachs through the exact `goldman_higher:roles` Higher contract, ingesting only complete United States Early Career and Professional roles posted within a rolling 168 hours with approved provider-owned category evidence and exact Oracle Apply links, while preserving truthful selective lifecycle behavior.
+**Goal:** Monitor Goldman Sachs through the exact `goldman_higher:roles` Higher contract, ingesting only complete United States Early Career and Professional roles posted within the owner-approved rolling 720 hours with approved provider-owned category evidence and exact Oracle Apply links, while preserving truthful selective lifecycle behavior.
 **Requirements**: DISC-01, DISC-07, DISC-08, DISC-09
 **Depends on:** Phase 3
 **Success Criteria** (what must be TRUE):
 
 1. Only the frozen Goldman Higher identity and exact `/results`/legacy `/roles` navigation aliases are accepted; any network, GraphQL, or Oracle Apply coordinate drift fails closed before persistence or closure.
-2. Independent Early Career and Professional listings reconcile every page and selected detail; each persisted job proves exact U.S., list/detail `startDate` within 168 hours, one of the seven approved provider terms, allowed population, complete description, and exact Oracle Apply URL.
+2. Independent Early Career and Professional listings reconcile every page and selected detail; each persisted job proves exact U.S., list/detail `startDate` within 720 hours, one of the seven approved provider terms, allowed population, complete description, and exact Oracle Apply URL.
 3. Every Goldman observation has `allowMissingClosure=false`; aged provider-open jobs remain open and disappear only from the current Active feed.
 4. Goldman reaches Active only after exact live terminal proof, three distinct clean server-timed observations, replay/same-window rejection, and a later healthy natural scheduled poll; otherwise it remains precise Unsupported with no operational authority.
 5. The forward-only exact-release rollout preserves every sibling source and real user row outside ordinary scheduler timestamps, leaves zero verifier residue, and receives final approval only from the owner's existing signed-in browser.
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
+**Status:** Completed 2026-07-27
 
 Plans:
 
@@ -240,7 +241,7 @@ Plans:
 
 **Wave 6** *(blocked on immutable manifest finalization and owner approvals)*
 
-- [ ] 03.10-06-PLAN.md — Push only manifest-covered bytes, activate or terminalize Unsupported, verify isolation, clean up, and complete owner-browser UAT
+- [x] 03.10-06-PLAN.md — Push only manifest-covered bytes, activate or terminalize Unsupported, verify isolation, clean up, and complete owner-browser UAT
 
 ### Phase 03.9: JPMorgan Chase Selective Oracle Monitoring (INSERTED)
 
