@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
   "phase": "03.10",
-  "created_at": "2026-07-27T16:57:46.118Z",
-  "release_manifest_id": "fe8fca53-ec4a-4050-a0fb-034fdf959b30",
+  "created_at": "2026-07-27T17:30:56.983Z",
+  "release_manifest_id": "608ccfe0-cab2-4d2d-935e-1ef807e3d31b",
   "project_ref": "fjcsvajkkztvlrpdplwx",
   "source_key": "goldman_higher:roles",
   "public_url": "https://higher.gs.com/results",
-  "source_commit": "c76c431f865f24e279e8ab71050695dd807f5d84",
-  "source_commit_object": "c76c431f865f24e279e8ab71050695dd807f5d84",
+  "source_commit": "60f8c4122c690080947bc9f273cd0493e7f31633",
+  "source_commit_object": "60f8c4122c690080947bc9f273cd0493e7f31633",
   "hosted_baseline": {
     "first_migration": "0001",
-    "last_migration": "0047",
-    "migration_count": 47,
+    "last_migration": "0048",
+    "migration_count": 48,
     "catalog_fingerprint": "cc2333b38d1805eb9428ac866678f11b8da7fd820683c9185bcab7943d80a73b",
     "company_fingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     "terminal_fingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -124,8 +124,8 @@
     },
     {
       "path": "scripts/run-phase-03-10-rollout.mjs",
-      "git_object": "77b133b134ebf940618fcc3611bd189021258a8b",
-      "sha256": "76f055754378829eb4d92760f31dee9e388024141aad10f94bc051e712c63872"
+      "git_object": "bcaebc74ac29f86caf75b3e8f601d56877ee37f3",
+      "sha256": "94f166509d3a172fa522e6446762fdb20f0d55610fc12e8eb1928b63bea2caa5"
     },
     {
       "path": "scripts/verify-phase-03-10-hosted.mjs",
@@ -141,8 +141,8 @@
     },
     {
       "path": "scripts/run-phase-03-10-rollout.test.mjs",
-      "git_object": "e2f88e15b7fcfc28a75bcd52c385be0210b78901",
-      "sha256": "f5215d916ed1322c4c187d947e1360404a04f295288e60079dd9eb76c6a5dfb1"
+      "git_object": "4d283cbb8bb3277adcc1cb1118a3f0339ac96361",
+      "sha256": "ce00132e87c9eecd88fcfdce373cdfe4d1fde0400e06ca52834e0898ddb7fa82"
     },
     {
       "path": "scripts/verify-job-retention.test.mjs",
@@ -208,13 +208,13 @@
     },
     {
       "path": "scripts/run-phase-03-10-rollout.mjs",
-      "git_object": "77b133b134ebf940618fcc3611bd189021258a8b",
-      "sha256": "76f055754378829eb4d92760f31dee9e388024141aad10f94bc051e712c63872"
+      "git_object": "bcaebc74ac29f86caf75b3e8f601d56877ee37f3",
+      "sha256": "94f166509d3a172fa522e6446762fdb20f0d55610fc12e8eb1928b63bea2caa5"
     },
     {
       "path": "scripts/run-phase-03-10-rollout.test.mjs",
-      "git_object": "e2f88e15b7fcfc28a75bcd52c385be0210b78901",
-      "sha256": "f5215d916ed1322c4c187d947e1360404a04f295288e60079dd9eb76c6a5dfb1"
+      "git_object": "4d283cbb8bb3277adcc1cb1118a3f0339ac96361",
+      "sha256": "ce00132e87c9eecd88fcfdce373cdfe4d1fde0400e06ca52834e0898ddb7fa82"
     },
     {
       "path": "scripts/verify-job-retention.test.mjs",
@@ -600,7 +600,7 @@
     "production_release": true
   },
   "approved_actions": [
-    "db_push_0048",
+    "verify_migration_0048",
     "deploy_verify-board",
     "deploy_observe-connectors",
     "deploy_poll-tick",
