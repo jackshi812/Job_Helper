@@ -10,6 +10,7 @@ import {
   evaluateHostedSnapshot,
   exactUatApproval,
   normalizedHostedFileHash,
+  renderPendingUatMarkdown,
   uatApprovalPayload,
 } from './verify-phase-03-10-hosted.mjs'
 
@@ -500,6 +501,26 @@ test('UAT payload binds release, evidence, source, runtime, job, and cleanup', (
   )
   assert.equal(payload.expected_job.absolute_url, APPLY_URL)
   assert.equal(assertUatRecord(manifest, record).status, 'PENDING_OWNER_BROWSER')
+})
+
+test('pending owner UAT instructions match Active versus Unsupported truth', () => {
+  const active = pendingUat()
+  active.required_approval = 'active-approval'
+  const activeMarkdown = renderPendingUatMarkdown(active)
+  assert.match(activeMarkdown, /Active 3\/3/)
+  assert.match(activeMarkdown, /current Goldman job/)
+  assert.doesNotMatch(activeMarkdown, /not monitored/)
+
+  const unsupported = structuredClone(active)
+  unsupported.observed = {
+    terminal_kind: 'unsupported',
+    unsupported_reason: 'higher_contract_unverified',
+  }
+  unsupported.required_approval = 'unsupported-approval'
+  const unsupportedMarkdown = renderPendingUatMarkdown(unsupported)
+  assert.match(unsupportedMarkdown, /not monitored/)
+  assert.match(unsupportedMarkdown, /higher_contract_unverified/)
+  assert.doesNotMatch(unsupportedMarkdown, /Active 3\/3/)
 })
 
 test('UAT PASS requires the exact owner signal and forbids Codex browser use', () => {

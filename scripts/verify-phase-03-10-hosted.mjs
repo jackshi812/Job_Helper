@@ -1202,6 +1202,24 @@ export function buildUatRecord(
   return record
 }
 
+export function renderPendingUatMarkdown(record) {
+  const unsupported = record.observed?.terminal_kind === 'unsupported'
+  return [
+    '# Phase 03.10 Owner Browser UAT',
+    '',
+    'Status: PENDING_OWNER_BROWSER',
+    unsupported
+      ? `Expected: Goldman Sachs is not monitored (${record.observed.unsupported_reason}).`
+      : 'Expected: Goldman Sachs is Active 3/3 with a healthy natural poll.',
+    unsupported
+      ? 'Confirm there is no activation progress, schedule, healthy badge, or Goldman job feed.'
+      : 'Confirm one current Goldman job appears in Watchlist Jobs and All Jobs, its detail is complete, and its employer Apply link opens.',
+    '',
+    `Required approval: ${record.required_approval}`,
+    '',
+  ].join('\n')
+}
+
 function parseArgs(argv) {
   const result = {
     mode: 'evaluate',
@@ -1333,16 +1351,10 @@ async function main() {
       resolve(ROOT, args.output),
       `${JSON.stringify(record, null, 2)}\n`,
     )
-    await writeFile(resolve(ROOT, args.uatMarkdown), [
-      '# Phase 03.10 Owner Browser UAT',
-      '',
-      'Status: PENDING_OWNER_BROWSER',
-      `Expected: Goldman Sachs is not monitored (${record.observed.unsupported_reason}).`,
-      'Confirm there is no activation progress, schedule, healthy badge, or Goldman job feed.',
-      '',
-      `Required approval: ${record.required_approval}`,
-      '',
-    ].join('\n'))
+    await writeFile(
+      resolve(ROOT, args.uatMarkdown),
+      renderPendingUatMarkdown(record),
+    )
     process.stdout.write(`${JSON.stringify({
       status: record.status,
       required_approval: record.required_approval,
