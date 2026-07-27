@@ -87,6 +87,54 @@ function positiveObservation(): PollObservation {
   }
 }
 
+function goldmanObservation(): PollObservation {
+  return {
+    jobs: [{
+      source: 'goldman_higher',
+      externalId: '137650',
+      title: 'Risk Analyst',
+      location: 'New York, NY, United States',
+      absoluteUrl:
+        'https://hdpc.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/LateralHiring/job/1500123456789/apply/email',
+      postedAt: '2026-07-26T00:00:00.000Z',
+      descriptionHtml: '<p>Full risk role description.</p>',
+      descriptionText: 'Full risk role description.',
+      snapshotPartial: false,
+      companyName: 'Goldman Sachs',
+      scopeEvidence: {
+        sourceKey: 'goldman_higher:roles',
+        selectionMode: 'recent_exact_us_provider_category',
+        recentHours: 168,
+        providerSourceId: '1500123456789',
+        providerCategoryField: 'jobFunction',
+        providerCategoryLabel: 'risk',
+        matchedTerm: 'Risk',
+        detailCountryCode: 'US',
+        postedAt: '2026-07-26T00:00:00.000Z',
+        recruitingType: 'GS_MID_CAREER',
+        externalIdDigest: '1'.repeat(64),
+      },
+    }],
+    completeness: 'complete',
+    credibleForClosure: true,
+    allowMissingClosure: false,
+    pageCount: 2,
+    expectedCount: 1,
+    warnings: [],
+    scopeEvidence: {
+      sourceKey: 'goldman_higher:roles',
+      selectionMode: 'recent_exact_us_provider_category',
+      recentHours: 168,
+      sliceDigests: ['2'.repeat(64), '3'.repeat(64)],
+      jobDigest: '4'.repeat(64),
+      categoryDigest: '5'.repeat(64),
+      countryDigest: '6'.repeat(64),
+      freshnessDigest: '7'.repeat(64),
+      applicationDigest: '8'.repeat(64),
+    },
+  }
+}
+
 function harness() {
   const rpc = vi.fn(async (name: string) => {
     if (name === 'claim_due_experimental_connectors') {
@@ -341,6 +389,95 @@ describe('observe-connectors cron-only Experimental lane', () => {
     closureAllowed = true
     const rejected = await handler(request())
     await expect(rejected.json()).resolves.toMatchObject({ recorded: 0, degraded: 1 })
+  })
+
+  it('records only exact closure-disabled Goldman aggregate and job evidence', async () => {
+    const company = companies[2]
+    const rpc = vi.fn(async (name: string) => ({
+      data: name === 'claim_due_experimental_connectors'
+        ? [company]
+        : [{ accepted: true }],
+      error: null,
+    }))
+    const degraded = vi.fn().mockResolvedValue({ error: null })
+    let current = goldmanObservation()
+    const digestEvidence = vi.fn().mockResolvedValue('9'.repeat(64))
+    const handler = createObserveConnectorsHandler({
+      getCronSecret: () => 'cron-secret',
+      createServiceClient: () => ({
+        rpc,
+        from: () => ({ update: () => ({ eq: degraded }) }),
+      }),
+      observeCompany: async () => current,
+      digestEvidence,
+      randomUUID: () => '88888888-8888-4888-8888-888888888888',
+    })
+
+    const accepted = await handler(request())
+    await expect(accepted.json()).resolves.toMatchObject({ recorded: 1, degraded: 0 })
+    expect(digestEvidence).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledWith(
+      'record_connector_observation',
+      expect.objectContaining({
+        p_company_id: company.id,
+        p_job_count: 1,
+        p_expected_count: 1,
+        p_evidence_digest: '9'.repeat(64),
+      }),
+    )
+
+    const invalidObservations = [
+      { ...goldmanObservation(), allowMissingClosure: true },
+      { ...goldmanObservation(), scopeEvidence: undefined },
+      {
+        ...goldmanObservation(),
+        scopeEvidence: {
+          ...goldmanObservation().scopeEvidence!,
+          sliceDigests: ['2'.repeat(64)],
+        },
+      },
+      {
+        ...goldmanObservation(),
+        scopeEvidence: {
+          ...goldmanObservation().scopeEvidence!,
+          recentHours: 167,
+        },
+      },
+      {
+        ...goldmanObservation(),
+        scopeEvidence: {
+          ...goldmanObservation().scopeEvidence!,
+          applicationDigest: 'not-a-digest',
+        },
+      },
+      {
+        ...goldmanObservation(),
+        jobs: [{
+          ...goldmanObservation().jobs[0],
+          scopeEvidence: {
+            ...goldmanObservation().jobs[0].scopeEvidence!,
+            providerCategoryField: 'division',
+          },
+        }],
+      },
+      {
+        ...goldmanObservation(),
+        jobs: [{
+          ...goldmanObservation().jobs[0],
+          postedAt: '2026-07-25T00:00:00.000Z',
+        }],
+      },
+    ] as PollObservation[]
+
+    for (const invalid of invalidObservations) {
+      current = invalid
+      const rejected = await handler(request())
+      await expect(rejected.json()).resolves.toMatchObject({
+        recorded: 0,
+        degraded: 1,
+      })
+    }
+    expect(digestEvidence).toHaveBeenCalledTimes(1)
   })
 
   it('ignores request-body network, identity, time, digest, and activation fields', async () => {

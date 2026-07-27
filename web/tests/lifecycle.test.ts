@@ -185,6 +185,45 @@ describe('planCompanySync', () => {
     })
   })
 
+  it('keeps an aged absent Goldman role provider-open while refreshing health', () => {
+    const agedGoldman = existingJob({
+      source: 'goldman_higher',
+      external_id: 'aged-provider-open-role',
+      last_seen_at: '2026-07-01T00:00:00.000Z',
+    })
+    const selectiveGoldman = observation({
+      jobs: [{
+        ...returnedJob(),
+        source: 'goldman_higher',
+        externalId: 'current-role',
+        postedAt: '2026-07-17T16:00:00.000Z',
+        scopeEvidence: {
+          sourceKey: 'goldman_higher:roles',
+          selectionMode: 'recent_exact_us_provider_category',
+          recentHours: 168,
+          providerSourceId: '1500123456789',
+          providerCategoryField: 'jobFunction',
+          providerCategoryLabel: 'risk',
+          matchedTerm: 'Risk',
+          detailCountryCode: 'US',
+          postedAt: '2026-07-17T16:00:00.000Z',
+          recruitingType: 'GS_MID_CAREER',
+          externalIdDigest: 'a'.repeat(64),
+        },
+      }],
+      allowMissingClosure: false,
+    })
+
+    expect(planCompanySync([agedGoldman], selectiveGoldman, nowIso).closeIds)
+      .toEqual([])
+    expect(agedGoldman.status).toBe('open')
+    expect(observationHealthUpdate(selectiveGoldman, null, 3, nowIso)).toEqual({
+      last_success_at: nowIso,
+      consecutive_failures: 0,
+      last_error: null,
+    })
+  })
+
   it('closes nothing after an empty poll', () => {
     const missing = existingJob({ last_seen_at: '2026-07-17T16:00:00.000Z' })
 

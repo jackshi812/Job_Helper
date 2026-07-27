@@ -113,6 +113,36 @@ describe('bounded Active company polling', () => {
     )
   })
 
+  it('recomputes every Goldman field before persisting the atomic snapshot', () => {
+    expect(pollTickSource).toMatch(
+      /createGoldmanHigherScopeEvidence/,
+    )
+    expect(pollTickSource).toMatch(
+      /company\.ats_type\s*===\s*'goldman_higher'[\s\S]*allowMissingClosure\s*!==\s*false/,
+    )
+    for (const field of [
+      'selectionMode',
+      'recentHours',
+      'providerSourceId',
+      'providerCategoryField',
+      'providerCategoryLabel',
+      'matchedTerm',
+      'detailCountryCode',
+      'postedAt',
+      'recruitingType',
+      'externalIdDigest',
+    ]) {
+      expect(pollTickSource).toContain(field)
+    }
+    expect(pollTickSource).toMatch(
+      /job\.postedAt\s*!==\s*job\.scopeEvidence\.postedAt/,
+    )
+    expect(pollTickSource).toMatch(/absolute_url:\s*normalized\.absoluteUrl/)
+    expect(pollTickSource).toMatch(/posted_at:\s*normalized\.postedAt/)
+    expect(pollTickSource).toMatch(/description_html:\s*normalized\.descriptionHtml/)
+    expect(pollTickSource).toMatch(/snapshot_partial:\s*normalized\.snapshotPartial/)
+  })
+
   it('logs only bounded diagnostic codes across the cron trust boundary', () => {
     expect(pollTickSource).toMatch(
       /console\.error\('poll-tick failed', diagnosticCode\(error\)\)/,
