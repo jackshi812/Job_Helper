@@ -1,7 +1,93 @@
 {
   "schema_version": 1,
   "phase": "03.9",
-  "release_manifest_id": "03900000-0000-4000-8000-000000000001",
-  "status": "PENDING_EXPLICIT_APPROVAL",
-  "checks": {}
+  "release_manifest_id": "03900000-0000-4000-8000-000000000004",
+  "release_chain": [
+    "03900000-0000-4000-8000-000000000001",
+    "03900000-0000-4000-8000-000000000002",
+    "03900000-0000-4000-8000-000000000003",
+    "03900000-0000-4000-8000-000000000004"
+  ],
+  "status": "PASS",
+  "verified_at": "2026-07-27T00:49:09Z",
+  "checks": {
+    "migration_0045": {
+      "status": "PASS"
+    },
+    "repair_migrations_0046_0047": {
+      "status": "PASS"
+    },
+    "migration_history_exact_through_0047": {
+      "status": "PASS"
+    },
+    "observe_connectors_parity": {
+      "status": "PASS"
+    },
+    "poll_tick_parity": {
+      "status": "PASS"
+    },
+    "function_jwt_settings": {
+      "status": "PASS"
+    },
+    "exact_catalog": {
+      "status": "PASS"
+    },
+    "exact_company_identity": {
+      "status": "PASS"
+    },
+    "activation": {
+      "status": "PASS"
+    },
+    "natural_poll": {
+      "status": "PASS"
+    },
+    "eligible_job": {
+      "status": "PASS"
+    },
+    "closure_disabled": {
+      "status": "PASS"
+    },
+    "protected_sources": {
+      "status": "PASS"
+    },
+    "zero_residue": {
+      "status": "PASS"
+    }
+  },
+  "evidence": {
+    "project_ref": "fjcsvajkkztvlrpdplwx",
+    "migration_count": 47,
+    "last_migration": "0047",
+    "source_key": "oracle:jpmc:CX_1001",
+    "site_number": "CX_1001",
+    "careers_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs",
+    "catalog_provider": "Oracle Recruiting Cloud",
+    "catalog_disposition": "experimental",
+    "catalog_unsupported_reason": null,
+    "functions": {
+      "observe-connectors": {
+        "version": 6,
+        "status": "ACTIVE",
+        "verify_jwt": false,
+        "bundle_sha256": "2ce687f61657a2d795f784673b7a4612e56abf35ac03b08db82ce65eb8805ea2"
+      },
+      "poll-tick": {
+        "version": 35,
+        "status": "ACTIVE",
+        "verify_jwt": false,
+        "bundle_sha256": "32bbbf2e98cb5b8b1ea64a984dffdf0b51d867a944caf8b89058d01760098d2c"
+      }
+    },
+    "company": {
+      "activation_state": "active",
+      "activation_successes": 3,
+      "last_polled_at": "2026-07-27T00:49:00Z",
+      "last_success_at": "2026-07-27T00:49:09Z",
+      "last_error_code": null
+    },
+    "eligible_job_count": 113,
+    "absence_closed_count": 0,
+    "protected_sources_unchanged": true,
+    "verifier_residue_count": 0
+  }
 }

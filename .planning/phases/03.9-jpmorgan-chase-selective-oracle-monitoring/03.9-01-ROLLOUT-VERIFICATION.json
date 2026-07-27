@@ -1,7 +1,162 @@
 {
   "schema_version": 1,
   "phase": "03.9",
-  "release_manifest_id": "03900000-0000-4000-8000-000000000001",
-  "status": "PENDING_EXPLICIT_APPROVAL",
-  "production_mutations": 0
+  "release_manifest_id": "03900000-0000-4000-8000-000000000004",
+  "status": "PASS",
+  "completed_at": "2026-07-27T00:49:09Z",
+  "approved_release_chain": [
+    {
+      "release_manifest_id": "03900000-0000-4000-8000-000000000001",
+      "action": "initial migration and function deployment"
+    },
+    {
+      "release_manifest_id": "03900000-0000-4000-8000-000000000002",
+      "action": "Oracle BOM normalization function repair"
+    },
+    {
+      "release_manifest_id": "03900000-0000-4000-8000-000000000003",
+      "action": "hosted catalog identity repair"
+    },
+    {
+      "release_manifest_id": "03900000-0000-4000-8000-000000000004",
+      "action": "hosted company identity repair"
+    }
+  ],
+  "source": {
+    "company_name": "JPMorgan Chase",
+    "source_key": "oracle:jpmc:CX_1001",
+    "site_number": "CX_1001",
+    "careers_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs",
+    "country": "United States",
+    "posting_date_facet": "7",
+    "title_families": [
+      "Finance",
+      "Data & Analytics",
+      "Risk",
+      "Product/Investment Management",
+      "Strategy & Development",
+      "Program Analysts & Associate"
+    ]
+  },
+  "live_probe": {
+    "status": "PASS",
+    "observed_at": "2026-07-27T00:42:06Z",
+    "deduplicated_job_count": 113,
+    "expected_job_count": 113,
+    "page_count": 8,
+    "slice_count": 6,
+    "warning_count": 0,
+    "allow_missing_closure": false
+  },
+  "terminal_admission": {
+    "status": "PASS",
+    "completed_at": "2026-07-27T00:42:10Z"
+  },
+  "activation": {
+    "status": "PASS",
+    "accepted_observations": 3,
+    "required_observations": 3,
+    "first_observation_at": "2026-07-27T00:43:14Z",
+    "second_observation_at": "2026-07-27T00:44:12Z",
+    "third_observation_at": "2026-07-27T00:45:10Z",
+    "final_state": "active",
+    "replay_guard": "PASS",
+    "same_window_guard": "PASS",
+    "stored_observation_count": 3
+  },
+  "natural_poll": {
+    "status": "PASS",
+    "claimed_at": "2026-07-27T00:49:00Z",
+    "completed_at": "2026-07-27T00:49:09Z",
+    "open_job_count": 113,
+    "closed_job_count": 0,
+    "last_error_code": null,
+    "discovery_minutes_from_activation": 4
+  },
+  "persisted_job_sample": {
+    "external_id": "210774113",
+    "title": "Analyst - Mid-Cap Financial Sponsors Group",
+    "location": "Los Angeles, CA, United States",
+    "posted_at": "2026-07-24T22:08:30+00:00",
+    "apply_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/210774113",
+    "family_evidence": "program analysts associate",
+    "provider_family": "Program Analysts",
+    "source_key": "oracle:jpmc:CX_1001",
+    "country_evidence": "United States",
+    "snapshot_partial": false,
+    "description_present": true,
+    "status": "open",
+    "closed_at": null
+  },
+  "closure_guard": {
+    "status": "PASS",
+    "allow_missing_closure": false,
+    "absence_closed_count": 0
+  },
+  "protected_sources": {
+    "status": "PASS",
+    "unchanged_except_scheduler_owned_timestamps": true,
+    "sources": [
+      {
+        "source_key": "eightfold:morganstanley",
+        "company_count": 0,
+        "job_count": 0
+      },
+      {
+        "source_key": "goldman_higher:roles",
+        "company_count": 0,
+        "job_count": 0
+      },
+      {
+        "source_key": "workday:wd12:capitalone:Capital_One",
+        "activation_state": "active",
+        "activation_successes": 3,
+        "job_count": 22
+      },
+      {
+        "source_key": "workday:wd1:fmr:FidelityCareers",
+        "activation_state": "active",
+        "activation_successes": 3,
+        "job_count": 113
+      },
+      {
+        "source_key": "workday:wd5:ms:External",
+        "activation_state": "active",
+        "activation_successes": 3,
+        "job_count": 111
+      },
+      {
+        "source_key": "workday:wd1:ghr:Lateral-US",
+        "activation_state": "active",
+        "activation_successes": 3,
+        "job_count": 13
+      },
+      {
+        "source_key": "workday:wd1:blackrock:BlackRock_Professional",
+        "activation_state": "active",
+        "activation_successes": 3,
+        "job_count": 37
+      },
+      {
+        "source_key": "workday:wd3:barclays:External_Career_Site_Barclays",
+        "activation_state": "active",
+        "activation_successes": 3,
+        "job_count": 15
+      }
+    ]
+  },
+  "cleanup": {
+    "status": "PASS",
+    "temporary_fixture_count": 0,
+    "verifier_residue_count": 0,
+    "scheduler_override_count": 0
+  },
+  "automated_verification": {
+    "test_files": 64,
+    "tests_passed": 1366,
+    "tests_failed": 0,
+    "production_build": "PASS",
+    "rollout_tests_passed": 10
+  },
+  "owner_browser_uat": "PENDING"
 }

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "phase": "03.9",
+  "release_manifest_id": "03900000-0000-4000-8000-000000000004",
+  "source_key": "oracle:jpmc:CX_1001",
+  "hosted_verification_sha256": "9a1a1a9674d201d21e8a1391f27062356468f8857252ed1323ba1838d673c321",
+  "rollout_verification_sha256": "15b1df89f0d6c7d5c951998fb23ed59eda4ec5c97a73a04f681578640b1c0624",
+  "owner_browser_required": true,
+  "codex_browser_used": false,
+  "expected_watchlist": {
+    "company_name": "JPMorgan Chase",
+    "activation_state": "active",
+    "activation_successes": 3,
+    "monitoring_state": "scheduled",
+    "health_state": "healthy",
+    "last_success_at": "2026-07-27T00:49:09Z",
+    "careers_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs"
+  },
+  "expected_job": {
+    "eligible_job_count": 113,
+    "source_key": "oracle:jpmc:CX_1001",
+    "external_id": "210774113",
+    "title": "Analyst - Mid-Cap Financial Sponsors Group",
+    "location": "Los Angeles, CA, United States",
+    "posted_at": "2026-07-24T22:08:30+00:00",
+    "provider_family": "Program Analysts",
+    "description_present": true,
+    "apply_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/210774113"
+  },
+  "required_approval": "approve Phase 03.9 JPMorgan UAT 03900000-0000-4000-8000-000000000004 8ef23eb5bbf02857f84e92dc7d409df38db904dcacca2dc85ddd1c2ff2c69bff",
+  "status": "PENDING_OWNER_BROWSER",
+  "owner_attestation": null,
+  "approved_at": null
+}
