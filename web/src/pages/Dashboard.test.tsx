@@ -31,6 +31,8 @@ const row: FeedRow = {
   deterministic_ranked_at: '2026-07-22T00:00:00.000Z',
   deterministic_best_fit_resume_id: null,
   deterministic_runner_up_resume_id: null,
+  resume_route_revision: 1,
+  current_resume_route_revision: 2,
   seen_at: null,
   dismissed_at: null,
   applied_at: null,
@@ -50,6 +52,12 @@ const row: FeedRow = {
 const externalRow: FeedRow = {
   ...row,
   id: 'user-job-external',
+  deterministic_best_fit_resume_id:
+    '22222222-2222-4222-8222-222222222222',
+  deterministic_runner_up_resume_id:
+    '33333333-3333-4333-8333-333333333333',
+  resume_route_revision: 2,
+  current_resume_route_revision: 2,
   jobs: {
     ...row.jobs!,
     id: 'job-external',
@@ -102,6 +110,22 @@ vi.mock('@tanstack/react-query', () => ({
           retryAvailable: false,
           updatedAt: '2026-07-23T00:00:00.000Z',
         },
+        error: null,
+        isPending: false,
+      }
+    }
+    if (queryKey[0] === 'resumes') {
+      return {
+        data: [
+          {
+            id: '22222222-2222-4222-8222-222222222222',
+            filename: 'Finance.pdf',
+          },
+          {
+            id: '33333333-3333-4333-8333-333333333333',
+            filename: 'Research.pdf',
+          },
+        ],
         error: null,
         isPending: false,
       }
@@ -207,10 +231,23 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('row.deterministic_score')
     expect(dashboardSource).toContain('row.deterministic_tier')
     expect(dashboardSource).toContain('row.deterministic_best_fit_resume_id')
+    expect(dashboardSource).toContain('resumeRouteIsCurrent(row)')
     expect(dashboardSource).toContain('<TierBadge tier={row.deterministic_tier}')
     expect(dashboardSource).not.toContain('tierPresentation(row.score)')
     expect(dashboardSource).not.toContain('row.score')
     expect(dashboardSource).not.toContain('row.routed_resume_id')
+  })
+
+  it('hides a stale route without hiding its deterministic score', () => {
+    const markup = renderToStaticMarkup(<Dashboard />)
+    expect(markup).toContain('>42</span>')
+    expect(markup).not.toContain('Best fit:')
+  })
+
+  it('renders current winner and runner-up labels', () => {
+    const markup = renderToStaticMarkup(<Dashboard scope="all" />)
+    expect(markup).toContain('Best fit: Finance.pdf')
+    expect(markup).toContain('also fits Research.pdf')
   })
 
   it('pins staged full-list company actions, escape, and exact filter-empty copy', () => {

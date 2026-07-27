@@ -15,6 +15,7 @@ import {
   listFeedPage,
   markJobApplied,
   mergeDashboardFeedPages,
+  resumeRouteIsCurrent,
   safeApplyUrl,
   tierPresentation,
   undismissJob,
@@ -1067,10 +1068,11 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
                 const applyUrl = safeApplyUrl(row.jobs?.absolute_url)
                 const jobTitle = row.jobs?.title ?? 'Untitled role'
                 const company = companyName(row)
-                const bestFit = row.deterministic_best_fit_resume_id
+                const routeIsCurrent = resumeRouteIsCurrent(row)
+                const bestFit = routeIsCurrent && row.deterministic_best_fit_resume_id
                   ? resumeNames.get(row.deterministic_best_fit_resume_id)
                   : undefined
-                const runnerUp = row.deterministic_runner_up_resume_id
+                const runnerUp = routeIsCurrent && row.deterministic_runner_up_resume_id
                   ? resumeNames.get(row.deterministic_runner_up_resume_id)
                   : undefined
                 return (

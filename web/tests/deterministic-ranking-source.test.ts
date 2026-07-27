@@ -55,7 +55,7 @@ describe('score-tick deterministic worker source contract', () => {
 
     expect(worker).toContain("'enqueue_deterministic_new_jobs'")
     expect(worker).toContain("'enqueue_deterministic_recency_refresh'")
-    expect(worker).toContain("'enqueue_deterministic_route_refreshes'")
+    expect(worker).not.toContain("'enqueue_deterministic_route_refreshes'")
     expect(worker).toContain("'claim_deterministic_ranking_work'")
     expect(worker).toContain("'stage_deterministic_ranking_result'")
     expect(worker).toContain("'finalize_deterministic_ranking_run'")
@@ -103,22 +103,18 @@ describe('score-tick deterministic worker source contract', () => {
     )
   })
 
-  it('evaluates only captured run inputs and routes resumes separately', () => {
+  it('evaluates only captured run inputs with no resume routing capability', () => {
     const worker = read(deterministicWorkerPath)
-    const evaluationCall = worker.slice(
-      worker.indexOf('evaluateDeterministicRanking({'),
-      worker.indexOf('const routing = routeResume('),
-    )
 
     expect(worker).toContain('evaluateDeterministicRanking({')
     expect(worker).toContain('evaluationTime: row.evaluation_time')
     expect(worker).toContain('rubric: row.captured_rubric')
     expect(worker).toContain('good: row.captured_good_threshold')
     expect(worker).toContain('strong: row.captured_strong_threshold')
-    expect(worker).toContain('routeResume(')
-    expect(evaluationCall).not.toMatch(
-      /routeResume|extractsByUser|resumeId|text_content/,
-    )
+    expect(worker).not.toMatch(/routeResume|ResumeExtractInput|resume_extracts/)
+    expect(worker).not.toMatch(/extractsByUser|loadedExtractOwnerIds/)
+    expect(worker).toContain('p_best_fit_resume_id: null')
+    expect(worker).toContain('p_runner_up_resume_id: null')
   })
 
   it('bounds diagnostic output without logging job or resume content', () => {
@@ -143,10 +139,10 @@ describe('resume extraction remains an explicitly separate allowed AI boundary',
     expect(extractor).not.toContain('reserve_score_request')
   })
 
-  it('signals only the free deterministic route refresh after extraction', () => {
+  it('relies on the ready-row database trigger for route invalidation', () => {
     const extractor = read(extractResumePath)
 
-    expect(extractor).toContain("'request_deterministic_route_refresh_for_user'")
+    expect(extractor).not.toContain("'request_deterministic_route_refresh_for_user'")
     expect(extractor).not.toContain("'mark_user_jobs_for_reroute'")
     expect(extractor).not.toContain("'initialize_deterministic_ranking_backfill'")
   })

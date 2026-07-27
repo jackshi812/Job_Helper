@@ -71,15 +71,17 @@ describe('routeResume', () => {
     expect(routeResume('python pandas', [])).toBeNull()
   })
 
-  it('routes to the first resume by stable order on all-zero overlap', () => {
-    const result = routeResume('carpentry welding masonry', [
+  it('returns null on all-zero overlap regardless of filename order', () => {
+    expect(routeResume('carpentry welding masonry', [
       dataEngineer, // filename c-...
       dataScientist, // filename a-...
       finance, // filename b-...
-    ])
-    // All zero hits → sort by filename asc → a-data-scientist wins; no runner-up.
-    expect(result?.resumeId).toBe('ds')
-    expect(result?.runnerUpResumeId).toBeNull()
+    ])).toBeNull()
+    expect(routeResume('carpentry welding masonry', [
+      finance,
+      dataEngineer,
+      dataScientist,
+    ])).toBeNull()
   })
 })
 

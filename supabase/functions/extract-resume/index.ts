@@ -132,18 +132,8 @@ async function processRow(
   })
   if (usageError) console.error('extract-resume usage write failed', 'ai_usage_write_failed')
 
-  // Resume extraction remains the allowed AI boundary. Its only downstream
-  // signal requests a free local Best-fit refresh; it cannot invalidate or
-  // reserve deterministic score work.
-  try {
-    const { error: rerouteError } = await admin.rpc(
-      'request_deterministic_route_refresh_for_user',
-      { p_user_id: row.user_id },
-    )
-    if (rerouteError) throw rerouteError
-  } catch {
-    console.error('extract-resume reroute signal failed', 'reroute_signal_failed')
-  }
+  // The ready-row update above is the sole paid AI boundary. Route invalidation
+  // is transactional in the resume_extracts ready-state trigger.
 
   return 'extracted'
 }
