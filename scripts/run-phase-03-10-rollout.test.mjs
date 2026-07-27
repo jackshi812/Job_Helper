@@ -178,8 +178,8 @@ async function createFixture() {
     source_commit_object: await git(root, ['rev-parse', `${sourceCommit}^{commit}`]),
     hosted_baseline: {
       first_migration: '0001',
-      last_migration: '0047',
-      migration_count: 47,
+      last_migration: '0048',
+      migration_count: 48,
       catalog_fingerprint: digest('catalog'),
       company_fingerprint: digest('company'),
       terminal_fingerprint: digest('terminal'),
@@ -392,7 +392,7 @@ test('non-exact approval rejects before the first command', async () => {
   })
 })
 
-test('exact approval runs one schema push and only the three listed functions', async () => {
+test('exact approval verifies applied 0048 and deploys only the three listed functions', async () => {
   await withFixture(async ({ root, manifest, hashes }) => {
     const calls = []
     const result = await executeRelease(
@@ -401,7 +401,17 @@ test('exact approval runs one schema push and only the three listed functions', 
       hashes,
       async (args) => {
         calls.push(args)
-        return { stdout: '', stderr: '' }
+        return {
+          stdout: args[0] === 'migration'
+            ? JSON.stringify({
+                migrations: Array.from({ length: 48 }, (_, index) => {
+                  const version = String(index + 1).padStart(4, '0')
+                  return { local: version, remote: version, time: version }
+                }),
+              })
+            : '',
+          stderr: '',
+        }
       },
       {
         root,
@@ -410,14 +420,13 @@ test('exact approval runs one schema push and only the three listed functions', 
     )
     assert.equal(result.status, 'DEPLOYED_PENDING_ACTIVATION')
     assert.deepEqual(calls, [
-      ['db', 'push', '--linked', '--yes'],
+      ['migration', 'list', '--linked'],
       [
         'functions',
         'deploy',
         'verify-board',
         '--project-ref',
         manifest.project_ref,
-        '--verify-jwt',
       ],
       [
         'functions',
@@ -439,12 +448,43 @@ test('exact approval runs one schema push and only the three listed functions', 
   })
 })
 
+test('missing hosted migration 0048 stops before every function deployment', async () => {
+  await withFixture(async ({ root, manifest, hashes }) => {
+    const calls = []
+    await assert.rejects(
+      executeRelease(
+        manifest,
+        exactApproval(manifest, hashes),
+        hashes,
+        async (args) => {
+          calls.push(args)
+          return {
+            stdout: JSON.stringify({
+              migrations: Array.from({ length: 47 }, (_, index) => {
+                const version = String(index + 1).padStart(4, '0')
+                return { local: version, remote: version, time: version }
+              }),
+            }),
+            stderr: '',
+          }
+        },
+        {
+          root,
+          environment: { SUPABASE_ACCESS_TOKEN: 'TEST_ONLY_NON_PRODUCTION' },
+        },
+      ),
+      /migration 0048 is not the exact applied baseline/,
+    )
+    assert.deepEqual(calls, [['migration', 'list', '--linked']])
+  })
+})
+
 test('source, byte, target, baseline, action, and function drift fail closed', async () => {
   await withFixture(async (fixture) => {
     const cases = [
       ['source', (manifest) => { manifest.source_commit = '0'.repeat(40) }],
       ['target', (manifest) => { manifest.project_ref = 'wrong-project' }],
-      ['baseline', (manifest) => { manifest.hosted_baseline.last_migration = '0048' }],
+      ['baseline', (manifest) => { manifest.hosted_baseline.last_migration = '0047' }],
       ['action', (manifest) => { manifest.approved_actions.push('extra_action') }],
       ['function', (manifest) => { manifest.functions['extra-function'] = manifest.functions['poll-tick'] }],
       ['file', (manifest) => { manifest.immutable_source.push(manifest.immutable_source[0]) }],
@@ -517,7 +557,7 @@ test('post-approval state drift rejects before the first command', async () => {
     await write(root, path, original)
 
     const changed = clone(manifest)
-    changed.hosted_baseline.last_migration = '0048'
+    changed.hosted_baseline.catalog_fingerprint = '0'.repeat(64)
     await assert.rejects(
       executeRelease(
         changed,

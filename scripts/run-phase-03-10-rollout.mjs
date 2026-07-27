@@ -50,7 +50,7 @@ export const SAFETY_TEST_PATHS = Object.freeze([
 ])
 
 export const APPROVED_ACTIONS = Object.freeze([
-  'db_push_0048',
+  'verify_migration_0048',
   'deploy_verify-board',
   'deploy_observe-connectors',
   'deploy_poll-tick',
@@ -366,8 +366,8 @@ function validateHostedBaseline(value) {
   ], 'hosted baseline')
   requireCondition(
     value.first_migration === '0001'
-      && value.last_migration === '0047'
-      && value.migration_count === 47,
+      && value.last_migration === '0048'
+      && value.migration_count === 48,
     'hosted baseline drift',
   )
   for (const field of [
@@ -851,6 +851,25 @@ async function runSupabase(args, execution) {
   })
 }
 
+function requireAppliedMigration0048(stdout) {
+  let parsed
+  try {
+    parsed = JSON.parse(stdout)
+  } catch {
+    throw new Error('hosted migration history is not valid JSON')
+  }
+  const migrations = parsed?.migrations
+  requireCondition(Array.isArray(migrations), 'hosted migration history missing')
+  requireCondition(
+    migrations.length === 48
+      && migrations[0]?.local === '0001'
+      && migrations[0]?.remote === '0001'
+      && migrations.at(-1)?.local === '0048'
+      && migrations.at(-1)?.remote === '0048',
+    'hosted migration 0048 is not the exact applied baseline',
+  )
+}
+
 export async function executeRelease(
   manifest,
   approval,
@@ -890,17 +909,19 @@ export async function executeRelease(
     env: environment,
   }
 
-  await run(['db', 'push', '--linked', '--yes'], execution)
+  const migrationHistory = await run(['migration', 'list', '--linked'], execution)
+  requireAppliedMigration0048(migrationHistory.stdout)
   for (const slug of FUNCTION_SLUGS) {
     const entry = manifest.functions[slug]
-    await run([
+    const args = [
       'functions',
       'deploy',
       slug,
       '--project-ref',
       manifest.project_ref,
-      entry.verify_jwt ? '--verify-jwt' : '--no-verify-jwt',
-    ], execution)
+    ]
+    if (!entry.verify_jwt) args.push('--no-verify-jwt')
+    await run(args, execution)
   }
   return {
     status: 'DEPLOYED_PENDING_ACTIVATION',
