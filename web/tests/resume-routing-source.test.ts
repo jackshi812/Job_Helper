@@ -16,6 +16,8 @@ describe('dashboard resume routing Edge boundary', () => {
     expect(auth).toBeGreaterThanOrEqual(0)
     expect(role).toBeGreaterThan(auth)
     expect(service).toBeGreaterThan(role)
+    expect(source).toContain("requiredEnvironment('SUPABASE_ANON_KEY')")
+    expect(source).not.toContain("requiredEnvironment('SUPABASE_PUBLISHABLE_KEY')")
   })
 
   it('validates a bounded UUID page and reuses pure routeResume', () => {
