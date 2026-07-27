@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "phase": "03.10",
+  "release_manifest_id": null,
+  "manifest_file_sha256": null,
+  "hosted_verification_sha256": null,
+  "rollout_verification_sha256": null,
+  "source_key": "goldman_higher:roles",
+  "migration": null,
+  "functions": null,
+  "web": null,
+  "observed": null,
+  "expected_watchlist": null,
+  "expected_job": null,
+  "cleanup": null,
+  "owner_browser_required": true,
+  "codex_browser_used": false,
+  "status": "PENDING_OWNER_BROWSER",
+  "required_approval": null,
+  "owner_attestation": null,
+  "production_claim": false,
+  "note": "Plan 05 must bind the final release and Plan 06 must complete hosted proof before owner-browser approval can be generated."
+}
