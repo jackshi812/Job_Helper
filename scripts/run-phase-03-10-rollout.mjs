@@ -50,10 +50,7 @@ export const SAFETY_TEST_PATHS = Object.freeze([
 ])
 
 export const APPROVED_ACTIONS = Object.freeze([
-  'db_push_0050',
-  'deploy_verify-board',
-  'deploy_observe-connectors',
-  'deploy_poll-tick',
+  'verify_migration_0050',
   'zero_mutation_live_probe',
   'positive_or_unsupported_terminal',
   'observe_up_to_three_windows_no_fourth',
@@ -366,8 +363,8 @@ function validateHostedBaseline(value) {
   ], 'hosted baseline')
   requireCondition(
     value.first_migration === '0001'
-      && value.last_migration === '0049'
-      && value.migration_count === 49,
+      && value.last_migration === '0050'
+      && value.migration_count === 50,
     'hosted baseline drift',
   )
   for (const field of [
@@ -863,23 +860,6 @@ function migrationHistory(stdout) {
   return migrations
 }
 
-function requirePendingMigration0050(stdout) {
-  const migrations = migrationHistory(stdout)
-  requireCondition(
-    migrations.length === 50
-      && migrations.every((migration, index) => {
-        const version = String(index + 1).padStart(4, '0')
-        return migration?.local === version
-          && (
-            version === '0050'
-              ? migration?.remote === ''
-              : migration?.remote === version
-          )
-      }),
-    'hosted migration baseline is not exact 0001..0049 plus pending local 0050',
-  )
-}
-
 function requireAppliedMigration0050(stdout) {
   const migrations = migrationHistory(stdout)
   requireCondition(
@@ -937,26 +917,10 @@ export async function executeRelease(
     },
   }
 
-  const beforePush = await run(['migration', 'list', '--linked'], execution)
-  requirePendingMigration0050(beforePush.stdout)
-  await run(['db', 'push', '--linked', '--yes'], execution)
-  const afterPush = await run(['migration', 'list', '--linked'], execution)
-  requireAppliedMigration0050(afterPush.stdout)
-  for (const slug of FUNCTION_SLUGS) {
-    const entry = manifest.functions[slug]
-    const args = [
-      'functions',
-      'deploy',
-      slug,
-      '--project-ref',
-      manifest.project_ref,
-      '--use-api',
-    ]
-    if (!entry.verify_jwt) args.push('--no-verify-jwt')
-    await run(args, execution)
-  }
+  const migrationState = await run(['migration', 'list', '--linked'], execution)
+  requireAppliedMigration0050(migrationState.stdout)
   return {
-    status: 'DEPLOYED_PENDING_ACTIVATION',
+    status: 'VERIFIED_PENDING_ACTIVATION',
     release_manifest_id: manifest.release_manifest_id,
     source_key: manifest.source_key,
   }

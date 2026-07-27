@@ -178,8 +178,8 @@ async function createFixture() {
     source_commit_object: await git(root, ['rev-parse', `${sourceCommit}^{commit}`]),
     hosted_baseline: {
       first_migration: '0001',
-      last_migration: '0049',
-      migration_count: 49,
+      last_migration: '0050',
+      migration_count: 50,
       catalog_fingerprint: digest('catalog'),
       company_fingerprint: digest('company'),
       terminal_fingerprint: digest('terminal'),
@@ -392,11 +392,10 @@ test('non-exact approval rejects before the first command', async () => {
   })
 })
 
-test('exact approval pushes only pending 0050 then deploys the three listed functions', async () => {
+test('exact approval verifies applied 0050 without another production mutation', async () => {
   await withFixture(async ({ root, manifest, hashes }) => {
     const calls = []
     const telemetrySettings = []
-    let migrationListCalls = 0
     const result = await executeRelease(
       manifest,
       exactApproval(manifest, hashes),
@@ -404,7 +403,6 @@ test('exact approval pushes only pending 0050 then deploys the three listed func
       async (args, execution) => {
         calls.push(args)
         telemetrySettings.push(execution.env.SUPABASE_TELEMETRY_DISABLED)
-        if (args[0] === 'migration') migrationListCalls += 1
         return {
           stdout: args[0] === 'migration'
             ? JSON.stringify({
@@ -412,10 +410,7 @@ test('exact approval pushes only pending 0050 then deploys the three listed func
                   const version = String(index + 1).padStart(4, '0')
                   return {
                     local: version,
-                    remote:
-                      migrationListCalls === 1 && version === '0050'
-                        ? ''
-                        : version,
+                    remote: version,
                     time: version,
                   }
                 }),
@@ -429,43 +424,15 @@ test('exact approval pushes only pending 0050 then deploys the three listed func
         environment: { SUPABASE_ACCESS_TOKEN: 'TEST_ONLY_NON_PRODUCTION' },
       },
     )
-    assert.equal(result.status, 'DEPLOYED_PENDING_ACTIVATION')
+    assert.equal(result.status, 'VERIFIED_PENDING_ACTIVATION')
     assert.deepEqual(calls, [
       ['migration', 'list', '--linked'],
-      ['db', 'push', '--linked', '--yes'],
-      ['migration', 'list', '--linked'],
-      [
-        'functions',
-        'deploy',
-        'verify-board',
-        '--project-ref',
-        manifest.project_ref,
-        '--use-api',
-      ],
-      [
-        'functions',
-        'deploy',
-        'observe-connectors',
-        '--project-ref',
-        manifest.project_ref,
-        '--use-api',
-        '--no-verify-jwt',
-      ],
-      [
-        'functions',
-        'deploy',
-        'poll-tick',
-        '--project-ref',
-        manifest.project_ref,
-        '--use-api',
-        '--no-verify-jwt',
-      ],
     ])
-    assert.deepEqual(telemetrySettings, ['1', '1', '1', '1', '1', '1'])
+    assert.deepEqual(telemetrySettings, ['1'])
   })
 })
 
-test('missing pending local 0050 stops before push and every function deployment', async () => {
+test('missing hosted migration 0050 stops before monitoring resume', async () => {
   await withFixture(async ({ root, manifest, hashes }) => {
     const calls = []
     await assert.rejects(
@@ -481,7 +448,7 @@ test('missing pending local 0050 stops before push and every function deployment
                 const version = String(index + 1).padStart(4, '0')
                 return {
                   local: version,
-                  remote: version,
+                  remote: version === '0050' ? '' : version,
                   time: version,
                 }
               }),
@@ -494,7 +461,7 @@ test('missing pending local 0050 stops before push and every function deployment
           environment: { SUPABASE_ACCESS_TOKEN: 'TEST_ONLY_NON_PRODUCTION' },
         },
       ),
-      /pending local 0050/,
+      /migration 0050 is not the exact applied release/,
     )
     assert.deepEqual(calls, [['migration', 'list', '--linked']])
   })
@@ -517,11 +484,7 @@ test('interior hosted migration drift stops before every function deployment', a
                     const version = String(index + 1).padStart(4, '0')
                     return {
                       local: version,
-                      remote: version === '0024'
-                        ? '9999'
-                        : version === '0050'
-                          ? ''
-                          : version,
+                      remote: version === '0024' ? '9999' : version,
                       time: version,
                     }
                   }),
@@ -535,7 +498,7 @@ test('interior hosted migration drift stops before every function deployment', a
           environment: { SUPABASE_ACCESS_TOKEN: 'TEST_ONLY_NON_PRODUCTION' },
         },
       ),
-      /pending local 0050/,
+      /migration 0050 is not the exact applied release/,
     )
     assert.deepEqual(calls, [
       ['migration', 'list', '--linked'],

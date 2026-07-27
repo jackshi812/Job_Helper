@@ -400,6 +400,25 @@ test('active resume validates approval first and never replays the terminal', as
   assert.equal(fixture.calls.includes('privileged:residue'), true)
 })
 
+test('active resume accepts equivalent PostgreSQL timestamptz serialization', async () => {
+  const natural = naturalPollState()
+  natural.persisted_jobs[0] = qualifyingJob({
+    postedAt: '2026-07-25T16:00:00+00:00',
+  })
+  const fixture = harness({
+    states: [activeState(3), natural],
+  })
+  const result = await fixture.controller.resumeActive({
+    manifest: fixture.manifest,
+    manifestBytes: fixture.manifestBytes,
+    approval: fixture.approval,
+    outputPath: 'out.json',
+    evidencePath: 'out.md',
+  })
+  assert.equal(result.status, 'PASS')
+  assert.equal(result.natural_poll.open_job_count, 1)
+})
+
 test('active resume requires exact Active 3/3 state and cleans up on failure', async () => {
   const fixture = harness({ states: [activeState(2)] })
   await assert.rejects(

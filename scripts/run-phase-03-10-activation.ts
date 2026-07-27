@@ -230,7 +230,7 @@ function validateQualifyingJob(job: JsonRecord, now: number): void {
       && evidence.selectionMode === 'recent_exact_us_provider_category'
       && evidence.recentHours === RECENT_HOURS
       && evidence.detailCountryCode === 'US'
-      && evidence.postedAt === job.postedAt
+      && Date.parse(String(evidence.postedAt ?? '')) === postedAt
       && typeof evidence.providerCategoryLabel === 'string'
       && evidence.providerCategoryLabel.length > 0
       && (
