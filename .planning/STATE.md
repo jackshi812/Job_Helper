@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03.10
 current_phase_name: Goldman Sachs Selective Higher Monitoring
 status: executing
-stopped_at: Completed 03.10-02-PLAN.md
-last_updated: "2026-07-27T15:30:23.830Z"
+stopped_at: Completed 03.10-04-PLAN.md
+last_updated: "2026-07-27T15:58:11.530Z"
 last_activity: 2026-07-27
 last_activity_desc: Phase 03.10 execution started
 progress:
   total_phases: 15
   completed_phases: 13
   total_plans: 81
-  completed_plans: 78
+  completed_plans: 80
   percent: 87
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 03.10 (Goldman Sachs Selective Higher Monitoring) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-07-27 — Phase 03.10 execution started
 
@@ -121,6 +121,7 @@ Progress: [█████████░] 93%
 | Phase 03.9 P02 | 2h57m elapsed | 3 tasks | 18 files |
 | Phase 03.10 P01 | 9min | 2 tasks | 9 files |
 | Phase 03.10 P02 | 9min | 2 tasks | 7 files |
+| Phase 03.10 P04 | 11min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -288,6 +289,9 @@ Recent decisions affecting current work:
 - [Phase 03.8]: Bank of America applies exact whole-word finance/analytics/data/research title selection; Barclays applies six exact provider-owned job-family IDs.
 - [Phase 03.8]: Migration 0044 permits only the four exact selective Workday scope-evidence shapes while retaining null evidence for established Workday sources and the branded digest contract.
 - [Phase 03.8]: Morgan Stanley, Bank of America, BlackRock, and Barclays are Active at 3/3 with healthy natural polls and 111/13/37/15 eligible jobs.
+- [Phase 03.10]: Privileged activation dependencies are constructed only after exact manifest validation and approval; probe-only remains read-only and artifact-free. — Prevents approval drift from constructing service-role authority or producing reusable artifacts.
+- [Phase 03.10]: Activation authority requires exactly three scheduler-owned windows and a strictly later natural poll; precise Unsupported retains zero authority. — Prevents fabricated observation timestamps, fourth invocation, direct-poll proof, and unsupported monitoring claims.
+- [Phase 03.10]: Cleanup deletes and counts only manifest-bound verifier UUIDs, while owner UAT remains PENDING_OWNER_BROWSER with Codex browser use forbidden. — Protects real user/provider rows and binds final acceptance to the owner's exact release-bound signal.
 
 ### Pending Todos
 
@@ -332,8 +336,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-27T15:30:23.816Z
-Stopped at: Completed 03.10-02-PLAN.md
+Last session: 2026-07-27T15:58:11.516Z
+Stopped at: Completed 03.10-04-PLAN.md
 Resume file: None
 Last session (2026-07-26): Phase 03.8 selective Workday recovery completed; all four requested companies are Active at 3/3 with successful natural polls, 176 exact-scope jobs, migration 0044 parity, protected sources intact, and zero verifier residue.
 Earlier Phase 03.8 closeout (superseded by the recovery above): all four new Workday candidates were precise Unsupported with zero authority; migrations/functions matched that approved release, verifier cleanup was zero-residue, and owner UAT passed.
