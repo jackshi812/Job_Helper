@@ -100,7 +100,7 @@ describe('Phase 03.9 JPMorgan catalog forward repair', () => {
       "provider = 'Oracle Recruiting Cloud'",
     )
     expect(catalogRepairSql).toContain(
-      "unsupported_reason = 'pending_current_live_contract_proof'",
+      "unsupported_reason = 'scope_evidence_incomplete'",
     )
     expect(catalogRepairSql).toContain('/sites/CX_1001/requisitions')
     expect(catalogRepairSql).toContain('/sites/CX_1001/jobs')

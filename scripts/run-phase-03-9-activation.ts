@@ -490,6 +490,30 @@ async function waitForNaturalPoll(
 }
 
 async function main(): Promise<void> {
+  if (process.argv.includes('--inspect-hosted')) {
+    const key = await serviceRoleKey()
+    const catalog = await rest(
+      key,
+      'source_coverage_catalog?select=company_name,provider,careers_url,disposition,unsupported_reason,source_key,verified_at'
+        + '&company_name=eq.JPMorgan%20Chase',
+    )
+    const companies = await rest(
+      key,
+      'companies?select=id,name,ats_type,source_key,activation_state,activation_successes'
+        + '&name=eq.JPMorgan%20Chase',
+    )
+    const terminal = await rest(
+      key,
+      'branded_connector_terminal_evidence?select=source_key,outcome,reason,recorded_at'
+        + `&source_key=eq.${encodeURIComponent(SOURCE_KEY)}`,
+    )
+    process.stdout.write(`${JSON.stringify({
+      catalog: catalog.data,
+      companies: companies.data,
+      terminal: terminal.data,
+    }, null, 2)}\n`)
+    return
+  }
   const probe = await exactProbe()
   if (process.argv.includes('--probe-only')) {
     process.stdout.write(`PHASE_03_9_PROBE=${JSON.stringify(probe)}\n`)

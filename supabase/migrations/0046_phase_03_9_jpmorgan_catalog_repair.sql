@@ -13,7 +13,7 @@ begin
       and careers_url =
         'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions'
       and disposition = 'unsupported_with_reason'
-      and unsupported_reason = 'pending_current_live_contract_proof'
+      and unsupported_reason = 'scope_evidence_incomplete'
       and source_key is null
   ) <> 1 then
     raise exception 'exact pre-repair JPMorgan catalog row missing';
@@ -46,7 +46,7 @@ where company_name = 'JPMorgan Chase'
   and careers_url =
     'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions'
   and disposition = 'unsupported_with_reason'
-  and unsupported_reason = 'pending_current_live_contract_proof'
+  and unsupported_reason = 'scope_evidence_incomplete'
   and source_key is null;
 
 do $$
@@ -59,7 +59,7 @@ begin
       and careers_url =
         'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs'
       and disposition = 'unsupported_with_reason'
-      and unsupported_reason = 'pending_current_live_contract_proof'
+      and unsupported_reason = 'scope_evidence_incomplete'
       and source_key is null
   ) <> 1 then
     raise exception 'exact post-repair JPMorgan catalog row missing';
