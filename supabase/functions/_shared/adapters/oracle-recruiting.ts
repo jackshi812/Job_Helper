@@ -55,8 +55,11 @@ interface InvocationBudget {
 }
 
 class ProviderError extends Error {
-  constructor(readonly code: string) {
+  readonly code: string
+
+  constructor(code: string) {
     super(code)
+    this.code = code
   }
 }
 
@@ -152,6 +155,14 @@ function boundedString(value: unknown, maxLength: number): string | null {
     && !/[\p{Cc}\p{Cf}]/u.test(value)
     ? value.trim()
     : null
+}
+
+function boundedOracleDescription(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  // Oracle occasionally embeds a byte-order mark inside otherwise valid
+  // public HTML. It carries no content or formatting semantics, so remove
+  // only U+FEFF before applying the existing strict control-character guard.
+  return boundedString(value.replaceAll('\uFEFF', ''), MAX_DESCRIPTION_LENGTH)
 }
 
 function stableId(value: unknown): string | null {
@@ -374,7 +385,7 @@ function oracleDescription(raw: Record<string, unknown>): string | null {
     raw.ExternalQualificationsStr,
     raw.ShortDescriptionStr,
   ]
-    .map((value) => boundedString(value, MAX_DESCRIPTION_LENGTH))
+    .map((value) => boundedOracleDescription(value))
     .filter((value): value is string => value !== null)
   if (fields.length === 0) return null
   const combined = fields.join('\n')

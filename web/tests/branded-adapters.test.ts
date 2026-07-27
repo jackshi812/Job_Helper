@@ -638,6 +638,31 @@ describe('JPMorgan Oracle Recruiting adapter', () => {
     }
   })
 
+  it('removes Oracle byte-order marks without weakening description validation', async () => {
+    const observation = await pollJpmorganOracleRecruiting(
+      oracleIdentity,
+      oracleFetch({
+        ExternalDescriptionStr:
+          '<p>Analyze portfolio \uFEFFrisk without hidden content.</p>',
+        ShortDescriptionStr: '\uFEFF<p>Finance role.</p>',
+      }),
+      { pageSize: 1, now: () => 0, wallClockNow: () => ORACLE_NOW },
+    )
+
+    expect(observation).toMatchObject({
+      completeness: 'complete',
+      credibleForClosure: true,
+      allowMissingClosure: false,
+      expectedCount: 6,
+      warnings: [],
+    })
+    expect(observation.jobs).toHaveLength(6)
+    expect(observation.jobs.every((job) =>
+      !job.descriptionHtml?.includes('\uFEFF')
+      && !job.descriptionText?.includes('\uFEFF')
+    )).toBe(true)
+  })
+
   it('accepts no caller-selected site, host, facet, path, or finder fragment', async () => {
     const providerFetch = vi.fn()
     const drifted = {
