@@ -395,12 +395,14 @@ test('non-exact approval rejects before the first command', async () => {
 test('exact approval verifies applied 0048 and deploys only the three listed functions', async () => {
   await withFixture(async ({ root, manifest, hashes }) => {
     const calls = []
+    const telemetrySettings = []
     const result = await executeRelease(
       manifest,
       exactApproval(manifest, hashes),
       hashes,
-      async (args) => {
+      async (args, execution) => {
         calls.push(args)
+        telemetrySettings.push(execution.env.SUPABASE_TELEMETRY_DISABLED)
         return {
           stdout: args[0] === 'migration'
             ? JSON.stringify({
@@ -427,6 +429,7 @@ test('exact approval verifies applied 0048 and deploys only the three listed fun
         'verify-board',
         '--project-ref',
         manifest.project_ref,
+        '--use-api',
       ],
       [
         'functions',
@@ -434,6 +437,7 @@ test('exact approval verifies applied 0048 and deploys only the three listed fun
         'observe-connectors',
         '--project-ref',
         manifest.project_ref,
+        '--use-api',
         '--no-verify-jwt',
       ],
       [
@@ -442,9 +446,11 @@ test('exact approval verifies applied 0048 and deploys only the three listed fun
         'poll-tick',
         '--project-ref',
         manifest.project_ref,
+        '--use-api',
         '--no-verify-jwt',
       ],
     ])
+    assert.deepEqual(telemetrySettings, ['1', '1', '1', '1'])
   })
 })
 

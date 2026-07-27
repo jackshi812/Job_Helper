@@ -906,7 +906,13 @@ export async function executeRelease(
   )
   const execution = {
     cwd: validationOptions.root,
-    env: environment,
+    env: {
+      ...environment,
+      // The CLI otherwise writes ~/.supabase/telemetry.json while exiting.
+      // Production runners execute with a read-only home, so that bookkeeping
+      // can turn a successful API operation into a false deployment failure.
+      SUPABASE_TELEMETRY_DISABLED: '1',
+    },
   }
 
   const migrationHistory = await run(['migration', 'list', '--linked'], execution)
@@ -919,6 +925,7 @@ export async function executeRelease(
       slug,
       '--project-ref',
       manifest.project_ref,
+      '--use-api',
     ]
     if (!entry.verify_jwt) args.push('--no-verify-jwt')
     await run(args, execution)
