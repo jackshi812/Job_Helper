@@ -221,7 +221,7 @@ Plans:
 
 **Wave 1**
 
-- [x] 03.10-01-PLAN.md — Implement the frozen two-population exact-168-hour Goldman observation contract
+- [x] 03.10-01-PLAN.md — Implement the frozen two-population Goldman observation contract, later widened by owner approval to 720 hours
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
