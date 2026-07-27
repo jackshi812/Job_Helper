@@ -201,6 +201,39 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 03.10: Goldman Sachs Selective Higher Monitoring (INSERTED)
+
+**Goal:** Monitor Goldman Sachs through the exact `goldman_higher:roles` Higher contract, ingesting only complete United States Early Career and Professional roles posted within a rolling 168 hours with approved provider-owned category evidence and exact Oracle Apply links, while preserving truthful selective lifecycle behavior.
+**Requirements**: DISC-01, DISC-07, DISC-08, DISC-09
+**Depends on:** Phase 3
+**Success Criteria** (what must be TRUE):
+
+1. Only the frozen Goldman Higher identity and exact `/results`/legacy `/roles` navigation aliases are accepted; any network, GraphQL, or Oracle Apply coordinate drift fails closed before persistence or closure.
+2. Independent Early Career and Professional listings reconcile every page and selected detail; each persisted job proves exact U.S., list/detail `startDate` within 168 hours, one of the seven approved provider terms, allowed population, complete description, and exact Oracle Apply URL.
+3. Every Goldman observation has `allowMissingClosure=false`; aged provider-open jobs remain open and disappear only from the current Active feed.
+4. Goldman reaches Active only after exact live terminal proof, three distinct clean server-timed observations, replay/same-window rejection, and a later healthy natural scheduled poll; otherwise it remains precise Unsupported with no operational authority.
+5. The forward-only exact-release rollout preserves every sibling source and real user row outside ordinary scheduler timestamps, leaves zero verifier residue, and receives final approval only from the owner's existing signed-in browser.
+
+**Plans:** 4 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 03.10-01-PLAN.md — Implement the frozen two-population exact-168-hour Goldman observation contract
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03.10-02-PLAN.md — Integrate Goldman evidence into persistence, activation, scheduling, and Active-feed aging
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03.10-03-PLAN.md — Freeze the exact approval-bound release, activation, verification, cleanup, and UAT tooling
+
+**Wave 4** *(blocked on Wave 3 completion and owner approvals)*
+
+- [ ] 03.10-04-PLAN.md — Push, deploy, activate or terminalize Unsupported, verify isolation, clean up, and complete owner-browser UAT
+
 ### Phase 03.9: JPMorgan Chase Selective Oracle Monitoring (INSERTED)
 
 **Goal:** Monitor JPMorgan Chase through its exact Oracle `CX_1001` contract, ingesting only United States jobs posted within seven days in the approved Finance, Data & Analytics, Risk, Product/Investment Management, Strategy & Development, and Program Analysts & Associate families, while preserving safe rolling-window lifecycle behavior.
