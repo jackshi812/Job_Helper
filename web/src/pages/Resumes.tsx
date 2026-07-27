@@ -83,7 +83,7 @@ export function Resumes() {
     <section>
       <h1 className="text-xl font-semibold tracking-tight">Resumes</h1>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Upload private DOCX or PDF resumes up to 5 MB.
+        Upload private DOCX resumes up to 5 MB. PDF support for Best Fit is not available yet.
       </p>
 
       <form onSubmit={handleUpload} className="mt-6 flex flex-wrap items-end gap-3">
@@ -92,7 +92,7 @@ export function Resumes() {
           <input
             ref={fileInput}
             type="file"
-            accept=".docx,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
+            accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             required
             onChange={handleFileChange}
             className="max-w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-zinc-100 file:px-3 file:py-1 file:text-sm file:font-medium dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-zinc-800"

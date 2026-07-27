@@ -4,7 +4,6 @@ const RESUME_COLUMNS = 'id, filename, display_name, storage_path, size_bytes, cr
 
 const CONTENT_TYPES = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  pdf: 'application/pdf',
 } as const
 
 export interface ResumeRecord {
@@ -24,8 +23,8 @@ export interface DeleteResumeInput {
 
 function allowedExtension(filename: string): keyof typeof CONTENT_TYPES {
   const extension = filename.split('.').pop()?.toLowerCase()
-  if (extension !== 'docx' && extension !== 'pdf') {
-    throw new Error('Only DOCX and PDF files are allowed')
+  if (extension !== 'docx') {
+    throw new Error('Best Fit currently supports DOCX files only')
   }
   return extension
 }
