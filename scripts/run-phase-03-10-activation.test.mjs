@@ -362,6 +362,86 @@ test('positive proof admits once, accepts at most three scheduler windows, and w
     call === 'privileged:residue').length, 1)
 })
 
+test('active resume validates approval first and never replays the terminal', async () => {
+  const fixture = harness({
+    states: [activeState(3), naturalPollState()],
+  })
+  await assert.rejects(
+    fixture.controller.resumeActive({
+      manifest: fixture.manifest,
+      manifestBytes: fixture.manifestBytes,
+      approval: 'wrong',
+      outputPath: 'out.json',
+      evidencePath: 'out.md',
+    }),
+    /exact manifest-derived approval/,
+  )
+  assert.equal(fixture.calls.includes('create-privileged'), false)
+
+  const result = await fixture.controller.resumeActive({
+    manifest: fixture.manifest,
+    manifestBytes: fixture.manifestBytes,
+    approval: fixture.approval,
+    outputPath: 'out.json',
+    evidencePath: 'out.md',
+  })
+  assert.equal(result.status, 'PASS')
+  assert.equal(result.terminal.outcome, 'admit_experimental')
+  assert.equal(result.terminal.resumed, true)
+  assert.equal(
+    fixture.calls.some((call) => call.startsWith('privileged:terminal:')),
+    false,
+  )
+  assert.equal(
+    fixture.calls.filter((call) => call === 'privileged:scheduler-read').length,
+    2,
+  )
+  assert.equal(fixture.calls.includes('privileged:cleanup'), true)
+  assert.equal(fixture.calls.includes('privileged:residue'), true)
+})
+
+test('active resume requires exact Active 3/3 state and cleans up on failure', async () => {
+  const fixture = harness({ states: [activeState(2)] })
+  await assert.rejects(
+    fixture.controller.resumeActive({
+      manifest: fixture.manifest,
+      manifestBytes: fixture.manifestBytes,
+      approval: fixture.approval,
+      outputPath: 'out.json',
+      evidencePath: 'out.md',
+    }),
+    /active_resume_state_invalid/,
+  )
+  assert.equal(
+    fixture.calls.some((call) => call.startsWith('privileged:terminal:')),
+    false,
+  )
+  assert.equal(fixture.calls.includes('privileged:cleanup'), true)
+  assert.equal(fixture.calls.includes('privileged:residue'), true)
+})
+
+test('active resume waits for a later healthy natural poll and redacts failures', async () => {
+  const fixture = harness({
+    states: [activeState(3)],
+  })
+  await assert.rejects(
+    fixture.controller.resumeActive({
+      manifest: fixture.manifest,
+      manifestBytes: fixture.manifestBytes,
+      approval: fixture.approval,
+      outputPath: 'out.json',
+      evidencePath: 'out.md',
+    }),
+    /natural_poll_timeout/,
+  )
+  assert.equal(fixture.calls.includes('privileged:cleanup'), true)
+  const serialized = JSON.stringify({
+    artifacts: fixture.artifacts,
+    logs: fixture.logs,
+  })
+  assert.equal(serialized.includes(SECRET), false)
+})
+
 test('incomplete proof takes only precise Unsupported with zero authority', async () => {
   const fixture = harness({
     observation: completeObservation({

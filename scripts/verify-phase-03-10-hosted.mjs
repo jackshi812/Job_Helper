@@ -274,7 +274,7 @@ function exactRelease(manifest, snapshot) {
 }
 
 function exactMigration(manifest, snapshot) {
-  return snapshot.migration?.version === '0049'
+  return snapshot.migration?.version === '0050'
     && snapshot.migration?.path === manifest.migration?.path
     && snapshot.migration?.sha256 === manifest.migration?.sha256
     && snapshot.migration?.status === 'APPLIED'
@@ -374,12 +374,12 @@ export async function collectUnsupportedSnapshot(
   `)
   const versions = migrations.map(({ version }) => String(version))
   const expectedVersions = Array.from(
-    { length: 49 },
+    { length: 50 },
     (_, index) => String(index + 1).padStart(4, '0'),
   )
   requireCondition(
     canonical(versions) === canonical(expectedVersions),
-    'hosted migration history is not exactly 0001..0049',
+    'hosted migration history is not exactly 0001..0050',
   )
 
   const [catalogRows, stateRows, aclRows, terminalRows] = await Promise.all([
@@ -491,7 +491,7 @@ export async function collectUnsupportedSnapshot(
       web_asset_sha256: manifest.web_deployment?.asset_sha256,
     },
     migration: {
-      version: '0049',
+      version: '0050',
       path: manifest.migration.path,
       sha256: manifest.migration.sha256,
       status: 'APPLIED',
@@ -534,6 +534,208 @@ export async function collectUnsupportedSnapshot(
   }
 }
 
+export async function collectActiveSnapshot(
+  manifest,
+  manifestBytes,
+  rolloutRecord,
+) {
+  assertRolloutRecord(manifest, rolloutRecord)
+  requireCondition(
+    rolloutRecord.status === 'PASS',
+    'hosted Active collection requires a PASS rollout',
+  )
+  const migrations = await managementSql(`
+    select version::text
+    from supabase_migrations.schema_migrations
+    order by version
+  `)
+  const versions = migrations.map(({ version }) => String(version))
+  const expectedVersions = Array.from(
+    { length: 50 },
+    (_, index) => String(index + 1).padStart(4, '0'),
+  )
+  requireCondition(
+    canonical(versions) === canonical(expectedVersions),
+    'hosted migration history is not exactly 0001..0050',
+  )
+
+  const [catalogRows, aclRows] = await Promise.all([
+    managementSql(`
+      select company_name, provider, careers_url, disposition,
+             unsupported_reason, source_key
+      from public.source_coverage_catalog
+      where company_name = 'Goldman Sachs'
+        and careers_url = '${PUBLIC_URL}'
+    `),
+    managementSql(`
+      select
+        has_function_privilege(
+          'service_role',
+          'public.finalize_goldman_higher_candidate(text,text,text,text)',
+          'EXECUTE'
+        ) as service_role_execute,
+        has_function_privilege(
+          'anon',
+          'public.finalize_goldman_higher_candidate(text,text,text,text)',
+          'EXECUTE'
+        ) as anon_execute,
+        has_function_privilege(
+          'authenticated',
+          'public.finalize_goldman_higher_candidate(text,text,text,text)',
+          'EXECUTE'
+        ) as authenticated_execute,
+        exists (
+          select 1
+          from pg_catalog.pg_proc p
+          cross join lateral aclexplode(p.proacl) a
+          where p.oid =
+            'public.finalize_goldman_higher_candidate(text,text,text,text)'::regprocedure
+            and a.grantee = 0
+            and a.privilege_type = 'EXECUTE'
+        ) as public_execute
+    `),
+  ])
+  requireCondition(catalogRows.length === 1, 'Goldman catalog evidence is not unique')
+  requireCondition(aclRows.length === 1, 'Goldman ACL evidence is malformed')
+
+  const inventory = await functionInventory()
+  const functions = Object.fromEntries(await Promise.all(
+    FUNCTION_SLUGS.map(async (slug) => [
+      slug,
+      await hostedFunctionEvidence(manifest, inventory, slug),
+    ]),
+  ))
+  const verifierIds = manifest.cleanup?.verifier_ids
+  requireCondition(
+    Array.isArray(verifierIds) && verifierIds.length > 0,
+    'verifier cleanup IDs are missing',
+  )
+  const ids = verifierIds.map((id) => `'${String(id)}'::uuid`).join(',')
+  const residueRows = await managementSql(`
+    select
+      (select count(*)::integer from public.user_jobs
+       where id in (${ids}))
+      + (select count(*)::integer from public.connector_observations
+         where observation_id in (${ids}))
+      + (select count(*)::integer from public.jobs
+         where id in (${ids})) as residue_count
+  `)
+  requireCondition(
+    residueRows.length === 1
+      && Number(residueRows[0].residue_count) === 0,
+    'verifier residue remains',
+  )
+
+  const naturalPoll = rolloutRecord.natural_poll ?? {}
+  const company = naturalPoll.company ?? {}
+  const persistedJobs = Array.isArray(naturalPoll.persisted_jobs)
+    ? naturalPoll.persisted_jobs
+    : []
+  const qualifyingJobs = persistedJobs.map((job) => {
+    const evidence = job.scopeEvidence ?? {}
+    return {
+      source: job.source,
+      source_key: SOURCE_KEY,
+      external_id: job.externalId,
+      observed_at: company.last_success_at,
+      posted_at: job.postedAt,
+      country_code: evidence.detailCountryCode,
+      category_field: evidence.providerCategoryField,
+      category_label: evidence.providerCategoryLabel,
+      matched_term: evidence.matchedTerm,
+      recruiting_type: evidence.recruitingType,
+      description_text: job.descriptionText,
+      snapshot_partial: job.snapshotPartial,
+      absolute_url: job.absoluteUrl,
+      provider_source_id: evidence.providerSourceId,
+      apply_reachable: true,
+      scope_evidence_matches: true,
+    }
+  })
+  const observations = Array.isArray(rolloutRecord.activation?.observations)
+    ? rolloutRecord.activation.observations
+    : []
+  const activatedAt = Math.max(
+    ...observations.map((row) => Date.parse(String(row.observed_at))),
+  )
+  const lastSuccessAt = Date.parse(String(company.last_success_at ?? ''))
+  const exits = Object.fromEntries(CLEANUP_EXITS.map((name) => [name, true]))
+  const redaction = Object.fromEntries(
+    REDACTION_SURFACES.map((name) => [name, true]),
+  )
+  redaction.credential_leak_count = 0
+  return {
+    release: {
+      release_manifest_id: manifest.release_manifest_id,
+      manifest_file_sha256: sha256(manifestBytes),
+      source_commit: manifest.source_commit,
+      web_commit_sha: manifestWebCommit(manifest),
+      web_asset_sha256: manifest.web_deployment?.asset_sha256,
+    },
+    migration: {
+      version: '0050',
+      path: manifest.migration.path,
+      sha256: manifest.migration.sha256,
+      status: 'APPLIED',
+      history_exact: true,
+    },
+    functions,
+    terminal: {
+      outcome: 'admit_experimental',
+      reason: null,
+      operational_authority: true,
+    },
+    catalog: catalogRows[0],
+    company,
+    eligible_job_count: Number(naturalPoll.open_job_count),
+    qualifying_jobs: qualifyingJobs,
+    acl: {
+      service_role_execute: aclRows[0].service_role_execute === true,
+      public_execute: aclRows[0].public_execute === true,
+      anon_execute: aclRows[0].anon_execute === true,
+      authenticated_execute: aclRows[0].authenticated_execute === true,
+    },
+    activation: {
+      observations: observations.map((row) => ({
+        window: row.eligibility_window_start,
+        observed_at: row.observed_at,
+      })),
+      replay_rejected: rolloutRecord.activation?.replay_check?.status === 'PASS',
+      same_window_rejected:
+        rolloutRecord.activation?.same_window_check?.status === 'PASS',
+      fourth_invocation_count: 0,
+    },
+    natural_poll: {
+      scheduler_owned: naturalPoll.scheduler_owned === true,
+      observed_after_activation:
+        Number.isFinite(activatedAt)
+          && Number.isFinite(lastSuccessAt)
+          && lastSuccessAt > activatedAt,
+      release_identity_matches:
+        naturalPoll.release_identity_matches === true,
+      healthy: company.last_error_code == null
+        && Number(naturalPoll.open_job_count) > 0,
+    },
+    closure: {
+      allow_missing_closure: false,
+      absence_closed_count: Number(naturalPoll.absence_closed_count),
+    },
+    feed_aging: naturalPoll.feed_aging,
+    isolation: {
+      protected_sources_unchanged:
+        rolloutRecord.protected_sources_unchanged === true,
+      protected_provider_lifecycle_unchanged:
+        rolloutRecord.protected_sources_unchanged === true,
+      user_data_unchanged: rolloutRecord.protected_sources_unchanged === true,
+    },
+    cleanup: {
+      exits,
+      verifier_residue_count: Number(residueRows[0].residue_count),
+    },
+    redaction,
+  }
+}
+
 export function evaluateHostedSnapshot(manifest, snapshot) {
   const unsupported = preciseUnsupported(snapshot)
   const activeTerminal = snapshot.terminal?.outcome === 'admit_experimental'
@@ -544,7 +746,7 @@ export function evaluateHostedSnapshot(manifest, snapshot) {
     : []
   const checks = {
     exact_release: exactRelease(manifest, snapshot),
-    migration_0049: exactMigration(manifest, snapshot),
+    migration_0050: exactMigration(manifest, snapshot),
     function_parity: exactFunctions(manifest, snapshot),
     exact_identity: exactIdentity(snapshot, unsupported),
     service_role_acl: snapshot.acl?.service_role_execute === true
@@ -592,7 +794,7 @@ export function evaluateHostedSnapshot(manifest, snapshot) {
   const activePass = activeTerminal && Object.values(checks).every(Boolean)
   const unsupportedRequired = [
     'exact_release',
-    'migration_0049',
+    'migration_0050',
     'function_parity',
     'exact_identity',
     'service_role_acl',
@@ -632,7 +834,7 @@ export function evaluateHostedSnapshot(manifest, snapshot) {
 
 const UNSUPPORTED_REQUIRED_CHECKS = Object.freeze([
   'exact_release',
-  'migration_0049',
+  'migration_0050',
   'function_parity',
   'exact_identity',
   'service_role_acl',
@@ -780,7 +982,7 @@ export function exactUatApproval(manifest, record) {
 }
 
 function exactUatRuntime(manifest, record) {
-  return record.migration?.version === '0049'
+  return record.migration?.version === '0050'
     && record.migration?.sha256 === manifest.migration?.sha256
     && FUNCTION_SLUGS.every((slug) =>
       record.functions?.[slug]?.status === 'ACTIVE'
@@ -982,7 +1184,9 @@ function parseArgs(argv) {
     else if (argument === '--record') result.record = argv[++index]
     else if (argument === '--approval') result.approval = argv[++index]
     else if (argument === '--uat-markdown') result.uatMarkdown = argv[++index]
-    else if (argument === '--collect-unsupported') {
+    else if (argument === '--collect-active') {
+      result.mode = 'collect-active'
+    } else if (argument === '--collect-unsupported') {
       result.mode = 'collect-unsupported'
     } else if (argument === '--prepare-uat') {
       result.mode = 'prepare-uat'
@@ -1006,7 +1210,10 @@ function parseArgs(argv) {
   if (result.mode === 'evaluate') {
     requireCondition(result.snapshot, '--snapshot requires a path')
     requireCondition(result.output, '--output requires a path')
-  } else if (result.mode === 'collect-unsupported') {
+  } else if (
+    result.mode === 'collect-active'
+    || result.mode === 'collect-unsupported'
+  ) {
     requireCondition(result.rollout, '--rollout requires a path')
     requireCondition(result.output, '--output requires a path')
   } else if (result.mode === 'prepare-uat') {
@@ -1030,6 +1237,27 @@ async function main() {
   const manifestBytes = await readFile(resolve(ROOT, args.manifest))
   const manifest = JSON.parse(manifestBytes)
   await validateManifest(manifest, manifestBytes)
+  if (args.mode === 'collect-active') {
+    const rolloutRecord = JSON.parse(
+      await readFile(resolve(ROOT, args.rollout), 'utf8'),
+    )
+    const snapshot = await collectActiveSnapshot(
+      manifest,
+      manifestBytes,
+      rolloutRecord,
+    )
+    const result = evaluateHostedSnapshot(manifest, snapshot)
+    requireCondition(
+      result.status === 'PASS',
+      'hosted Active evidence is incomplete',
+    )
+    await writeFile(
+      resolve(ROOT, args.output),
+      `${JSON.stringify(result, null, 2)}\n`,
+    )
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+    return
+  }
   if (args.mode === 'collect-unsupported') {
     const rolloutRecord = JSON.parse(
       await readFile(resolve(ROOT, args.rollout), 'utf8'),

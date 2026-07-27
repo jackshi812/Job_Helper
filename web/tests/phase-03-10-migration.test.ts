@@ -14,6 +14,13 @@ const migration49Path = fileURLToPath(new URL(
 const sql49 = existsSync(migration49Path)
   ? readFileSync(migration49Path, 'utf8')
   : ''
+const migration50Path = fileURLToPath(new URL(
+  '../../supabase/migrations/0050_phase_03_10_goldman_provider_id_regex.sql',
+  import.meta.url,
+))
+const sql50 = existsSync(migration50Path)
+  ? readFileSync(migration50Path, 'utf8')
+  : ''
 
 const exactSource = 'goldman_higher:roles'
 const protectedWorkdaySources = [
@@ -218,5 +225,35 @@ describe('Phase 03.10 forward-only Goldman 30-day migration', () => {
     expect(sql49).not.toMatch(/\bset\s+unsupported_reason\s*=/i)
     expect(sql49).not.toMatch(/\bset\s+source_key\s*=/i)
     expect(sql49).toContain('if v_rows <> 1')
+  })
+})
+
+describe('Phase 03.10 forward-only Goldman provider ID regex repair', () => {
+  it('repairs only the invalid Goldman predicate in one bounded transaction', () => {
+    expect(sql50.trimStart()).toMatch(/^begin;/i)
+    expect(sql50.trimEnd()).toMatch(/commit;$/i)
+    expect(sql50).toContain("set local lock_timeout = '5s'")
+    expect(sql50).toContain("set local statement_timeout = '60s'")
+    expect(sql50).toContain('pg_catalog.pg_get_constraintdef')
+    expect(sql50).toContain("'public.jobs'::regclass")
+    expect(sql50).toContain("'jobs_scope_evidence_check'")
+    expect(sql50).toContain("''^[0-9]{1,256}$''::text")
+    expect(sql50).toContain("''^[0-9]+$''::text")
+    expect(sql50).toContain(
+      "length(scope_evidence ->> ''providerSourceId''::text) >= 1",
+    )
+    expect(sql50).toContain(
+      "length(scope_evidence ->> ''providerSourceId''::text) <= 256",
+    )
+    expect(sql50).toMatch(
+      /alter table public\.jobs drop constraint jobs_scope_evidence_check/,
+    )
+    expect(sql50).toMatch(
+      /alter table public\.jobs add constraint jobs_scope_evidence_check/,
+    )
+    expect(sql50).not.toMatch(
+      /\b(drop|alter|update|delete|insert into)\s+supabase_migrations\./i,
+    )
+    expect(sql50).not.toMatch(/\b(update|delete|insert into)\s+public\./i)
   })
 })

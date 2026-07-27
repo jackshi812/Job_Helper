@@ -26,7 +26,7 @@ export const PROJECT_REF = 'fjcsvajkkztvlrpdplwx'
 export const SOURCE_KEY = 'goldman_higher:roles'
 export const PUBLIC_URL = 'https://higher.gs.com/results'
 export const MIGRATION_PATH =
-  'supabase/migrations/0049_phase_03_10_goldman_30_day.sql'
+  'supabase/migrations/0050_phase_03_10_goldman_provider_id_regex.sql'
 
 export const PRIVILEGED_EXECUTABLE_PATHS = Object.freeze([
   'scripts/run-phase-03-10-activation.ts',
@@ -50,7 +50,7 @@ export const SAFETY_TEST_PATHS = Object.freeze([
 ])
 
 export const APPROVED_ACTIONS = Object.freeze([
-  'verify_migration_0049',
+  'db_push_0050',
   'deploy_verify-board',
   'deploy_observe-connectors',
   'deploy_poll-tick',
@@ -470,7 +470,7 @@ function validateImmutableInventories(manifest) {
     'sha256',
   ], 'migration')
   requireCondition(
-    manifest.migration.version === '0049'
+    manifest.migration.version === '0050'
       && manifest.migration.path === MIGRATION_PATH,
     'migration identity drift',
   )
@@ -851,7 +851,7 @@ async function runSupabase(args, execution) {
   })
 }
 
-function requireAppliedMigration0049(stdout) {
+function migrationHistory(stdout) {
   let parsed
   try {
     parsed = JSON.parse(stdout)
@@ -860,13 +860,35 @@ function requireAppliedMigration0049(stdout) {
   }
   const migrations = parsed?.migrations
   requireCondition(Array.isArray(migrations), 'hosted migration history missing')
+  return migrations
+}
+
+function requirePendingMigration0050(stdout) {
+  const migrations = migrationHistory(stdout)
   requireCondition(
-    migrations.length === 49
+    migrations.length === 50
+      && migrations.every((migration, index) => {
+        const version = String(index + 1).padStart(4, '0')
+        return migration?.local === version
+          && (
+            version === '0050'
+              ? migration?.remote === ''
+              : migration?.remote === version
+          )
+      }),
+    'hosted migration baseline is not exact 0001..0049 plus pending local 0050',
+  )
+}
+
+function requireAppliedMigration0050(stdout) {
+  const migrations = migrationHistory(stdout)
+  requireCondition(
+    migrations.length === 50
       && migrations.every((migration, index) => {
         const version = String(index + 1).padStart(4, '0')
         return migration?.local === version && migration?.remote === version
       }),
-    'hosted migration 0049 is not the exact applied release',
+    'hosted migration 0050 is not the exact applied release',
   )
 }
 
@@ -915,8 +937,11 @@ export async function executeRelease(
     },
   }
 
-  const migrationHistory = await run(['migration', 'list', '--linked'], execution)
-  requireAppliedMigration0049(migrationHistory.stdout)
+  const beforePush = await run(['migration', 'list', '--linked'], execution)
+  requirePendingMigration0050(beforePush.stdout)
+  await run(['db', 'push', '--linked', '--yes'], execution)
+  const afterPush = await run(['migration', 'list', '--linked'], execution)
+  requireAppliedMigration0050(afterPush.stdout)
   for (const slug of FUNCTION_SLUGS) {
     const entry = manifest.functions[slug]
     const args = [

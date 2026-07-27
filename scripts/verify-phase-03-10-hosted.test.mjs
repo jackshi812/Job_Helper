@@ -26,8 +26,8 @@ const manifest = {
   public_url: PUBLIC_URL,
   source_commit: '1'.repeat(40),
   migration: {
-    path: 'supabase/migrations/0049_phase_03_10_goldman_30_day.sql',
-    version: '0049',
+    path: 'supabase/migrations/0050_phase_03_10_goldman_provider_id_regex.sql',
+    version: '0050',
     sha256: SHA('2'),
   },
   functions: {
@@ -88,7 +88,7 @@ function passingSnapshot() {
       web_asset_sha256: manifest.web_deployment.asset_sha256,
     },
     migration: {
-      version: '0049',
+      version: '0050',
       path: manifest.migration.path,
       sha256: manifest.migration.sha256,
       status: 'APPLIED',
@@ -214,7 +214,7 @@ test('reports exact Active PASS only when every independent hosted check passes'
 const negativeCases = [
   ['migration history/hash', (value) => {
     value.migration.sha256 = SHA('0')
-  }, 'migration_0049'],
+  }, 'migration_0050'],
   ['function version', (value) => {
     value.functions['poll-tick'].version = 999
   }, 'function_parity'],
@@ -405,7 +405,7 @@ function pendingUat() {
     rollout_verification_sha256: SHA('c'),
     source_key: SOURCE_KEY,
     migration: {
-      version: '0049',
+      version: '0050',
       sha256: manifest.migration.sha256,
     },
     functions: Object.fromEntries(

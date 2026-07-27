@@ -416,6 +416,74 @@ export function normalizeUnsupportedRolloutRecord({
   }
 }
 
+export function normalizeActiveRolloutRecord({
+  manifest,
+  hashes,
+  probe,
+  terminal,
+  activation,
+  naturalPoll,
+}: {
+  manifest: JsonRecord
+  hashes: JsonRecord
+  probe: JsonRecord
+  terminal: JsonRecord
+  activation: JsonRecord
+  naturalPoll: JsonRecord
+}): JsonRecord {
+  const company = activation.company as JsonRecord
+  const web = manifest.web_deployment as JsonRecord | undefined
+  return {
+    schema_version: 1,
+    phase: '03.10',
+    release_manifest_id: manifest.release_manifest_id,
+    status: 'PASS',
+    source_key: GOLDMAN_SOURCE_KEY,
+    release: {
+      source_commit: manifest.source_commit,
+      manifest_file_sha256: hashes.manifest_file_sha256,
+      web_commit_sha: web?.commit_sha ?? web?.source_commit,
+      web_asset_sha256: web?.asset_sha256,
+    },
+    terminal: {
+      outcome: 'admit_experimental',
+      reason: null,
+      operational_authority: true,
+      accepted: terminal.accepted,
+      rpc_reason: terminal.reason,
+      result_activation_state: terminal.result_activation_state,
+      resumed: terminal.resumed === true,
+    },
+    probe,
+    activation: {
+      state: company.activation_state,
+      successes: company.activation_successes,
+      observations: activation.observations,
+      replay_check: activation.replay_check,
+      same_window_check: activation.same_window_check,
+    },
+    natural_poll: {
+      scheduler_owned: naturalPoll.scheduler_owned,
+      release_identity_matches: naturalPoll.release_identity_matches,
+      company: naturalPoll.company,
+      open_job_count: naturalPoll.open_job_count,
+      absence_closed_count: naturalPoll.absence_closed_count,
+      persisted_jobs: naturalPoll.persisted_jobs,
+      feed_aging: naturalPoll.feed_aging,
+    },
+    protected_sources_unchanged: true,
+    cleanup: {
+      every_exit: true,
+      verifier_residue_count: 0,
+      attempted: true,
+      zero_residue: true,
+    },
+    redaction: {
+      credential_leak_count: 0,
+    },
+  }
+}
+
 function validateActivationState(state: JsonRecord): {
   company: JsonRecord
   observations: JsonRecord[]
@@ -526,6 +594,77 @@ export function createActivationController(dependencies: ActivationDependencies)
     })
   }
 
+  async function waitForNaturalPoll(
+    privileged: Awaited<
+      ReturnType<ActivationDependencies['createPrivilegedClient']>
+    >,
+    requireActiveAtStart = false,
+  ): Promise<{ activation: JsonRecord; naturalPoll: JsonRecord }> {
+    let activation: JsonRecord | null = null
+    let naturalPoll: JsonRecord | null = null
+    let activatedAt = Number.NaN
+    const startedAt = dependencies.monotonicNow()
+    for (let index = 0; index < maxWaitIterations; index += 1) {
+      const state = await privileged.readSchedulerStatus()
+      const validated = validateActivationState(state)
+      if (!activation) {
+        if (requireActiveAtStart) {
+          requireCondition(
+            validated.company.activation_state === 'active'
+              && validated.company.activation_successes === 3
+              && validated.observations.length === 3,
+            'active_resume_state_invalid',
+          )
+        }
+        if (
+          validated.company.activation_state === 'active'
+          && validated.company.activation_successes === 3
+          && validated.observations.length === 3
+        ) {
+          requireCondition(
+            (state.replay_check as JsonRecord | undefined)?.status === 'PASS'
+              && (state.same_window_check as JsonRecord | undefined)?.status
+                === 'PASS',
+            'replay_or_same_window_proof_missing',
+          )
+          activatedAt = Math.max(
+            ...validated.observations.map((row) =>
+              Date.parse(String(row.observed_at))
+            ),
+          )
+          requireCondition(
+            Number.isFinite(activatedAt),
+            'activation_window_evidence_invalid',
+          )
+          activation = state
+        }
+      }
+      if (activation) {
+        try {
+          validateNaturalPoll(state, activatedAt, dependencies.now())
+          naturalPoll = state
+          break
+        } catch (error) {
+          if (
+            !(error instanceof Error)
+            || ![
+              'natural_poll_not_scheduler_owned',
+              'natural_poll_not_healthy',
+            ].includes(error.message)
+          ) throw error
+        }
+      }
+      requireCondition(
+        Number.isFinite(dependencies.monotonicNow() - startedAt),
+        'invalid_monotonic_clock',
+      )
+      await dependencies.sleep(5_000)
+    }
+    requireCondition(activation, 'activation_timeout')
+    requireCondition(naturalPoll, 'natural_poll_timeout')
+    return { activation, naturalPoll }
+  }
+
   return Object.freeze({
     async probeOnly(): Promise<JsonRecord> {
       const probe = await readProbe()
@@ -595,6 +734,111 @@ export function createActivationController(dependencies: ActivationDependencies)
       )
       safeLog({ stage: 'unsupported_evidence_finalized', result: safeResult })
       return safeResult
+    },
+
+    async resumeActive({
+      manifest,
+      manifestBytes,
+      approval,
+      outputPath,
+      evidencePath,
+    }: {
+      manifest: JsonRecord
+      manifestBytes: Uint8Array
+      approval: string
+      outputPath: string
+      evidencePath: string
+    }): Promise<JsonRecord> {
+      const hashes = await dependencies.validateManifest(manifest, manifestBytes)
+      requireCondition(
+        approval === dependencies.exactApproval(manifest, hashes),
+        'execution requires the exact manifest-derived approval string',
+      )
+      const readOnly = await dependencies.createReadOnlyClient()
+      const privileged = await dependencies.createPrivilegedClient(manifest)
+      const protectedBefore = await privileged.snapshotProtected()
+      let result: JsonRecord | null = null
+      let primaryError: Error | null = null
+      let cleanupError: Error | null = null
+
+      try {
+        const observation = await readOnly.probe()
+        const probe = await exactProbe({
+          observation,
+          now: dependencies.now(),
+          checkApply: readOnly.checkApply,
+        })
+        const { activation, naturalPoll } = await waitForNaturalPoll(
+          privileged,
+          true,
+        )
+        const protectedAfter = await privileged.snapshotProtected()
+        requireCondition(
+          protectedSnapshotsEqual(protectedBefore, protectedAfter),
+          'protected snapshot drift',
+        )
+        result = normalizeActiveRolloutRecord({
+          manifest,
+          hashes,
+          probe,
+          terminal: {
+            accepted: false,
+            reason: 'already_active',
+            result_activation_state: 'active',
+            resumed: true,
+          },
+          activation,
+          naturalPoll,
+        })
+        await dependencies.writeArtifact(
+          outputPath,
+          `${JSON.stringify(redactSecrets(result, secrets), null, 2)}\n`,
+        )
+        await dependencies.writeArtifact(
+          evidencePath,
+          redactText([
+            '# Phase 03.10 Rollout Evidence',
+            '',
+            'Status: PASS',
+            `Source: ${GOLDMAN_SOURCE_KEY}`,
+            `Release manifest: ${String(manifest.release_manifest_id)}`,
+            '',
+            'Monitoring resumed from the already-Active 3/3 admission.',
+            'A strictly later healthy natural poll persisted qualifying jobs.',
+            '',
+          ].join('\n'), secrets),
+        )
+      } catch (error) {
+        primaryError = redactedError(error, secrets)
+      }
+
+      try {
+        await privileged.cleanup()
+      } catch (error) {
+        cleanupError = redactedError(error, secrets)
+      }
+      try {
+        const residue = await privileged.residueCount()
+        if (residue !== 0) {
+          cleanupError = new Error(`verifier residue remains: ${residue}`)
+        }
+      } catch (error) {
+        cleanupError ??= redactedError(error, secrets)
+      }
+      if (primaryError || cleanupError) {
+        const message = [
+          primaryError?.message,
+          cleanupError ? `cleanup failure: ${cleanupError.message}` : null,
+        ].filter(Boolean).join('; ')
+        const failure = new Error(redactText(message, secrets), {
+          cause: primaryError?.cause ?? cleanupError?.cause,
+        })
+        safeLog({ stage: 'active_resume_failed', error: failure })
+        throw failure
+      }
+      requireCondition(result, 'active_resume_result_missing')
+      safeLog({ stage: 'active_resume_completed', result })
+      return redactSecrets(result, secrets) as JsonRecord
     },
 
     async execute({
@@ -693,94 +937,21 @@ export function createActivationController(dependencies: ActivationDependencies)
             'positive_terminal_invalid',
           )
 
-          let activation: JsonRecord | null = null
-          let naturalPoll: JsonRecord | null = null
-          let activatedAt = Number.NaN
-          let sawActivation = false
-          const startedAt = dependencies.monotonicNow()
-          for (let index = 0; index < maxWaitIterations; index += 1) {
-            const state = await privileged.readSchedulerStatus()
-            const validated = validateActivationState(state)
-            if (!sawActivation) {
-              if (
-                validated.company.activation_state === 'active'
-                && validated.company.activation_successes === 3
-                && validated.observations.length === 3
-              ) {
-                requireCondition(
-                  (state.replay_check as JsonRecord | undefined)?.status === 'PASS'
-                    && (state.same_window_check as JsonRecord | undefined)?.status
-                      === 'PASS',
-                  'replay_or_same_window_proof_missing',
-                )
-                activatedAt = Math.max(
-                  ...validated.observations.map((row) =>
-                    Date.parse(String(row.observed_at))
-                  ),
-                )
-                requireCondition(
-                  Number.isFinite(activatedAt),
-                  'activation_window_evidence_invalid',
-                )
-                activation = state
-                sawActivation = true
-              }
-            } else {
-              try {
-                validateNaturalPoll(state, activatedAt, dependencies.now())
-                naturalPoll = state
-                break
-              } catch (error) {
-                if (
-                  !(error instanceof Error)
-                  || ![
-                    'natural_poll_not_scheduler_owned',
-                    'natural_poll_not_healthy',
-                  ].includes(error.message)
-                ) throw error
-              }
-            }
-            requireCondition(
-              Number.isFinite(dependencies.monotonicNow() - startedAt),
-              'invalid_monotonic_clock',
-            )
-            await dependencies.sleep(5_000)
-          }
-          requireCondition(activation, 'activation_timeout')
-          requireCondition(naturalPoll, 'natural_poll_timeout')
+          const { activation, naturalPoll } = await waitForNaturalPoll(privileged)
 
           const protectedAfter = await privileged.snapshotProtected()
           requireCondition(
             protectedSnapshotsEqual(protectedBefore, protectedAfter),
             'protected snapshot drift',
           )
-          result = {
-            schema_version: 1,
-            phase: '03.10',
-            release_manifest_id: manifest.release_manifest_id,
-            status: 'PASS',
-            source_key: GOLDMAN_SOURCE_KEY,
-            terminal,
+          result = normalizeActiveRolloutRecord({
+            manifest,
+            hashes,
             probe,
-            activation: {
-              state: (activation.company as JsonRecord).activation_state,
-              successes: (activation.company as JsonRecord).activation_successes,
-              observations: activation.observations,
-              replay_check: activation.replay_check,
-              same_window_check: activation.same_window_check,
-            },
-            natural_poll: {
-              scheduler_owned: naturalPoll.scheduler_owned,
-              release_identity_matches: naturalPoll.release_identity_matches,
-              company: naturalPoll.company,
-              open_job_count: naturalPoll.open_job_count,
-              absence_closed_count: naturalPoll.absence_closed_count,
-              persisted_jobs: naturalPoll.persisted_jobs,
-              feed_aging: naturalPoll.feed_aging,
-            },
-            protected_sources_unchanged: true,
-            cleanup: { attempted: true, zero_residue: true },
-          }
+            terminal,
+            activation,
+            naturalPoll,
+          })
         }
 
         const safeResult = redactSecrets(result, secrets)
@@ -1100,7 +1271,7 @@ function createDefaultDependencies(): ActivationDependencies {
 
 function parseArgs(argv: readonly string[]) {
   const result: {
-    mode: 'probe-only' | 'execute' | 'finalize-unsupported'
+    mode: 'probe-only' | 'execute' | 'resume-active' | 'finalize-unsupported'
     manifest: string | null
     approval: string | null
     record: string
@@ -1118,6 +1289,7 @@ function parseArgs(argv: readonly string[]) {
     const argument = argv[index]
     if (argument === '--probe-only') result.mode = 'probe-only'
     else if (argument === '--execute') result.mode = 'execute'
+    else if (argument === '--resume-active') result.mode = 'resume-active'
     else if (argument === '--finalize-unsupported') {
       result.mode = 'finalize-unsupported'
     }
@@ -1165,13 +1337,23 @@ async function main() {
     process.stdout.write(`PHASE_03_10_RESULT=${JSON.stringify(result)}\n`)
     return
   }
-  const result = await controller.execute({
-    manifest,
-    manifestBytes,
-    approval: args.approval!,
-    outputPath: args.output,
-    evidencePath: args.evidence,
-  })
+  const result = await (
+    args.mode === 'resume-active'
+      ? controller.resumeActive({
+          manifest,
+          manifestBytes,
+          approval: args.approval!,
+          outputPath: args.output,
+          evidencePath: args.evidence,
+        })
+      : controller.execute({
+          manifest,
+          manifestBytes,
+          approval: args.approval!,
+          outputPath: args.output,
+          evidencePath: args.evidence,
+        })
+  )
   process.stdout.write(`PHASE_03_10_RESULT=${JSON.stringify(result)}\n`)
 }
 

@@ -31,7 +31,7 @@ const FINAL_MANIFEST =
   '.planning/phases/03.10-goldman-sachs-selective-higher-monitoring/03.10-01-RELEASE-MANIFEST.json'
 const PHASE_DIR = dirname(FINAL_MANIFEST)
 const MIGRATION =
-  'supabase/migrations/0049_phase_03_10_goldman_30_day.sql'
+  'supabase/migrations/0050_phase_03_10_goldman_provider_id_regex.sql'
 const MUTABLE_ARTIFACTS = Object.freeze([
   [
     '.planning/phases/03.10-goldman-sachs-selective-higher-monitoring/03.10-01-ROLLOUT-VERIFICATION.json',
@@ -185,7 +185,7 @@ async function createFixture() {
       terminal_fingerprint: digest('terminal'),
     },
     migration: {
-      version: '0049',
+      version: '0050',
       ...byPath.get(MIGRATION),
     },
     functions,
@@ -392,10 +392,11 @@ test('non-exact approval rejects before the first command', async () => {
   })
 })
 
-test('exact approval verifies 0049 then deploys only the three listed functions', async () => {
+test('exact approval pushes only pending 0050 then deploys the three listed functions', async () => {
   await withFixture(async ({ root, manifest, hashes }) => {
     const calls = []
     const telemetrySettings = []
+    let migrationListCalls = 0
     const result = await executeRelease(
       manifest,
       exactApproval(manifest, hashes),
@@ -403,14 +404,18 @@ test('exact approval verifies 0049 then deploys only the three listed functions'
       async (args, execution) => {
         calls.push(args)
         telemetrySettings.push(execution.env.SUPABASE_TELEMETRY_DISABLED)
+        if (args[0] === 'migration') migrationListCalls += 1
         return {
           stdout: args[0] === 'migration'
             ? JSON.stringify({
-                migrations: Array.from({ length: 49 }, (_, index) => {
+                migrations: Array.from({ length: 50 }, (_, index) => {
                   const version = String(index + 1).padStart(4, '0')
                   return {
                     local: version,
-                    remote: version,
+                    remote:
+                      migrationListCalls === 1 && version === '0050'
+                        ? ''
+                        : version,
                     time: version,
                   }
                 }),
@@ -426,6 +431,8 @@ test('exact approval verifies 0049 then deploys only the three listed functions'
     )
     assert.equal(result.status, 'DEPLOYED_PENDING_ACTIVATION')
     assert.deepEqual(calls, [
+      ['migration', 'list', '--linked'],
+      ['db', 'push', '--linked', '--yes'],
       ['migration', 'list', '--linked'],
       [
         'functions',
@@ -454,11 +461,11 @@ test('exact approval verifies 0049 then deploys only the three listed functions'
         '--no-verify-jwt',
       ],
     ])
-    assert.deepEqual(telemetrySettings, ['1', '1', '1', '1'])
+    assert.deepEqual(telemetrySettings, ['1', '1', '1', '1', '1', '1'])
   })
 })
 
-test('missing hosted migration 0049 stops before every function deployment', async () => {
+test('missing pending local 0050 stops before push and every function deployment', async () => {
   await withFixture(async ({ root, manifest, hashes }) => {
     const calls = []
     await assert.rejects(
@@ -470,11 +477,11 @@ test('missing hosted migration 0049 stops before every function deployment', asy
           calls.push(args)
           return {
             stdout: JSON.stringify({
-              migrations: Array.from({ length: 49 }, (_, index) => {
+              migrations: Array.from({ length: 50 }, (_, index) => {
                 const version = String(index + 1).padStart(4, '0')
                 return {
                   local: version,
-                  remote: version === '0049' ? '' : version,
+                  remote: version,
                   time: version,
                 }
               }),
@@ -487,7 +494,7 @@ test('missing hosted migration 0049 stops before every function deployment', asy
           environment: { SUPABASE_ACCESS_TOKEN: 'TEST_ONLY_NON_PRODUCTION' },
         },
       ),
-      /migration 0049 is not the exact applied release/,
+      /pending local 0050/,
     )
     assert.deepEqual(calls, [['migration', 'list', '--linked']])
   })
@@ -506,11 +513,15 @@ test('interior hosted migration drift stops before every function deployment', a
           return {
             stdout: args[0] === 'migration'
               ? JSON.stringify({
-                  migrations: Array.from({ length: 49 }, (_, index) => {
+                  migrations: Array.from({ length: 50 }, (_, index) => {
                     const version = String(index + 1).padStart(4, '0')
                     return {
                       local: version,
-                      remote: version === '0024' ? '9999' : version,
+                      remote: version === '0024'
+                        ? '9999'
+                        : version === '0050'
+                          ? ''
+                          : version,
                       time: version,
                     }
                   }),
@@ -524,7 +535,7 @@ test('interior hosted migration drift stops before every function deployment', a
           environment: { SUPABASE_ACCESS_TOKEN: 'TEST_ONLY_NON_PRODUCTION' },
         },
       ),
-      /migration 0049 is not the exact applied release/,
+      /pending local 0050/,
     )
     assert.deepEqual(calls, [
       ['migration', 'list', '--linked'],
