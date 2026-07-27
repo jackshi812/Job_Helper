@@ -5,6 +5,7 @@ import {
   DEFAULT_MANIFEST,
   REPAIR_MANIFEST_ID,
   CATALOG_REPAIR_MANIFEST_ID,
+  IDENTITY_REPAIR_MANIFEST_ID,
   dryRunPlan,
   exactApproval,
   executeRelease,
@@ -97,6 +98,30 @@ test('catalog repair approval binds only migration 0046 before activation', asyn
   assert.match(
     exactApproval(manifest, hashes),
     /^approve Phase 03\.9 JPMorgan catalog repair /,
+  )
+  const calls = []
+  await executeRelease(
+    manifest,
+    exactApproval(manifest, hashes),
+    hashes,
+    async (args) => {
+      calls.push(args)
+      return { stdout: '', stderr: '' }
+    },
+  )
+  assert.deepEqual(calls, [['db', 'push', '--linked', '--yes']])
+})
+
+test('identity repair approval binds only migration 0047 before activation', async () => {
+  const bytes = await readFile(
+    '.planning/phases/03.9-jpmorgan-chase-selective-oracle-monitoring/03.9-04-IDENTITY-REPAIR-MANIFEST.json',
+  )
+  const manifest = JSON.parse(bytes)
+  const hashes = await validateManifest(manifest, bytes)
+  assert.equal(manifest.release_manifest_id, IDENTITY_REPAIR_MANIFEST_ID)
+  assert.match(
+    exactApproval(manifest, hashes),
+    /^approve Phase 03\.9 JPMorgan identity repair /,
   )
   const calls = []
   await executeRelease(

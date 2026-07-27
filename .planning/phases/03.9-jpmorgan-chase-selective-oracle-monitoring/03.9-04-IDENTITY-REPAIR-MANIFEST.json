@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "phase": "03.9",
+  "created_at": "2026-07-27T00:36:00Z",
+  "release_manifest_id": "03900000-0000-4000-8000-000000000004",
+  "supersedes_release_manifest_id": "03900000-0000-4000-8000-000000000003",
+  "reason": "Align only the JPMorgan branch of companies_branded_identity_check from the historical /requisitions URL to the canonical /jobs URL already used by the catalog, adapter, and terminal RPC.",
+  "project_ref": "fjcsvajkkztvlrpdplwx",
+  "source_key": "oracle:jpmc:CX_1001",
+  "site_number": "CX_1001",
+  "public_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs",
+  "source_commit": "cd8c7bcb11f31f69e3486a7b5a0525580f25024a",
+  "source_commit_object_sha256": "460cc653d91f5418e50d40d9a7d6833635195643dfc5b7a92ead498d126df1ff",
+  "hosted_baseline": {
+    "first_migration": "0001",
+    "last_migration": "0046",
+    "migration_count": 46,
+    "catalog_disposition": "unsupported_with_reason",
+    "catalog_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs",
+    "jpmorgan_company_rows": 0,
+    "jpmorgan_observation_rows": 0,
+    "jpmorgan_unsupported_terminal_rows": 4
+  },
+  "migration": {
+    "version": "0047",
+    "path": "supabase/migrations/0047_phase_03_9_jpmorgan_company_identity.sql",
+    "sha256": "ae96977fa4e3a7bee43ebf985d5a564614e48e01c28143ddbf2ee340fc265bb4"
+  },
+  "functions": {
+    "observe-connectors": {
+      "entry_path": "supabase/functions/observe-connectors/index.ts",
+      "entry_sha256": "a8332c6c4522a16a35c009020d5c15178c6ada4909f2cdb67bfad6c8876e3b9f",
+      "bundle_sha256": "2ce687f61657a2d795f784673b7a4612e56abf35ac03b08db82ce65eb8805ea2",
+      "verify_jwt": false,
+      "hosted_version": 6,
+      "bundle_files": [
+        "supabase/functions/observe-connectors/index.ts",
+        "supabase/functions/_shared/connectors.ts",
+        "supabase/functions/_shared/branded-identities.ts",
+        "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+        "supabase/functions/_shared/adapters/scope.ts",
+        "supabase/functions/_shared/adapters/types.ts",
+        "supabase/functions/_shared/bounded-pool.ts"
+      ]
+    },
+    "poll-tick": {
+      "entry_path": "supabase/functions/poll-tick/index.ts",
+      "entry_sha256": "43a80b9670800fd582bda89b5626aff3c8c6fa1880918029fcdd589cce6089b0",
+      "bundle_sha256": "32bbbf2e98cb5b8b1ea64a984dffdf0b51d867a944caf8b89058d01760098d2c",
+      "verify_jwt": false,
+      "hosted_version": 35,
+      "bundle_files": [
+        "supabase/functions/poll-tick/index.ts",
+        "supabase/functions/_shared/connectors.ts",
+        "supabase/functions/_shared/branded-identities.ts",
+        "supabase/functions/_shared/adapters/oracle-recruiting.ts",
+        "supabase/functions/_shared/adapters/scope.ts",
+        "supabase/functions/_shared/adapters/types.ts",
+        "supabase/functions/_shared/bounded-pool.ts",
+        "supabase/functions/_shared/lifecycle.ts"
+      ]
+    }
+  },
+  "scope": {
+    "country": ["300000000289738", "United States"],
+    "posting_date": ["7", "Less than 7 days"],
+    "title_families": [
+      ["FIN", "Finance"],
+      ["D&A", "Data & Analytics"],
+      ["RSK", "Risk"],
+      ["PIM", "Product/Investment Mgmt"],
+      ["S&D", "Strategy & Development"],
+      ["PAA", "Program Analysts & Associate"]
+    ],
+    "allow_missing_closure": false
+  },
+  "live_preflight": {
+    "job_count": 113,
+    "expected_count": 113,
+    "page_count": 8,
+    "slice_count": 6,
+    "warning_count": 0,
+    "evidence_digest": "257296fa985cadec7e158b367e41ff9bae0af302744315742760113683c976d9"
+  },
+  "protected_sources": [
+    "eightfold:morganstanley",
+    "goldman_higher:roles",
+    "workday:wd12:capitalone:Capital_One",
+    "workday:wd1:fmr:FidelityCareers",
+    "workday:wd5:ms:External",
+    "workday:wd1:ghr:Lateral-US",
+    "workday:wd1:blackrock:BlackRock_Professional",
+    "workday:wd3:barclays:External_Career_Site_Barclays"
+  ],
+  "approved_actions": [
+    "db_push_0047",
+    "live_probe",
+    "terminal_admission",
+    "observe_three_windows",
+    "natural_poll",
+    "owner_browser_uat"
+  ]
+}
