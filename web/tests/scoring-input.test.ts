@@ -119,6 +119,13 @@ class MaintenanceClaimModel {
 }
 
 describe('semantic scoring input freshness', () => {
+  it('keeps deterministic ranking source independent of resume routing', () => {
+    const worker = read(deterministicWorkerPath)
+    expect(worker).not.toMatch(/routeResume|resume_extracts|ResumeExtractInput/)
+    expect(worker).toContain('p_best_fit_resume_id: null')
+    expect(worker).toContain('p_runner_up_resume_id: null')
+  })
+
   it('loads an explicit scoring-input module instead of treating its absence as infrastructure failure', async () => {
     const module = await loadScoringInput()
     expect(module).toMatchObject({
@@ -332,7 +339,7 @@ describe('score-tick deterministic worker and preserved migration evidence contr
       /scoringInputHash|SCORING_FILTER_REVISION|experience_above_max/,
     )
     expect(worker).toContain('evaluateDeterministicRanking({')
-    expect(worker).toContain('routeResume(')
+    expect(worker).not.toContain('routeResume(')
   })
 
   it('keeps the hosted verifier compatible with new and legacy rows and exact preference restore', () => {

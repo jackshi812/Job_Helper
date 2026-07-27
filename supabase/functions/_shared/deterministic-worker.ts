@@ -2,10 +2,6 @@ import {
   evaluateDeterministicRanking,
   type RankingRubric,
 } from './deterministic-ranking.ts'
-import {
-  routeResume,
-  type ResumeExtractInput,
-} from './routing.ts'
 
 export const CLAIM_BATCH_SIZE = 25
 export const MAX_CONCURRENCY = 25
@@ -90,17 +86,6 @@ interface RankingJobRow {
   company_id: string | null
 }
 
-interface ResumeExtractRow {
-  resume_id: string
-  user_id: string
-  keywords: unknown
-}
-
-interface ResumeRow {
-  id: string
-  filename: string
-}
-
 interface BuildingRankingStateRow {
   building_run_id: string | null
 }
@@ -159,11 +144,6 @@ function diagnosticCode(error: unknown): string {
   return 'ranking_item_failed'
 }
 
-function stringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((entry): entry is string => typeof entry === 'string')
-}
-
 async function runMaintenance(
   client: DeterministicWorkerClient,
   context: DeadlineContext,
@@ -171,7 +151,6 @@ async function runMaintenance(
   for (const rpc of [
     'enqueue_deterministic_new_jobs',
     'enqueue_deterministic_recency_refresh',
-    'enqueue_deterministic_route_refreshes',
   ] as const) {
     const { error } = await awaitOperation(
       client.rpc(rpc, { batch_size: MAINTENANCE_BATCH_SIZE }),
@@ -224,7 +203,6 @@ async function processRow(
   client: DeterministicWorkerClient,
   row: ClaimedRankingRow,
   jobs: Map<string, RankingJobRow>,
-  extractsByUser: Map<string, ResumeExtractInput[]>,
   context: DeadlineContext,
 ): Promise<boolean> {
   try {
@@ -255,10 +233,6 @@ async function processRow(
         strong: row.captured_strong_threshold,
       },
     })
-    const routing = routeResume(
-      `${job.title}\n${job.description_text ?? ''}`,
-      extractsByUser.get(row.user_id) ?? [],
-    )
     const { data: staged, error: stageError } = await awaitOperation(
       client.rpc('stage_deterministic_ranking_result', {
         p_item_id: row.item_id,
@@ -269,8 +243,8 @@ async function processRow(
         p_breakdown: result.breakdown,
         p_filter_code: result.filterReason,
         p_filter_detail: result.filterDetail,
-        p_best_fit_resume_id: routing?.resumeId ?? null,
-        p_runner_up_resume_id: routing?.runnerUpResumeId ?? null,
+        p_best_fit_resume_id: null,
+        p_runner_up_resume_id: null,
         p_error_code: null,
       }),
       context,
@@ -306,76 +280,12 @@ async function loadJobs(
   return jobs
 }
 
-async function loadResumeExtracts(
-  client: DeterministicWorkerClient,
-  rows: ClaimedRankingRow[],
-  byUser: Map<string, ResumeExtractInput[]>,
-  loadedOwnerIds: Set<string>,
-  context: DeadlineContext,
-): Promise<void> {
-  const ownerIds = [...new Set(
-    rows.map((row) => row.user_id).filter((id) => !loadedOwnerIds.has(id)),
-  )]
-  if (ownerIds.length === 0) return
-
-  const extractOperation = client
-    .from('resume_extracts')
-    .select('resume_id, user_id, keywords')
-    .in('user_id', ownerIds)
-    .eq('status', 'ready')
-  const { data: extractData, error: extractError } = await awaitOperation(
-    extractOperation,
-    context,
-  )
-  if (extractError) throw extractError
-  const extracts = (extractData ?? []) as ResumeExtractRow[]
-  for (const ownerId of ownerIds) loadedOwnerIds.add(ownerId)
-  if (extracts.length === 0) return
-
-  const resumeOperation = client
-    .from('resumes')
-    .select('id, filename')
-    .in('id', extracts.map((extract) => extract.resume_id))
-  const { data: resumeData, error: resumeError } = await awaitOperation(
-    resumeOperation,
-    context,
-  )
-  if (resumeError) throw resumeError
-  const filenames = new Map(
-    ((resumeData ?? []) as ResumeRow[]).map((resume) => [
-      resume.id,
-      resume.filename,
-    ]),
-  )
-
-  for (const extract of extracts) {
-    const filename = filenames.get(extract.resume_id)
-    if (!filename) continue
-    const ownerExtracts = byUser.get(extract.user_id) ?? []
-    ownerExtracts.push({
-      resumeId: extract.resume_id,
-      filename,
-      keywords: stringArray(extract.keywords),
-    })
-    byUser.set(extract.user_id, ownerExtracts)
-  }
-}
-
 async function processBatch(
   client: DeterministicWorkerClient,
   rows: ClaimedRankingRow[],
-  extractsByUser: Map<string, ResumeExtractInput[]>,
-  loadedExtractOwnerIds: Set<string>,
   context: DeadlineContext,
 ): Promise<number> {
   const jobs = await loadJobs(client, rows, context)
-  await loadResumeExtracts(
-    client,
-    rows,
-    extractsByUser,
-    loadedExtractOwnerIds,
-    context,
-  )
   const results: PromiseSettledResult<boolean>[] = []
   for (let offset = 0; offset < rows.length; offset += MAX_CONCURRENCY) {
     assertWithinDeadline(context)
@@ -383,7 +293,7 @@ async function processBatch(
     results.push(
       ...await Promise.allSettled(
         chunk.map((row) =>
-          processRow(client, row, jobs, extractsByUser, context)
+          processRow(client, row, jobs, context)
         ),
       ),
     )
@@ -504,16 +414,12 @@ export async function runDeterministicWorker(
     let completed = 0
     let batches = 0
     const touchedRunIds = new Set<string>()
-    const extractsByUser = new Map<string, ResumeExtractInput[]>()
-    const loadedExtractOwnerIds = new Set<string>()
     while (rows.length > 0) {
       for (const row of rows) touchedRunIds.add(row.run_id)
       claimed += rows.length
       completed += await processBatch(
         options.client,
         rows,
-        extractsByUser,
-        loadedExtractOwnerIds,
         context,
       )
       batches += 1

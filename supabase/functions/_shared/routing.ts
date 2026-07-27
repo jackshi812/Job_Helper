@@ -3,8 +3,7 @@
 // cross-repo (the dedup.ts / filters.ts precedent). routeResume picks the
 // best-fit resume for a job by keyword overlap and, on a near-tie, surfaces a
 // runner-up (D-06 "near-ties pick top overlap and show runner-up"). Routing never
-// blocks scoring: even all-zero overlap returns a deterministic pick — the AI
-// judges real relevance against the routed resume.
+// blocks scoring. With no positive overlap there is no truthful route.
 
 export interface ResumeExtractInput {
   resumeId: string
@@ -69,9 +68,9 @@ function countHits(jobTokens: string[], keywords: string[]): number {
   return hits
 }
 
-// D-06 keyword-overlap routing. Returns null only when there are no extracts
-// (the caller marks no_resume_extract). Sorts by hit count desc, then filename
-// asc for a stable, deterministic winner even on all-zero overlap. A runner-up is
+// D-06 keyword-overlap routing. Returns null when there are no extracts or no
+// positive keyword overlap. Sorts by hit count desc, then filename asc for a
+// stable deterministic winner among positive matches. A runner-up is
 // reported only on a near-tie: the top-two gap is within max(2, ceil(top*0.15))
 // and the runner-up itself has at least one hit (Claude-discretion tie-break per
 // CONTEXT — an all-zero runner-up is not a meaningful alternative).
@@ -95,6 +94,7 @@ export function routeResume(
     })
 
   const top = ranked[0]
+  if (!top || top.count === 0) return null
   const second = ranked[1]
 
   let runnerUpResumeId: string | null = null
