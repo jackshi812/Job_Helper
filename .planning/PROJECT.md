@@ -21,6 +21,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 - ✓ Unified dashboard and job detail: one current preference-pass scope stays inspectable, explicit Strong/Good/Weak selection owns score boundaries, and job descriptions/apply links render safely — Phase 3 and Phase 03.2
 - ✓ Bounded generic Workday connector with exact, fail-closed employer identities and scheduled Fidelity ingestion through the existing Watchlist paste-URL flow — Phase 03.5 (6/6 verification truths; Capital One unchanged)
 - ✓ Exact U.S.-only Workday ingestion for Nasdaq, S&P Global, Morningstar, and State Street plus Active/Applied/Dismissed dashboard queues with stable retrieval beyond 200 jobs — Phase 03.6 (6/6 verification truths; 20/20 hosted checks; 12/12 exact-release UAT)
+- ✓ Exact Goldman Sachs Higher monitoring for complete U.S. Early Career and Professional roles in the owner-approved rolling 30-day scope, with Active 3/3 natural polling, closure disabled, and direct Oracle Apply links — Phase 03.10 (5/5 verification truths; 27 persisted jobs; exact-release owner UAT)
 
 ### Active
 
@@ -49,8 +50,8 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 
 ## Constraints
 
-- **Budget**: Near-zero cost for v1 — Cloudflare Pages and Supabase Free; AI calls budget-capped, cheap model, invoked only after cheap filtering
-- **Tech stack**: Cloudflare Pages frontend, Supabase Free backend (auth, Postgres, resume storage, scheduled functions) — chosen for free-tier fit
+- **Budget**: Cost-conscious v1 — Cloudflare Pages and Supabase Pro on Micro compute; AI calls budget-capped, cheap model, invoked only after cheap filtering
+- **Tech stack**: Cloudflare Pages frontend, Supabase Pro backend on Micro compute (auth, Postgres, resume storage, scheduled functions)
 - **Compliance**: No scraping logged-in LinkedIn pages, no Easy Apply automation, no auto-sent LinkedIn messages — platform policy
 - **Security**: Resumes in encrypted private cloud storage with user-controlled deletion; strict per-user data separation
 - **Integrity**: Resume tailoring must remain truthful and always require user review before download
@@ -65,13 +66,14 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 | Storage-first deletion with exact removed-count assertion before row deletes | A failed file delete must leave a visible row to retry, never an orphan file | ✓ Good — Phase 1: verify-deletion.ts proves 0 rows AND 0 objects |
 | Password recovery via manual six-digit OTP + Gmail custom SMTP (supersedes org-member default-sender plan) | Email-security prefetch consumed clickable one-time reset links; Supabase default sender proved insufficient | ✓ Good — Phase 1 UAT: OTP round trip passed in production |
 | Hybrid monitoring (ATS endpoints + aggregator) | ATS JSON is reliable/free for watchlist; aggregator covers discovery beyond watchlist | ✓ Good — Phase 2: Greenhouse/Lever/Ashby ingestion and quota-capped Adzuna discovery passed verification; broader coverage continues in Phase 02.1 |
-| Major-employers-first source expansion | Representative adapters prove coverage without pretending that arbitrary-site scraping is universally reliable; custom finance sources are allowlisted and monitored | — Pending (Phase 02.1) |
+| Major-employers-first source expansion | Representative adapters prove coverage without pretending that arbitrary-site scraping is universally reliable; custom finance sources are allowlisted and monitored | ✓ Ongoing — Workday finance sources, JPMorgan Oracle, and Goldman Higher are monitored through exact employer-specific contracts |
 | Phase 2 security register accepted without implementation audit | The owner chose bulk acceptance during the verification gate; this records acceptance, not evidence that mitigations were tested | ⚠ Accepted risk — a later security audit may reopen threats |
 | DOCX as base resume format | Preserves user's own formatting; app edits text and converts to PDF | ✓ Good — Phase 3 private upload/extraction works; Phase 4 will preserve formatting during tailoring |
 | Deterministic ranking replaces automatic AI scoring | Ranking must be transparent, reproducible, retryable, and free of background paid-score work while preserving the feed workflow | ✓ Good — Phase 03.4 passed 13/13 verification truths, 966/966 tests, and exact-release production UAT |
 | Feed-only match delivery | Owner does not want notifications; scored matches remain in the dashboard | ✓ Chosen — notifications removed 2026-07-19 |
 | Dashboard feed scope and score tiers | Every confirmed preference pass should remain inspectable without a redundant mode; explicit tiers should own score boundaries | ✓ Phase 03.2 — one current preference-pass scope with Strong, Good, and Weak selected by default |
 | Exact-release acceptance for Workday expansion and dashboard queues | UAT approval is valid only for the immutable manifest, source commit, deployment, and asset bytes that passed hosted verification | ✓ Phase 03.6 — exact release `70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b` passed 20/20 hosted checks and 12/12 owner-approved UAT interactions |
+| Exact-release acceptance for Goldman Higher | Monitoring authority requires exact identity, complete two-population evidence, three server windows, a later natural poll, independent hosted proof, and owner-only browser acceptance | ✓ Phase 03.10 — Goldman Active 3/3 with 27 persisted jobs, zero false closures, zero verifier residue, and exact-release owner UAT |
 | Disposable-account production verification | Proof must not overwrite real-user preferences/resume/reroute state | ✓ Phase 3 — verifier account exists only inside the paused/drained interval and is deleted before cron restoration |
 | Physical scoring-attempt accounting | The daily ceiling applies to actual paid attempts, not logical jobs | ✓ Phase 3 — atomic reservation plus `maxAttempts: 1` for scoring |
 | Heuristic contact discovery (when outreach builds in v2) | Paid APIs conflict with near-zero cost constraint | — Pending |
@@ -95,4 +97,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-25 after Phase 03.6 completion*
+*Last updated: 2026-07-27 after Phase 03.10 completion*
