@@ -2,7 +2,7 @@
 
 ## Overview
 
-Four vertical phases plus an inserted source-coverage phase, each ending with something two real users can exercise end-to-end. Phase 1 stands up the deployed app with invite-only auth and airtight per-user data isolation. Phase 2 builds the core ingestion engine. Phase 02.1 broadens that engine from three public ATS APIs to representative public portals and major branded finance career sites before scoring depends on it. Phase 3 closes the relevance loop with filtering, AI scoring, and a focused feed. Phase 4 turns matches into applications with truthful resume tailoring and a manual tracker.
+Four vertical phases plus inserted source-coverage phases, each ending with something two real users can exercise end-to-end. Phase 1 stands up the deployed app with invite-only auth and airtight per-user data isolation. Phase 2 builds the core ingestion engine. Phase 02.1 broadens that engine from three public ATS APIs to representative public portals and major branded finance career sites before ranking depends on it. Phase 3 closes the relevance loop with filtering, deterministic ranking, and a focused feed. Phase 4 turns matches into manually managed applications with a focused tracker.
 
 ## Phases
 
@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)** - Reusable, fail-closed Workday identities with Fidelity admitted through the Watchlist flow and scheduled ingestion (completed 2026-07-24)
 - [x] **Phase 03.6: US-Only Workday Expansion & Dashboard Queue (INSERTED)** - Add four exact U.S.-only Workday sources while preventing dismissed and applied jobs from consuming the active Dashboard window (completed 2026-07-25)
 - [x] **Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)** - Default watchlist-only jobs view with the combined feed preserved as All Jobs (completed 2026-07-25)
-- [ ] **Phase 4: Resume Tailoring & Tracker** - Truthful DOCX-preserving tailoring to PDF with mandatory review, plus a manual application tracker
+- [ ] **Phase 4: Application Tracker** - Manual application tracking from saved through offer, including external jobs, notes, JD snapshots, and optional links to resumes prepared outside the app
 
 ## Phase Details
 
@@ -518,10 +518,8 @@ Plans:
 
 **Deferred AI boundary:**
 
-- AI scoring returns only after Phase 4 resume tailoring is complete.
-- A user may explicitly request an AI score from an opened job detail.
-- After tailoring a resume, the user may explicitly request a second score against that tailored resume.
-- Both calls are manual, visible, and separately initiated; no automatic or background AI scoring returns.
+- Automatic and background AI scoring remain removed.
+- Explicit AI scoring is not part of the Phase 4 tracker and remains deferred to a future owner-approved phase.
 
 **Open decision:** The owner will provide the deterministic-ranking rules before Phase 03.4 planning.
 
@@ -554,22 +552,44 @@ Plans:
 
 - [x] 03.4-09-PLAN.md — Approve and release the exact repaired schema, worker, and web artifacts; finish convergence and visual UAT
 
-### Phase 4: Resume Tailoring & Tracker
+### Phase 4: Application Tracker
 
-**Goal**: User can turn any match into a truthfully tailored, formatting-faithful PDF resume after mandatory review, and track every application from saved through offer
+**Goal**: User can track every application from saved through offer, including jobs found outside the system, with notes, preserved job-description context, and optional links to resumes prepared manually outside the app
 **Mode:** mvp
 **Depends on**: Phase 03.4
-**Requirements**: RESU-02, RESU-03, RESU-04, RESU-05, TRAK-01, TRAK-02, TRAK-03, TRAK-04
+**Requirements**: TRAK-01, TRAK-02, TRAK-03, TRAK-04
 **Success Criteria** (what must be TRUE):
 
-  1. User can pick a base resume for a job and receive AI-suggested keyword edits that preserve the original DOCX formatting
-  2. Edits only rephrase, reorder, or emphasize facts already in the resume — any term not present in the source resume is flagged programmatically before the user ever sees it
-  3. User reviews proposed edits in a word-level diff view, must explicitly approve before any edit lands, and can then download the tailored resume as a PDF with formatting fidelity
-  4. User can track applications through all seven stages (saved, resume prepared, applied, outreach sent, interview, rejected, offer), manually add jobs found outside the system, and attach notes to any tracked application
-  5. Each tracked application links its JD snapshot and, once prepared, its tailored resume
+  1. User can track applications through exactly six stages: Ready to Apply, Applied, Outreach Sent, Interview, Offer, and Rejected
+  2. User can create a tracker entry from a system-discovered job or manually add a job found elsewhere
+  3. User can attach and update notes on every tracked application
+  4. A system-discovered application retains its captured JD snapshot; a manual entry can preserve the job-description context supplied by the user
+  5. A tracked application can optionally link to a resume the user prepared manually outside the app, and the existing Dashboard Applied action uses the same tracker lifecycle rather than creating a competing state
 
-**Plans**: TBD
+**Plans:** 5 plans
 **UI hint**: yes
+
+Plans:
+
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — Deliver the tested atomic Dashboard Mark Applied → durable Tracker vertical slice and complete schema contract
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-02-PLAN.md — Build and approve checksum-bound catalog/fixture verifiers plus the exact read-only migration preflight
+
+**Wave 3** *(blocked on Wave 2 approval)*
+
+- [ ] 04-03-PLAN.md — Push migration 0053, prove exact hosted catalogs, then prove ordinary-user isolation with zero fixture residue
+
+**Wave 4** *(blocked on hosted schema/security proof)*
+
+- [ ] 04-04-PLAN.md — Complete the spreadsheet Tracker, manual capture, timeline, notes, JD, and optional resume experience
+
+**Wave 5** *(blocked on complete Tracker delivery)*
+
+- [ ] 04-05-PLAN.md — Finish durable Dashboard Mark Applied, seven-column Show applied, and safe Tracker focus routing
 
 ## Progress
 
@@ -590,11 +610,11 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.6 US-Only Workday Expansion & Dashboard Queue | 5/5 | Complete    | 2026-07-25 |
 | 03.7 Watchlist-First Jobs Dashboard | 1/1 | Complete | 2026-07-25 |
 | 03.8 Monitor and poll branded banking companies | 7/7 | Complete | 2026-07-26 |
-| 4. Resume Tailoring & Tracker | 0/TBD | Not started | - |
+| 4. Application Tracker | 0/5 | Not started | - |
 
 ## Coverage
 
-All 32 v1 requirements mapped to exactly one phase:
+All 28 v1 requirements are mapped to a phase:
 
 | Category | Requirements | Phase |
 |----------|--------------|-------|
@@ -605,15 +625,14 @@ All 32 v1 requirements mapped to exactly one phase:
 | Discovery & Monitoring | DISC-01..06 | Phase 2 |
 | Discovery & Monitoring | DISC-07..09 | Phase 02.1 |
 | Scoring & Feed | SCOR-01..05 | Phase 3 |
-| Resume Tailoring | RESU-01 | Phase 3 |
-| Resume Tailoring | RESU-02..05 | Phase 4 |
+| Resume Management | RESU-01 | Phase 3 |
 | Tracker | TRAK-01..04 | Phase 4 |
 
 Notes:
 
 - PREF-01 (job preferences) lands in Phase 3, not Phase 2, because preferences exist to drive the cheap filters built there.
-- RESU-01 (base resume upload) lands in Phase 3, not Phase 4, because AI scoring runs against the user's uploaded resume (research: Phase 3 rationale).
+- RESU-01 (base resume upload) remains validated in Phase 3. Automated resume tailoring (former RESU-02..05) was removed from v1 by owner decision; resumes are prepared manually outside the app.
 
 ---
 *Roadmap created: 2026-07-15*
-*Granularity: coarse (research's 6 suggested phases compressed to 4 along the dependency chain: auth/RLS → ingestion+dedupe → filtering/scoring/feed → tailoring+tracker)*
+*Granularity: coarse (research's suggested phases compressed along the dependency chain: auth/RLS → ingestion+dedupe → filtering/ranking/feed → tracker)*

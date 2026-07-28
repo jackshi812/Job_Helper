@@ -547,22 +547,19 @@ Do not use a real user's application as a verifier fixture. Bind any production 
 | A2 | “Relevant date” in the main table is the date of the latest chronological event and uses a date rather than a timestamp. [ASSUMED] | Recommended Data Model | If exact times are required, the schema and timezone/display tests must use `timestamptz`. |
 | A3 | Dashboard Show applied may use a tracker-backed compact row shape rather than preserving every score/ranking column from the Active feed. [ASSUMED] | Pattern 1 | If score columns must remain, snapshot or separately retain their display values without reintroducing a live-job dependency. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Can the final event be deleted?**
    - What we know: event deletion is required, and current stage must recalculate from the latest remaining event. [VERIFIED: D-15]
-   - What's unclear: the locked context does not define a zero-event application. [VERIFIED: `04-CONTEXT.md`]
-   - Recommendation: reject deletion of the last event and offer Edit instead. [RECOMMENDED]
+   - **RESOLVED:** Reject deletion of the final event and offer Edit instead. The approved UI contract requires every application to retain one timeline event and supplies the exact guard copy. [VERIFIED: `04-UI-SPEC.md` § “Event Deletion” and § “Copywriting Contract”]
 
 2. **Does the main date need time-of-day?**
    - What we know: every stage update records the current date, and the visual reference shows dates. [VERIFIED: D-12/D-14]
-   - What's unclear: no requirement requests exact time. [VERIFIED: context review]
-   - Recommendation: store `occurred_on date`; retain `created_at timestamptz` only as deterministic same-day ordering/audit metadata. [RECOMMENDED]
+   - **RESOLVED:** Persist and edit stage dates as date-only `occurred_on`; retain `created_at timestamptz` only for deterministic same-day ordering and audit metadata. [VERIFIED: `04-UI-SPEC.md` § “Entry and Keyboard Behavior” and § “Horizontal Event Timeline”]
 
 3. **Which Dashboard columns remain in Show applied?**
    - What we know: every system application and current tracker stage are mandatory; current implementation renders the Active feed columns. [VERIFIED: D-04 and current Dashboard]
-   - What's unclear: D-04 does not require score/tier/best-fit columns in this historical projection. [VERIFIED: context review]
-   - Recommendation: render title, company, location, applied date, current stage, apply link, and tracker link from snapshots; do not snapshot ranking data unless UAT explicitly requires it. [RECOMMENDED]
+   - **RESOLVED:** Render exactly seven tracker-backed snapshot columns in this order: Position, Company, Location, Applied date, Current stage, Apply link, and Tracker link. Score, tier, and best-fit-resume columns are excluded. [VERIFIED: `04-UI-SPEC.md` § “Show Applied”]
 
 ## Environment Availability
 
@@ -631,7 +628,7 @@ Do not use a real user's application as a verifier fixture. Bind any production 
 
 ### Tertiary (LOW confidence)
 
-- None. The three unresolved product interpretations are isolated in the Assumptions Log and Open Questions. [VERIFIED: research review]
+- None. The three prior product interpretations are resolved by the approved `04-UI-SPEC.md`. [VERIFIED: research review and `04-UI-SPEC.md`]
 
 ## Metadata
 
