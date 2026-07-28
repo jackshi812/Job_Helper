@@ -53,9 +53,7 @@ const TRACKER_CONSTRAINTS = [
   'applications_origin_check',
   'applications_stage_check',
   'applications_manual_fields_check',
-  'applications_apply_url_check',
-  'applications_snapshot_check',
-  'applications_notes_check',
+  'applications_job_url_check',
   'applications_resume_owner_fkey',
   'application_stage_events_application_owner_fkey',
   'application_stage_events_stage_check',
@@ -442,14 +440,14 @@ async function collectHostedInventory(projectRef: string): Promise<{
       functions as (
         select jsonb_agg(
           jsonb_build_object(
-            'signature', p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')',
+            'signature', p.proname || '(' || pg_catalog.oidvectortypes(p.proargtypes) || ')',
             'result', pg_get_function_result(p.oid),
             'security_definer', p.prosecdef,
             'volatility', p.provolatile,
             'search_path', coalesce(array_to_string(p.proconfig, ','), ''),
             'acl', coalesce(array_to_string(p.proacl, ','), ''),
             'definition_sha256', encode(digest(pg_get_functiondef(p.oid), 'sha256'), 'hex')
-          ) order by p.proname, pg_get_function_identity_arguments(p.oid)
+          ) order by p.proname, pg_catalog.oidvectortypes(p.proargtypes)
         ) as value
         from pg_catalog.pg_proc p
         join pg_catalog.pg_namespace n on n.oid = p.pronamespace
