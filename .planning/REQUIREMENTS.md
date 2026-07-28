@@ -31,7 +31,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DISC-05**: System marks jobs as closed when they disappear from ATS polls (stale-job detection)
 - [x] **DISC-06**: Pipeline runs record a heartbeat; a dead or silently failing cron is detectable within one poll cycle
 - [x] **DISC-07**: System validates one representative company per feasible additional source platform (SmartRecruiters, Recruitee, Workday, Oracle Recruiting, iCIMS, SuccessFactors, and Eightfold) while preserving Greenhouse/Lever/Ashby support
-- [x] **DISC-08**: System validates the agreed finance-company set by directly monitoring each company with a stable, safely pollable public contract; every remaining company has a canonical careers link, provider evidence, and an explicit `unsupported_with_reason` disposition and is never labeled monitored
+- [x] **DISC-08**: System validates the current owner-approved finance-company set by directly monitoring each company with a stable, safely pollable public contract; every remaining company has a canonical careers link, provider evidence, and an explicit `unsupported_with_reason` disposition and is never labeled monitored. Later owner-approved catalog removals supersede historical set membership and do not require deleted companies to retain Watchlist/catalog rows.
 - [x] **DISC-09**: Failed, blocked, changed, or implausibly empty sources retain last-known jobs, report Degraded with last-success/error detail, and never close jobs from the failed observation; new connectors are staged before scheduled activation
 
 ### Scoring & Feed
@@ -93,6 +93,9 @@ replaces its implementation without inventing a new requirement ID. DISC-07,
 DISC-08, and DISC-09 were closed by Phase 02.1 and extended by Phase 03.1.
 PREF-01 and SCOR-01..05 were first closed by Phase 3 and remapped by Phase 03.4
 from automatic AI scoring to the complete deterministic ranking contract.
+The original Phase 02.1 finance matrix included Citi and Wells Fargo; the
+owner-approved Phase 03.8 scope removed both from current catalog/Watchlist
+membership while preserving the historical validation record.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
