@@ -25,7 +25,7 @@ const stageLabels = new Map(TRACKER_STAGES.map(({ slug, label }) => [slug, label
 export function Tracker() {
   const applicationsQuery = useQuery({
     queryKey: ['tracker-applications'],
-    queryFn: listTrackerApplications,
+    queryFn: () => listTrackerApplications(),
   })
 
   return (

@@ -23,6 +23,73 @@ export const TRACKER_STAGES: readonly {
   { slug: 'rejected', label: 'Rejected' },
 ]
 
+export const TRACKER_ACTIVE_STAGES: readonly TrackerStage[] = [
+  'ready_to_apply',
+  'applied',
+  'outreach_sent',
+  'interview',
+]
+
+export const TRACKER_TERMINAL_STAGES: readonly TrackerStage[] = [
+  'offer',
+  'rejected',
+]
+
+export interface TrackerStagePresentation {
+  label: string
+  badgeClass: string
+  accentClass: string
+  tintClass: string
+}
+
+export const TRACKER_STAGE_PRESENTATION: Record<
+  TrackerStage,
+  TrackerStagePresentation
+> = {
+  ready_to_apply: {
+    label: 'Ready to Apply',
+    badgeClass:
+      'border-zinc-200 bg-zinc-50 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300',
+    accentClass: 'border-l-zinc-300 dark:border-l-zinc-600',
+    tintClass: 'bg-zinc-50/40 dark:bg-zinc-950/20',
+  },
+  applied: {
+    label: 'Applied',
+    badgeClass:
+      'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300',
+    accentClass: 'border-l-blue-400 dark:border-l-blue-700',
+    tintClass: 'bg-blue-50/35 dark:bg-blue-950/15',
+  },
+  outreach_sent: {
+    label: 'Outreach Sent',
+    badgeClass:
+      'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900 dark:bg-cyan-950 dark:text-cyan-300',
+    accentClass: 'border-l-cyan-400 dark:border-l-cyan-700',
+    tintClass: 'bg-cyan-50/35 dark:bg-cyan-950/15',
+  },
+  interview: {
+    label: 'Interview',
+    badgeClass:
+      'border-lime-200 bg-lime-50 text-lime-800 dark:border-lime-900 dark:bg-lime-950 dark:text-lime-300',
+    accentClass: 'border-l-lime-400 dark:border-l-lime-700',
+    tintClass: 'bg-lime-50/40 dark:bg-lime-950/15',
+  },
+  offer: {
+    label: 'Offer',
+    badgeClass:
+      'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300',
+    accentClass: 'border-l-emerald-400 dark:border-l-emerald-700',
+    tintClass: 'bg-emerald-50/40 dark:bg-emerald-950/15',
+  },
+  rejected: {
+    label: 'Rejected',
+    badgeClass:
+      'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300',
+    accentClass: 'border-l-red-400 dark:border-l-red-700',
+    tintClass: 'bg-red-50/35 dark:bg-red-950/15',
+  },
+}
+
 export const TRACKER_LIST_COLUMNS =
   'id, origin, company, title, location, apply_url, notes, pinned, resume_id, ' +
   'current_stage, current_stage_date, updated_at'
@@ -97,6 +164,12 @@ export interface ManualApplicationCreateResult {
   duplicateWarning: boolean
 }
 
+export interface ManualApplicationValidation {
+  company?: 'Enter a company.'
+  title?: 'Enter a job title.'
+  applyUrl?: 'Enter a job URL.' | 'Enter a valid HTTPS job URL.'
+}
+
 export type TrackerEditableTextField =
   | 'company'
   | 'title'
@@ -140,12 +213,9 @@ function timestamp(value: unknown, errorCode: string): string {
 }
 
 function dateOnly(value: unknown, errorCode: string): string {
-  if (typeof value !== 'string' || !DATE_PATTERN.test(value)) throw new Error(errorCode)
-  const parsed = new Date(`${value}T00:00:00Z`)
-  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
-    throw new Error(errorCode)
-  }
-  return value
+  const parsed = parseDateOnly(value)
+  if (parsed === null) throw new Error(errorCode)
+  return parsed
 }
 
 function stage(value: unknown, errorCode: string): TrackerStage {
@@ -161,7 +231,120 @@ function origin(value: unknown, errorCode: string): TrackerOrigin {
 }
 
 function currentDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const year = String(now.getFullYear()).padStart(4, '0')
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function parseDateOnly(value: unknown): string | null {
+  if (typeof value !== 'string' || !DATE_PATTERN.test(value)) return null
+  const [year, month, day] = value.split('-').map(Number)
+  const parsed = new Date(Date.UTC(year, month - 1, day))
+  if (
+    !Number.isFinite(parsed.getTime())
+    || parsed.getUTCFullYear() !== year
+    || parsed.getUTCMonth() + 1 !== month
+    || parsed.getUTCDate() !== day
+  ) {
+    return null
+  }
+  return value
+}
+
+export function sortTrackerApplications(
+  applications: readonly TrackerApplicationListItem[],
+): TrackerApplicationListItem[] {
+  return [...applications].sort((left, right) => (
+    Number(right.pinned) - Number(left.pinned)
+    || right.updatedAt.localeCompare(left.updatedAt)
+    || right.id.localeCompare(left.id)
+  ))
+}
+
+export function sortTrackerEvents(
+  events: readonly TrackerStageEvent[],
+): TrackerStageEvent[] {
+  return [...events].sort((left, right) => (
+    left.occurredOn.localeCompare(right.occurredOn)
+    || left.createdAt.localeCompare(right.createdAt)
+    || left.id.localeCompare(right.id)
+  ))
+}
+
+export interface DecoratedTrackerStageEvent extends TrackerStageEvent {
+  label: string
+}
+
+export function decorateRepeatedStageOrdinals(
+  events: readonly TrackerStageEvent[],
+): DecoratedTrackerStageEvent[] {
+  const ordered = sortTrackerEvents(events)
+  const totals = new Map<TrackerStage, number>()
+  for (const event of ordered) {
+    totals.set(event.stage, (totals.get(event.stage) ?? 0) + 1)
+  }
+  const seen = new Map<TrackerStage, number>()
+  return ordered.map((event) => {
+    const ordinal = (seen.get(event.stage) ?? 0) + 1
+    seen.set(event.stage, ordinal)
+    const label = TRACKER_STAGE_PRESENTATION[event.stage].label
+    return {
+      ...event,
+      label: (totals.get(event.stage) ?? 0) > 1 ? `${label} ${ordinal}` : label,
+    }
+  })
+}
+
+export function notesPreview(notes: string): string {
+  const lines = notes.replace(/\r\n?/gu, '\n').split('\n')
+  let preview = lines.slice(0, 2).join('\n')
+  let truncated = lines.length > 2
+  const characters = [...preview]
+  if (characters.length > 120) {
+    preview = characters.slice(0, 120).join('')
+    truncated = true
+  }
+  return truncated ? `${preview}…` : preview
+}
+
+function normalizeDuplicatePart(value: string): string {
+  return value.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLocaleLowerCase()
+}
+
+export function normalizeManualDuplicateKey(company: string, title: string): string {
+  return `${normalizeDuplicatePart(company)}\u0000${normalizeDuplicatePart(title)}`
+}
+
+export function validateManualApplicationDraft(
+  draft: ManualApplicationCreateInput,
+): ManualApplicationValidation {
+  const errors: ManualApplicationValidation = {}
+  if (!draft.company.trim()) errors.company = 'Enter a company.'
+  if (!draft.title.trim()) errors.title = 'Enter a job title.'
+  if (!draft.applyUrl.trim()) {
+    errors.applyUrl = 'Enter a job URL.'
+  } else if (safeApplyUrl(draft.applyUrl.trim()) === null) {
+    errors.applyUrl = 'Enter a valid HTTPS job URL.'
+  }
+  return errors
+}
+
+export function manualDuplicateWarning(
+  draft: ManualApplicationCreateInput,
+  applications: readonly Pick<TrackerApplicationListItem, 'company' | 'title'>[],
+): string | null {
+  const company = draft.company.trim()
+  const title = draft.title.trim()
+  if (!company || !title) return null
+  const candidateKey = normalizeManualDuplicateKey(company, title)
+  const duplicate = applications.some((application) => (
+    normalizeManualDuplicateKey(application.company, application.title) === candidateKey
+  ))
+  return duplicate
+    ? `Possible duplicate: ${company} — ${title}. You can add it anyway.`
+    : null
 }
 
 export function parseTrackerApplicationListItem(
@@ -230,11 +413,7 @@ export function parseTrackerApplicationDetail(
       ),
     }
   }
-  const events = row.application_stage_events.map(parseStageEvent).sort((left, right) => (
-    left.occurredOn.localeCompare(right.occurredOn)
-    || left.createdAt.localeCompare(right.createdAt)
-    || left.id.localeCompare(right.id)
-  ))
+  const events = sortTrackerEvents(row.application_stage_events.map(parseStageEvent))
   if (events.length < 1 || events.some(({ applicationId }) => applicationId !== base.id)) {
     throw new Error('invalid_tracker_application_detail')
   }
@@ -309,15 +488,19 @@ export function parseManualApplicationCreateResult(
   }
 }
 
-export async function listTrackerApplications(): Promise<TrackerApplicationListItem[]> {
+export async function listTrackerApplications(
+  selectedStages: readonly TrackerStage[] = TRACKER_ACTIVE_STAGES,
+): Promise<TrackerApplicationListItem[]> {
+  if (selectedStages.length === 0) return []
   const { data, error } = await supabase
     .from('applications')
     .select(TRACKER_LIST_COLUMNS)
+    .in('current_stage', [...selectedStages])
     .order('pinned', { ascending: false })
     .order('updated_at', { ascending: false })
     .order('id', { ascending: false })
   if (error) throw error
-  return (data ?? []).map(parseTrackerApplicationListItem)
+  return sortTrackerApplications((data ?? []).map(parseTrackerApplicationListItem))
 }
 
 export async function getTrackerApplication(
@@ -391,9 +574,27 @@ export async function setApplicationPin(
 
 export async function updateApplicationTextField(
   applicationId: string,
+  applicationOrigin: TrackerOrigin,
   field: TrackerEditableTextField,
   value: string,
 ): Promise<void> {
+  if (
+    applicationOrigin === 'system'
+    && field !== 'notes'
+  ) {
+    throw new Error('application_field_not_editable')
+  }
+  if (
+    (field === 'company' || field === 'title')
+    && !value.trim()
+  ) {
+    throw new Error(
+      field === 'company' ? 'invalid_application_company' : 'invalid_application_title',
+    )
+  }
+  if (field === 'apply_url' && safeApplyUrl(value.trim()) === null) {
+    throw new Error('invalid_application_url')
+  }
   await requireTrueRpc('update_application_text_field', {
     p_application_id: applicationId,
     p_field: field,
@@ -429,6 +630,9 @@ export async function updateApplicationStageEvent(
   nextStage: TrackerStage,
   occurredOn: string,
 ): Promise<void> {
+  if (parseDateOnly(occurredOn) === null) {
+    throw new Error('invalid_application_event')
+  }
   await requireTrueRpc('update_application_stage_event', {
     p_event_id: eventId,
     p_stage: nextStage,

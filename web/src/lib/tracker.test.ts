@@ -325,6 +325,7 @@ describe('tracker Supabase contracts', () => {
       application({
         currentStage: 'applied',
         applyUrl: 'https://example.com/job',
+        title: 'Analyst',
       }),
     ])
     expect(supabase.from).toHaveBeenCalledWith('applications')
@@ -417,7 +418,7 @@ describe('tracker Supabase contracts', () => {
     vi.useRealTimers()
   })
 
-  it.each([
+  const malformedManualResults: unknown[] = [
     [],
     [{ application_id: APP_ID, duplicate_warning: false }, {
       application_id: OTHER_APP_ID,
@@ -426,7 +427,9 @@ describe('tracker Supabase contracts', () => {
     [{ application_id: APP_ID, duplicate_warning: false, location: 'Chicago' }],
     [{ application_id: 'not-a-uuid', duplicate_warning: false }],
     [{ application_id: APP_ID, duplicate_warning: 'false' }],
-  ])('rejects malformed manual-create result %#', async (data) => {
+  ]
+
+  it.each(malformedManualResults)('rejects malformed manual-create result %#', async (data) => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data, error: null } as never)
     await expect(createManualApplication({
       company: 'Acme',
