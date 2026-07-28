@@ -34,6 +34,10 @@ const FIXTURE_MANIFEST = Object.freeze({
       id: '04020000-0000-4000-8000-000000000010',
       name: 'Phase 04 Tracker Fixture Company',
       board_token: 'phase-04-tracker-0053-proof-v1',
+      careers_url:
+        'https://job-boards.greenhouse.io/phase-04-tracker-0053-proof-v1',
+      source_key:
+        'greenhouse:global:phase-04-tracker-0053-proof-v1',
     }),
   ]),
   jobs: Object.freeze([
@@ -745,6 +749,8 @@ async function seedDirectFixtures(
       name: company.name,
       ats_type: 'greenhouse',
       board_token: company.board_token,
+      careers_url: company.careers_url,
+      source_key: company.source_key,
     },
     1,
     secrets,
