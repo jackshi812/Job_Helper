@@ -5,7 +5,7 @@
 ## Approval-bound source and target
 
 - Linked project: `fjcsvajkkztvlrpdplwx`
-- Source commit: `d18c1b4c06471406e27d080f74d7f26c705e957c`
+- Source commit: `ef652be1764d8c4daa8c9ef70bfdf478eaedbe27`
 - Migration: `supabase/migrations/0053_application_tracker.sql`
 - Migration SHA-256: `7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0`
 - Schema verifier SHA-256: `e1a9bd1b0f2f8548e34fb42221174e82f28006977e35a2931c3110120983ddee`
@@ -134,12 +134,10 @@ Replying `defer schema push` leaves production unchanged.
 <!-- tracker-preflight-json
 {
   "status": "PASS",
-  "created_at": "2026-07-28T03:48:40.367Z",
+  "created_at": "2026-07-28T03:49:25.614Z",
   "project_ref": "fjcsvajkkztvlrpdplwx",
-  "source_commit": "d18c1b4c06471406e27d080f74d7f26c705e957c",
-  "scoped_dirty_inventory": [
-    "scripts/verify-tracker-schema.ts"
-  ],
+  "source_commit": "ef652be1764d8c4daa8c9ef70bfdf478eaedbe27",
+  "scoped_dirty_inventory": [],
   "migration": "supabase/migrations/0053_application_tracker.sql",
   "migration_sha256": "7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0",
   "schema_verifier_sha256": "e1a9bd1b0f2f8548e34fb42221174e82f28006977e35a2931c3110120983ddee",
