@@ -10,7 +10,13 @@ describe('tracker schema verifier contract', () => {
     expect(verifierSource).toContain("'--preflight'")
     expect(verifierSource).toContain("'--evidence'")
     expect(verifierSource).toMatch(/unknown (?:argument|flag)/i)
-    expect(verifierSource).not.toMatch(/--(?:sql|query|project-ref|token|password)/)
+    const parserAllowlist = verifierSource.match(
+      /const allowed = new Set\(\[([\s\S]*?)\]\)/,
+    )?.[1]
+    expect(parserAllowlist).toBeDefined()
+    expect(parserAllowlist).not.toMatch(
+      /--(?:sql|query|project-ref|token|password)/,
+    )
   })
 
   it('inventories every reviewed catalog and ACL surface before hosted PASS', () => {

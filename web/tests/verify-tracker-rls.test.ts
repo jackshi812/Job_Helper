@@ -57,9 +57,9 @@ describe('tracker hosted RLS verifier contract', () => {
   })
 
   it('keeps service authority memory-only and behavior on two ordinary sessions', () => {
-    expect(verifierSource).toContain("'projects', 'api-keys'")
+    expect(verifierSource).toMatch(/'projects',\s*'api-keys'/)
     expect(verifierSource).toContain("'--reveal'")
-    expect(verifierSource).toContain("'--output', 'json'")
+    expect(verifierSource).toMatch(/'--output',\s*'json'/)
     expect(verifierSource).toMatch(/service_role/)
     expect(verifierSource).toMatch(/recursive.*redact|redact.*recursive/is)
     expect(verifierSource).toMatch(/signInWithPassword/)
