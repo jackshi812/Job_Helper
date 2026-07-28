@@ -22,11 +22,11 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 - ✓ Bounded generic Workday connector with exact, fail-closed employer identities and scheduled Fidelity ingestion through the existing Watchlist paste-URL flow — Phase 03.5 (6/6 verification truths; Capital One unchanged)
 - ✓ Exact U.S.-only Workday ingestion for Nasdaq, S&P Global, Morningstar, and State Street plus Active/Applied/Dismissed dashboard queues with stable retrieval beyond 200 jobs — Phase 03.6 (6/6 verification truths; 20/20 hosted checks; 12/12 exact-release UAT)
 - ✓ Exact Goldman Sachs Higher monitoring for complete U.S. Early Career and Professional roles in the owner-approved rolling 30-day scope, with Active 3/3 natural polling, closure disabled, and direct Oracle Apply links — Phase 03.10 (5/5 verification truths; 27 persisted jobs; exact-release owner UAT)
+- ✓ Manual application tracking across Ready to Apply, Applied, Outreach Sent, Interview, Offer, and Rejected, with external positions, notes, preserved JD context, optional resume links, Dashboard integration, and owner-scoped deletion — Phase 4 (4/4 requirements; 5/5 exact-release owner UAT)
 
 ### Active
 
 - [ ] Source coverage expansion: representative public ATS/portal adapters and major finance-company career sites, while preserving safe degraded-source behavior
-- [ ] Manual application tracker with stages: Ready to Apply, Applied, Outreach Sent, Interview, Offer, and Rejected
 
 ### Out of Scope
 
@@ -75,8 +75,9 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 | Exact-release acceptance for Goldman Higher | Monitoring authority requires exact identity, complete two-population evidence, three server windows, a later natural poll, independent hosted proof, and owner-only browser acceptance | ✓ Phase 03.10 — Goldman Active 3/3 with 27 persisted jobs, zero false closures, zero verifier residue, and exact-release owner UAT |
 | Disposable-account production verification | Proof must not overwrite real-user preferences/resume/reroute state | ✓ Phase 3 — verifier account exists only inside the paused/drained interval and is deleted before cron restoration |
 | Physical scoring-attempt accounting | The daily ceiling applies to actual paid attempts, not logical jobs | ✓ Phase 3 — atomic reservation plus `maxAttempts: 1` for scoring |
+| One database-derived application lifecycle | Tracker membership, current stage/date, and owner-scoped deletion must not compete with Dashboard lifecycle state or restore deleted history to Active | ✓ Phase 4 — exact production release passed 5/5 owner UAT; deletion preserves `user_jobs.applied_at` |
 | Heuristic contact discovery (when outreach builds in v2) | Paid APIs conflict with near-zero cost constraint | — Pending |
-| v1 scope = discovery + deterministic ranking/feed + application tracker | Keep the app focused on finding, prioritizing, and organizing applications; resume tailoring remains manual | — Active |
+| v1 scope = discovery + deterministic ranking/feed + application tracker | Keep the app focused on finding, prioritizing, and organizing applications; resume tailoring remains manual | ✓ Complete — Phase 4 closed the application lifecycle |
 
 ## Evolution
 
@@ -96,4 +97,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-27 after Phase 4 was narrowed to application tracking*
+*Last updated: 2026-07-28 after Phase 4 and the v1.0 milestone completed*

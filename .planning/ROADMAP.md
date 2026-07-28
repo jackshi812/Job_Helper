@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)** - Reusable, fail-closed Workday identities with Fidelity admitted through the Watchlist flow and scheduled ingestion (completed 2026-07-24)
 - [x] **Phase 03.6: US-Only Workday Expansion & Dashboard Queue (INSERTED)** - Add four exact U.S.-only Workday sources while preventing dismissed and applied jobs from consuming the active Dashboard window (completed 2026-07-25)
 - [x] **Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)** - Default watchlist-only jobs view with the combined feed preserved as All Jobs (completed 2026-07-25)
-- [x] **Phase 4: Application Tracker** - Manual application tracking from Ready to Apply through terminal outcomes, including external jobs, notes, JD snapshots, and optional links to resumes prepared outside the app
+- [x] **Phase 4: Application Tracker** - Manual application tracking from Ready to Apply through terminal outcomes, including external jobs, notes, JD snapshots, and optional links to resumes prepared outside the app (completed 2026-07-28)
 
 ## Phase Details
 
@@ -566,7 +566,7 @@ Plans:
   4. A system-discovered application retains its captured JD snapshot; a manual entry can preserve the job-description context supplied by the user
   5. A tracked application can optionally link to a resume the user prepared manually outside the app, and the existing Dashboard Applied action uses the same tracker lifecycle rather than creating a competing state
 
-**Plans:** 5/5 plans executed
+**Plans:** 7/7 plans complete
 **UI hint**: yes
 
 Plans:
@@ -591,6 +591,14 @@ Plans:
 
 - [x] 04-05-PLAN.md — Finish durable Dashboard Mark Applied, seven-column Show applied, and safe Tracker focus routing
 
+**Gap Closure Wave 1** *(from owner UAT)*
+
+- [x] 04-06-PLAN.md — Apply the owner-requested full-width layout, compact filters, far-right save status, safe application deletion, Dashboard resume cleanup, and navigation order
+
+**Gap Closure Wave 2** *(from revised owner UAT)*
+
+- [x] 04-07-PLAN.md — Compact and index Tracker rows, remove Notes captions, and tune row text and affordance scale to the owner-approved density
+
 ## Progress
 
 **Execution Order:**
@@ -610,7 +618,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.6 US-Only Workday Expansion & Dashboard Queue | 5/5 | Complete    | 2026-07-25 |
 | 03.7 Watchlist-First Jobs Dashboard | 1/1 | Complete | 2026-07-25 |
 | 03.8 Monitor and poll branded banking companies | 7/7 | Complete | 2026-07-26 |
-| 4. Application Tracker | 5/5 | Complete | 2026-07-28 |
+| 4. Application Tracker | 7/7 | Complete    | 2026-07-28 |
 
 ## Coverage
 

@@ -3,35 +3,35 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 04
-current_phase_name: Application Tracker
-status: complete
-stopped_at: Phase 04 complete
-last_updated: "2026-07-28T16:31:00Z"
+status: completed
+stopped_at: Phase 04 complete; v1.0 milestone ready to archive
+last_updated: "2026-07-28T19:47:34.281Z"
 last_activity: 2026-07-28
-last_activity_desc: Phase 04 complete with one durable Dashboard-to-Tracker lifecycle and all final gates passing
+last_activity_desc: Phase 04 complete with 7/7 plans, 5/5 owner UAT, and exact production release evidence
 progress:
   total_phases: 15
   completed_phases: 15
-  total_plans: 87
-  completed_plans: 87
+  total_plans: 88
+  completed_plans: 88
   percent: 100
+current_phase_name: Application Tracker
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-27)
+See: .planning/PROJECT.md (updated 2026-07-28)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** Phase 04 — Application Tracker complete
+**Current focus:** v1.0 milestone complete — ready to archive
 
 ## Current Position
 
 Phase: 04 (Application Tracker) — COMPLETE
-Plan: 5 of 5
+Plan: 7 of 7
 Status: Complete
-Last activity: 2026-07-28 — durable Dashboard Mark Applied, seven-column Show applied, and safe Tracker focus routing complete
+Last activity: 2026-07-28 — exact production release passed 5/5 owner UAT
 
 Progress: [██████████] 100%
 
@@ -39,7 +39,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 54
+- Total plans completed: 60
 - Average duration: 23m
 - Total execution time: 1665m
 
@@ -56,11 +56,14 @@ Progress: [██████████] 100%
 | 03.5 | 4 | - | - |
 | 03.6 | 5 | - | - |
 | 03.10 | 6 | - | - |
+| 04 | 7 | - | - |
 
 **Recent Trend:**
 
-- Last 3 Phase 03.10 plans: 11m, 19m, 4h24m elapsed
-- Trend: Phase 03.10 activated Goldman Sachs 3/3 with 27 qualifying jobs, a healthy natural poll, owner UAT, and zero verifier residue
+- Last Phase 04 gap closures: full-width Tracker, safe deletion, and compact
+  indexed row refinements
+- Trend: Phase 04 closed with 7/7 plans, 1,532 passing tests, 45/45 security
+  threats closed, and 5/5 owner UAT on the exact live release
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
@@ -307,6 +310,9 @@ Recent decisions affecting current work:
 - [Phase 04]: Owner approved only checksum-identical migration 0053, catalog-before-behavior verification, and the manifest-bound disposable two-user proof for target fjcsvajkkztvlrpdplwx. — Plan 04-02 remained read-only; Plan 04-03 must recompute the immutable envelope before any production mutation.
 - [Phase 04]: Deployed tracker defects are repaired only through forward migrations 0054 and 0055; deployed migration 0053 remains immutable.
 - [Phase 04]: Auth Admin timeout recovery is acceptable only after exact manifest identity checks, zero public/storage preconditions, exact two-user deletion, two independent 404 reads, and zero relation residue.
+- [Phase 04]: Whole-application deletion is owner-scoped and preserves `user_jobs.applied_at`, so deleting Tracker history cannot return a system job to Active.
+- [Phase 04]: The owner-approved Tracker is a full-width compact indexed table with dropdown filters, far-right save status, and no horizontal-scroll contract; Dashboard best-fit resume routing is absent while Resume Library upload remains.
+- [Phase 04]: Exact release `c5a78799453449a737e13650a62dfd6135d10729` passed all 1,532 tests and 5/5 signed-in owner UAT checks.
 
 ### Pending Todos
 
@@ -352,9 +358,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-28T16:09:35Z
-Stopped at: Phase 04 complete with all 5 plans and final gates passing
-Resume file: .planning/phases/04-application-tracker/.continue-here.md
+Last session: 2026-07-28T19:47:34Z
+Stopped at: Phase 04 complete with all 7 plans and v1.0 ready to archive
+Resume file: None
 Last session (2026-07-26): Phase 03.8 selective Workday recovery completed; all four requested companies are Active at 3/3 with successful natural polls, 176 exact-scope jobs, migration 0044 parity, protected sources intact, and zero verifier residue.
 Earlier Phase 03.8 closeout (superseded by the recovery above): all four new Workday candidates were precise Unsupported with zero authority; migrations/functions matched that approved release, verifier cleanup was zero-residue, and owner UAT passed.
 Last session (2026-07-25): Phase 03.7 passed local checks, exact-release byte verification, and 3/3 owner-approved signed-in UAT checks on release `baf81fcaa72443995f227b118d10eec90da25679`; no Phase 03.7 gaps remain.
