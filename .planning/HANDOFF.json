@@ -109,5 +109,5 @@
     "web/zh"
   ],
   "next_action": "Ask the user to choose continue revision or accept current plans. If continuing, revise only the four latest checker findings, rerun gsd-plan-checker, and do not execute Phase 4 until verification passes.",
-  "context_notes": "Phase 4 implementation has not started. No application source or live database changes were made during this planning session. The Mac is being kept awake by caffeinate -dimsu in exec session 26310."
+  "context_notes": "Phase 4 implementation has not started. No application source or live database changes were made during this planning session. The managed caffeinate -dimsu exec session ended while the pause handoff was finalized; no managed background process remains."
 }
