@@ -48,10 +48,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Tracker
 
-- [ ] **TRAK-01**: User can track each application through exactly six stages: Ready to Apply, Applied, Outreach Sent, Interview, Offer, and Rejected
+- [x] **TRAK-01**: User can track each application through exactly six stages: Ready to Apply, Applied, Outreach Sent, Interview, Offer, and Rejected
 - [ ] **TRAK-02**: User can manually add a job to the tracker (jobs found outside the system)
 - [ ] **TRAK-03**: User can attach notes to each tracked application
-- [ ] **TRAK-04**: Tracked application links its preserved JD context and, when available, a resume the user prepared manually outside the app
+- [x] **TRAK-04**: Tracked application links its preserved JD context and, when available, a resume the user prepared manually outside the app
 
 ## v2 Requirements
 
@@ -129,10 +129,10 @@ from automatic AI scoring to the complete deterministic ranking contract.
 | SCOR-04 | Phase 03.4 | Complete |
 | SCOR-05 | Phase 03.4 | Complete |
 | RESU-01 | Phase 3 | Complete |
-| TRAK-01 | Phase 4 | Pending |
+| TRAK-01 | Phase 4 | Complete |
 | TRAK-02 | Phase 4 | Pending |
 | TRAK-03 | Phase 4 | Pending |
-| TRAK-04 | Phase 4 | Pending |
+| TRAK-04 | Phase 4 | Complete |
 
 **Coverage:**
 
