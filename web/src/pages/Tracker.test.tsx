@@ -76,7 +76,7 @@ describe('Tracker page contract', () => {
     invalidateQueries.mockReset()
   })
 
-  it('renders the exact header, filters, table semantics, and eight columns', () => {
+  it('renders the header, compact filters, table semantics, and eight columns', () => {
     const markup = renderToStaticMarkup(<Tracker />)
 
     expect(markup).toContain('>Tracker</h1>')
@@ -85,22 +85,25 @@ describe('Tracker page contract', () => {
     )
     expect(markup).toContain('>Add position</button>')
     expect(markup).toContain('aria-label="Stage filters"')
+    expect(markup).toContain('id="stage-group-filter"')
+    expect(markup).toContain('id="individual-stage-filter"')
     expect(markup).toContain('Active stages')
     expect(markup).toContain('Terminal stages')
     expect(markup).toContain('All stages')
-    expect(markup.match(/aria-pressed="/g)).toHaveLength(10)
-    expect(markup).toContain('Applications; scroll horizontally to view all columns')
+    expect(markup).toContain('Choose a stage')
+    expect(markup).toContain('aria-label="Applications"')
     expect(markup).toContain('<table')
-    expect(markup).toContain('min-w-[1224px]')
+    expect(markup).not.toContain('min-w-[1224px]')
     expect(markup).toContain('scope="col"')
     expect(markup).toContain('Company')
     expect(markup).toContain('Position')
     expect(markup).toContain('Stage date')
     expect(markup).toContain('Notes')
-    expect(markup).toContain('Updated')
+    expect(markup).toContain('Status')
+    expect(markup).not.toContain('Updated')
   })
 
-  it('uses selected-stage query keys, active defaults, and six independent toggles', () => {
+  it('uses selected-stage query keys, active defaults, and two compact selects', () => {
     expect(trackerSource).toMatch(
       /useState<TrackerStage\[]>\(\[\s*\.\.\.TRACKER_ACTIVE_STAGES,\s*\]\)/,
     )
@@ -112,8 +115,10 @@ describe('Tracker page contract', () => {
     ])
     expect(trackerSource).toContain("queryKey: ['tracker-applications', selectedStages]")
     expect(trackerSource).toContain('listTrackerApplications(selectedStages)')
-    expect(trackerSource).toContain('aria-pressed={selectedStages.includes(stage.slug)}')
-    expect(trackerSource).toContain('setSelectedStages([])')
+    expect(trackerSource).toContain('id="stage-group-filter"')
+    expect(trackerSource).toContain('id="individual-stage-filter"')
+    expect(trackerSource).not.toContain('toggleStage(')
+    expect(trackerSource).not.toContain('aria-pressed={selectedStages.includes(stage.slug)}')
   })
 
   it('keeps exact loading, load-error, initial-empty, and filtered-empty recovery copy', () => {
@@ -183,12 +188,14 @@ describe('Tracker page contract', () => {
     expect(trackerSource).toContain("queryKey: ['resumes']")
   })
 
-  it('retains the semantic spreadsheet and independent mobile overflow behavior', () => {
-    expect(trackerSource).toContain(
+  it('retains the semantic spreadsheet without horizontal table scrolling', () => {
+    expect(trackerSource).not.toContain(
       'Swipe horizontally to view and edit all columns.',
     )
-    expect(trackerSource).toContain('overflow-x-auto')
-    expect(trackerSource).toContain('min-w-[1224px]')
+    expect(trackerSource).not.toContain('overflow-x-auto')
+    expect(trackerSource).not.toContain('min-w-[1224px]')
+    expect(trackerSource).toContain('className="w-full table-fixed')
+    expect(trackerSource).toContain('break-words')
     expect(trackerSource).toContain('min-h-11')
     expect(trackerSource).not.toContain('Kanban')
     expect(trackerSource).not.toMatch(/grid-cols-[1-9].*application/i)
@@ -216,5 +223,17 @@ describe('Tracker page contract', () => {
     expect(trackerSource).toContain('setExpandedIds')
     expect(trackerSource).toContain('setSelectedStages')
     expect(trackerSource).toContain('registerExpandButton')
+  })
+
+  it('puts mutation confirmation at the far right and confirms application deletion', () => {
+    expect(trackerSource).toContain("setLastSave('stage')")
+    expect(trackerSource).toContain('lastSaveMutation')
+    expect(trackerSource).toContain('retryLastSave')
+    expect(trackerSource).toContain('>Status</th>')
+    expect(trackerSource).toContain('title="Delete application?"')
+    expect(trackerSource).toContain('confirmLabel="Delete application"')
+    expect(trackerSource).toContain('initialFocus="cancel"')
+    expect(trackerSource).toContain('deleteTrackerApplication')
+    expect(trackerSource).toContain('will not return to Active')
   })
 })

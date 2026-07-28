@@ -7,15 +7,14 @@ import { supabase } from '../lib/supabase'
 const navigation = [
   { label: 'Watchlist Jobs', to: '/' },
   { label: 'All Jobs', to: '/all-jobs' },
-  { label: 'Preferences', to: '/preferences' },
-  { label: 'Watchlist', to: '/watchlist' },
-  { label: 'Resumes', to: '/resumes' },
   { label: 'Tracker', to: '/tracker' },
+  { label: 'Resumes', to: '/resumes' },
+  { label: 'Preferences', to: '/preferences' },
   { label: 'Settings', to: '/settings' },
 ]
 
 function shellMainClass(pathname: string): string {
-  return pathname === '/' || pathname === '/all-jobs'
+  return pathname === '/' || pathname === '/all-jobs' || pathname === '/tracker'
     ? 'w-full px-4 py-8 sm:px-6'
     : 'mx-auto max-w-6xl px-4 py-8 sm:px-6'
 }

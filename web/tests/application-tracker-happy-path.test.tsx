@@ -79,7 +79,8 @@ describe('Dashboard Mark Applied → Tracker happy path', () => {
     expect(markup).toContain(
       'Track applications, update stages, and keep every follow-up in one place.',
     )
-    expect(markup).toContain('Applications; scroll horizontally to view all columns')
+    expect(markup).toContain('aria-label="Applications"')
+    expect(markup).not.toContain('scroll horizontally')
     expect(markup).toContain('Acme')
     expect(markup).toContain('Data Analyst')
     expect(markup).toContain('Applied')

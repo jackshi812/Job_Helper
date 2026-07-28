@@ -53,10 +53,19 @@ The tracker does not tailor or generate resumes, submit applications, rank manua
 - **D-22:** Show the linked resume in the expanded row and use a small resume icon in the main row as an indicator; do not add a dedicated Resume column.
 - **D-23:** If a linked resume is deleted, retain the application and automatically clear the resume reference.
 
+### Owner production revision
+
+- **D-24:** Use the full available width for Tracker and wrap complete table values; do not require left-right application-table scrolling.
+- **D-25:** Collapse stage filtering into two native dropdowns: one for Active/Terminal/All groups and one for a single individual stage.
+- **D-26:** Replace the rightmost Updated column with a row-level Status column that confirms the latest update as Saving, Saved, or Retry.
+- **D-27:** Allow confirmed deletion of an owned application from Tracker and Dashboard Show applied. Deleting a system application does not clear `user_jobs.applied_at` and never returns the job to Active.
+- **D-28:** Remove the Best fit and runner-up resume feature from Dashboard while preserving Resume Library upload and optional Tracker resume links.
+- **D-29:** Primary tabs are ordered Watchlist Jobs, All Jobs, Tracker, Resumes, Preferences, Settings; the standalone Watchlist route is no longer a primary tab.
+
 ### the agent's Discretion
 
 - Exact database schema, migration structure, and API boundaries, provided system and manual applications share one tracker lifecycle.
-- Exact table column order, responsive behavior, timeline connector styling, and neutral Ready to Apply palette within the locked spreadsheet and color decisions.
+- Timeline connector styling and neutral Ready to Apply palette within the locked spreadsheet and color decisions.
 - Empty, loading, validation, and recoverable error-state wording consistent with established application patterns.
 
 </decisions>

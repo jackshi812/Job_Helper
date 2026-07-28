@@ -1,7 +1,7 @@
 ---
 phase: 04
 slug: application-tracker
-status: draft
+status: revised
 shadcn_initialized: false
 preset: none
 created: 2026-07-27
@@ -26,6 +26,33 @@ the lifecycle has exactly six stages. **Ready to Apply** replaces **Saved**, and
 **Resume Prepared** is not a stage. Automated resume tailoring, resume
 generation, application submission, manual-job ranking, and a Dashboard
 **Save to tracker** action are out of scope.
+
+## Owner Revision — 2026-07-28
+
+The signed-in owner reviewed the first production Tracker and superseded the
+earlier filter, width, status, deletion, Dashboard-resume, and navigation
+clauses with these decisions:
+
+- `/tracker` uses the full available content width. The application table has
+  no 1,224px minimum and no horizontal-scroll requirement; complete values
+  wrap within the available width.
+- Replace the three preset filter buttons with one **Stage group** select
+  containing Active stages, Terminal stages, and All stages. Replace the six
+  individual stage buttons with one **Stage** select.
+- Replace the rightmost **Updated** column with **Status**. The latest main-row
+  mutation reports Saving, Saved, or Retry there instead of below each cell.
+- Add confirmed whole-application deletion in Tracker and Dashboard Show
+  applied. Deleting a system application must not clear the irreversible
+  applied fact or return the job to Active.
+- Remove Best fit and runner-up resume routing from the jobs Dashboard,
+  including its Resume Library query and table column. Preserve the Resumes
+  page, upload flow, and optional Tracker resume link.
+- Primary navigation is exactly **Watchlist Jobs**, **All Jobs**, **Tracker**,
+  **Resumes**, **Preferences**, **Settings**. `/watchlist` remains a valid
+  non-primary route.
+
+These owner decisions take precedence over contradictory text later in this
+document.
 
 ## Design System
 

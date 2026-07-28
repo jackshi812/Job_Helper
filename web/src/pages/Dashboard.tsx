@@ -15,7 +15,6 @@ import {
   listFeedPage,
   markJobApplied,
   mergeDashboardFeedPages,
-  resumeRouteIsCurrent,
   safeApplyUrl,
   tierPresentation,
   type DashboardFeedOrder,
@@ -44,8 +43,8 @@ import {
   toggleScoreTier,
   type DashboardSourceScope,
 } from '../lib/dashboard'
-import { listResumes, resumeLabel } from '../lib/resumes'
 import {
+  deleteTrackerApplication,
   listDashboardAppliedApplications,
   TRACKER_STAGE_PRESENTATION,
   type DashboardAppliedApplication,
@@ -56,6 +55,7 @@ import {
   retryDeterministicRankingRun,
 } from '../lib/preferences'
 import { ColumnResizeHandle } from '../components/ColumnResizeHandle'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import {
   DASHBOARD_COLUMNS,
   clampDashboardColumnWidth,
@@ -240,13 +240,15 @@ function DashboardHeaderCell({
 
 interface AppliedApplicationsTableProps {
   applications: readonly DashboardAppliedApplication[]
+  onRequestDelete: (application: DashboardAppliedApplication) => void
 }
 
 function AppliedApplicationsTable({
   applications,
+  onRequestDelete,
 }: AppliedApplicationsTableProps) {
   return (
-    <table className="w-full min-w-[1050px] border-collapse text-left text-sm">
+    <table className="w-full table-fixed border-collapse text-left text-sm">
       <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-semibold tracking-wide text-zinc-600 uppercase dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
         <tr>
           <th scope="col" className="px-4 py-2.5">Position</th>
@@ -256,6 +258,7 @@ function AppliedApplicationsTable({
           <th scope="col" className="px-4 py-2.5">Current stage</th>
           <th scope="col" className="px-4 py-2.5">Apply link</th>
           <th scope="col" className="px-4 py-2.5">Tracker link</th>
+          <th scope="col" className="px-4 py-2.5 text-right">Action</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -313,6 +316,15 @@ function AppliedApplicationsTable({
                   View in Tracker
                 </Link>
               </td>
+              <td className="px-4 py-3 text-right">
+                <button
+                  type="button"
+                  onClick={() => onRequestDelete(application)}
+                  className="min-h-11 rounded-md px-2 text-xs font-semibold text-red-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 dark:text-red-400"
+                >
+                  Delete
+                </button>
+              </td>
             </tr>
           )
         })}
@@ -343,6 +355,8 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
   const [loadMoreError, setLoadMoreError] = useState('')
   const [backfillError, setBackfillError] = useState('')
   const [backfillRetry, setBackfillRetry] = useState<BackfillRetry | null>(null)
+  const [deleteCandidate, setDeleteCandidate] =
+    useState<DashboardAppliedApplication | null>(null)
   const [columnWidths, setColumnWidths] = useState(loadDashboardColumnWidths)
   const columnWidthsRef = useRef(columnWidths)
   const resizeCoordinator = useRef<ColumnResizeCoordinator>({ activeColumnId: null })
@@ -413,12 +427,28 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
     refetchInterval: (query) =>
       query.state.data?.status === 'building' ? 2_000 : false,
   })
-  const resumesQuery = useQuery({ queryKey: ['resumes'], queryFn: listResumes })
   const preferencesQuery = useQuery({ queryKey: ['preferences'], queryFn: loadPreferences })
   const appliedApplicationsQuery = useQuery({
     queryKey: ['dashboard-applied-applications'],
     queryFn: listDashboardAppliedApplications,
     enabled: lifecycle === 'applied',
+  })
+  const deleteApplicationMutation = useMutation({
+    mutationFn: deleteTrackerApplication,
+    retry: false,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-applied-applications'],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['tracker-applications'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-feed'] }),
+      ])
+      setQueueAnnouncement(
+        `${deleteCandidate?.title ?? 'Application'} deleted from Tracker.`,
+      )
+      setDeleteCandidate(null)
+    },
   })
 
   useEffect(() => {
@@ -458,12 +488,6 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
       )
     },
   })
-
-  const resumeNames = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const resume of resumesQuery.data ?? []) map.set(resume.id, resumeLabel(resume))
-    return map
-  }, [resumesQuery.data])
 
   const allRows = useMemo(
     () => mergedInfinitePage(feedQuery.data).rows,
@@ -996,7 +1020,13 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
               </p>
             </div>
           ) : (
-            <AppliedApplicationsTable applications={appliedApplicationsQuery.data ?? []} />
+            <AppliedApplicationsTable
+              applications={appliedApplicationsQuery.data ?? []}
+              onRequestDelete={(application) => {
+                deleteApplicationMutation.reset()
+                setDeleteCandidate(application)
+              }}
+            />
           )
         ) : feedLoading ? (
           <p className="p-4 text-sm text-zinc-600 dark:text-zinc-400">Loading…</p>
@@ -1102,20 +1132,8 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
                     'Score'
                   )}
                 </DashboardHeaderCell>
-                {DASHBOARD_COLUMNS.slice(5, 6).map((column) => (
-                  <DashboardHeaderCell
-                    key={column.id}
-                    column={column}
-                    widths={columnWidths}
-                    resizeCoordinator={resizeCoordinator.current}
-                    onWidthChange={updateColumnWidth}
-                    onWidthCommit={commitColumnWidth}
-                  >
-                    {column.label}
-                  </DashboardHeaderCell>
-                ))}
                 <DashboardHeaderCell
-                  column={DASHBOARD_COLUMNS[6]}
+                  column={DASHBOARD_COLUMNS[5]}
                   widths={columnWidths}
                   resizeCoordinator={resizeCoordinator.current}
                   onWidthChange={updateColumnWidth}
@@ -1124,7 +1142,7 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
                   {lifecycleCopy.timeLabel}
                 </DashboardHeaderCell>
                 <DashboardHeaderCell
-                  column={DASHBOARD_COLUMNS[7]}
+                  column={DASHBOARD_COLUMNS[6]}
                   widths={columnWidths}
                   resizeCoordinator={resizeCoordinator.current}
                   onWidthChange={updateColumnWidth}
@@ -1133,7 +1151,7 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
                   Apply
                 </DashboardHeaderCell>
                 <DashboardHeaderCell
-                  column={DASHBOARD_COLUMNS[8]}
+                  column={DASHBOARD_COLUMNS[7]}
                   widths={columnWidths}
                   resizeCoordinator={resizeCoordinator.current}
                   onWidthChange={updateColumnWidth}
@@ -1150,13 +1168,6 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
                 const applyUrl = safeApplyUrl(row.jobs?.absolute_url)
                 const jobTitle = row.jobs?.title ?? 'Untitled role'
                 const company = companyName(row)
-                const routeIsCurrent = resumeRouteIsCurrent(row)
-                const bestFit = routeIsCurrent && row.deterministic_best_fit_resume_id
-                  ? resumeNames.get(row.deterministic_best_fit_resume_id)
-                  : undefined
-                const runnerUp = routeIsCurrent && row.deterministic_runner_up_resume_id
-                  ? resumeNames.get(row.deterministic_runner_up_resume_id)
-                  : undefined
                 return (
                   <tr
                     key={row.id}
@@ -1199,20 +1210,6 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
                             {row.deterministic_score}
                           </span>
                           <TierBadge tier={row.deterministic_tier} />
-                        </div>
-                      ) : (
-                        <span className="text-zinc-500">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {bestFit ? (
-                        <div className="grid gap-1.5">
-                          <span className="inline-flex w-fit items-center rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-0.5 text-xs font-semibold text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-                            Best fit: {bestFit}
-                          </span>
-                          {runnerUp ? (
-                            <span className="text-xs text-zinc-500">also fits {runnerUp}</span>
-                          ) : null}
                         </div>
                       ) : (
                         <span className="text-zinc-500">—</span>
@@ -1321,6 +1318,25 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
           </p>
         ) : null}
       </div>
+      ) : null}
+      {deleteCandidate ? (
+        <ConfirmDialog
+          title="Delete application?"
+          message={`Delete ${deleteCandidate.title} at ${deleteCandidate.company} and its timeline? The job stays marked applied and will not return to Active.`}
+          confirmLabel="Delete application"
+          cancelLabel="Keep application"
+          pendingLabel="Deleting…"
+          initialFocus="cancel"
+          errorMessage={deleteApplicationMutation.isError
+            ? 'Couldn’t delete this application. Check your connection and retry.'
+            : undefined}
+          onConfirm={() =>
+            deleteApplicationMutation.mutateAsync(deleteCandidate.applicationId)}
+          onCancel={() => {
+            deleteApplicationMutation.reset()
+            setDeleteCandidate(null)
+          }}
+        />
       ) : null}
     </section>
   )

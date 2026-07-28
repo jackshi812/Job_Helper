@@ -661,3 +661,9 @@ export async function updateApplicationStageEvent(
 export async function deleteApplicationStageEvent(eventId: string): Promise<void> {
   await requireTrueRpc('delete_application_stage_event', { p_event_id: eventId })
 }
+
+export async function deleteTrackerApplication(applicationId: string): Promise<void> {
+  await requireTrueRpc('delete_tracker_application', {
+    p_application_id: applicationId,
+  })
+}

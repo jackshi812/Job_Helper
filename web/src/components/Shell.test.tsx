@@ -5,12 +5,14 @@ import mainSource from '../main.tsx?raw'
 vi.mock('../lib/supabase', () => ({ supabase: {} }))
 
 describe('Shell route widths', () => {
-  it('uses the full remaining width for both job dashboards', () => {
-    expect(shellSource).toContain("pathname === '/' || pathname === '/all-jobs'")
+  it('uses the full remaining width for both job dashboards and Tracker', () => {
+    expect(shellSource).toContain(
+      "pathname === '/' || pathname === '/all-jobs' || pathname === '/tracker'",
+    )
     expect(shellSource).toContain("? 'w-full px-4 py-8 sm:px-6'")
   })
 
-  it('keeps job detail, preferences, and every non-index route centered', () => {
+  it('keeps job detail, preferences, and remaining non-wide routes centered', () => {
     expect(shellSource).toContain(": 'mx-auto max-w-6xl px-4 py-8 sm:px-6'")
     expect(shellSource).toContain('shellMainClass(location.pathname)')
   })
@@ -31,5 +33,23 @@ describe('Shell route widths', () => {
     expect(mainSource).toContain(
       '<Route path="all-jobs" element={<Dashboard scope="all" />} />',
     )
+  })
+
+  it('uses the exact owner-requested six-tab order', () => {
+    const labels = [
+      'Watchlist Jobs',
+      'All Jobs',
+      'Tracker',
+      'Resumes',
+      'Preferences',
+      'Settings',
+    ]
+    let previous = -1
+    for (const label of labels) {
+      const index = shellSource.indexOf(`{ label: '${label}'`)
+      expect(index).toBeGreaterThan(previous)
+      previous = index
+    }
+    expect(shellSource).not.toContain("{ label: 'Watchlist', to: '/watchlist' }")
   })
 })

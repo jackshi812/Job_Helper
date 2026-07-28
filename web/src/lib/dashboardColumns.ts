@@ -6,7 +6,6 @@ export const DASHBOARD_COLUMNS = [
   { id: 'company', label: 'Company', defaultWidth: 200, minWidth: 160, maxWidth: 400 },
   { id: 'location', label: 'Location', defaultWidth: 200, minWidth: 160, maxWidth: 420 },
   { id: 'score', label: 'Score', defaultWidth: 180, minWidth: 150, maxWidth: 260 },
-  { id: 'bestFit', label: 'Best fit', defaultWidth: 220, minWidth: 180, maxWidth: 360 },
   { id: 'posted', label: 'Posted', defaultWidth: 132, minWidth: 120, maxWidth: 220 },
   { id: 'apply', label: 'Apply', defaultWidth: 96, minWidth: 88, maxWidth: 140 },
   { id: 'action', label: 'Action', defaultWidth: 228, minWidth: 208, maxWidth: 280 },

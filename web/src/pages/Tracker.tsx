@@ -10,11 +10,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
 import DOMPurify from 'dompurify'
 import { ApplicationTimeline } from '../components/ApplicationTimeline'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { listResumes, resumeLabel } from '../lib/resumes'
 import {
   appendApplicationStage,
   createManualApplication,
   deleteApplicationStageEvent,
+  deleteTrackerApplication,
   getTrackerApplication,
   listTrackerApplications,
   manualDuplicateWarning,
@@ -36,10 +38,8 @@ import {
   type TrackerStage,
 } from '../lib/tracker'
 
-const FILTER_BUTTON =
-  'min-h-11 rounded-full border px-3 py-2 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100'
 const CELL_INPUT =
-  'min-h-11 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus-visible:outline-zinc-100'
+  'min-h-11 min-w-0 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus-visible:outline-zinc-100'
 const OUTLINE_BUTTON =
   'min-h-11 rounded-md border border-zinc-300 px-3 py-2 text-sm font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100'
 const PRIMARY_BUTTON =
@@ -67,12 +67,6 @@ function sameStages(left: readonly TrackerStage[], right: readonly TrackerStage[
   return left.length === right.length && left.every((stage) => right.includes(stage))
 }
 
-function updatedLabel(value: string): string {
-  const parsed = new Date(value)
-  if (!Number.isFinite(parsed.getTime())) return value
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(parsed)
-}
-
 interface SaveFeedbackProps {
   pending: boolean
   saved: boolean
@@ -88,14 +82,14 @@ function SaveFeedback({
 }: SaveFeedbackProps) {
   if (pending) {
     return (
-      <span role="status" aria-live="polite" className="mt-1 block text-xs text-zinc-500">
+      <span role="status" aria-live="polite" className="block text-xs text-zinc-500">
         Saving…
       </span>
     )
   }
   if (failed) {
     return (
-      <span className="mt-1 block text-xs text-red-700 dark:text-red-400">
+      <span className="block text-xs text-red-700 dark:text-red-400">
         <span role="alert">Couldn’t save. </span>
         <button
           type="button"
@@ -110,7 +104,7 @@ function SaveFeedback({
   }
   if (saved) {
     return (
-      <span role="status" aria-live="polite" className="mt-1 block text-xs text-emerald-700 dark:text-emerald-400">
+      <span role="status" aria-live="polite" className="block text-xs text-emerald-700 dark:text-emerald-400">
         ✓ Saved
       </span>
     )
@@ -122,6 +116,7 @@ interface TrackerRowProps {
   application: TrackerApplicationListItem
   expanded: boolean
   onToggleExpanded: () => void
+  onRequestDelete: () => void
   registerExpandButton: (node: HTMLButtonElement | null) => void
 }
 
@@ -129,6 +124,7 @@ function TrackerRow({
   application,
   expanded,
   onToggleExpanded,
+  onRequestDelete,
   registerExpandButton,
 }: TrackerRowProps) {
   const queryClient = useQueryClient()
@@ -139,6 +135,9 @@ function TrackerRow({
   const [companyDraft, setCompanyDraft] = useState(application.company)
   const [titleDraft, setTitleDraft] = useState(application.title)
   const [notesDraft, setNotesDraft] = useState(application.notes)
+  const [lastSave, setLastSave] = useState<
+    'pin' | 'company' | 'title' | 'stage' | 'date' | 'notes' | null
+  >(null)
 
   useEffect(() => setPinDraft(application.pinned), [application.pinned])
   useEffect(() => setStageDraft(application.currentStage), [application.currentStage])
@@ -163,12 +162,14 @@ function TrackerRow({
     mutationFn: (pinned: boolean) => setApplicationPin(application.id, pinned),
     scope: { id: `${application.id}:pin` },
     retry: false,
+    onMutate: () => setLastSave('pin'),
     onSuccess: () => invalidateApplication(),
   })
   const stageMutation = useMutation({
     mutationFn: (stage: TrackerStage) => appendApplicationStage(application.id, stage),
     scope: { id: `${application.id}:stage` },
     retry: false,
+    onMutate: () => setLastSave('stage'),
     onSuccess: () => invalidateApplication(true),
   })
   const dateMutation = useMutation({
@@ -187,6 +188,7 @@ function TrackerRow({
     },
     scope: { id: `${application.id}:current_stage_date` },
     retry: false,
+    onMutate: () => setLastSave('date'),
     onSuccess: () => invalidateApplication(true),
   })
   const companyMutation = useMutation({
@@ -198,6 +200,7 @@ function TrackerRow({
     ),
     scope: { id: `${application.id}:company` },
     retry: false,
+    onMutate: () => setLastSave('company'),
     onSuccess: () => invalidateApplication(true),
   })
   const titleMutation = useMutation({
@@ -209,6 +212,7 @@ function TrackerRow({
     ),
     scope: { id: `${application.id}:title` },
     retry: false,
+    onMutate: () => setLastSave('title'),
     onSuccess: () => invalidateApplication(true),
   })
   const notesMutation = useMutation({
@@ -220,8 +224,39 @@ function TrackerRow({
     ),
     scope: { id: `${application.id}:notes` },
     retry: false,
+    onMutate: () => setLastSave('notes'),
     onSuccess: () => invalidateApplication(),
   })
+
+  const lastSaveMutation = lastSave === 'pin'
+    ? pinMutation
+    : lastSave === 'company'
+      ? companyMutation
+      : lastSave === 'title'
+        ? titleMutation
+        : lastSave === 'stage'
+          ? stageMutation
+          : lastSave === 'date'
+            ? dateMutation
+            : lastSave === 'notes'
+              ? notesMutation
+              : null
+
+  function retryLastSave() {
+    if (lastSave === 'pin' && pinMutation.variables !== undefined) {
+      pinMutation.mutate(pinMutation.variables)
+    } else if (lastSave === 'company' && companyMutation.variables !== undefined) {
+      companyMutation.mutate(companyMutation.variables)
+    } else if (lastSave === 'title' && titleMutation.variables !== undefined) {
+      titleMutation.mutate(titleMutation.variables)
+    } else if (lastSave === 'stage' && stageMutation.variables !== undefined) {
+      stageMutation.mutate(stageMutation.variables)
+    } else if (lastSave === 'date' && dateMutation.variables !== undefined) {
+      dateMutation.mutate(dateMutation.variables)
+    } else if (lastSave === 'notes' && notesMutation.variables !== undefined) {
+      notesMutation.mutate(notesMutation.variables)
+    }
+  }
 
   function commitOnEnter(
     event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -251,7 +286,7 @@ function TrackerRow({
       <tr
         className={`min-h-11 border-l-4 ${presentation.accentClass} ${presentation.tintClass} hover:bg-zinc-50 focus-within:bg-zinc-50 dark:hover:bg-zinc-800/50 dark:focus-within:bg-zinc-800/50`}
       >
-        <td className="w-12 px-1 py-2 text-center">
+        <td className="px-1 py-2 text-center">
           <button
             ref={registerExpandButton}
             type="button"
@@ -264,7 +299,7 @@ function TrackerRow({
             <span aria-hidden="true">{expanded ? '⌄' : '›'}</span>
           </button>
         </td>
-        <td className="w-12 px-1 py-2 text-center">
+        <td className="px-1 py-2 text-center">
           <button
             type="button"
             aria-pressed={pinDraft}
@@ -279,18 +314,8 @@ function TrackerRow({
           >
             <span aria-hidden="true">{pinDraft ? '★' : '☆'}</span>
           </button>
-          <SaveFeedback
-            pending={pinMutation.isPending}
-            saved={pinMutation.isSuccess}
-            failed={pinMutation.isError}
-            onRetry={() => {
-              if (pinMutation.variables !== undefined) {
-                pinMutation.mutate(pinMutation.variables)
-              }
-            }}
-          />
         </td>
-        <td className="w-44 px-2 py-2">
+        <td className="min-w-0 break-words px-2 py-2">
           {application.origin === 'manual' ? (
             <>
               <label className="sr-only" htmlFor={`company-${application.id}`}>
@@ -310,23 +335,13 @@ function TrackerRow({
                 )}
                 className={CELL_INPUT}
               />
-              <SaveFeedback
-                pending={companyMutation.isPending}
-                saved={companyMutation.isSuccess}
-                failed={companyMutation.isError}
-                onRetry={() => {
-                  if (companyMutation.variables !== undefined) {
-                    companyMutation.mutate(companyMutation.variables)
-                  }
-                }}
-              />
             </>
           ) : (
             application.company
           )}
         </td>
-        <td className="w-62 px-2 py-2">
-          <div className="flex items-center gap-1.5">
+        <td className="min-w-0 break-words px-2 py-2">
+          <div className="flex min-w-0 items-center gap-1.5">
             {application.resumeId ? (
               <span
                 aria-label={`Resume linked: ${application.resumeLabel ?? 'linked resume'}`}
@@ -355,16 +370,6 @@ function TrackerRow({
                   )}
                   className={CELL_INPUT}
                 />
-                <SaveFeedback
-                  pending={titleMutation.isPending}
-                  saved={titleMutation.isSuccess}
-                  failed={titleMutation.isError}
-                  onRetry={() => {
-                    if (titleMutation.variables !== undefined) {
-                      titleMutation.mutate(titleMutation.variables)
-                    }
-                  }}
-                />
               </div>
             ) : application.applyUrl ? (
               <a
@@ -372,7 +377,7 @@ function TrackerRow({
                 target="_blank"
                 rel="noreferrer"
                 aria-label={`${application.title}, new tab`}
-                className="font-semibold underline decoration-1 underline-offset-4"
+                className="break-words font-semibold underline decoration-1 underline-offset-4"
               >
                 {application.title} <span aria-hidden="true">↗</span>
               </a>
@@ -381,7 +386,7 @@ function TrackerRow({
             )}
           </div>
         </td>
-        <td className="w-42 px-2 py-2">
+        <td className="min-w-0 px-2 py-2">
           <label className="sr-only" htmlFor={`stage-${application.id}`}>Stage</label>
           <select
             id={`stage-${application.id}`}
@@ -398,18 +403,8 @@ function TrackerRow({
               <option key={stage.slug} value={stage.slug}>{stage.label}</option>
             ))}
           </select>
-          <SaveFeedback
-            pending={stageMutation.isPending}
-            saved={stageMutation.isSuccess}
-            failed={stageMutation.isError}
-            onRetry={() => {
-              if (stageMutation.variables !== undefined) {
-                stageMutation.mutate(stageMutation.variables)
-              }
-            }}
-          />
         </td>
-        <td className="w-34 px-2 py-2">
+        <td className="min-w-0 px-2 py-2">
           <label className="sr-only" htmlFor={`date-${application.id}`}>Stage date</label>
           <input
             id={`date-${application.id}`}
@@ -427,18 +422,8 @@ function TrackerRow({
             )}
             className={CELL_INPUT}
           />
-          <SaveFeedback
-            pending={dateMutation.isPending}
-            saved={dateMutation.isSuccess}
-            failed={dateMutation.isError}
-            onRetry={() => {
-              if (dateMutation.variables !== undefined) {
-                dateMutation.mutate(dateMutation.variables)
-              }
-            }}
-          />
         </td>
-        <td className="w-72 px-2 py-2">
+        <td className="min-w-0 px-2 py-2">
           <label className="sr-only" htmlFor={`notes-${application.id}`}>Notes</label>
           <textarea
             id={`notes-${application.id}`}
@@ -457,21 +442,27 @@ function TrackerRow({
             className={`${CELL_INPUT} resize-none`}
           />
           <span className="sr-only">{notesPreview(notesDraft)}</span>
-          <SaveFeedback
-            pending={notesMutation.isPending}
-            saved={notesMutation.isSuccess}
-            failed={notesMutation.isError}
-            onRetry={() => {
-              if (notesMutation.variables !== undefined) {
-                notesMutation.mutate(notesMutation.variables)
-              }
-            }}
-          />
         </td>
-        <td className="w-28 px-2 py-2 text-xs text-zinc-600 dark:text-zinc-400">
-          <time dateTime={application.updatedAt} title={new Date(application.updatedAt).toLocaleString()}>
-            {updatedLabel(application.updatedAt)}
-          </time>
+        <td className="min-w-0 px-2 py-2 text-right">
+          <div className="grid justify-items-end gap-2">
+            {lastSaveMutation ? (
+              <SaveFeedback
+                pending={lastSaveMutation.isPending}
+                saved={lastSaveMutation.isSuccess}
+                failed={lastSaveMutation.isError}
+                onRetry={retryLastSave}
+              />
+            ) : (
+              <span className="text-xs text-zinc-500">—</span>
+            )}
+            <button
+              type="button"
+              onClick={onRequestDelete}
+              className="min-h-11 rounded-md px-2 text-xs font-semibold text-red-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 dark:text-red-400"
+            >
+              Delete
+            </button>
+          </div>
         </td>
       </tr>
       {expanded ? (
@@ -990,6 +981,7 @@ function ManualDraftRow({
 }
 
 export function Tracker() {
+  const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const requestedApplicationId = searchParams.get('application')
   const focusApplicationId = requestedApplicationId
@@ -1001,6 +993,8 @@ export function Tracker() {
   ])
   const [draftVisible, setDraftVisible] = useState(false)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [deleteCandidate, setDeleteCandidate] =
+    useState<TrackerApplicationListItem | null>(null)
   const [announcement, setAnnouncement] = useState('')
   const expandButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const preparedFocusId = useRef<string | null>(null)
@@ -1015,6 +1009,31 @@ export function Tracker() {
     queryKey: ['tracker-focus-applications'],
     queryFn: () => listTrackerApplications(TRACKER_STAGES.map(({ slug }) => slug)),
     enabled: focusApplicationId !== null && !applicationsQuery.isPending,
+  })
+  const deleteMutation = useMutation({
+    mutationFn: deleteTrackerApplication,
+    retry: false,
+    onSuccess: async (_result, applicationId) => {
+      const deleted = deleteCandidate
+      setExpandedIds((current) => {
+        const next = new Set(current)
+        next.delete(applicationId)
+        return next
+      })
+      expandButtonRefs.current.delete(applicationId)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['tracker-applications'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['tracker-application', applicationId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-applied-applications'],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-feed'] }),
+      ])
+      setAnnouncement(`${deleted?.title ?? 'Application'} deleted from Tracker.`)
+      setDeleteCandidate(null)
+    },
   })
 
   useEffect(() => {
@@ -1054,21 +1073,15 @@ export function Tracker() {
     })
   }, [applications, expandedIds, focusApplicationId])
 
-  function toggleStage(stage: TrackerStage) {
-    if (selectedStages.includes(stage) && selectedStages.length === 1) {
-      setSelectedStages([])
-      return
-    }
-    setSelectedStages((current) => (
-      current.includes(stage)
-        ? current.filter((candidate) => candidate !== stage)
-        : TRACKER_STAGES
-          .map(({ slug }) => slug)
-          .filter((candidate) => candidate === stage || current.includes(candidate))
-    ))
-  }
-
   const defaultSelection = sameStages(selectedStages, TRACKER_ACTIVE_STAGES)
+  const stageGroupValue = sameStages(selectedStages, TRACKER_ACTIVE_STAGES)
+    ? 'active'
+    : sameStages(selectedStages, TRACKER_TERMINAL_STAGES)
+      ? 'terminal'
+      : selectedStages.length === TRACKER_STAGES.length
+        ? 'all'
+        : 'custom'
+  const individualStageValue = selectedStages.length === 1 ? selectedStages[0] : ''
 
   return (
     <section>
@@ -1088,61 +1101,58 @@ export function Tracker() {
         </button>
       </header>
 
-      <div
-        role="group"
-        aria-label="Stage filters"
-        className="mt-6 flex flex-wrap items-center gap-2"
-      >
-        <span className="mr-1 text-sm font-semibold">Stage filters</span>
-        <button
-          type="button"
-          aria-pressed={sameStages(selectedStages, TRACKER_ACTIVE_STAGES)}
-          onClick={() => setSelectedStages([...TRACKER_ACTIVE_STAGES])}
-          className={`${FILTER_BUTTON} ${sameStages(selectedStages, TRACKER_ACTIVE_STAGES) ? 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900' : 'border-zinc-300 dark:border-zinc-700'}`}
-        >
-          Active stages
-        </button>
-        <button
-          type="button"
-          aria-pressed={sameStages(selectedStages, TRACKER_TERMINAL_STAGES)}
-          onClick={() => setSelectedStages([...TRACKER_TERMINAL_STAGES])}
-          className={`${FILTER_BUTTON} ${sameStages(selectedStages, TRACKER_TERMINAL_STAGES) ? 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900' : 'border-zinc-300 dark:border-zinc-700'}`}
-        >
-          Terminal stages
-        </button>
-        <button
-          type="button"
-          aria-pressed={selectedStages.length === TRACKER_STAGES.length}
-          onClick={() => setSelectedStages(TRACKER_STAGES.map(({ slug }) => slug))}
-          className={`${FILTER_BUTTON} ${selectedStages.length === TRACKER_STAGES.length ? 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900' : 'border-zinc-300 dark:border-zinc-700'}`}
-        >
-          All stages
-        </button>
-        {TRACKER_STAGES.map((stage) => (
-          <button
-            key={stage.slug}
-            type="button"
-            aria-pressed={selectedStages.includes(stage.slug)}
-            onClick={() => toggleStage(stage.slug)}
-            className={`${FILTER_BUTTON} ${selectedStages.includes(stage.slug) ? TRACKER_STAGE_PRESENTATION[stage.slug].badgeClass : 'border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400'}`}
+      <div className="mt-6 flex flex-wrap items-end gap-3" aria-label="Stage filters">
+        <label className="grid gap-1 text-sm font-semibold" htmlFor="stage-group-filter">
+          Stage group
+          <select
+            id="stage-group-filter"
+            value={stageGroupValue}
+            onChange={(event) => {
+              const next = event.target.value
+              if (next === 'active') setSelectedStages([...TRACKER_ACTIVE_STAGES])
+              else if (next === 'terminal') setSelectedStages([...TRACKER_TERMINAL_STAGES])
+              else if (next === 'all') {
+                setSelectedStages(TRACKER_STAGES.map(({ slug }) => slug))
+              }
+            }}
+            className={`${CELL_INPUT} min-w-44`}
           >
-            {stage.label}
-          </button>
-        ))}
+            <option value="active">Active stages</option>
+            <option value="terminal">Terminal stages</option>
+            <option value="all">All stages</option>
+            {stageGroupValue === 'custom' ? (
+              <option value="custom">Individual stage</option>
+            ) : null}
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm font-semibold" htmlFor="individual-stage-filter">
+          Stage
+          <select
+            id="individual-stage-filter"
+            value={individualStageValue}
+            onChange={(event) => {
+              const next = event.target.value as TrackerStage | ''
+              if (next) setSelectedStages([next])
+            }}
+            className={`${CELL_INPUT} min-w-48`}
+          >
+            <option value="">Choose a stage</option>
+            {TRACKER_STAGES.map((stage) => (
+              <option key={stage.slug} value={stage.slug}>{stage.label}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
-      <p className="mt-4 text-xs text-zinc-600 sm:hidden dark:text-zinc-400">
-        Swipe horizontally to view and edit all columns.
-      </p>
       <p role="status" aria-live="polite" className="mt-3 text-sm text-emerald-700 dark:text-emerald-400">
         {announcement}
       </p>
 
       <div
         role="region"
-        aria-label="Applications; scroll horizontally to view all columns"
+        aria-label="Applications"
         tabIndex={0}
-        className="mt-4 overflow-x-auto rounded-lg border border-zinc-200 bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:focus-visible:outline-zinc-100"
+        className="mt-4 overflow-hidden rounded-lg border border-zinc-200 bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:focus-visible:outline-zinc-100"
       >
         {applicationsQuery.isPending ? (
           <p role="status" className="p-4 text-sm text-zinc-600 dark:text-zinc-400">
@@ -1163,16 +1173,16 @@ export function Tracker() {
             </button>
           </div>
         ) : applications.length > 0 || draftVisible ? (
-          <table className="w-full min-w-[1224px] table-fixed border-collapse text-left text-sm">
+          <table className="w-full table-fixed border-collapse text-left text-sm">
             <colgroup>
-              <col className="w-12" />
-              <col className="w-12" />
-              <col className="w-44" />
-              <col className="w-62" />
-              <col className="w-42" />
-              <col className="w-34" />
-              <col className="w-72" />
-              <col className="w-28" />
+              <col style={{ width: '4%' }} />
+              <col style={{ width: '4%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '21%' }} />
+              <col style={{ width: '9%' }} />
             </colgroup>
             <thead className="sticky top-0 z-20 border-b border-zinc-200 bg-zinc-50 text-xs font-semibold tracking-wide text-zinc-600 uppercase dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
               <tr>
@@ -1183,7 +1193,7 @@ export function Tracker() {
                 <th scope="col" className="px-2 py-2">Stage</th>
                 <th scope="col" className="px-2 py-2">Stage date</th>
                 <th scope="col" className="px-2 py-2">Notes</th>
-                <th scope="col" className="px-2 py-2">Updated</th>
+                <th scope="col" className="px-2 py-2 text-right">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -1209,6 +1219,10 @@ export function Tracker() {
                       else next.add(application.id)
                       return next
                     })
+                  }}
+                  onRequestDelete={() => {
+                    deleteMutation.reset()
+                    setDeleteCandidate(application)
                   }}
                   registerExpandButton={(node) => {
                     if (node) expandButtonRefs.current.set(application.id, node)
@@ -1240,6 +1254,28 @@ export function Tracker() {
           </div>
         )}
       </div>
+      {deleteCandidate ? (
+        <ConfirmDialog
+          title="Delete application?"
+          message={
+            deleteCandidate.origin === 'system'
+              ? `Delete ${deleteCandidate.title} at ${deleteCandidate.company} and its timeline? The job stays marked applied and will not return to Active.`
+              : `Delete ${deleteCandidate.title} at ${deleteCandidate.company} and its timeline? This cannot be undone.`
+          }
+          confirmLabel="Delete application"
+          cancelLabel="Keep application"
+          pendingLabel="Deleting…"
+          initialFocus="cancel"
+          errorMessage={deleteMutation.isError
+            ? 'Couldn’t delete this application. Check your connection and retry.'
+            : undefined}
+          onConfirm={() => deleteMutation.mutateAsync(deleteCandidate.id)}
+          onCancel={() => {
+            deleteMutation.reset()
+            setDeleteCandidate(null)
+          }}
+        />
+      ) : null}
     </section>
   )
 }

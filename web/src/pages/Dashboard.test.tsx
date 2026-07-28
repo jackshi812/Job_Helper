@@ -88,7 +88,13 @@ vi.mock('react-router', () => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
-  useMutation: () => ({ mutate: vi.fn(), isPending: false }),
+  useMutation: () => ({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    reset: vi.fn(),
+    isPending: false,
+    isError: false,
+  }),
   useInfiniteQuery: () => ({
     data: {
       pages: [{
@@ -122,22 +128,6 @@ vi.mock('@tanstack/react-query', () => ({
           retryAvailable: false,
           updatedAt: '2026-07-23T00:00:00.000Z',
         },
-        error: null,
-        isPending: false,
-      }
-    }
-    if (queryKey[0] === 'resumes') {
-      return {
-        data: [
-          {
-            id: '22222222-2222-4222-8222-222222222222',
-            filename: 'Finance.pdf',
-          },
-          {
-            id: '33333333-3333-4333-8333-333333333333',
-            filename: 'Research.pdf',
-          },
-        ],
         error: null,
         isPending: false,
       }
@@ -243,27 +233,31 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).not.toContain('scoreFreshnessLabel')
   })
 
-  it('renders stored deterministic score, tier, and routing fields without browser derivation', () => {
+  it('renders stored deterministic score and tier without resume routing UI', () => {
     expect(dashboardSource).toContain('row.deterministic_score')
     expect(dashboardSource).toContain('row.deterministic_tier')
-    expect(dashboardSource).toContain('row.deterministic_best_fit_resume_id')
-    expect(dashboardSource).toContain('resumeRouteIsCurrent(row)')
+    expect(dashboardSource).not.toContain('row.deterministic_best_fit_resume_id')
+    expect(dashboardSource).not.toContain('resumeRouteIsCurrent(row)')
+    expect(dashboardSource).not.toContain("queryKey: ['resumes']")
+    expect(dashboardSource).not.toContain('listResumes')
+    expect(dashboardSource).not.toContain('resumeLabel')
     expect(dashboardSource).toContain('<TierBadge tier={row.deterministic_tier}')
     expect(dashboardSource).not.toContain('tierPresentation(row.score)')
     expect(dashboardSource).not.toContain('row.score')
     expect(dashboardSource).not.toContain('row.routed_resume_id')
   })
 
-  it('hides a stale route without hiding its deterministic score', () => {
+  it('shows deterministic score without any best-fit resume labels', () => {
     const markup = renderToStaticMarkup(<Dashboard />)
     expect(markup).toContain('>42</span>')
     expect(markup).not.toContain('Best fit:')
   })
 
-  it('renders current winner and runner-up labels', () => {
+  it('does not render current winner or runner-up labels', () => {
     const markup = renderToStaticMarkup(<Dashboard scope="all" />)
-    expect(markup).toContain('Best fit: Finance.pdf')
-    expect(markup).toContain('also fits Research.pdf')
+    expect(markup).not.toContain('Best fit:')
+    expect(markup).not.toContain('also fits')
+    expect(DASHBOARD_COLUMNS.map(({ id }) => id)).not.toContain('bestFit')
   })
 
   it('pins staged full-list company actions, escape, and exact filter-empty copy', () => {
@@ -289,7 +283,7 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).not.toContain('savePreferences')
   })
 
-  it('keeps Apply navigation separate from accessible lifecycle actions with no dialog', () => {
+  it('keeps Apply navigation separate from lifecycle actions and deletion confirmation', () => {
     const markup = renderToStaticMarkup(<Dashboard />)
     expect(markup).toContain('aria-label="Apply to Analyst in a new tab"')
     expect(markup).toContain('aria-label="Mark Analyst applied"')
@@ -305,7 +299,10 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('Dismissed ${context.title} permanently.')
     expect(dashboardSource).not.toMatch(/onClick=\{[^}]*markJobApplied[^}]*\}[\s\S]*Apply/)
     expect(dashboardSource).not.toContain('<dialog')
-    expect(dashboardSource).not.toContain('ConfirmDialog')
+    expect(dashboardSource).toContain('ConfirmDialog')
+    expect(dashboardSource).toContain('deleteTrackerApplication')
+    expect(dashboardSource).toContain('confirmLabel="Delete application"')
+    expect(dashboardSource).toContain('will not return to Active')
   })
 
   it('pins exact optimistic rollback, focus recovery, durable invalidation, and backfill failure isolation', () => {
@@ -380,7 +377,7 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).not.toMatch(/appliedOn\s*:\s*application\.currentStageDate/)
   })
 
-  it('renders exactly seven applied snapshot columns and the shared stage treatment', () => {
+  it('renders eight applied snapshot/action columns and the shared stage treatment', () => {
     const appliedTableSource = dashboardSource.match(
       /function AppliedApplicationsTable[\s\S]*?\n}\n\ninterface DashboardProps/,
     )?.[0] ?? ''
@@ -393,16 +390,19 @@ describe('Dashboard precision controls', () => {
       'Current stage',
       'Apply link',
       'Tracker link',
+      'Action',
     ]) {
       expect(appliedTableSource).toContain(`>${header}</th>`)
     }
-    expect(appliedTableSource.match(/scope="col"/g)).toHaveLength(7)
+    expect(appliedTableSource.match(/scope="col"/g)).toHaveLength(8)
     expect(appliedTableSource).toContain('TRACKER_STAGE_PRESENTATION')
     expect(appliedTableSource).toContain('application.currentStage')
     expect(appliedTableSource).toContain('View in Tracker')
     expect(appliedTableSource).toContain(
       '`/tracker?application=${encodeURIComponent(application.applicationId)}`',
     )
+    expect(appliedTableSource).toContain('onRequestDelete(application)')
+    expect(appliedTableSource).toMatch(/>\s*Delete\s*<\/button>/)
     expect(appliedTableSource).not.toContain('deterministic_score')
     expect(appliedTableSource).not.toContain('deterministic_tier')
     expect(appliedTableSource).not.toContain('bestFit')
@@ -440,8 +440,8 @@ describe('Dashboard precision controls', () => {
     expect(markup).toContain('<col style="width:80px"/>')
     expect(markup).toContain('<col style="width:280px"/>')
     expect(markup).toContain('<col style="width:228px"/>')
-    expect(markup).toContain('style="min-width:1616px"')
-    expect(separators).toHaveLength(8)
+    expect(markup).toContain('style="min-width:1396px"')
+    expect(separators).toHaveLength(7)
     expect(markup).toContain('aria-label="Resize New column"')
     expect(markup).toContain('aria-label="Resize Score column"')
     expect(markup).not.toContain('aria-label="Resize Action column"')

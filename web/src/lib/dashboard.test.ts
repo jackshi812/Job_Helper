@@ -395,10 +395,10 @@ describe('Dashboard column widths', () => {
     }
   }
 
-  it('defines the exact nine-column default model and total table width', () => {
+  it('defines the exact eight-column model without a best-fit resume column', () => {
     const defaults = defaultDashboardColumnWidths()
     expect(DASHBOARD_COLUMNS.map((column) => column.id)).toEqual([
-      'new', 'job', 'company', 'location', 'score', 'bestFit', 'posted', 'apply', 'action',
+      'new', 'job', 'company', 'location', 'score', 'posted', 'apply', 'action',
     ])
     expect(defaults).toEqual({
       new: 80,
@@ -406,12 +406,11 @@ describe('Dashboard column widths', () => {
       company: 200,
       location: 200,
       score: 180,
-      bestFit: 220,
       posted: 132,
       apply: 96,
       action: 228,
     })
-    expect(dashboardTableWidth(defaults)).toBe(1616)
+    expect(dashboardTableWidth(defaults)).toBe(1396)
     expect(DASHBOARD_COLUMNS.find(({ id }) => id === 'action')).toMatchObject({
       defaultWidth: 228,
       minWidth: 208,
@@ -456,7 +455,7 @@ describe('Dashboard column widths', () => {
     expect(() => persistDashboardColumnWidths(defaultDashboardColumnWidths(), denied)).not.toThrow()
   })
 
-  it('persists only the version and all nine clamped width values', () => {
+  it('persists only the version and all eight clamped width values', () => {
     const storage = memoryStorage()
     const widths = { ...defaultDashboardColumnWidths(), job: 999, score: Number.NaN }
     persistDashboardColumnWidths(widths, storage)

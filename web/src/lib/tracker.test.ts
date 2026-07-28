@@ -5,6 +5,7 @@ import {
   createManualApplication,
   decorateRepeatedStageOrdinals,
   deleteApplicationStageEvent,
+  deleteTrackerApplication,
   getTrackerApplication,
   listTrackerApplications,
   manualDuplicateWarning,
@@ -450,6 +451,7 @@ describe('tracker Supabase contracts', () => {
       .mockResolvedValueOnce({ data: EVENT_ID, error: null } as never)
       .mockResolvedValueOnce({ data: true, error: null } as never)
       .mockResolvedValueOnce({ data: true, error: null } as never)
+      .mockResolvedValueOnce({ data: true, error: null } as never)
 
     await setApplicationPin(APP_ID, true)
     await updateApplicationTextField(APP_ID, 'system', 'notes', 'Follow up')
@@ -457,6 +459,7 @@ describe('tracker Supabase contracts', () => {
     await appendApplicationStage(APP_ID, 'interview')
     await updateApplicationStageEvent(EVENT_ID, 'interview', '2026-07-28')
     await deleteApplicationStageEvent(EVENT_ID)
+    await deleteTrackerApplication(APP_ID)
 
     expect(supabase.rpc).toHaveBeenNthCalledWith(1, 'set_application_pin', {
       p_application_id: APP_ID,
@@ -487,6 +490,9 @@ describe('tracker Supabase contracts', () => {
     )
     expect(supabase.rpc).toHaveBeenNthCalledWith(6, 'delete_application_stage_event', {
       p_event_id: EVENT_ID,
+    })
+    expect(supabase.rpc).toHaveBeenNthCalledWith(7, 'delete_tracker_application', {
+      p_application_id: APP_ID,
     })
   })
 
