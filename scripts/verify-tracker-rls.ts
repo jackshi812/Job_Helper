@@ -1737,7 +1737,7 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
     checks: {
       exact_manifest: true,
       catalog_before_behavior: true,
-      service_role_memory_only: true,
+      privileged_key_memory_only: true,
       two_ordinary_sessions: true,
       mark_applied_idempotent: true,
       manual_six_parameter_two_result: true,
