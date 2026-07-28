@@ -1,10 +1,10 @@
 {
   "status": "PASS",
-  "checked_at": "2026-07-28T04:06:45.223Z",
+  "checked_at": "2026-07-28T14:10:43.037Z",
   "migration_version": "0053",
   "migration_sha256": "7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0",
   "schema_verifier_sha256": "e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26",
-  "behavior_verifier_sha256": "2dede3082e76f33e4b6dcf79848a40140a4ee47d37b7044965f8b182962a531b",
+  "behavior_verifier_sha256": "f558bb03d7bf14e487a1f62db3f4765c6444ac141d024bbd870bebb79c5ef4ef",
   "fixture_manifest_sha256": "7d8f88ab8c94670fc6925c7899197a1f891dc987b5d6091f3f047bf75155864a",
   "hosted_catalog_sha256": "38884034a76d38f1fb3379d228961c5db39d527029b62bd55a6fa084763c2bce",
   "object_counts": {
@@ -927,5 +927,5 @@
       "missing_applied_event_count": 0
     }
   },
-  "catalog_evidence_sha256": "7c48b36aa4df86197b267a61592617de2ce9b84f18b58c194a323bcc3e080b88"
+  "catalog_evidence_sha256": "bd96841b6025f205fb79a600d425fa45450f913f7269e95e6edbf9e2b196f8e8"
 }
