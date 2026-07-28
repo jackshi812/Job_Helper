@@ -1,14 +1,20 @@
 ---
-status: complete
+status: testing
 phase: 04-application-tracker
 source: [04-VERIFICATION.md]
 started: 2026-07-28T16:56:12Z
-updated: 2026-07-28T19:24:20Z
+updated: 2026-07-28T19:28:20Z
 ---
 
 ## Current Test
 
-[testing complete]
+number: 4
+name: Compact indexed Tracker rows
+expected: |
+  Refresh the signed-in Tracker. Every application row is only slightly taller
+  than its text fields, the pin star is clearly larger, and a numbered #
+  column identifies each visible application without horizontal scrolling.
+awaiting: owner response
 
 ## Tests
 
@@ -26,12 +32,17 @@ result: pass
 expected: Mark a Dashboard job applied, move it to Interview in Tracker, enable Show applied, and use View in Tracker; the current stage and focused row agree, opening Apply alone creates nothing, Dashboard has no best-fit resume column, and deleting an application requires confirmation.
 result: pass
 
+### 4. Compact indexed Tracker rows
+expected: Every application row is only slightly taller than its text fields, the pin star is clearly larger, and a numbered # column identifies each visible application without horizontal scrolling.
+result: pending
+previous_reported: "The row is a bit too wide now. just make it a bit bigger than the text box. Also make the star sign larger and add indexing"
+
 ## Summary
 
-total: 3
+total: 4
 passed: 3
 issues: 0
-pending: 0
+pending: 1
 skipped: 0
 blocked: 0
 
@@ -136,4 +147,22 @@ blocked: 0
   resolution: "Primary navigation is exactly Watchlist Jobs, All Jobs, Tracker, Resumes, Preferences, Settings; the standalone Watchlist route remains non-primary."
   fix_commit: "9747a3988b055db5383fca96cb16f3ac0f62752f"
   release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
+  debug_session: "inline Phase 04 UAT diagnosis, 2026-07-28"
+
+- truth: "Tracker rows remain compact, show a larger pin star, and include visible row numbering."
+  status: resolved_pending_uat
+  reason: "User reported the row is too tall, requested it sit only slightly beyond the text box, and requested a larger star plus indexing."
+  severity: minor
+  test: 4
+  root_cause: "The far-right Status cell stacked save feedback above a 44px Delete action, while the main Notes editor used two rows; both forced the row well above the 44px control height. The table also had no row-number column and the pin glyph used text-lg."
+  artifacts:
+    - path: "web/src/pages/Tracker.tsx"
+      issue: "Status actions stack vertically, Notes uses two rows, the star is text-lg, and the table has no index column."
+    - path: "web/src/pages/Tracker.test.tsx"
+      issue: "The compact row, larger star, and numbering contract lacked regression coverage."
+  missing:
+    - "Place save feedback and Delete side by side and use a one-row Notes editor so the row remains near the 44px control height."
+    - "Render a dedicated # column and numbered visible rows."
+    - "Increase the star glyph to text-2xl and cover the revised density contract."
+  resolution: "The Status cell is horizontal, the main Notes editor is one row, the pin uses text-2xl, and a dedicated # column numbers visible applications."
   debug_session: "inline Phase 04 UAT diagnosis, 2026-07-28"
