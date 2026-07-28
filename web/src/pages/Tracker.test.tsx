@@ -61,6 +61,13 @@ vi.mock('../lib/resumes', () => ({
   }) => displayName ?? filename,
 }))
 
+vi.mock('react-router', () => ({
+  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
+    <a href={to}>{children}</a>
+  ),
+  useSearchParams: () => [new URLSearchParams()],
+}))
+
 describe('Tracker page contract', () => {
   beforeEach(() => {
     queryState.data = applications
@@ -185,5 +192,29 @@ describe('Tracker page contract', () => {
     expect(trackerSource).toContain('min-h-11')
     expect(trackerSource).not.toContain('Kanban')
     expect(trackerSource).not.toMatch(/grid-cols-[1-9].*application/i)
+  })
+
+  it('resolves a focus target only through an owned all-stage list', () => {
+    expect(trackerSource).toContain('useSearchParams')
+    expect(trackerSource).toContain("searchParams.get('application')")
+    expect(trackerSource).toContain('TRACKER_APPLICATION_ID_PATTERN')
+    expect(trackerSource).toContain("queryKey: ['tracker-focus-applications']")
+    expect(trackerSource).toContain(
+      'listTrackerApplications(TRACKER_STAGES.map(({ slug }) => slug))',
+    )
+    expect(trackerSource).toContain('focusApplicationsQuery.data?.find')
+    expect(trackerSource).toContain('application.id === focusApplicationId')
+    expect(trackerSource).not.toContain('getTrackerApplication(focusApplicationId')
+    expect(trackerSource).not.toContain('Application not found')
+    expect(trackerSource).not.toContain('You do not have access')
+  })
+
+  it('expands, scrolls, and focuses only the matched owned row', () => {
+    expect(trackerSource).toContain('expandButtonRefs')
+    expect(trackerSource).toContain('scrollIntoView')
+    expect(trackerSource).toContain('.focus()')
+    expect(trackerSource).toContain('setExpandedIds')
+    expect(trackerSource).toContain('setSelectedStages')
+    expect(trackerSource).toContain('registerExpandButton')
   })
 })

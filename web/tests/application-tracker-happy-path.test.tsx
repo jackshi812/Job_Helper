@@ -52,6 +52,13 @@ vi.mock('@tanstack/react-query', () => ({
   }),
 }))
 
+vi.mock('react-router', () => ({
+  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
+    <a href={to}>{children}</a>
+  ),
+  useSearchParams: () => [new URLSearchParams()],
+}))
+
 afterEach(() => {
   vi.useRealTimers()
   rpcMock.mockReset()

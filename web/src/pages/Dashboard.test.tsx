@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { FeedRow } from '../lib/feed'
+import type { DashboardAppliedApplication } from '../lib/tracker'
 import dashboardSource from './Dashboard.tsx?raw'
 import resizeHandleSource from '../components/ColumnResizeHandle.tsx?raw'
 import {
@@ -67,6 +68,17 @@ const externalRow: FeedRow = {
   },
 }
 
+const appliedApplication: DashboardAppliedApplication = {
+  applicationId: '11111111-1111-4111-8111-111111111111',
+  company: 'Acme',
+  title: 'Analyst',
+  location: 'Chicago, IL',
+  applyUrl: 'https://example.com/jobs/1',
+  appliedOn: '2026-07-20',
+  currentStage: 'interview',
+  currentStageDate: '2026-07-28',
+}
+
 vi.mock('../lib/supabase', () => ({ supabase: {} }))
 
 vi.mock('react-router', () => ({
@@ -129,6 +141,9 @@ vi.mock('@tanstack/react-query', () => ({
         error: null,
         isPending: false,
       }
+    }
+    if (queryKey[0] === 'dashboard-applied-applications') {
+      return { data: [appliedApplication], error: null, isPending: false, refetch: vi.fn() }
     }
     return { data: [], error: null, isPending: false }
   },
@@ -282,8 +297,10 @@ describe('Dashboard precision controls', () => {
     expect(markup).toContain('aria-label="Dismiss Analyst"')
     expect(markup).toContain('>Dismiss</button>')
     expect(dashboardSource).toContain('mutationFn: markJobApplied')
-    expect(dashboardSource).toContain('mutationFn: undoJobApplied')
     expect(dashboardSource).toContain('mutationFn: dismissJob')
+    expect(dashboardSource).not.toContain('undoJobApplied')
+    expect(dashboardSource).not.toContain('Undo applied')
+    expect(dashboardSource).not.toContain('Save to tracker')
     expect(dashboardSource).not.toContain('mutationFn: undismissJob')
     expect(dashboardSource).toContain('Dismissed ${context.title} permanently.')
     expect(dashboardSource).not.toMatch(/onClick=\{[^}]*markJobApplied[^}]*\}[\s\S]*Apply/)
@@ -291,7 +308,7 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).not.toContain('ConfirmDialog')
   })
 
-  it('pins exact optimistic rollback, focus recovery, settled Undo target, and backfill failure isolation', () => {
+  it('pins exact optimistic rollback, focus recovery, durable invalidation, and backfill failure isolation', () => {
     expect(dashboardSource).toContain('getQueryData<DashboardInfiniteData>(feedKey)')
     expect(dashboardSource).toContain('setQueryData<DashboardInfiniteData>(feedKey')
     expect(dashboardSource).toContain('previous')
@@ -299,17 +316,22 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('if (index >= 0) focusAfterRemoval')
     expect(dashboardSource).toContain('focusAfterRemoval')
     expect(dashboardSource).toContain('tableRegionRef.current?.focus()')
-    expect(dashboardSource).toContain('setUndoTarget({ id, title: context.title })')
     expect(dashboardSource).toContain('const lifecycleMutationPending =')
-    expect(dashboardSource).toContain('10_000')
     expect(dashboardSource).toContain('role="status"')
     expect(dashboardSource).toContain('aria-live="polite"')
-    expect(dashboardSource).toContain('Undoing…')
-    expect(dashboardSource).toContain('Moved back to Active.')
+    expect(dashboardSource).toContain(
+      '`${context.title} marked applied and added to Tracker.`',
+    )
+    expect(dashboardSource).toContain(
+      "queryKey: ['tracker-application', applicationId]",
+    )
+    expect(dashboardSource).toContain(
+      "queryKey: ['dashboard-applied-applications']",
+    )
+    expect(dashboardSource).toContain("queryKey: ['tracker-applications']")
     expect(dashboardSource).toContain('backfillDashboardFeedRow')
     expect(dashboardSource).toContain('Couldn’t load the next job. Your current results are still shown.')
     expect(dashboardSource).toContain('Couldn’t mark this job as applied. It remains in Active. Try again.')
-    expect(dashboardSource).toContain('Couldn’t undo Applied. Try again from Show applied.')
   })
 
   it('pins explicit 200-row continuation, retained-row retries, dedupe, and truthful exhaustion', () => {
@@ -328,15 +350,63 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).not.toContain('pageNumber')
   })
 
-  it('renders lifecycle time semantically and locks review views to newest lifecycle order', () => {
+  it('renders Active lifecycle time semantically and keeps review sorting out of applied history', () => {
     expect(dashboardSource).toContain('dashboardLifecycleTimestamp(row, lifecycle)')
     expect(dashboardSource).toContain('dateTime={timestamp}')
     expect(dashboardSource).toContain('{lifecycleCopy.timeLabel}')
     expect(dashboardSource).toContain("lifecycle === 'active'")
     expect(dashboardSource).toContain('ariaSort={scoreAriaSort}')
     expect(dashboardSource).toContain("const scoreAriaSort = lifecycle === 'active'")
-    expect(dashboardSource).toContain('Undo applied')
+    expect(dashboardSource).not.toContain('Undo applied')
     expect(dashboardSource).not.toContain('Restore')
+  })
+
+  it('loads tracker-backed applied history and pins the exact eight-field contract', () => {
+    expect(appliedApplication).toEqual({
+      applicationId: '11111111-1111-4111-8111-111111111111',
+      company: 'Acme',
+      title: 'Analyst',
+      location: 'Chicago, IL',
+      applyUrl: 'https://example.com/jobs/1',
+      appliedOn: '2026-07-20',
+      currentStage: 'interview',
+      currentStageDate: '2026-07-28',
+    })
+    expect(dashboardSource).toContain('listDashboardAppliedApplications')
+    expect(dashboardSource).toContain("queryKey: ['dashboard-applied-applications']")
+    expect(dashboardSource).toContain("enabled: lifecycle === 'applied'")
+    expect(dashboardSource).toContain('application.appliedOn')
+    expect(dashboardSource).not.toContain('application.currentStageDate}</time>')
+    expect(dashboardSource).not.toMatch(/appliedOn\s*:\s*application\.currentStageDate/)
+  })
+
+  it('renders exactly seven applied snapshot columns and the shared stage treatment', () => {
+    const appliedTableSource = dashboardSource.match(
+      /function AppliedApplicationsTable[\s\S]*?\n}\n\ninterface DashboardProps/,
+    )?.[0] ?? ''
+
+    for (const header of [
+      'Position',
+      'Company',
+      'Location',
+      'Applied date',
+      'Current stage',
+      'Apply link',
+      'Tracker link',
+    ]) {
+      expect(appliedTableSource).toContain(`>${header}</th>`)
+    }
+    expect(appliedTableSource.match(/scope="col"/g)).toHaveLength(7)
+    expect(appliedTableSource).toContain('TRACKER_STAGE_PRESENTATION')
+    expect(appliedTableSource).toContain('application.currentStage')
+    expect(appliedTableSource).toContain('View in Tracker')
+    expect(appliedTableSource).toContain(
+      '`/tracker?application=${encodeURIComponent(application.applicationId)}`',
+    )
+    expect(appliedTableSource).not.toContain('deterministic_score')
+    expect(appliedTableSource).not.toContain('deterministic_tier')
+    expect(appliedTableSource).not.toContain('bestFit')
+    expect(appliedTableSource).not.toContain('jobs.status')
   })
 
   it('uses one native score checkbox group with immediate zero-to-three tier state', () => {
