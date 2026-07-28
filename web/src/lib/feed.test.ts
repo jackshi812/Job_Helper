@@ -17,7 +17,6 @@ import {
   relativePostedTime,
   safeApplyUrl,
   tierPresentation,
-  undoJobApplied,
   type DashboardFeedCursor,
   type DashboardFeedPage,
   type DashboardFeedQuery,
@@ -29,6 +28,7 @@ const queryMock = vi.hoisted(() => {
   const calls: Array<[string, ...unknown[]]> = []
   let rows: FeedRow[] = []
   let rpcData: unknown = []
+  let rpcError: unknown = null
   let routeError: unknown = null
   let routeResponse: unknown = null
   const builder = {
@@ -77,7 +77,7 @@ const queryMock = vi.hoisted(() => {
     from: vi.fn(() => builder),
     rpc: vi.fn(async (...args: unknown[]) => {
       calls.push(['rpc', ...args])
-      return { data: rpcData, error: null }
+      return { data: rpcData, error: rpcError }
     }),
     invoke: vi.fn(async (_name: string, options: { body?: { user_job_ids?: string[] } }) => {
       const ids = options.body?.user_job_ids ?? []
@@ -100,6 +100,11 @@ const queryMock = vi.hoisted(() => {
     },
     setRpcRows(next: unknown) {
       rpcData = next
+      rpcError = null
+      calls.length = 0
+    },
+    setRpcError(next: unknown) {
+      rpcError = next
       calls.length = 0
     },
     setRouteError(next: unknown) {
@@ -585,19 +590,34 @@ describe('Dashboard cursor validation and stable merge', () => {
 })
 
 describe('lifecycle mutations', () => {
-  it('marks applied and permanently dismisses only through the authenticated RPC', async () => {
+  it('marks applied through exactly one tracker RPC and returns its application UUID', async () => {
+    const applicationId = '22222222-2222-4222-8222-222222222222'
+    queryMock.setRpcRows(applicationId)
+
+    await expect(markJobApplied('11111111-1111-4111-8111-111111111111'))
+      .resolves.toBe(applicationId)
+
+    expect(queryMock.calls).toEqual([[
+      'rpc',
+      'mark_job_applied',
+      { p_user_job_id: '11111111-1111-4111-8111-111111111111' },
+    ]])
+    expect(queryMock.from).not.toHaveBeenCalled()
+  })
+
+  it('rejects malformed mark-applied results and propagates database errors', async () => {
+    queryMock.setRpcRows({ application_id: 'not-the-scalar-contract' })
+    await expect(markJobApplied('job-1')).rejects.toThrow('invalid_application_id')
+
+    const databaseError = new Error('mark_job_applied_failed')
+    queryMock.setRpcError(databaseError)
+    await expect(markJobApplied('job-1')).rejects.toBe(databaseError)
+  })
+
+  it('permanently dismisses only through the authenticated RPC', async () => {
     queryMock.setRpcRows(true)
-    queryMock.setRows([])
-    await markJobApplied('job-1')
-    await undoJobApplied('job-1')
     await dismissJob('job-1')
 
-    const updates = queryMock.calls.filter(([method]) => method === 'update')
-    expect(updates[0]?.[1]).toMatchObject({
-      applied_at: expect.any(String),
-      dismissed_at: null,
-    })
-    expect(updates[1]).toEqual(['update', { applied_at: null }])
     expect(queryMock.calls).toContainEqual([
       'rpc',
       'dismiss_job_permanently',
