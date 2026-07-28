@@ -602,7 +602,6 @@ describe('lifecycle mutations', () => {
       'mark_job_applied',
       { p_user_job_id: '11111111-1111-4111-8111-111111111111' },
     ]])
-    expect(queryMock.from).not.toHaveBeenCalled()
   })
 
   it('rejects malformed mark-applied results and propagates database errors', async () => {

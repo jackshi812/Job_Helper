@@ -779,16 +779,15 @@ export async function dismissJob(userJobId: string): Promise<void> {
   if (data !== true) throw new Error('user_job_not_found')
 }
 
-export async function markJobApplied(userJobId: string): Promise<void> {
-  const { error } = await supabase
-    .from('user_jobs')
-    .update({
-      applied_at: new Date().toISOString(),
-      dismissed_at: null,
-    })
-    .eq('id', userJobId)
-
+export async function markJobApplied(userJobId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('mark_job_applied', {
+    p_user_job_id: userJobId,
+  })
   if (error) throw error
+  if (typeof data !== 'string' || !UUID_PATTERN.test(data)) {
+    throw new Error('invalid_application_id')
+  }
+  return data
 }
 
 export async function undoJobApplied(userJobId: string): Promise<void> {

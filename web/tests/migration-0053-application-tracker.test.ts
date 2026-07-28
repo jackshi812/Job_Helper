@@ -33,11 +33,11 @@ describe('migration 0053 — application tracker', () => {
 
   it('uses exactly the six locked tracker stage slugs', () => {
     const stageConstraint = migration0053.match(
-      /constraint applications_stage_check[\s\S]*?\)\s*,/i,
-    )?.[0] ?? ''
+      /constraint applications_stage_check check \(\s*current_stage in \(([\s\S]*?)\)\s*\)/i,
+    )?.[1] ?? ''
     const eventConstraint = migration0053.match(
-      /constraint application_stage_events_stage_check[\s\S]*?\)\s*,/i,
-    )?.[0] ?? ''
+      /constraint application_stage_events_stage_check check \(\s*stage in \(([\s\S]*?)\)\s*\)/i,
+    )?.[1] ?? ''
     for (const stage of STAGES) {
       expect(stageConstraint).toContain(`'${stage}'`)
       expect(eventConstraint).toContain(`'${stage}'`)
@@ -50,12 +50,18 @@ describe('migration 0053 — application tracker', () => {
   it('enforces immutable provenance, bounded manual fields, and safe URLs', () => {
     expect(migration0053).toMatch(/constraint applications_origin_check/i)
     expect(migration0053).toMatch(/constraint applications_manual_fields_check/i)
-    for (const limit of ['200', '300', '2048', '500', '20000', '100000']) {
-      expect(migration0053).toMatch(new RegExp(`char_length\\([^)]+\\)\\s*<=\\s*${limit}`, 'i'))
-    }
-    expect(migration0053).toMatch(/url_scheme\(.*\)\s*=\s*'https'/is)
-    expect(migration0053).toMatch(/url_username\(.*\)\s*=\s*''/is)
-    expect(migration0053).toMatch(/url_password\(.*\)\s*=\s*''/is)
+    expect(migration0053).toMatch(/char_length\(company\)\s*<=\s*200/i)
+    expect(migration0053).toMatch(/char_length\(title\)\s*<=\s*300/i)
+    expect(migration0053).toMatch(/char_length\(apply_url\)\s*<=\s*2048/i)
+    expect(migration0053).toMatch(/char_length\(coalesce\(location, ''\)\)\s*<=\s*500/i)
+    expect(migration0053).toMatch(/char_length\(notes\)\s*<=\s*20000/i)
+    expect(migration0053).toMatch(
+      /char_length\(coalesce\(description_text, ''\)\)\s*<=\s*100000/i,
+    )
+    const urlGuard = functionBody('tracker_https_url_valid')
+    expect(urlGuard).toMatch(/\^https:\/\//i)
+    expect(urlGuard).toMatch(/@\]\+/i)
+    expect(migration0053).toMatch(/applications_job_url_check[\s\S]*tracker_https_url_valid/i)
     expect(migration0053).toMatch(
       /create unique index applications_system_source_unique_idx[\s\S]*where origin = 'system'/i,
     )
@@ -149,10 +155,10 @@ describe('migration 0053 — application tracker', () => {
     expect(body).toMatch(/description_html|snapshot_description_html/i)
     expect(body).toMatch(/description_text|snapshot_description_text/i)
     expect(migration0053).toMatch(
-      /where user_job\.applied_at is not null[\s\S]*insert into public\.applications/i,
+      /insert into public\.applications[\s\S]*where user_job\.applied_at is not null/i,
     )
     expect(migration0053).toMatch(
-      /where user_job\.applied_at is not null[\s\S]*insert into public\.application_stage_events/i,
+      /insert into public\.application_stage_events[\s\S]*where user_job\.applied_at is not null/i,
     )
   })
 
@@ -172,6 +178,6 @@ describe('migration 0053 — application tracker', () => {
     expect(appliedBody).toMatch(
       /stage\s*=\s*'applied'[\s\S]*occurred_on asc[\s\S]*created_at asc[\s\S]*id asc[\s\S]*limit 1/i,
     )
-    expect(appliedBody).toMatch(/url_scheme\([\s\S]*'https'/i)
+    expect(appliedBody).toMatch(/tracker_https_url_valid\(application\.apply_url\)/i)
   })
 })
