@@ -39,7 +39,7 @@ import {
 } from '../lib/tracker'
 
 const CELL_INPUT =
-  'min-h-11 min-w-0 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus-visible:outline-zinc-100'
+  'min-h-9 min-w-0 w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus-visible:outline-zinc-100'
 const OUTLINE_BUTTON =
   'min-h-11 rounded-md border border-zinc-300 px-3 py-2 text-sm font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100'
 const PRIMARY_BUTTON =
@@ -95,7 +95,7 @@ function SaveFeedback({
           type="button"
           aria-label="Retry saving"
           onClick={onRetry}
-          className="min-h-11 font-semibold underline underline-offset-4"
+          className="min-h-9 font-semibold underline underline-offset-4"
         >
           Retry
         </button>
@@ -286,12 +286,12 @@ function TrackerRow({
   return (
     <>
       <tr
-        className={`min-h-11 border-l-4 ${presentation.accentClass} ${presentation.tintClass} hover:bg-zinc-50 focus-within:bg-zinc-50 dark:hover:bg-zinc-800/50 dark:focus-within:bg-zinc-800/50`}
+        className={`min-h-9 border-l-4 ${presentation.accentClass} ${presentation.tintClass} hover:bg-zinc-50 focus-within:bg-zinc-50 dark:hover:bg-zinc-800/50 dark:focus-within:bg-zinc-800/50`}
       >
-        <td className="px-1 py-2 text-center text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+        <td className="px-1 py-1 text-center text-lg font-bold text-zinc-600 dark:text-zinc-300">
           {rowNumber}
         </td>
-        <td className="px-1 py-2 text-center">
+        <td className="px-1 py-1 text-center">
           <button
             ref={registerExpandButton}
             type="button"
@@ -299,12 +299,12 @@ function TrackerRow({
             aria-controls={detailId}
             aria-label={`${expanded ? 'Hide' : 'Show'} details for ${application.title}`}
             onClick={onToggleExpanded}
-            className="min-h-11 min-w-11 rounded-md text-lg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
+            className="min-h-9 min-w-9 rounded-md text-2xl leading-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
           >
             <span aria-hidden="true">{expanded ? '⌄' : '›'}</span>
           </button>
         </td>
-        <td className="px-1 py-2 text-center">
+        <td className="px-1 py-1 text-center">
           <button
             type="button"
             aria-pressed={pinDraft}
@@ -315,12 +315,12 @@ function TrackerRow({
               setPinDraft(next)
               pinMutation.mutate(next)
             }}
-            className="min-h-11 min-w-11 rounded-md text-2xl leading-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 disabled:opacity-60 dark:focus-visible:outline-zinc-100"
+            className="min-h-9 min-w-9 rounded-md text-3xl leading-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 disabled:opacity-60 dark:focus-visible:outline-zinc-100"
           >
             <span aria-hidden="true">{pinDraft ? '★' : '☆'}</span>
           </button>
         </td>
-        <td className="min-w-0 break-words px-2 py-2">
+        <td className="min-w-0 break-words px-2 py-1">
           {application.origin === 'manual' ? (
             <>
               <label className="sr-only" htmlFor={`company-${application.id}`}>
@@ -345,7 +345,7 @@ function TrackerRow({
             application.company
           )}
         </td>
-        <td className="min-w-0 break-words px-2 py-2">
+        <td className="min-w-0 break-words px-2 py-1">
           <div className="flex min-w-0 items-center gap-1.5">
             {application.resumeId ? (
               <span
@@ -391,7 +391,7 @@ function TrackerRow({
             )}
           </div>
         </td>
-        <td className="min-w-0 px-2 py-2">
+        <td className="min-w-0 px-2 py-1">
           <label className="sr-only" htmlFor={`stage-${application.id}`}>Stage</label>
           <select
             id={`stage-${application.id}`}
@@ -402,14 +402,14 @@ function TrackerRow({
               setStageDraft(next)
               stageMutation.mutate(next)
             }}
-            className={`min-h-11 w-full rounded-full border px-2 py-1 text-xs font-semibold ${TRACKER_STAGE_PRESENTATION[stageDraft].badgeClass}`}
+            className={`min-h-9 w-full rounded-full border px-2 py-1 text-xs font-semibold ${TRACKER_STAGE_PRESENTATION[stageDraft].badgeClass}`}
           >
             {TRACKER_STAGES.map((stage) => (
               <option key={stage.slug} value={stage.slug}>{stage.label}</option>
             ))}
           </select>
         </td>
-        <td className="min-w-0 px-2 py-2">
+        <td className="min-w-0 px-2 py-1">
           <label className="sr-only" htmlFor={`date-${application.id}`}>Stage date</label>
           <input
             id={`date-${application.id}`}
@@ -428,13 +428,12 @@ function TrackerRow({
             className={CELL_INPUT}
           />
         </td>
-        <td className="min-w-0 px-2 py-2">
+        <td className="min-w-0 px-2 py-1">
           <label className="sr-only" htmlFor={`notes-${application.id}`}>Notes</label>
           <textarea
             id={`notes-${application.id}`}
             rows={1}
             value={notesDraft}
-            placeholder="Add contacts, follow-ups, interview details, or next steps."
             onChange={(event) => setNotesDraft(event.target.value)}
             onBlur={() => {
               if (notesDraft !== application.notes) notesMutation.mutate(notesDraft)
@@ -448,7 +447,7 @@ function TrackerRow({
           />
           <span className="sr-only">{notesPreview(notesDraft)}</span>
         </td>
-        <td className="min-w-0 px-2 py-2 text-right">
+        <td className="min-w-0 px-2 py-1 text-right">
           <div className="flex items-center justify-end gap-1.5">
             {lastSaveMutation ? (
               <SaveFeedback
@@ -463,7 +462,7 @@ function TrackerRow({
             <button
               type="button"
               onClick={onRequestDelete}
-              className="min-h-11 rounded-md px-2 text-xs font-semibold text-red-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 dark:text-red-400"
+              className="min-h-9 rounded-md px-2 text-xs font-semibold text-red-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-700 dark:text-red-400"
             >
               Delete
             </button>
@@ -635,7 +634,6 @@ function TrackerDetailRow({
                   id={`detail-notes-${application.id}`}
                   rows={7}
                   value={detailNotes}
-                  placeholder="Add contacts, follow-ups, interview details, or next steps."
                   onChange={(event) => setDetailNotes(event.target.value)}
                   onBlur={() => {
                     if (detailNotes !== detail.notes) {
@@ -869,7 +867,7 @@ function ManualDraftRow({
 
   return (
     <tr className="border-l-4 border-l-zinc-300 bg-zinc-50/40 align-top dark:border-l-zinc-600 dark:bg-zinc-950/20">
-      <td className="px-1 py-3 text-center text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+      <td className="px-1 py-3 text-center text-base font-bold text-zinc-600 dark:text-zinc-300">
         New
       </td>
       <td className="px-1 py-3" />
@@ -959,7 +957,6 @@ function ManualDraftRow({
           id="draft-notes"
           rows={3}
           value={draft.notes}
-          placeholder="Add contacts, follow-ups, interview details, or next steps."
           onChange={(event) => updateDraft('notes', event.target.value)}
           className={`${CELL_INPUT} resize-none`}
         />
@@ -1181,7 +1178,7 @@ export function Tracker() {
             </button>
           </div>
         ) : applications.length > 0 || draftVisible ? (
-          <table className="w-full table-fixed border-collapse text-left text-sm">
+          <table className="w-full table-fixed border-collapse text-left text-xs">
             <colgroup>
               <col style={{ width: '3%' }} />
               <col style={{ width: '3%' }} />
@@ -1195,7 +1192,7 @@ export function Tracker() {
             </colgroup>
             <thead className="sticky top-0 z-20 border-b border-zinc-200 bg-zinc-50 text-xs font-semibold tracking-wide text-zinc-600 uppercase dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
               <tr>
-                <th scope="col" className="px-1 py-2 text-center">#</th>
+                <th scope="col" className="px-1 py-2 text-center text-base">#</th>
                 <th scope="col" aria-label="Expand" className="px-1 py-2" />
                 <th scope="col" aria-label="Pin" className="px-1 py-2" />
                 <th scope="col" className="px-2 py-2">Company</th>

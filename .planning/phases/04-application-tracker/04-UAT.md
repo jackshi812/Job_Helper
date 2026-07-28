@@ -1,14 +1,21 @@
 ---
-status: complete
+status: testing
 phase: 04-application-tracker
 source: [04-VERIFICATION.md]
 started: 2026-07-28T16:56:12Z
-updated: 2026-07-28T19:31:02Z
+updated: 2026-07-28T19:33:07Z
 ---
 
 ## Current Test
 
-[testing complete]
+number: 5
+name: Final compact row scale
+expected: |
+  Refresh the signed-in Tracker. Application rows and their text fields are
+  about 25% shorter with smaller text, Notes fields have no placeholder
+  caption, and the star, row number, and expand arrow remain larger and easy
+  to distinguish.
+awaiting: owner response
 
 ## Tests
 
@@ -33,12 +40,17 @@ previous_reported: "The row is a bit too wide now. just make it a bit bigger tha
 fix_commit: 4b29033a7733f199943794b8f9456c4a0031cf5d
 release_commit: 4b29033a7733f199943794b8f9456c4a0031cf5d
 
+### 5. Final compact row scale
+expected: Application rows and their text fields are about 25% shorter with smaller text, Notes fields have no placeholder caption, and the star, row number, and expand arrow remain larger and easy to distinguish.
+result: pending
+previous_reported: "still make the text box and each line smaller. no need to include captions in the notes chat box, enlarge the star. index and the expand button; font size also smaller; just a bit smaller 25%"
+
 ## Summary
 
-total: 4
+total: 5
 passed: 4
 issues: 0
-pending: 0
+pending: 1
 skipped: 0
 blocked: 0
 
@@ -143,6 +155,24 @@ blocked: 0
   resolution: "Primary navigation is exactly Watchlist Jobs, All Jobs, Tracker, Resumes, Preferences, Settings; the standalone Watchlist route remains non-primary."
   fix_commit: "9747a3988b055db5383fca96cb16f3ac0f62752f"
   release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
+  debug_session: "inline Phase 04 UAT diagnosis, 2026-07-28"
+
+- truth: "Tracker rows and fields are roughly 25% more compact, Notes has no placeholder caption, and the star, index, and expand arrow remain prominent."
+  status: resolved_pending_uat
+  reason: "User requested one more approximately 25% density reduction, smaller row text, removal of Notes captions, and larger star/index/expand affordances."
+  severity: minor
+  test: 5
+  root_cause: "The prior compact pass retained 44px controls, text-sm cell typography, standard vertical padding, and visible Notes placeholder copy; the expand and index glyphs were still smaller than the requested emphasis."
+  artifacts:
+    - path: "web/src/pages/Tracker.tsx"
+      issue: "Main-row controls, padding, typography, Notes placeholders, and glyph emphasis needed a second bounded density adjustment."
+    - path: "web/src/pages/Tracker.test.tsx"
+      issue: "The final scale and placeholder-free Notes contract needed explicit regression assertions."
+  missing:
+    - "Use 36px controls and half-sized vertical cell padding for an overall row reduction near 25%."
+    - "Use text-xs row/input typography and remove Notes placeholder captions."
+    - "Use text-3xl star, text-lg bold index, and text-2xl expand arrow."
+  resolution: "Main rows now use 36px controls, py-1 cells, text-xs typography, caption-free Notes fields, and deliberately larger star/index/expand glyphs."
   debug_session: "inline Phase 04 UAT diagnosis, 2026-07-28"
 
 - truth: "Tracker rows remain compact, show a larger pin star, and include visible row numbering."
