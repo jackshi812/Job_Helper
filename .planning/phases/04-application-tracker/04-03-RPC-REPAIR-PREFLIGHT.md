@@ -1,6 +1,6 @@
 # Phase 04 Plan 03 Mark Applied RPC Repair Preflight
 
-**Status:** PASS — read-only inventory and dry run complete; production unchanged.
+**Status:** CONSUMED — exact owner-approved migration 0054 installed; post-repair catalog PASS.
 
 ## Failure evidence
 
@@ -63,6 +63,10 @@ repository diff check.
 `approve Phase 04 tracker RPC repair push target=fjcsvajkkztvlrpdplwx source_commit=62e97831eb61b28aa46c0d86657b1d55e94848aa repair_migration=0054_mark_job_applied_ambiguity.sql migration_sha256=111fc68f01dd0658cd2536c4fb6abfd99ba25179e70b98ef158e3ab22753a5c3 schema_verifier_sha256=74216fdc290a863b1e1f756e665b99f657795aad45f8d2ceafdb87a999c77349 behavior_verifier_sha256=3c1ceec5ba40767816cf5aea78c748bf8c7ad760b36c713cb814e87300555d14 repair_test_sha256=b62077aac38f8c8cdcd42fc285323d65a2ccad14ced45992f6844130733855c0 schema_test_sha256=2a6440be77a657f26268372b4d7c39eed842791661fe5d9dec7077d54230dfe0 behavior_test_sha256=06cbed496c8fe2131766609e3046faf9e2f8abb4add31da93f627456e5426f76 dry_run_sha256=1f4f10036260b7d79085325475757b483c1429d54e1c0ad9f5316333018319c4`
 
 Replying `defer Phase 04 tracker RPC repair push` leaves production unchanged.
+
+The exact approval was consumed on 2026-07-28. The push installed only
+`0054_mark_job_applied_ambiguity.sql`; remote order was then verified exact
+through 0054, followed by a PASS from the hosted catalog/function/ACL verifier.
 
 <!-- tracker-repair-preflight-json
 {

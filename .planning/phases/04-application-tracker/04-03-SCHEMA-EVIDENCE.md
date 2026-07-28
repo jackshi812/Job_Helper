@@ -1,23 +1,25 @@
 # Phase 04 Plan 03 Hosted Tracker Schema Evidence
 
-**Status:** SUPERSEDED — hosted behavior exposed PostgreSQL 42702; migration 0054 repair approval is pending.
+**Status:** CATALOG PASS — awaiting exact approval for the repaired hosted behavior proof.
 
 ## Post-push identity
 
 - Linked project: `fjcsvajkkztvlrpdplwx`
-- Source commit: `64d5df54f5165697e36eb6a3c46f037c6e118fb7`
-- Migration version: `0053`
+- Source commit: `62e97831eb61b28aa46c0d86657b1d55e94848aa`
+- Migration version: `0054`
 - Migration SHA-256: `7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0`
-- Schema verifier SHA-256: `e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26`
-- Behavior verifier SHA-256: `3c6e396d7de9593667f9d14882794136268fdf1f2216cc8b90c4ee1947fe4fcf`
-- Schema verifier test SHA-256: `fa350e883dbf64fb405db93f13e46e1e64e85f4ae3dd0e72288440ec66007ffd`
-- Behavior verifier test SHA-256: `c844defdbe665b8aaaa34451841d630f8625c599a24d594f01b2082e461d2e09`
+- Repair migration SHA-256: `111fc68f01dd0658cd2536c4fb6abfd99ba25179e70b98ef158e3ab22753a5c3`
+- Schema verifier SHA-256: `74216fdc290a863b1e1f756e665b99f657795aad45f8d2ceafdb87a999c77349`
+- Behavior verifier SHA-256: `3c1ceec5ba40767816cf5aea78c748bf8c7ad760b36c713cb814e87300555d14`
+- Repair migration test SHA-256: `b62077aac38f8c8cdcd42fc285323d65a2ccad14ced45992f6844130733855c0`
+- Schema verifier test SHA-256: `2a6440be77a657f26268372b4d7c39eed842791661fe5d9dec7077d54230dfe0`
+- Behavior verifier test SHA-256: `06cbed496c8fe2131766609e3046faf9e2f8abb4add31da93f627456e5426f76`
 - Fixture manifest SHA-256: `8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77`
-- Catalog evidence SHA-256: `be5392f7e4f23593bd95331dc993aa0360424d990d5215bff8a37e301fe93758`
-- Hosted catalog SHA-256: `38884034a76d38f1fb3379d228961c5db39d527029b62bd55a6fa084763c2bce`
+- Catalog evidence SHA-256: `c208d0aa04760fe91c5f76c35615333a5f417efb7ac09ba94b98b8a45d4a1d03`
+- Hosted catalog SHA-256: `38674105a76d6ff94e2ae00d5b41409bf5315981dcc2290d983bcecde81d0d3b`
 - Behavior scope SHA-256: `a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51`
 - Scoped source dirty inventory: empty
-- Catalog checked at: `2026-07-28T14:32:06.730Z`
+- Catalog checked at: `2026-07-28T14:49:14.328Z`
 
 ## Verifier repair and timeout instrumentation
 
@@ -45,11 +47,18 @@
   preservation of the first proof failure. GREEN commit `64d5df5` implements
   that diagnostic contract without retaining response bodies, messages,
   details, hints, endpoints, fixture values, or credentials.
+- The next approved proof retained PostgreSQL code `42702` at the first Mark
+  Applied RPC. Guarded cleanup and an independent audit restored zero residue.
+- RED commit `9a90ab2` binds a forward-only repair. GREEN commit `62e9783`
+  adds sole-pending migration 0054, replacing only `mark_job_applied(uuid)`
+  and renaming the colliding variable to `target_application_id`.
+- The exact owner-approved migration 0054 push succeeded. Remote order is
+  exact through 0054, and the post-repair catalog/function/ACL verifier passed.
 - Migration 0053, the schema verifier, schema verifier tests, fixture manifest,
   behavior scope counts, lineage constraints, and cleanup boundaries are
   unchanged.
-- Focused tracker gate: PASS — 3 files, 23 tests.
-- Full local gate: PASS — 71 files, 1477 tests.
+- Focused repair gate: PASS — 3 files, 17 tests.
+- Full local gate: PASS — 72 files, 1480 tests.
 - Production build: PASS.
 - Lint: PASS with two pre-existing warnings outside this repair.
 - Repository diff check: PASS.
@@ -57,8 +66,8 @@
 ## Read-only hosted proof
 
 - Supabase CLI: `2.109.1`
-- Independent linked migration inventory: exact through `0053`
-- Migration push during this continuation: no
+- Independent linked migration inventory: exact through `0054`
+- Migration push during this continuation: owner-approved 0054 only
 - Catalog verifier result: PASS
 - Catalog evidence digest recomputation: PASS
 - Tables: `2`; columns: `24`; constraints: `11`; indexes: `9`;
@@ -136,12 +145,7 @@ drift blocks behavior and later Phase 04 plans.
 
 ## Exact approval signal
 
-The behavior approval below was consumed by the failed proof and is no longer
-valid because migration 0054 and both verifiers now have different bytes. The
-current production action is bound exclusively by
-`04-03-RPC-REPAIR-PREFLIGHT.md`.
-
-`approve Phase 04 tracker behavior verification target=fjcsvajkkztvlrpdplwx source_commit=64d5df54f5165697e36eb6a3c46f037c6e118fb7 migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 schema_verifier_sha256=e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26 behavior_verifier_sha256=3c6e396d7de9593667f9d14882794136268fdf1f2216cc8b90c4ee1947fe4fcf schema_test_sha256=fa350e883dbf64fb405db93f13e46e1e64e85f4ae3dd0e72288440ec66007ffd behavior_test_sha256=c844defdbe665b8aaaa34451841d630f8625c599a24d594f01b2082e461d2e09 fixture_manifest_sha256=8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77 catalog_evidence_sha256=be5392f7e4f23593bd95331dc993aa0360424d990d5215bff8a37e301fe93758 behavior_scope_sha256=a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51 auth_users=2 companies=1 jobs=1 user_jobs=2 resumes=2 runtime_applications=4 runtime_events=5 source_rows_removed=1 cleanup_relations=7`
+`approve Phase 04 tracker behavior verification target=fjcsvajkkztvlrpdplwx source_commit=62e97831eb61b28aa46c0d86657b1d55e94848aa migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 repair_migration_sha256=111fc68f01dd0658cd2536c4fb6abfd99ba25179e70b98ef158e3ab22753a5c3 schema_verifier_sha256=74216fdc290a863b1e1f756e665b99f657795aad45f8d2ceafdb87a999c77349 behavior_verifier_sha256=3c1ceec5ba40767816cf5aea78c748bf8c7ad760b36c713cb814e87300555d14 repair_test_sha256=b62077aac38f8c8cdcd42fc285323d65a2ccad14ced45992f6844130733855c0 schema_test_sha256=2a6440be77a657f26268372b4d7c39eed842791661fe5d9dec7077d54230dfe0 behavior_test_sha256=06cbed496c8fe2131766609e3046faf9e2f8abb4add31da93f627456e5426f76 fixture_manifest_sha256=8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77 catalog_evidence_sha256=c208d0aa04760fe91c5f76c35615333a5f417efb7ac09ba94b98b8a45d4a1d03 behavior_scope_sha256=a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51 auth_users=2 companies=1 jobs=1 user_jobs=2 resumes=2 runtime_applications=4 runtime_events=5 source_rows_removed=1 cleanup_relations=7`
 
 Replying `defer Phase 04 tracker behavior verification` leaves production
 unchanged and performs no service-authority discovery or hosted mutation.
@@ -149,22 +153,24 @@ unchanged and performs no service-authority discovery or hosted mutation.
 <!-- tracker-preflight-json
 {
   "status": "PASS",
-  "created_at": "2026-07-28T14:32:06Z",
+  "created_at": "2026-07-28T14:49:14Z",
   "project_ref": "fjcsvajkkztvlrpdplwx",
-  "source_commit": "64d5df54f5165697e36eb6a3c46f037c6e118fb7",
+  "source_commit": "62e97831eb61b28aa46c0d86657b1d55e94848aa",
   "scoped_source_dirty_inventory": [],
   "migration": "supabase/migrations/0053_application_tracker.sql",
   "migration_sha256": "7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0",
-  "schema_verifier_sha256": "e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26",
-  "behavior_verifier_sha256": "3c6e396d7de9593667f9d14882794136268fdf1f2216cc8b90c4ee1947fe4fcf",
-  "schema_test_sha256": "fa350e883dbf64fb405db93f13e46e1e64e85f4ae3dd0e72288440ec66007ffd",
-  "behavior_test_sha256": "c844defdbe665b8aaaa34451841d630f8625c599a24d594f01b2082e461d2e09",
+  "repair_migration_sha256": "111fc68f01dd0658cd2536c4fb6abfd99ba25179e70b98ef158e3ab22753a5c3",
+  "schema_verifier_sha256": "74216fdc290a863b1e1f756e665b99f657795aad45f8d2ceafdb87a999c77349",
+  "behavior_verifier_sha256": "3c1ceec5ba40767816cf5aea78c748bf8c7ad760b36c713cb814e87300555d14",
+  "schema_test_sha256": "2a6440be77a657f26268372b4d7c39eed842791661fe5d9dec7077d54230dfe0",
+  "behavior_test_sha256": "06cbed496c8fe2131766609e3046faf9e2f8abb4add31da93f627456e5426f76",
+  "repair_test_sha256": "b62077aac38f8c8cdcd42fc285323d65a2ccad14ced45992f6844130733855c0",
   "fixture_manifest_sha256": "8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77",
-  "catalog_evidence_sha256": "be5392f7e4f23593bd95331dc993aa0360424d990d5215bff8a37e301fe93758",
-  "hosted_catalog_sha256": "38884034a76d38f1fb3379d228961c5db39d527029b62bd55a6fa084763c2bce",
+  "catalog_evidence_sha256": "c208d0aa04760fe91c5f76c35615333a5f417efb7ac09ba94b98b8a45d4a1d03",
+  "hosted_catalog_sha256": "38674105a76d6ff94e2ae00d5b41409bf5315981dcc2290d983bcecde81d0d3b",
   "behavior_scope_sha256": "a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51",
-  "remote_migration_tail": ["0050", "0051", "0052", "0053"],
-  "installed_migration": "0053_application_tracker.sql",
+  "remote_migration_tail": ["0051", "0052", "0053", "0054"],
+  "installed_migration": "0054_mark_job_applied_ambiguity.sql",
   "legacy_applied_count": 0,
   "expected_counts": {
     "auth_users": 2,
@@ -191,6 +197,6 @@ unchanged and performs no service-authority discovery or hosted mutation.
     "public.companies",
     "auth.users"
   ],
-  "approval_signal": "approve Phase 04 tracker behavior verification target=fjcsvajkkztvlrpdplwx source_commit=64d5df54f5165697e36eb6a3c46f037c6e118fb7 migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 schema_verifier_sha256=e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26 behavior_verifier_sha256=3c6e396d7de9593667f9d14882794136268fdf1f2216cc8b90c4ee1947fe4fcf schema_test_sha256=fa350e883dbf64fb405db93f13e46e1e64e85f4ae3dd0e72288440ec66007ffd behavior_test_sha256=c844defdbe665b8aaaa34451841d630f8625c599a24d594f01b2082e461d2e09 fixture_manifest_sha256=8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77 catalog_evidence_sha256=be5392f7e4f23593bd95331dc993aa0360424d990d5215bff8a37e301fe93758 behavior_scope_sha256=a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51 auth_users=2 companies=1 jobs=1 user_jobs=2 resumes=2 runtime_applications=4 runtime_events=5 source_rows_removed=1 cleanup_relations=7"
+  "approval_signal": "approve Phase 04 tracker behavior verification target=fjcsvajkkztvlrpdplwx source_commit=62e97831eb61b28aa46c0d86657b1d55e94848aa migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 repair_migration_sha256=111fc68f01dd0658cd2536c4fb6abfd99ba25179e70b98ef158e3ab22753a5c3 schema_verifier_sha256=74216fdc290a863b1e1f756e665b99f657795aad45f8d2ceafdb87a999c77349 behavior_verifier_sha256=3c1ceec5ba40767816cf5aea78c748bf8c7ad760b36c713cb814e87300555d14 repair_test_sha256=b62077aac38f8c8cdcd42fc285323d65a2ccad14ced45992f6844130733855c0 schema_test_sha256=2a6440be77a657f26268372b4d7c39eed842791661fe5d9dec7077d54230dfe0 behavior_test_sha256=06cbed496c8fe2131766609e3046faf9e2f8abb4add31da93f627456e5426f76 fixture_manifest_sha256=8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77 catalog_evidence_sha256=c208d0aa04760fe91c5f76c35615333a5f417efb7ac09ba94b98b8a45d4a1d03 behavior_scope_sha256=a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51 auth_users=2 companies=1 jobs=1 user_jobs=2 resumes=2 runtime_applications=4 runtime_events=5 source_rows_removed=1 cleanup_relations=7"
 }
 tracker-preflight-json -->
