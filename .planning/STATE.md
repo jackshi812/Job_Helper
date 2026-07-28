@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 04
 current_phase_name: Application Tracker
 status: in_progress
-stopped_at: 04-03-PLAN.md final two-user behavior verification approval checkpoint
-last_updated: "2026-07-28T16:01:23Z"
+stopped_at: 04-04-PLAN.md ready to execute
+last_updated: "2026-07-28T16:09:35Z"
 last_activity: 2026-07-28
-last_activity_desc: Phase 04-03 migration 0055 and zero-residue cleanup verified; hosted catalog PASS awaits final behavior approval
+last_activity_desc: Phase 04-03 complete with migrations 0053-0055, catalog and ordinary behavior PASS, and independently verified zero residue
 progress:
   total_phases: 15
   completed_phases: 14
   total_plans: 86
-  completed_plans: 84
-  percent: 98
+  completed_plans: 85
+  percent: 99
 ---
 
 # Project State
@@ -29,17 +29,17 @@ See: .planning/PROJECT.md (updated 2026-07-27)
 ## Current Position
 
 Phase: 04 (Application Tracker) — IN PROGRESS
-Plan: 3 of 5
-Status: Awaiting exact owner approval for final two-user hosted behavior verification
-Last activity: 2026-07-28 — migration 0055 installed, exceptional cleanup zero-residue, catalog/RLS/function proof PASS
+Plan: 4 of 5
+Status: Ready to execute Plan 04-04
+Last activity: 2026-07-28 — hosted tracker catalog and two-user behavior PASS with exact cleanup recovery and zero residue
 
-Progress: [██████████] 98%
+Progress: [██████████] 99%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 53
+- Total plans completed: 54
 - Average duration: 23m
 - Total execution time: 1665m
 
@@ -305,6 +305,8 @@ Recent decisions affecting current work:
 - [Phase 04]: System tracker membership is immutable provenance keyed by owner and source job — Later stage changes must never return a tracked job to Active.
 - [Phase 04]: Application current stage and date are database-derived from the latest chronological event — This prevents a second lifecycle authority and makes event correction deterministic.
 - [Phase 04]: Owner approved only checksum-identical migration 0053, catalog-before-behavior verification, and the manifest-bound disposable two-user proof for target fjcsvajkkztvlrpdplwx. — Plan 04-02 remained read-only; Plan 04-03 must recompute the immutable envelope before any production mutation.
+- [Phase 04]: Deployed tracker defects are repaired only through forward migrations 0054 and 0055; deployed migration 0053 remains immutable.
+- [Phase 04]: Auth Admin timeout recovery is acceptable only after exact manifest identity checks, zero public/storage preconditions, exact two-user deletion, two independent 404 reads, and zero relation residue.
 
 ### Pending Todos
 
@@ -350,8 +352,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-28T16:01:23Z
-Stopped at: Phase 04-03 final two-user behavior proof awaiting exact owner approval
+Last session: 2026-07-28T16:09:35Z
+Stopped at: Phase 04-04 ready to execute after Phase 04-03 hosted proof PASS
 Resume file: .planning/phases/04-application-tracker/.continue-here.md
 Last session (2026-07-26): Phase 03.8 selective Workday recovery completed; all four requested companies are Active at 3/3 with successful natural polls, 176 exact-scope jobs, migration 0044 parity, protected sources intact, and zero verifier residue.
 Earlier Phase 03.8 closeout (superseded by the recovery above): all four new Workday candidates were precise Unsupported with zero authority; migrations/functions matched that approved release, verifier cleanup was zero-residue, and owner UAT passed.

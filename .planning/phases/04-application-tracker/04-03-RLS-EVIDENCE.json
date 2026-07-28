@@ -1,0 +1,73 @@
+{
+  "status": "PASS",
+  "checked_at": "2026-07-28T16:06:28Z",
+  "catalog_evidence_sha256": "8ee9400b4f8a2b6936dd5fa36b706051df701c642e910a30bbf65719f5e12991",
+  "migration_sha256": "7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0",
+  "repair_migration_sha256": "111fc68f01dd0658cd2536c4fb6abfd99ba25179e70b98ef158e3ab22753a5c3",
+  "behavior_repair_migration_sha256": "d468c3b6dd019006bd856001eed6209a3547072c9091ad3b101125ee33267bf3",
+  "schema_verifier_sha256": "3d2d22852dc8543e66bd7df556acff1f0d121a602cc17d6731f4920c6ae57e2e",
+  "behavior_verifier_sha256": "721a25b8d193ada2b3a6a69866e710a3d7dcf2943abdd285f9fb0ce038e0f7ea",
+  "fixture_manifest_sha256": "8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77",
+  "checks": {
+    "exact_manifest": true,
+    "catalog_before_behavior": true,
+    "privileged_key_memory_only": true,
+    "two_ordinary_sessions": true,
+    "mark_applied_idempotent": true,
+    "manual_six_parameter_two_result": true,
+    "duplicate_warning_nonblocking": true,
+    "cross_user_table_and_rpc_isolation": true,
+    "resume_owner_and_delete_behavior": true,
+    "final_event_rejection": true,
+    "source_loss_snapshot_survival": true,
+    "dashboard_eight_column_projection": true,
+    "earliest_applied_stable": true,
+    "exact_cleanup": true,
+    "zero_residue": true
+  },
+  "counts": {
+    "directly_seeded_auth_users": 2,
+    "directly_seeded_companies": 1,
+    "directly_seeded_jobs": 1,
+    "directly_seeded_user_jobs": 2,
+    "directly_seeded_resumes": 2,
+    "runtime_applications": 4,
+    "runtime_events": 5,
+    "source_rows_removed_during_proof": 1,
+    "cleanup_relations": 7
+  },
+  "residue_counts": {
+    "public.application_stage_events": 0,
+    "public.applications": 0,
+    "public.user_jobs": 0,
+    "public.resumes": 0,
+    "public.jobs": 0,
+    "public.companies": 0,
+    "auth.users": 0
+  },
+  "supplemental_residue_counts": {
+    "public.user_jobs_for_fixture_job": 0,
+    "storage.objects": 0
+  },
+  "cleanup_recovery": {
+    "original_command_exit": "FAIL_CLOSED",
+    "failure_step": "cleanup.auth.delete.b",
+    "failure_kind": "TimeoutError",
+    "elapsed_ms": 30004,
+    "guarded_sql_fallback": {
+      "manifest_identities": 2,
+      "public_fixture_rows_before_delete": 0,
+      "storage_objects_before_delete": 0,
+      "deleted_auth_users": 2
+    },
+    "independent_auth_absence": {
+      "exact_users": 2,
+      "http_statuses": [
+        404,
+        404
+      ]
+    },
+    "independent_relation_audit": true
+  },
+  "behavior_evidence_sha256": "9741a8a3aa2c5292f97d853d714cf4f2d7998b8c1442204dc5beab1440b07e9b"
+}

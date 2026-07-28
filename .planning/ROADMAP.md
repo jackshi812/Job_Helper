@@ -566,7 +566,7 @@ Plans:
   4. A system-discovered application retains its captured JD snapshot; a manual entry can preserve the job-description context supplied by the user
   5. A tracked application can optionally link to a resume the user prepared manually outside the app, and the existing Dashboard Applied action uses the same tracker lifecycle rather than creating a competing state
 
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 **UI hint**: yes
 
 Plans:
@@ -581,7 +581,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 approval)*
 
-- [ ] 04-03-PLAN.md — Push migration 0053, prove exact hosted catalogs, then prove ordinary-user isolation with zero fixture residue
+- [x] 04-03-PLAN.md — Push migration 0053, prove exact hosted catalogs, then prove ordinary-user isolation with zero fixture residue
 
 **Wave 4** *(blocked on hosted schema/security proof)*
 
