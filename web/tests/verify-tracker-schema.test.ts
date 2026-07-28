@@ -135,5 +135,13 @@ describe('tracker schema verifier contract', () => {
     )
     expect(verifierSource).toMatch(/behavior_repair_migration_sha256/)
     expect(verifierSource).toMatch(/hosted migration 0055 is absent/)
+    expect(verifierSource).toContain("'ranking_item_count < 1'")
+    expect(verifierSource).toContain("'ranking_item_count > 64'")
+    expect(verifierSource).toContain(
+      "'ranking_pending_count + ranking_completed_count <> ranking_item_count'",
+    )
+    expect(verifierSource).toContain(
+      "'ranking_run_count <> ranking_item_count'",
+    )
   })
 })
