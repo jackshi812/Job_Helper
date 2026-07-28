@@ -81,6 +81,12 @@ export function dashboardCompanyOptions(rows: readonly FeedRow[]): CompanyOption
     .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }))
 }
 
+export function dashboardWatchlistCompanyOptions(
+  rows: readonly FeedRow[],
+): CompanyOption[] {
+  return dashboardCompanyOptions(dashboardSourceRows(rows, 'watchlist'))
+}
+
 export function searchCompanyOptions(
   options: readonly CompanyOption[],
   query: string,

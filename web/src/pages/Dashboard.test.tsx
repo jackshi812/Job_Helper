@@ -118,6 +118,18 @@ vi.mock('@tanstack/react-query', () => ({
     if (queryKey[0] === 'dashboard-companies') {
       return { data: [{ key: 'acme', label: 'Acme', count: 1 }], error: null, isPending: false }
     }
+    if (queryKey[0] === 'dashboard-watchlist-company-rows') {
+      return {
+        data: {
+          rows: [row, externalRow],
+          nextCursor: null,
+          hasMore: false,
+          caughtUp: true,
+        },
+        error: null,
+        isPending: false,
+      }
+    }
     if (queryKey[0] === 'ranking-state') {
       return {
         data: {
@@ -192,6 +204,12 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('dashboardFeedQueryKey(feedRequest)')
     expect(dashboardSource).toContain('listFeedPage(feedRequest, pageParam)')
     expect(dashboardSource).toContain('listDashboardCompanyOptions(feedRequest)')
+    expect(dashboardSource).toContain('listFeedPage(watchlistCompanySourceRequest)')
+    expect(dashboardSource).toContain('appliedHiddenKeys: new Set()')
+    expect(dashboardSource).toContain('selectedTiers: new Set(ALL_SCORE_TIERS)')
+    expect(dashboardSource).toContain(
+      'dashboardWatchlistCompanyOptions(watchlistCompanyRowsQuery.data?.rows ?? [])',
+    )
     expect(dashboardSource).toContain("scope === 'watchlist'")
     expect(dashboardSource).toContain('dashboardSourceRows(allRows, scope)')
     expect(dashboardSource).toContain('appliedHiddenKeys')

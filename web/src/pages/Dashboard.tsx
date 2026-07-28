@@ -30,11 +30,11 @@ import {
   buildDashboardFeedQuery,
   clearAllCompanies,
   copyHiddenCompanyKeys,
-  dashboardCompanyOptions,
   dashboardFeedQueryKey,
   dashboardLifecycleCopy,
   dashboardLifecycleTimestamp,
   dashboardSourceRows,
+  dashboardWatchlistCompanyOptions,
   searchCompanyOptions,
   scoreTierSummary,
   selectAllCompanies,
@@ -399,6 +399,15 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
     }),
     [lifecycle, activeOrder, appliedHiddenKeys, selectedTiers],
   )
+  const watchlistCompanySourceRequest = useMemo(
+    () => buildDashboardFeedQuery({
+      lifecycle,
+      activeOrder,
+      appliedHiddenKeys: new Set(),
+      selectedTiers: new Set(ALL_SCORE_TIERS),
+    }),
+    [lifecycle, activeOrder],
+  )
   const feedKey = dashboardFeedQueryKey(feedRequest)
   const feedIdentity = JSON.stringify([scope, ...feedKey])
   const feedEnabled = selectedTiers.size > 0 && lifecycle !== 'applied'
@@ -420,6 +429,16 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
     queryKey: ['dashboard-companies', scope, lifecycle, [...feedRequest.tiers]],
     queryFn: () => listDashboardCompanyOptions(feedRequest),
     enabled: feedEnabled && scope === 'all',
+  })
+  const watchlistCompanyRowsQuery = useQuery({
+    queryKey: [
+      'dashboard-watchlist-company-rows',
+      lifecycle,
+      activeOrder,
+    ],
+    queryFn: () => listFeedPage(watchlistCompanySourceRequest),
+    enabled: scope === 'watchlist' && lifecycle !== 'applied',
+    refetchInterval: 60_000,
   })
   const rankingStateQuery = useQuery({
     queryKey: ['ranking-state'],
@@ -624,9 +643,9 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
 
   const companyOptions = useMemo(
     () => scope === 'watchlist'
-      ? dashboardCompanyOptions(rows)
+      ? dashboardWatchlistCompanyOptions(watchlistCompanyRowsQuery.data?.rows ?? [])
       : (companyOptionsQuery.data ?? []),
-    [companyOptionsQuery.data, rows, scope],
+    [companyOptionsQuery.data, scope, watchlistCompanyRowsQuery.data],
   )
   const searchedCompanyOptions = useMemo(
     () => searchCompanyOptions(companyOptions, companySearch),

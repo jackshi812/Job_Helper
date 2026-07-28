@@ -16,6 +16,7 @@ import {
   dashboardLifecycleTimestamp,
   dashboardScoreSortAvailable,
   dashboardSourceRows,
+  dashboardWatchlistCompanyOptions,
   isWatchlistJob,
   lifecycleViewFromToggles,
   normalizedCompanyKey,
@@ -129,6 +130,27 @@ describe('Dashboard company options', () => {
     ])
     expect(searchCompanyOptions(options, 'New company')).toEqual([])
   })
+
+  it('keeps the watchlist option source separate from external loaded rows', () => {
+    const watched = feedRow('Acme', 80)
+    const external = feedRow('External Co', 70, {
+      jobs: {
+        id: 'job-external',
+        title: 'Analyst',
+        location: 'Chicago',
+        absolute_url: 'https://example.com/external',
+        posted_at: '2026-07-22T00:00:00.000Z',
+        first_seen_at: '2026-07-22T00:00:00.000Z',
+        status: 'open',
+        source_company_name: 'External Co',
+        companies: null,
+      },
+    })
+
+    expect(dashboardWatchlistCompanyOptions([watched, external])).toEqual([
+      { key: 'acme', label: 'Acme' },
+    ])
+  })
 })
 
 describe('Dashboard staged filters', () => {
@@ -165,6 +187,57 @@ describe('Dashboard staged filters', () => {
     expect(selected.size).toBe(0)
     expect([...previous]).toEqual(['stale-company'])
     expect(options.map((option) => option.key)).toEqual(['acme', 'pwc', 'walmart'])
+  })
+
+  it('recovers after Clear all is applied, reopened, and followed by Select all', () => {
+    const loadedRows = [
+      feedRow('Acme', 80),
+      feedRow('Walmart', 60),
+      feedRow('External Co', 70, {
+        jobs: {
+          id: 'job-external',
+          title: 'Analyst',
+          location: 'Chicago',
+          absolute_url: 'https://example.com/external',
+          posted_at: '2026-07-22T00:00:00.000Z',
+          first_seen_at: '2026-07-22T00:00:00.000Z',
+          status: 'open',
+          source_company_name: 'External Co',
+          companies: null,
+        },
+      }),
+    ]
+    const options = dashboardWatchlistCompanyOptions(loadedRows)
+    const searched = searchCompanyOptions(options, 'acme')
+
+    expect(searched.map(({ key }) => key)).toEqual(['acme'])
+
+    const clearedDraft = clearAllCompanies(options)
+    const appliedAfterClear = copyHiddenCompanyKeys(clearedDraft)
+    expect([...appliedAfterClear]).toEqual(['acme', 'walmart'])
+    expect(areAllCurrentCompaniesCleared(options, appliedAfterClear)).toBe(true)
+    expect(options.filter(({ key }) => !appliedAfterClear.has(key))).toEqual([])
+    expect(dashboardWatchlistCompanyOptions(loadedRows)).toEqual(options)
+
+    const reopenedDraft = copyHiddenCompanyKeys(appliedAfterClear)
+    expect(areAllCurrentCompaniesSelected(options, reopenedDraft)).toBe(false)
+
+    const refreshedOptions = dashboardWatchlistCompanyOptions([
+      ...loadedRows,
+      feedRow('NewCo', 75),
+    ])
+    expect(refreshedOptions.map(({ key }) => key)).toEqual(['acme', 'newco', 'walmart'])
+    expect(reopenedDraft.has('newco')).toBe(false)
+
+    const selectedDraft = selectAllCompanies()
+    const appliedAfterSelect = copyHiddenCompanyKeys(selectedDraft)
+    expect(areAllCurrentCompaniesSelected(refreshedOptions, appliedAfterSelect)).toBe(true)
+    expect(buildDashboardFeedQuery({
+      lifecycle: 'active',
+      activeOrder: 'newest',
+      appliedHiddenKeys: appliedAfterSelect,
+      selectedTiers: allTiers,
+    }).hiddenCompanyKeys).toEqual([])
   })
 
   it('computes bulk disabled states from current option keys and tolerates stale keys', () => {
