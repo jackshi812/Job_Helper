@@ -11,6 +11,9 @@ import {
   healthPresentation,
   listCompanies,
   mergeCoverageRows,
+  REMOVE_COMPANY_TIMEOUT_MESSAGE,
+  REMOVE_COMPANY_TIMEOUT_MS,
+  removeCompany,
   safeCareersUrl,
   SOURCE_COVERAGE_CATALOG_COLUMNS,
   type SourceCoverageCatalogRecord,
@@ -652,5 +655,82 @@ describe('addCompany', () => {
     expect(COMPANY_COLUMNS).toContain('last_verified_at')
     expect(COMPANY_COLUMNS).toContain('last_error_code')
     expect(COMPANY_COLUMNS).toContain('last_observation_count')
+  })
+})
+
+describe('removeCompany', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function deleteBuilder(result: Promise<{ error: unknown }>) {
+    const abortSignal = vi.fn().mockReturnValue(result)
+    const eq = vi.fn().mockReturnValue({ abortSignal })
+    const deleteCompany = vi.fn().mockReturnValue({ eq })
+    vi.mocked(supabase.from).mockReturnValue({ delete: deleteCompany } as never)
+    return { abortSignal, deleteCompany, eq }
+  }
+
+  it('aborts a never-resolving deletion at the bounded deadline', async () => {
+    const pending = new Promise<{ error: unknown }>(() => {})
+    const { abortSignal, deleteCompany, eq } = deleteBuilder(pending)
+
+    const removal = removeCompany('company-acme')
+    const signal = abortSignal.mock.calls[0]?.[0] as AbortSignal
+
+    expect(supabase.from).toHaveBeenCalledWith('companies')
+    expect(deleteCompany).toHaveBeenCalledOnce()
+    expect(eq).toHaveBeenCalledWith('id', 'company-acme')
+    expect(signal.aborted).toBe(false)
+
+    const timeoutResult = expect(removal).rejects.toThrow(REMOVE_COMPANY_TIMEOUT_MESSAGE)
+    await vi.advanceTimersByTimeAsync(REMOVE_COMPANY_TIMEOUT_MS)
+
+    await timeoutResult
+    expect(signal.aborted).toBe(true)
+  })
+
+  it('allows a fresh retry after timeout without reporting a late false success', async () => {
+    let finishFirst!: (value: { error: unknown }) => void
+    const firstRequest = new Promise<{ error: unknown }>((resolve) => {
+      finishFirst = resolve
+    })
+    const secondRequest = Promise.resolve({ error: null })
+    const abortSignals: AbortSignal[] = []
+    let attempt = 0
+    vi.mocked(supabase.from).mockImplementation((() => ({
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          abortSignal: vi.fn((signal: AbortSignal) => {
+            abortSignals.push(signal)
+            attempt += 1
+            return attempt === 1 ? firstRequest : secondRequest
+          }),
+        }),
+      }),
+    })) as never)
+    const lateSuccess = vi.fn()
+    const timeoutFailure = vi.fn()
+
+    const firstRemoval = removeCompany('company-acme')
+    void firstRemoval.then(lateSuccess, timeoutFailure)
+    const timeoutResult = expect(firstRemoval).rejects.toThrow(REMOVE_COMPANY_TIMEOUT_MESSAGE)
+    await vi.advanceTimersByTimeAsync(REMOVE_COMPANY_TIMEOUT_MS)
+    await timeoutResult
+
+    await expect(removeCompany('company-acme')).resolves.toBeUndefined()
+    finishFirst({ error: null })
+    await Promise.resolve()
+
+    expect(abortSignals).toHaveLength(2)
+    expect(abortSignals[0].aborted).toBe(true)
+    expect(abortSignals[1].aborted).toBe(false)
+    expect(timeoutFailure).toHaveBeenCalledOnce()
+    expect(lateSuccess).not.toHaveBeenCalled()
   })
 })

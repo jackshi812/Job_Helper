@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
+import { REMOVE_COMPANY_TIMEOUT_MESSAGE } from '../lib/watchlist'
 import watchlistSource from '../pages/Watchlist.tsx?raw'
 import { ConfirmDialog } from './ConfirmDialog'
 import confirmDialogSource from './ConfirmDialog.tsx?raw'
@@ -40,11 +41,31 @@ describe('ConfirmDialog error contract', () => {
     expect(markup).not.toContain('role="alert"')
   })
 
+  it('shows a timed-out removal with retry and Keep company restored', () => {
+    const markup = renderDialog(REMOVE_COMPANY_TIMEOUT_MESSAGE)
+    const cancelButton = markup.match(/<button[^>]*>Keep company<\/button>/)?.[0]
+    const retryButton = markup.match(/<button[^>]*>Remove company<\/button>/)?.[0]
+
+    expect(markup).toContain(`Remove failed: ${REMOVE_COMPANY_TIMEOUT_MESSAGE}`)
+    expect(cancelButton).toBeDefined()
+    expect(retryButton).toBeDefined()
+    expect(cancelButton).not.toContain('disabled=""')
+    expect(retryButton).not.toContain('disabled=""')
+  })
+
   it('re-enables retry and cancel after rejection and wires only bounded Watchlist errors', () => {
     expect(confirmDialogSource).toContain('} finally {\n      setConfirming(false)')
     expect(confirmDialogSource.match(/disabled=\{confirming\}/g)).toHaveLength(2)
+    expect(confirmDialogSource).toContain('onClick={onCancel}')
+    expect(confirmDialogSource).toContain('onClick={handleConfirm}')
     expect(watchlistSource).toContain(
       'errorMessage={removeMutation.error ? boundedErrorMessage(removeMutation.error) : undefined}',
+    )
+    expect(watchlistSource).toContain(
+      'onCancel={() => setCompanyToRemove(null)}',
+    )
+    expect(watchlistSource).toContain(
+      'onConfirm={() => removeMutation.mutateAsync(companyToRemove.company_id!)}',
     )
   })
 })

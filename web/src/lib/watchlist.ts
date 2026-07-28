@@ -10,6 +10,10 @@ export const COMPANY_COLUMNS =
 export const SOURCE_COVERAGE_CATALOG_COLUMNS =
   'id, company_name, careers_url, provider, access_evidence, disposition, verified_at, unsupported_reason, source_key'
 
+export const REMOVE_COMPANY_TIMEOUT_MS = 10_000
+export const REMOVE_COMPANY_TIMEOUT_MESSAGE =
+  'Removal timed out. Check your connection, then retry or keep the company.'
+
 export interface CompanyRecord {
   id: string
   name: string
@@ -252,8 +256,33 @@ export async function addCompany(url: string): Promise<CompanyRecord> {
 }
 
 export async function removeCompany(id: string): Promise<void> {
-  const { error } = await supabase.from('companies').delete().eq('id', id)
-  if (error) throw error
+  const controller = new AbortController()
+  let timedOut = false
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  const request = Promise.resolve(
+    supabase
+      .from('companies')
+      .delete()
+      .eq('id', id)
+      .abortSignal(controller.signal),
+  )
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      timedOut = true
+      controller.abort()
+      reject(new Error(REMOVE_COMPANY_TIMEOUT_MESSAGE))
+    }, REMOVE_COMPANY_TIMEOUT_MS)
+  })
+
+  try {
+    const { error } = await Promise.race([request, deadline])
+    if (error) throw error
+  } catch (error) {
+    if (timedOut) throw new Error(REMOVE_COMPANY_TIMEOUT_MESSAGE)
+    throw error
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout)
+  }
 }
 
 export function deriveHealth(company: CompanyRecord, now = new Date()): HealthStatus {
