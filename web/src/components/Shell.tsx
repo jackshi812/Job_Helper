@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 const navigation = [
   { label: 'Watchlist Jobs', to: '/' },
   { label: 'All Jobs', to: '/all-jobs' },
+  { label: 'Watchlist', to: '/watchlist' },
   { label: 'Tracker', to: '/tracker' },
   { label: 'Resumes', to: '/resumes' },
   { label: 'Preferences', to: '/preferences' },

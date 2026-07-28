@@ -35,10 +35,11 @@ describe('Shell route widths', () => {
     )
   })
 
-  it('uses the exact owner-requested six-tab order', () => {
+  it('places the company Watchlist after both job dashboards', () => {
     const labels = [
       'Watchlist Jobs',
       'All Jobs',
+      'Watchlist',
       'Tracker',
       'Resumes',
       'Preferences',
@@ -50,6 +51,6 @@ describe('Shell route widths', () => {
       expect(index).toBeGreaterThan(previous)
       previous = index
     }
-    expect(shellSource).not.toContain("{ label: 'Watchlist', to: '/watchlist' }")
+    expect(shellSource).toContain("{ label: 'Watchlist', to: '/watchlist' }")
   })
 })
