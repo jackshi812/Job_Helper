@@ -1,20 +1,20 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-current_phase: 04
-status: completed
-stopped_at: Phase 04 complete; v1.0 milestone ready to archive
-last_updated: "2026-07-28T19:47:34.281Z"
+milestone_name: MVP
+current_phase: 0
+status: Awaiting next milestone
+stopped_at: v1.0 MVP archived; awaiting next milestone
+last_updated: "2026-07-28T23:13:55.521Z"
 last_activity: 2026-07-28
-last_activity_desc: Phase 04 complete with 7/7 plans, 5/5 owner UAT, and exact production release evidence
+last_activity_desc: Milestone v1.0 completed and archived
 progress:
   total_phases: 15
   completed_phases: 15
   total_plans: 88
   completed_plans: 88
   percent: 100
-current_phase_name: Application Tracker
+current_phase_name: ""
 ---
 
 # Project State
@@ -24,22 +24,20 @@ current_phase_name: Application Tracker
 See: .planning/PROJECT.md (updated 2026-07-28)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** v1.0 milestone complete — ready to archive
+**Current focus:** Planning the next milestone
 
 ## Current Position
 
-Phase: 04 (Application Tracker) — COMPLETE
-Plan: 7 of 7
-Status: Complete
-Last activity: 2026-07-28 — exact production release passed 5/5 owner UAT
-
-Progress: [██████████] 100%
+Phase: Milestone v1.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-28 — Milestone v1.0 completed and archived
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 60
+- Total plans completed: 88
 - Average duration: 23m
 - Total execution time: 1665m
 
@@ -62,8 +60,9 @@ Progress: [██████████] 100%
 
 - Last Phase 04 gap closures: full-width Tracker, safe deletion, and compact
   indexed row refinements
-- Trend: Phase 04 closed with 7/7 plans, 1,532 passing tests, 45/45 security
-  threats closed, and 5/5 owner UAT on the exact live release
+
+- Trend: v1.0 closed with 88/88 plans, 1,561 passing tests, 28/28
+  requirements, and a zero-residue hosted release verifier
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
@@ -323,6 +322,21 @@ Recent decisions affecting current work:
 - Refine company visibility controls
 - Consolidate score tier controls
 
+## Deferred Items
+
+Items acknowledged and deferred at milestone close on 2026-07-28:
+
+| Category | Item | Status |
+|----------|------|--------|
+| todo | 2026-07-20-add-company-visibility-filter.md | acknowledged; implemented/superseded reconciliation deferred |
+| todo | 2026-07-20-add-entry-level-only-job-preference-filter.md | acknowledged; implemented/superseded reconciliation deferred |
+| todo | 2026-07-20-add-successfactors-and-paylocity-connectors.md | acknowledged; implemented/superseded reconciliation deferred |
+| todo | 2026-07-20-pilot-workday-polling-for-10-companies.md | acknowledged; implemented/superseded reconciliation deferred |
+| todo | 2026-07-22-consolidate-score-tier-controls.md | acknowledged; implemented/superseded reconciliation deferred |
+| uat | 03.10-UAT.md | unknown label; 0 pending scenarios |
+| uat | 03.4-UAT.md | passed label; 0 pending scenarios |
+| uat | 03.6-UAT.md | pass label; 0 pending scenarios |
+
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
@@ -360,10 +374,14 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-07-28T19:47:34Z
-Stopped at: Phase 04 complete with all 7 plans and v1.0 ready to archive
+Stopped at: v1.0 MVP archived; awaiting next milestone
 Resume file: None
 Last session (2026-07-26): Phase 03.8 selective Workday recovery completed; all four requested companies are Active at 3/3 with successful natural polls, 176 exact-scope jobs, migration 0044 parity, protected sources intact, and zero verifier residue.
 Earlier Phase 03.8 closeout (superseded by the recovery above): all four new Workday candidates were precise Unsupported with zero authority; migrations/functions matched that approved release, verifier cleanup was zero-residue, and owner UAT passed.
 Last session (2026-07-25): Phase 03.7 passed local checks, exact-release byte verification, and 3/3 owner-approved signed-in UAT checks on release `baf81fcaa72443995f227b118d10eec90da25679`; no Phase 03.7 gaps remain.
 Last session (2026-07-25): Phase 03.6 passed 6/6 formal truths, 20/20 hosted checks, 30/30 security threats, 24/24 UI review checks, and 12/12 owner-approved UAT interactions on exact release `70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b`; no Phase 03.6 gaps remain.
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

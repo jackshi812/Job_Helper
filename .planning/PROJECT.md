@@ -8,6 +8,30 @@ An invite-only web app (browser-based, no install) for two users that discovers 
 
 Discover relevant jobs fast, score them accurately, and surface them in a focused feed — if discovery and scoring are unreliable, nothing else matters.
 
+## Current State
+
+v1.0 MVP shipped on 2026-07-28 at
+`https://job-helper-qs9.pages.dev`. The production release is bound to source
+commit `9f4829d`, Supabase migrations `0001..0060`, and a byte-verified
+Cloudflare asset. All 28 v1 requirements, 15 canonical phase verifications,
+9 cross-phase integrations, 8 end-to-end flows, and 1,561 automated tests pass.
+
+The product currently provides:
+
+- Watchlist-first and combined job feeds over exact monitored-source contracts.
+- Transparent deterministic ranking with complete stored evidence.
+- Private DOCX resume upload, download, and deletion.
+- A compact six-stage application tracker for system and external jobs.
+- Complete personal-data deletion while retaining login/profile and the shared
+  monitored-company/raw-job catalog.
+
+## Next Milestone Goals
+
+No next milestone is committed yet. Start with fresh requirements through
+`$gsd-new-milestone`. Candidates retained from the v1 archive are outreach
+assistance, arbitrary-URL tracker intake, and a possible form-autofill browser
+extension; none is active until selected during milestone planning.
+
 ## Requirements
 
 ### Validated
@@ -22,11 +46,14 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 - ✓ Bounded generic Workday connector with exact, fail-closed employer identities and scheduled Fidelity ingestion through the existing Watchlist paste-URL flow — Phase 03.5 (6/6 verification truths; Capital One unchanged)
 - ✓ Exact U.S.-only Workday ingestion for Nasdaq, S&P Global, Morningstar, and State Street plus Active/Applied/Dismissed dashboard queues with stable retrieval beyond 200 jobs — Phase 03.6 (6/6 verification truths; 20/20 hosted checks; 12/12 exact-release UAT)
 - ✓ Exact Goldman Sachs Higher monitoring for complete U.S. Early Career and Professional roles in the owner-approved rolling 30-day scope, with Active 3/3 natural polling, closure disabled, and direct Oracle Apply links — Phase 03.10 (5/5 verification truths; 27 persisted jobs; exact-release owner UAT)
+- ✓ Representative public ATS/portal and major finance-company coverage with
+  exact allowlisted identities, honest unsupported states, and safe degraded
+  behavior — Phases 02.1 and 03.1–03.10
 - ✓ Manual application tracking across Ready to Apply, Applied, Outreach Sent, Interview, Offer, and Rejected, with external positions, notes, preserved JD context, optional resume links, Dashboard integration, and owner-scoped deletion — Phase 4 (4/4 requirements; 5/5 exact-release owner UAT)
 
 ### Active
 
-- [ ] Source coverage expansion: representative public ATS/portal adapters and major finance-company career sites, while preserving safe degraded-source behavior
+None. The next milestone will define a fresh active requirement set.
 
 ### Out of Scope
 
@@ -41,7 +68,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 
 ## Context
 
-- Greenfield project; empty repo at /Users/jackshi/Desktop/Linkedin
+- Shipped production project at `/Users/jackshi/Desktop/Job_Copilot`
 - LinkedIn has no open job-search API; official alerts are daily/weekly — usable only as a supplemental source
 - Career-site monitoring is heterogeneous: some platforms expose public JSON endpoints, while Workday/Oracle/iCIMS/SuccessFactors/Eightfold and branded sites require structured portal or allowlisted company-specific adapters with stricter failure handling
 - Two users only — no scaling pressure, free tiers must suffice
@@ -50,7 +77,8 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 
 ## Constraints
 
-- **Budget**: Cost-conscious v1 — Cloudflare Pages and Supabase Pro on Micro compute; AI calls budget-capped, cheap model, invoked only after cheap filtering
+- **Budget**: Cost-conscious operation — Cloudflare Pages and Supabase Pro on
+  Micro compute; deterministic job ranking performs no background paid scoring
 - **Tech stack**: Cloudflare Pages frontend, Supabase Pro backend on Micro compute (auth, Postgres, resume storage, scheduled functions)
 - **Compliance**: No scraping logged-in LinkedIn pages, no Easy Apply automation, no auto-sent LinkedIn messages — platform policy
 - **Security**: Resumes in encrypted private cloud storage with user-controlled deletion; strict per-user data separation
@@ -76,6 +104,9 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 | Disposable-account production verification | Proof must not overwrite real-user preferences/resume/reroute state | ✓ Phase 3 — verifier account exists only inside the paused/drained interval and is deleted before cron restoration |
 | Physical scoring-attempt accounting | The daily ceiling applies to actual paid attempts, not logical jobs | ✓ Phase 3 — atomic reservation plus `maxAttempts: 1` for scoring |
 | One database-derived application lifecycle | Tracker membership, current stage/date, and owner-scoped deletion must not compete with Dashboard lifecycle state or restore deleted history to Active | ✓ Phase 4 — exact production release passed 5/5 owner UAT; deletion preserves `user_jobs.applied_at` |
+| Shared catalog, private derived data | Both invited users need the same monitored sources and raw provider jobs, while preferences, resumes, rankings, dismissals, and tracker records remain private | ✓ v1.0 — final RLS/integration audit and owner decision align on the boundary |
+| Source scope before page boundaries | Watchlist membership and tracker exclusion must be applied before an outward keyset page is limited | ✓ v1.0 — versioned feed/company RPCs and scope-bound cursors shipped in migration 0059 |
+| Index every owner cleanup path | Personal-data deletion and final auth cleanup must not scan the complete ranking queue | ✓ v1.0 — migration 0060 closed the hosted statement timeout and the zero-residue verifier passed |
 | Heuristic contact discovery (when outreach builds in v2) | Paid APIs conflict with near-zero cost constraint | — Pending |
 | v1 scope = discovery + deterministic ranking/feed + application tracker | Keep the app focused on finding, prioritizing, and organizing applications; resume tailoring remains manual | ✓ Complete — Phase 4 closed the application lifecycle |
 
@@ -97,4 +128,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-28 after Phase 4 and the v1.0 milestone completed*
+*Last updated: 2026-07-28 after the v1.0 MVP milestone shipped*
