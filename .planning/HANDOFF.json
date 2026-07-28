@@ -1,0 +1,113 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-28T04:50:19.776Z",
+  "phase": "04",
+  "phase_name": "application-tracker",
+  "phase_dir": ".planning/phases/04-application-tracker",
+  "plan": 3,
+  "task": 1,
+  "total_tasks": 1,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Plan 04-01 — Atomic Dashboard-to-Tracker vertical slice",
+      "status": "done",
+      "commit": "8e8e3e5"
+    },
+    {
+      "id": 2,
+      "name": "Plan 04-02 — Checksum-bound tracker production approval",
+      "status": "done",
+      "commit": "83ec94f"
+    },
+    {
+      "id": 3,
+      "name": "Plan 04-03 Task 1 — Hosted schema and two-user behavior proof",
+      "status": "in_progress",
+      "progress": "Migration 0053 is live; schema verifier drift was repaired; hosted catalog, ACL, RLS-definition, function, and backfill parity passed. The ordinary-session behavior verifier still aborts near 30 seconds with an unlabeled fetch TimeoutError, so no behavior PASS evidence or 04-03 summary exists. The latest guarded cleanup and independent audit proved both disposable Auth users absent and zero rows across application_stage_events, applications, user_jobs, resumes, jobs, companies, and auth.users."
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 4,
+      "name": "Instrument the behavior verifier with non-sensitive step labels and elapsed timings, add tests, recompute the approval envelope, obtain fresh exact approval, and complete the hosted proof plus 04-03 summary",
+      "status": "not_started"
+    },
+    {
+      "id": 5,
+      "name": "Plan 04-04",
+      "status": "not_started"
+    },
+    {
+      "id": 6,
+      "name": "Plan 04-05 and final Phase 04 regression/review/verification",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "The hosted behavior verifier collapses every 30-second fetch abort into the same generic TimeoutError and writes no evidence until full completion; the exact failing operation is therefore unknown.",
+      "type": "technical",
+      "severity": "blocking",
+      "workaround": "Before another hosted run, add credential-safe step labels and elapsed timings to httpJson/call sites, add contract tests, and prove that logs contain no secret or user content."
+    },
+    {
+      "description": "Supabase Auth Admin DELETE intermittently returns HTTP 504 and observed HTTP 200 log entries have not been sufficient evidence of durable deletion.",
+      "type": "external",
+      "severity": "blocking",
+      "workaround": "After every attempt, independently GET each exact manifest user and audit all seven relations. Use the already owner-approved guarded SQL cleanup only for the exact prevalidated fixture identities, with exact count and storage-zero gates."
+    },
+    {
+      "description": "Instrumenting the behavior verifier changes approval-bound bytes, invalidating the existing behavior verifier and scope hashes.",
+      "type": "human_action",
+      "severity": "blocking",
+      "workaround": "Recompute every affected hash and catalog binding after tests pass, then obtain a fresh exact owner approval before hosted fixture creation."
+    },
+    {
+      "description": "Typed child executors did not inherit the owner's production-mutation approval through their prompt context.",
+      "type": "technical",
+      "severity": "advisory",
+      "workaround": "Let child agents perform read-only preflight only; run any exact approved hosted mutation from the root context."
+    }
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {
+      "action": "Approve the newly computed behavior-verifier checksum envelope after instrumentation and tests are complete.",
+      "context": "The previous exact approval cannot authorize changed verifier bytes. No approval can be requested until the replacement hashes exist.",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Do not rerun the unchanged hosted behavior verifier.",
+      "rationale": "It repeatedly recreates fixtures, times out without identifying the failing step, and forces cleanup without producing useful evidence.",
+      "phase": "04"
+    },
+    {
+      "decision": "Keep the guarded SQL cleanup as an exact-fixture fallback only.",
+      "rationale": "It is authorized only after manifest identity validation, exact row-count checks, and proof that neither disposable user owns storage objects.",
+      "phase": "04"
+    },
+    {
+      "decision": "Treat independent 404 and seven-relation zero checks as the cleanup authority.",
+      "rationale": "Auth logs and DELETE response codes were not reliable evidence of durable absence.",
+      "phase": "04"
+    },
+    {
+      "decision": "Stop before Wave 4.",
+      "rationale": "Plans 04-04 and 04-05 require a completed, zero-residue hosted behavior proof from Plan 04-03.",
+      "phase": "04"
+    }
+  ],
+  "uncommitted_files": [
+    ".DS_Store",
+    ".planning/phases/03.8-monitor-and-poll-the-branded-banking-companies-currently-on-/.gitkeep",
+    "scripts/agent-dashboard.mjs",
+    "scripts/agent-dashboard.test.mjs",
+    "web/zh"
+  ],
+  "next_action": "Acknowledge every blocking constraint in .continue-here.md, confirm the seven-relation production baseline is still clean, then instrument scripts/verify-tracker-rls.ts with non-sensitive step labels and elapsed timings and add focused tests before recomputing hashes.",
+  "context_notes": "Safe pause after Plan 04-03's catalog gate. Relevant commits are 5418025 (RED verifier drift), c9718d2 (schema verifier repair), and a7b97cd (behavior approval envelope). Approved/live migration SHA-256 is 7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0. Current repaired schema verifier SHA-256 is e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26; current behavior verifier SHA-256 is 2dede3082e76f33e4b6dcf79848a40140a4ee47d37b7044965f8b182962a531b. The latter must change before retry and therefore requires a new approval. There are no active agents, servers, watchers, or async jobs."
+}
