@@ -78,6 +78,64 @@ describe('tracker hosted RLS verifier contract', () => {
     )
   })
 
+  it('exposes only allowlisted step and elapsed-time diagnostics', () => {
+    const output = execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', verifier, '--mode', 'contract'],
+      { cwd: root, encoding: 'utf8' },
+    )
+    const contract = JSON.parse(output) as {
+      diagnostics: {
+        steps: string[]
+        output_fields: string[]
+        statuses: string[]
+      }
+    }
+
+    expect(contract.diagnostics.output_fields).toEqual([
+      'step',
+      'status',
+      'elapsed_ms',
+    ])
+    expect(contract.diagnostics.statuses).toEqual(['start', 'pass', 'fail'])
+    expect(contract.diagnostics.steps.length).toBeGreaterThan(30)
+    expect(new Set(contract.diagnostics.steps).size).toBe(
+      contract.diagnostics.steps.length,
+    )
+
+    for (const step of contract.diagnostics.steps) {
+      expect(step).toMatch(/^[a-z][a-z0-9_.]{2,79}$/)
+      expect(step).not.toMatch(
+        /(?:https?|url|email|password|token|secret|key|content|notes|description|[a-f0-9]{8}-[a-f0-9-]{27,})/i,
+      )
+    }
+
+    expect(verifierSource).toMatch(/function writeDiagnostic/)
+    expect(verifierSource).toMatch(/process\.stderr\.write/)
+    expect(verifierSource).toMatch(/elapsed_ms/)
+    expect(verifierSource).toMatch(/step:\s*DiagnosticStep/)
+    expect(verifierSource).not.toMatch(
+      /writeDiagnostic\([^)]*(?:url|payload|secrets|userId|accessToken)/,
+    )
+  })
+
+  it('labels every timed fetch failure without rendering response content', () => {
+    const httpJsonBody = verifierSource.match(
+      /async function httpJson\(([\s\S]*?)\n}\n\nfunction serviceHeaders/,
+    )?.[0]
+    expect(httpJsonBody).toBeDefined()
+    expect(httpJsonBody).toMatch(/writeDiagnostic\(step,\s*'start'/)
+    expect(httpJsonBody).toMatch(/writeDiagnostic\(step,\s*'pass'/)
+    expect(httpJsonBody).toMatch(/writeDiagnostic\(step,\s*'fail'/)
+    expect(httpJsonBody).toMatch(/AbortSignal\.timeout\(30_000\)/)
+    expect(httpJsonBody).not.toMatch(
+      /sanitizedError\(\s*\{[\s\S]*?payload[\s\S]*?\}/,
+    )
+    expect(httpJsonBody).not.toMatch(
+      /writeDiagnostic\([^)]*(?:response|payload|text|url|secrets)/,
+    )
+  })
+
   it('derives RPC lineage in memory and cleans exactly seven relations', () => {
     expect(verifierSource).toMatch(/memory-only.*lineage|lineage.*memory-only/is)
     expect(verifierSource).toMatch(/owner.*parent.*namespace.*count/is)
