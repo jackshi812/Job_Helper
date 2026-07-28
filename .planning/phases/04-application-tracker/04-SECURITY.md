@@ -30,6 +30,7 @@ created: 2026-07-28
 | E04 | UI/client review proves bounded validation, field-specific RPCs, lazy detail bodies, DOMPurify, plain-text notes/JD, and safe external URLs |
 | E05 | Checksum-bound approvals and sanitized cleanup evidence prove target identity, artifact integrity, exact fixture lineage, and zero residue in seven relations |
 | E06 | Full automated suite, production build, exact live-asset checksum, and successful Cloudflare release check |
+| E07 | Migration `0056` tests and hosted catalog proof establish authenticated-only execution, owner-predicated application deletion, empty definer search path, and preservation of irreversible applied history |
 
 ## Threat Register
 
@@ -75,18 +76,23 @@ created: 2026-07-28
 | T-04-05-04 | optimistic Active removal | medium | mitigate | E01, E04 | closed |
 | T-04-05-05 | historical Apply URL | high | mitigate | E04 | closed |
 | T-04-05-SC | dependency supply chain | low | accept | E06 | closed |
+| T-04-06-01 | whole-application deletion ownership | high | mitigate | E01, E07 | closed |
+| T-04-06-02 | definer execution surface | high | mitigate | E02, E07 | closed |
+| T-04-06-03 | irreversible applied-history preservation | high | mitigate | E01, E07 | closed |
+| T-04-06-04 | destructive UI confirmation and cache refresh | medium | mitigate | E04, E07 | closed |
+| T-04-06-SC | dependency supply chain | low | accept | E06 | closed |
 
 ## Accepted Risks Log
 
 | Risk ID | Threat refs | Rationale | Accepted by | Date |
 |---|---|---|---|---|
-| AR-01 | T-04-01-SC, T-04-02-SC, T-04-03-SC, T-04-04-SC, T-04-05-SC | Phase 04 installed no package or registry block and reused the repository lockfile and project-owned scripts | Phase plans | 2026-07-28 |
+| AR-01 | T-04-01-SC, T-04-02-SC, T-04-03-SC, T-04-04-SC, T-04-05-SC, T-04-06-SC | Phase 04 installed no package or registry block and reused the repository lockfile and project-owned scripts | Phase plans | 2026-07-28 |
 
 ## Security Audit Trail
 
 | Audit date | Threats total | Closed | Open | Run by |
 |---|---:|---:|---:|---|
-| 2026-07-28 | 40 | 40 | 0 | root inline ASVS L1 audit |
+| 2026-07-28 | 45 | 45 | 0 | root inline ASVS L1 audit |
 
 ## Sign-Off
 
@@ -99,4 +105,3 @@ created: 2026-07-28
 - [x] `status: verified`.
 
 **Approval:** verified 2026-07-28
-

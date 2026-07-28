@@ -1,10 +1,10 @@
 ---
 phase: 04-application-tracker
-verified: 2026-07-28T16:56:12Z
+verified: 2026-07-28T19:02:47Z
 status: human_needed
 score: 4/4
-implementation_commit: 8f914a4b92746cea95d5a4ce9ef42cab8982052b
-release_commit: 9229c1961841f38d746bc10c6c22ab4ee5427301
+implementation_commit: 9747a3988b055db5383fca96cb16f3ac0f62752f
+release_commit: 9b1672538f3ba995ebfb49a9683a1ed7ed4049e6
 production_url: https://job-helper-qs9.pages.dev
 behavior_unverified: 0
 human_verification_items: 3
@@ -32,39 +32,44 @@ outside the app.
 
 ## Validation
 
-- `npm test`: 76 files and 1,524 tests passed.
+- `npm test`: 78 files and 1,532 tests passed.
 - `npm run build`: passed.
 - `npm run lint`: passed with two pre-existing warnings.
 - `git diff --check`: passed.
 - Hosted schema and behavior verification passed with two independent ordinary
   sessions, 4 applications, 5 events, cross-owner denials, source-row removal,
   and zero fixture residue across seven relations.
-- Security review: 40/40 planned threats closed, 0 open.
-- Code review: clean, 0 findings across 21 Phase 04 files.
+- Hosted migration `0056` verification proves owner-only whole-application
+  deletion with authenticated-only execution and preservation of applied
+  history.
+- Security review: 45/45 planned threats closed, 0 open.
+- Code review: clean, 0 findings across 29 Phase 04 files.
 - UI source/static audit: 22/24, with rendered interaction judgment pending.
 
 ## Exact Hosted Release
 
 - GitHub/Cloudflare release commit:
-  `9229c1961841f38d746bc10c6c22ab4ee5427301`
+  `9b1672538f3ba995ebfb49a9683a1ed7ed4049e6`
 - Cloudflare deployment:
-  `be95cd3f-9fb9-4936-98ba-d31797c4ba33`
+  `d718664a-3542-477a-895a-e2318179d3b7`
 - Live JavaScript:
-  `/assets/index-XCgD_RU0.js`
+  `/assets/index-JTynBzND.js`
 - Live/local JavaScript SHA-256:
-  `37574cda63ed4ca0202771e3c151872e5ec935f53a0859f4c6bf6bdda76d145e`
-- The stale placeholder text is absent from the exact live asset; Tracker UI
-  contract strings are present.
+  `3c1aaeb67cd77a70a200d767e78654d80fd61ab7a4bedce7e1a6e1b18ca4a274`
+- The exact live asset contains the revised dropdown, delete-confirmation,
+  far-right save-status, and six-tab navigation strings. The stale placeholder,
+  horizontal-scroll instruction, and Dashboard best-fit labels are absent.
 
 ## Human Verification
 
-### 1. Production Tracker renders
+### 1. Revised Tracker layout and controls
 
 Refresh `https://job-helper-qs9.pages.dev/tracker` while signed in.
 
-Expected: the placeholder is gone. The page shows the Tracker description,
-`Add position`, six stage filters, and the horizontally scrollable application
-table or its real empty state.
+Expected: the page uses the available window without left-right scrolling,
+wraps complete values, exposes Stage group and Stage dropdowns, reports
+Saving/Saved/Retry in the far-right Status column, and opens a cancel-first
+application deletion confirmation.
 
 ### 2. Manual tracking and detail editing persist
 
@@ -88,5 +93,5 @@ does not create another application.
 ## Decision
 
 All source, database, automated behavior, security, and exact-release gates
-pass. Phase 04 remains pending only for the three signed-in owner checks above.
-
+pass, including the owner-requested gap closure. Phase 04 remains pending only
+for the three signed-in owner checks above.

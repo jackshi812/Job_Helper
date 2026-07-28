@@ -65,8 +65,23 @@ requirements: [TRAK-01, TRAK-02, TRAK-03, TRAK-04]
 - Function-definition SHA-256:
   `a6d4109056f18d58a9dac3507b21335dfbe4deb884b34d7ad3ccfed17eeee13c`.
 
+## Production Release
+
+- Source and evidence release commit:
+  `9b1672538f3ba995ebfb49a9683a1ed7ed4049e6`.
+- Cloudflare deployment:
+  `d718664a-3542-477a-895a-e2318179d3b7` (`success`).
+- Production alias:
+  `https://job-helper-qs9.pages.dev`.
+- Live JavaScript:
+  `/assets/index-JTynBzND.js`.
+- The live JavaScript SHA-256 exactly matches the tested local build:
+  `3c1aaeb67cd77a70a200d767e78654d80fd61ab7a4bedce7e1a6e1b18ca4a274`.
+- The live asset contains the revised dropdown, delete-confirmation, save
+  status, and six-tab navigation strings. It does not contain the stale
+  placeholder, horizontal-scroll instruction, or Dashboard best-fit labels.
+
 ## Remaining Gate
 
-Deploy the web source, verify the exact live asset, then resume owner UAT
-against the revised Tracker and Dashboard.
-
+Engineering and deployment are complete. Phase 04 now waits only for signed-in
+owner UAT against the revised Tracker and Dashboard.

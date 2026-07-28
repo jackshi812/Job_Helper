@@ -1,22 +1,29 @@
 ---
-status: diagnosed
+status: testing
 phase: 04-application-tracker
 source: [04-VERIFICATION.md]
 started: 2026-07-28T16:56:12Z
-updated: 2026-07-28T18:48:45Z
+updated: 2026-07-28T19:02:47Z
 ---
 
 ## Current Test
 
-[testing paused — owner-requested UI fixes are being implemented]
+number: 1
+name: Revised Tracker layout and controls
+expected: |
+  Refresh the signed-in production Tracker. The page uses the available window
+  without left-right scrolling, shows complete wrapped values, has one Stage
+  group dropdown plus one Stage dropdown, and puts Saving/Saved/Retry in the
+  far-right Status column. Delete opens a cancel-first confirmation.
+awaiting: owner response
 
 ## Tests
 
-### 1. Production Tracker renders
-expected: Refresh the signed-in production Tracker; the placeholder is gone and the real Tracker header, Add position action, six stage filters, and table or real empty state render.
-result: issue
-reported: "window don't wide enought, don't want to scrow left to right; allow user to delete a job application from dashboard; After update confirm to update status; saved put on the very right replacing the Updated column. All column values should be fully visible without scrolling; For the stage folders, collaspe the 6 stages into one drop down, and collapse all stages terminal stages and active stages into one dropdown; DELETE the best fit resume feature entirely from dashboard, but still allow user to upload resume; Reorder Tabs: Watchlist Jobs -> All Jobs -> Tracker --> Resumes -> Preferences -> Settings."
-severity: major
+### 1. Revised Tracker layout and controls
+expected: Refresh the signed-in production Tracker; it uses the available window without left-right scrolling, wraps complete values, exposes Stage group and Stage dropdowns, shows Saving/Saved/Retry in the far-right Status column, and opens a cancel-first delete confirmation.
+result: pending
+previous_reported: "window don't wide enought, don't want to scrow left to right; allow user to delete a job application from dashboard; After update confirm to update status; saved put on the very right replacing the Updated column. All column values should be fully visible without scrolling; For the stage folders, collaspe the 6 stages into one drop down, and collapse all stages terminal stages and active stages into one dropdown; DELETE the best fit resume feature entirely from dashboard, but still allow user to upload resume; Reorder Tabs: Watchlist Jobs -> All Jobs -> Tracker --> Resumes -> Preferences -> Settings."
+fix_release: 9b1672538f3ba995ebfb49a9683a1ed7ed4049e6
 
 ### 2. Manual tracking and detail editing persist
 expected: Add a manual position, edit stage/date/notes, inspect its expanded timeline and details, optionally link a resume, reload, and observe the saved values and safe rendering.
@@ -30,15 +37,15 @@ result: pending
 
 total: 3
 passed: 0
-issues: 1
-pending: 2
+issues: 0
+pending: 3
 skipped: 0
 blocked: 0
 
 ## Gaps
 
 - truth: "The Tracker fits the available window, wraps complete values, and does not require horizontal scrolling."
-  status: failed
+  status: resolved_pending_uat
   reason: "User reported the table is wider than the window and does not want left-right scrolling."
   severity: major
   test: 1
@@ -51,9 +58,12 @@ blocked: 0
   missing:
     - "Give `/tracker` the full-width shell."
     - "Remove the minimum table width and horizontal-scroll contract; wrap complete values in responsive fixed columns."
+  resolution: "Tracker now receives the full-width shell and uses a responsive fixed-layout table with wrapping and no horizontal-scroll contract."
+  fix_commit: "9747a3988b055db5383fca96cb16f3ac0f62752f"
+  release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
 
 - truth: "A user can delete an owned application from the Tracker with explicit confirmation."
-  status: failed
+  status: resolved_pending_uat
   reason: "User requested application deletion from the dashboard."
   severity: major
   test: 1
@@ -68,9 +78,12 @@ blocked: 0
   missing:
     - "Add an authenticated owner-scoped security-definer delete RPC with narrow ACLs."
     - "Add confirmation flows in Tracker and Dashboard Show applied; preserve irreversible applied history outside Active."
+  resolution: "Hosted migration 0056 adds the authenticated owner-scoped RPC; Tracker and Dashboard Show applied expose cancel-first confirmation flows that preserve applied history."
+  fix_commit: "9747a3988b055db5383fca96cb16f3ac0f62752f"
+  release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
 
 - truth: "A row-level status cell at the far right confirms Saving, Saved, or retry after updates and replaces Updated."
-  status: failed
+  status: resolved_pending_uat
   reason: "User requested the Saved confirmation at the far right in place of the Updated column."
   severity: major
   test: 1
@@ -80,9 +93,12 @@ blocked: 0
       issue: "Save state is distributed across cells and the rightmost column is Updated."
   missing:
     - "Track the latest row mutation and render its Saving/Saved/Retry state in one rightmost Status column."
+  resolution: "The rightmost Status cell now reports the latest row mutation as Saving, Saved, or Retry and also contains the delete action."
+  fix_commit: "9747a3988b055db5383fca96cb16f3ac0f62752f"
+  release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
 
 - truth: "Stage filters use compact dropdowns for an individual stage and for Active, Terminal, or All groups."
-  status: failed
+  status: resolved_pending_uat
   reason: "User requested the six stage controls and the three stage-group controls be collapsed into dropdowns."
   severity: major
   test: 1
@@ -92,9 +108,12 @@ blocked: 0
       issue: "Nine filter buttons consume horizontal and vertical space."
   missing:
     - "Replace preset buttons with one stage-group select and individual stage buttons with one stage select."
+  resolution: "The nine buttons are replaced by Stage group and Stage dropdowns."
+  fix_commit: "9747a3988b055db5383fca96cb16f3ac0f62752f"
+  release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
 
 - truth: "The jobs Dashboard contains no best-fit or runner-up resume feature while Resume Library upload remains available."
-  status: failed
+  status: resolved_pending_uat
   reason: "User requested complete removal of the best-fit resume feature from Dashboard without removing resume uploads."
   severity: major
   test: 1
@@ -106,9 +125,12 @@ blocked: 0
       issue: "The persisted Dashboard layout includes a Best fit column."
   missing:
     - "Remove Dashboard resume queries, labels, rendering, and the Best fit column while leaving `/resumes` upload behavior unchanged."
+  resolution: "Dashboard no longer queries or renders best-fit/runner-up resumes or reserves that column; Resume Library upload remains unchanged."
+  fix_commit: "9747a3988b055db5383fca96cb16f3ac0f62752f"
+  release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
 
 - truth: "Primary tabs are ordered Watchlist Jobs, All Jobs, Tracker, Resumes, Preferences, Settings."
-  status: failed
+  status: resolved_pending_uat
   reason: "User requested the exact six-tab navigation order and omitted the Watchlist tab."
   severity: major
   test: 1
@@ -118,4 +140,7 @@ blocked: 0
       issue: "Navigation order is Watchlist Jobs, All Jobs, Preferences, Watchlist, Resumes, Tracker, Settings."
   missing:
     - "Use the exact requested six-tab order and leave the Watchlist route available only by direct/internal navigation."
+  resolution: "Primary navigation is exactly Watchlist Jobs, All Jobs, Tracker, Resumes, Preferences, Settings; the standalone Watchlist route remains non-primary."
+  fix_commit: "9747a3988b055db5383fca96cb16f3ac0f62752f"
+  release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
   debug_session: "inline Phase 04 UAT diagnosis, 2026-07-28"
