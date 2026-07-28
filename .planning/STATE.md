@@ -5,10 +5,10 @@ milestone_name: milestone
 current_phase: 04
 current_phase_name: Application Tracker
 status: in_progress
-stopped_at: 04-03-PLAN.md exact migration 0055 behavior/cleanup approval checkpoint
-last_updated: "2026-07-28T15:08:59Z"
+stopped_at: 04-03-PLAN.md replacement bounded migration 0055 approval checkpoint
+last_updated: "2026-07-28T15:44:16Z"
 last_activity: 2026-07-28
-last_activity_desc: Phase 04-03 Dashboard 42501 and scoring contamination localized; migration 0055 is tested and awaits exact schema/cleanup approval
+last_activity_desc: Phase 04-03 rejected a stale exact-count approval without mutation; bounded migration 0055 is tested and awaits replacement approval
 progress:
   total_phases: 15
   completed_phases: 14
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-07-27)
 
 Phase: 04 (Application Tracker) — IN PROGRESS
 Plan: 3 of 5
-Status: Awaiting exact owner approval for migration 0055 behavior and exceptional cleanup repair
-Last activity: 2026-07-28 — Dashboard privilege and cleanup cascade repaired locally; one projection/three-item cleanup is exactly bounded
+Status: Awaiting replacement owner approval for bounded migration 0055 behavior and cleanup repair
+Last activity: 2026-07-28 — stale three-item approval rejected before mutation; one projection and 1..64 pending/completed ranking items are now hard bounded
 
 Progress: [██████████] 98%
 
@@ -350,8 +350,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-28T15:08:59Z
-Stopped at: Phase 04-03 migration 0055 schema/cleanup repair awaiting exact owner approval
+Last session: 2026-07-28T15:44:16Z
+Stopped at: Phase 04-03 bounded migration 0055 schema/cleanup repair awaiting replacement exact owner approval
 Resume file: .planning/phases/04-application-tracker/.continue-here.md
 Last session (2026-07-26): Phase 03.8 selective Workday recovery completed; all four requested companies are Active at 3/3 with successful natural polls, 176 exact-scope jobs, migration 0044 parity, protected sources intact, and zero verifier residue.
 Earlier Phase 03.8 closeout (superseded by the recovery above): all four new Workday candidates were precise Unsupported with zero authority; migrations/functions matched that approved release, verifier cleanup was zero-residue, and owner UAT passed.
