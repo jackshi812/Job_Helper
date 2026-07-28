@@ -23,6 +23,7 @@ const trackerApplication: TrackerApplicationListItem = {
   currentStageDate: '2026-07-27',
   updatedAt: '2026-07-27T15:00:00.000Z',
   resumeId: null,
+  resumeLabel: null,
 }
 
 const rpcMock = vi.hoisted(() => vi.fn())
@@ -35,6 +36,19 @@ vi.mock('@tanstack/react-query', () => ({
     error: null,
     isPending: false,
     refetch: vi.fn(),
+  }),
+  useMutation: () => ({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    variables: undefined,
+    error: null,
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+  }),
+  useQueryClient: () => ({
+    invalidateQueries: vi.fn(),
+    fetchQuery: vi.fn(),
   }),
 }))
 
@@ -67,7 +81,7 @@ describe('Dashboard Mark Applied → Tracker happy path', () => {
 
   it('uses the tracker list query without reconstructing lifecycle state in the page', () => {
     expect(trackerSource).toContain('listTrackerApplications')
-    expect(trackerSource).toContain("queryKey: ['tracker-applications']")
+    expect(trackerSource).toContain("queryKey: ['tracker-applications', selectedStages]")
     expect(trackerSource).not.toContain("from('user_jobs')")
     expect(trackerSource).not.toContain('applied_at')
   })

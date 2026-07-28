@@ -51,6 +51,7 @@ function application(
     notes: '',
     pinned: false,
     resumeId: null,
+    resumeLabel: null,
     currentStage: 'ready_to_apply',
     currentStageDate: '2026-07-28',
     updatedAt: '2026-07-28T12:00:00.000Z',
@@ -310,6 +311,7 @@ describe('tracker Supabase contracts', () => {
       notes: '',
       pinned: false,
       resume_id: null,
+      resumes: null,
       current_stage: 'applied',
       current_stage_date: '2026-07-28',
       updated_at: '2026-07-28T12:00:00.000Z',
@@ -353,6 +355,7 @@ describe('tracker Supabase contracts', () => {
       notes: 'Follow up',
       pinned: false,
       resume_id: RESUME_ID,
+      resumes: { id: RESUME_ID, filename: 'resume.docx', display_name: 'Primary' },
       current_stage: 'interview',
       current_stage_date: '2026-07-28',
       updated_at: '2026-07-28T12:00:00.000Z',
@@ -360,7 +363,6 @@ describe('tracker Supabase contracts', () => {
       description_text: null,
       snapshot_partial: false,
       created_at: '2026-07-27T12:00:00.000Z',
-      resumes: { id: RESUME_ID, filename: 'resume.docx', display_name: 'Primary' },
       application_stage_events: [
         {
           id: EVENT_ID,

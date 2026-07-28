@@ -92,11 +92,12 @@ export const TRACKER_STAGE_PRESENTATION: Record<
 
 export const TRACKER_LIST_COLUMNS =
   'id, origin, company, title, location, apply_url, notes, pinned, resume_id, ' +
-  'current_stage, current_stage_date, updated_at'
+  'current_stage, current_stage_date, updated_at, ' +
+  'resumes ( id, filename, display_name )'
 
 export const TRACKER_DETAIL_COLUMNS =
   `${TRACKER_LIST_COLUMNS}, description_html, description_text, snapshot_partial, ` +
-  'created_at, resumes ( id, filename, display_name ), ' +
+  'created_at, ' +
   'application_stage_events ( id, application_id, stage, occurred_on, created_at )'
 
 const UUID_PATTERN =
@@ -122,6 +123,7 @@ export interface TrackerApplicationListItem {
   notes: string
   pinned: boolean
   resumeId: string | null
+  resumeLabel: string | null
   currentStage: TrackerStage
   currentStageDate: string
   updatedAt: string
@@ -363,6 +365,21 @@ export function parseTrackerApplicationListItem(
   if (rawApplyUrl !== null && parsedApplyUrl === null) {
     throw new Error('invalid_tracker_application')
   }
+  let linkedResumeLabel: string | null = null
+  if (row.resume_id !== null) {
+    const linkedResume = record(row.resumes, 'invalid_tracker_application')
+    const filename = nonblank(linkedResume.filename, 'invalid_tracker_application')
+    const displayName = nullableText(
+      linkedResume.display_name,
+      'invalid_tracker_application',
+    )
+    if (uuid(linkedResume.id, 'invalid_tracker_application') !== row.resume_id) {
+      throw new Error('invalid_tracker_application')
+    }
+    linkedResumeLabel = displayName ?? filename
+  } else if (row.resumes !== null && row.resumes !== undefined) {
+    throw new Error('invalid_tracker_application')
+  }
   return {
     id: uuid(row.id, 'invalid_tracker_application'),
     origin: origin(row.origin, 'invalid_tracker_application'),
@@ -373,6 +390,7 @@ export function parseTrackerApplicationListItem(
     notes: row.notes,
     pinned: row.pinned,
     resumeId: row.resume_id as string | null,
+    resumeLabel: linkedResumeLabel,
     currentStage: stage(row.current_stage, 'invalid_tracker_application'),
     currentStageDate: dateOnly(row.current_stage_date, 'invalid_tracker_application'),
     updatedAt: timestamp(row.updated_at, 'invalid_tracker_application'),

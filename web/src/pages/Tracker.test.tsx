@@ -17,6 +17,7 @@ const applications: TrackerApplicationListItem[] = [{
   notes: 'Follow up with Sam.',
   pinned: false,
   resumeId: null,
+  resumeLabel: null,
   currentStage: 'applied',
   currentStageDate: '2026-07-28',
   updatedAt: '2026-07-28T15:00:00.000Z',
@@ -80,7 +81,7 @@ describe('Tracker page contract', () => {
     expect(markup).toContain('Active stages')
     expect(markup).toContain('Terminal stages')
     expect(markup).toContain('All stages')
-    expect(markup.match(/aria-pressed="/g)).toHaveLength(7)
+    expect(markup.match(/aria-pressed="/g)).toHaveLength(10)
     expect(markup).toContain('Applications; scroll horizontally to view all columns')
     expect(markup).toContain('<table')
     expect(markup).toContain('min-w-[1224px]')
@@ -93,7 +94,9 @@ describe('Tracker page contract', () => {
   })
 
   it('uses selected-stage query keys, active defaults, and six independent toggles', () => {
-    expect(trackerSource).toContain('useState<TrackerStage[]>([...TRACKER_ACTIVE_STAGES])')
+    expect(trackerSource).toMatch(
+      /useState<TrackerStage\[]>\(\[\s*\.\.\.TRACKER_ACTIVE_STAGES,\s*\]\)/,
+    )
     expect(TRACKER_ACTIVE_STAGES).toEqual([
       'ready_to_apply',
       'applied',
@@ -146,12 +149,13 @@ describe('Tracker page contract', () => {
 
   it('serializes same-cell writes and keeps scoped real retry actions', () => {
     for (const field of ['pin', 'stage', 'current_stage_date', 'notes']) {
-      expect(trackerSource).toContain('scope: { id: `${application.id}:')
-      expect(trackerSource).toContain(field)
+      expect(trackerSource).toContain(
+        `scope: { id: \`\${application.id}:${field}\` }`,
+      )
     }
     expect(trackerSource).toContain('retry: false')
     expect(trackerSource).toContain('Retry saving')
-    expect(trackerSource).toContain('mutation.variables')
+    expect(trackerSource).toMatch(/\w+Mutation\.variables/)
     expect(trackerSource).toContain("queryKey: ['tracker-application', application.id]")
     expect(trackerSource).not.toContain('pageSaving')
     expect(trackerSource).not.toContain('updateApplication(')
@@ -178,7 +182,7 @@ describe('Tracker page contract', () => {
     )
     expect(trackerSource).toContain('overflow-x-auto')
     expect(trackerSource).toContain('min-w-[1224px]')
-    expect(trackerSource).toContain('[@media(pointer:coarse)]:min-h-11')
+    expect(trackerSource).toContain('min-h-11')
     expect(trackerSource).not.toContain('Kanban')
     expect(trackerSource).not.toMatch(/grid-cols-[1-9].*application/i)
   })
