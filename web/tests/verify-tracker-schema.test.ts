@@ -120,4 +120,12 @@ describe('tracker schema verifier contract', () => {
       /console\.(?:log|error)\([^)]*(?:SUPABASE_ACCESS_TOKEN|authorization)/,
     )
   })
+
+  it('binds the forward 0054 RPC repair into hosted catalog evidence', () => {
+    expect(verifierSource).toContain(
+      "0054_mark_job_applied_ambiguity.sql",
+    )
+    expect(verifierSource).toMatch(/repair_migration_sha256/)
+    expect(verifierSource).toMatch(/hosted migration 0054 is absent/)
+  })
 })

@@ -178,6 +178,7 @@ describe('tracker hosted RLS verifier contract', () => {
   it('requires a current catalog PASS and all approval-bound hashes before seeding', () => {
     expect(verifierSource).toMatch(/catalog_evidence_sha256/)
     expect(verifierSource).toMatch(/migration_sha256/)
+    expect(verifierSource).toMatch(/repair_migration_sha256/)
     expect(verifierSource).toMatch(/schema_verifier_sha256/)
     expect(verifierSource).toMatch(/behavior_verifier_sha256/)
     expect(verifierSource).toMatch(/fixture_manifest_sha256/)
