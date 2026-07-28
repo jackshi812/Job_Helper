@@ -1,51 +1,44 @@
 ---
-status: testing
+status: complete
 phase: 04-application-tracker
 source: [04-VERIFICATION.md]
 started: 2026-07-28T16:56:12Z
-updated: 2026-07-28T19:02:47Z
+updated: 2026-07-28T19:24:20Z
 ---
 
 ## Current Test
 
-number: 1
-name: Revised Tracker layout and controls
-expected: |
-  Refresh the signed-in production Tracker. The page uses the available window
-  without left-right scrolling, shows complete wrapped values, has one Stage
-  group dropdown plus one Stage dropdown, and puts Saving/Saved/Retry in the
-  far-right Status column. Delete opens a cancel-first confirmation.
-awaiting: owner response
+[testing complete]
 
 ## Tests
 
 ### 1. Revised Tracker layout and controls
 expected: Refresh the signed-in production Tracker; it uses the available window without left-right scrolling, wraps complete values, exposes Stage group and Stage dropdowns, shows Saving/Saved/Retry in the far-right Status column, and opens a cancel-first delete confirmation.
-result: pending
+result: pass
 previous_reported: "window don't wide enought, don't want to scrow left to right; allow user to delete a job application from dashboard; After update confirm to update status; saved put on the very right replacing the Updated column. All column values should be fully visible without scrolling; For the stage folders, collaspe the 6 stages into one drop down, and collapse all stages terminal stages and active stages into one dropdown; DELETE the best fit resume feature entirely from dashboard, but still allow user to upload resume; Reorder Tabs: Watchlist Jobs -> All Jobs -> Tracker --> Resumes -> Preferences -> Settings."
 fix_release: 9b1672538f3ba995ebfb49a9683a1ed7ed4049e6
 
 ### 2. Manual tracking and detail editing persist
 expected: Add a manual position, edit stage/date/notes, inspect its expanded timeline and details, optionally link a resume, reload, and observe the saved values and safe rendering.
-result: pending
+result: pass
 
 ### 3. Dashboard and Tracker stay integrated
-expected: Mark a Dashboard job applied, move it to Interview in Tracker, enable Show applied, and use View in Tracker; the current stage and focused row agree and opening Apply alone creates nothing.
-result: pending
+expected: Mark a Dashboard job applied, move it to Interview in Tracker, enable Show applied, and use View in Tracker; the current stage and focused row agree, opening Apply alone creates nothing, Dashboard has no best-fit resume column, and deleting an application requires confirmation.
+result: pass
 
 ## Summary
 
 total: 3
-passed: 0
+passed: 3
 issues: 0
-pending: 3
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
 
 - truth: "The Tracker fits the available window, wraps complete values, and does not require horizontal scrolling."
-  status: resolved_pending_uat
+  status: resolved
   reason: "User reported the table is wider than the window and does not want left-right scrolling."
   severity: major
   test: 1
@@ -63,7 +56,7 @@ blocked: 0
   release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
 
 - truth: "A user can delete an owned application from the Tracker with explicit confirmation."
-  status: resolved_pending_uat
+  status: resolved
   reason: "User requested application deletion from the dashboard."
   severity: major
   test: 1
@@ -83,7 +76,7 @@ blocked: 0
   release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
 
 - truth: "A row-level status cell at the far right confirms Saving, Saved, or retry after updates and replaces Updated."
-  status: resolved_pending_uat
+  status: resolved
   reason: "User requested the Saved confirmation at the far right in place of the Updated column."
   severity: major
   test: 1
@@ -98,7 +91,7 @@ blocked: 0
   release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
 
 - truth: "Stage filters use compact dropdowns for an individual stage and for Active, Terminal, or All groups."
-  status: resolved_pending_uat
+  status: resolved
   reason: "User requested the six stage controls and the three stage-group controls be collapsed into dropdowns."
   severity: major
   test: 1
@@ -113,7 +106,7 @@ blocked: 0
   release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
 
 - truth: "The jobs Dashboard contains no best-fit or runner-up resume feature while Resume Library upload remains available."
-  status: resolved_pending_uat
+  status: resolved
   reason: "User requested complete removal of the best-fit resume feature from Dashboard without removing resume uploads."
   severity: major
   test: 1
@@ -130,7 +123,7 @@ blocked: 0
   release_commit: "9b1672538f3ba995ebfb49a9683a1ed7ed4049e6"
 
 - truth: "Primary tabs are ordered Watchlist Jobs, All Jobs, Tracker, Resumes, Preferences, Settings."
-  status: resolved_pending_uat
+  status: resolved
   reason: "User requested the exact six-tab navigation order and omitted the Watchlist tab."
   severity: major
   test: 1
