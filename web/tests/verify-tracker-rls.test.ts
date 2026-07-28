@@ -145,6 +145,16 @@ describe('tracker hosted RLS verifier contract', () => {
     )
   })
 
+  it('retains only a bounded remote code and preserves the first proof failure', () => {
+    expect(verifierSource).toMatch(/function safeRemoteErrorCode/)
+    expect(verifierSource).toMatch(/\^\[A-Z0-9_\]\{3,32\}\$/)
+    expect(verifierSource).toMatch(/let primaryFailure/)
+    expect(verifierSource).toMatch(/if \(primaryFailure\) throw primaryFailure/)
+    expect(verifierSource).not.toMatch(
+      /remote.*(?:message|details|hint)|(?:message|details|hint).*remote/i,
+    )
+  })
+
   it('derives RPC lineage in memory and cleans exactly seven relations', () => {
     expect(verifierSource).toMatch(/memory-only.*lineage|lineage.*memory-only/is)
     expect(verifierSource).toMatch(/owner.*parent.*namespace.*count/is)
