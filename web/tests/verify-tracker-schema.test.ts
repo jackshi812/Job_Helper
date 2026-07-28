@@ -3,6 +3,42 @@ import migration0053 from '../../supabase/migrations/0053_application_tracker.sq
 import verifierSource from '../../scripts/verify-tracker-schema.ts?raw'
 
 describe('tracker schema verifier contract', () => {
+  it('pins the exact tracker constraint inventory declared by migration 0053', () => {
+    const inventory = verifierSource.match(
+      /const TRACKER_CONSTRAINTS = \[([\s\S]*?)\] as const/,
+    )?.[1]
+    expect(inventory).toBeDefined()
+
+    const labels = [...inventory!.matchAll(/'([^']+)'/g)].map(
+      ([, label]) => label,
+    )
+    expect(labels).toEqual([
+      'applications_id_user_id_key',
+      'applications_origin_check',
+      'applications_stage_check',
+      'applications_manual_fields_check',
+      'applications_job_url_check',
+      'applications_resume_owner_fkey',
+      'application_stage_events_application_owner_fkey',
+      'application_stage_events_stage_check',
+    ])
+    for (const label of labels) {
+      expect(migration0053).toContain(`constraint ${label}`)
+    }
+  })
+
+  it('canonicalizes hosted function identities to type-only signatures', () => {
+    expect(verifierSource).toContain(
+      'pg_catalog.oidvectortypes(p.proargtypes)',
+    )
+    expect(verifierSource).toMatch(
+      /'signature',\s*p\.proname\s*\|\|\s*'\('\s*\|\|\s*pg_catalog\.oidvectortypes\(p\.proargtypes\)\s*\|\|\s*'\)'/,
+    )
+    expect(verifierSource).not.toMatch(
+      /'signature',\s*p\.proname\s*\|\|[\s\S]{0,100}pg_get_function_identity_arguments\(p\.oid\)/,
+    )
+  })
+
   it('exposes only the checksum-bound preflight and hosted assertion modes', () => {
     expect(verifierSource).toMatch(/--mode\s+preflight\|assert-hosted/)
     expect(verifierSource).toContain("'--migration'")
