@@ -6,9 +6,9 @@ current_phase: 04
 current_phase_name: Application Tracker
 status: in_progress
 stopped_at: 04-03-PLAN.md exact hosted behavior approval checkpoint
-last_updated: "2026-07-28T14:12:05Z"
+last_updated: "2026-07-28T14:21:49Z"
 last_activity: 2026-07-28
-last_activity_desc: Phase 04-03 approval envelope refreshed after safe verifier instrumentation; hosted mutations remain approval-gated
+last_activity_desc: Phase 04-03 company fixture drift repaired after fail-closed hosted proof; second hosted attempt remains approval-gated
 progress:
   total_phases: 15
   completed_phases: 14
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-07-27)
 
 Phase: 04 (Application Tracker) — IN PROGRESS
 Plan: 3 of 5
-Status: Awaiting exact owner approval for the refreshed hosted behavior envelope
-Last activity: 2026-07-28 — Instrumentation, full local gates, clean baseline, and read-only hosted catalog refresh passed
+Status: Awaiting exact owner approval for the repaired hosted behavior envelope
+Last activity: 2026-07-28 — Company fixture failure localized, zero residue restored, regression fixed, and read-only hosted catalog refreshed
 
 Progress: [██████████] 98%
 
