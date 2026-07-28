@@ -21,6 +21,8 @@ const USAGE =
 const SHA256 = /^[a-f0-9]{64}$/
 const MIGRATION_NAME = '0053_application_tracker.sql'
 const REPAIR_MIGRATION_NAME = '0054_mark_job_applied_ambiguity.sql'
+const BEHAVIOR_REPAIR_MIGRATION_NAME =
+  '0055_tracker_behavior_and_cleanup.sql'
 const MANUAL_SIGNATURE =
   'create_manual_application(text, text, text, text, text, date)'
 const MANUAL_RESULT = 'application_id uuid, duplicate_warning boolean'
@@ -328,6 +330,51 @@ function requireRepairMigrationContract(migration: string): void {
     replacements[0] !== 'mark_job_applied'
   ) {
     fail('repair migration expands beyond mark_job_applied')
+  }
+}
+
+function requireBehaviorRepairMigrationContract(migration: string): void {
+  const normalized = normalizedSql(migration)
+  const required = [
+    'create or replace function public.sync_application_stage_projection()',
+    "if tg_op = 'DELETE' and not exists(",
+    'final_application_event: every application needs one timeline event',
+    'create or replace function public.dashboard_applied_applications()',
+    'security invoker',
+    "application.apply_url ~ '^https://[^/?#@]+(?:[/?#].*)?$'",
+    'unexpected_projection_count',
+    'ranking_item_count <> 3',
+    'ranking_pending_count <> 1',
+    'ranking_completed_count <> 2',
+    'delete from public.user_jobs',
+    'delete from public.jobs',
+    'delete from public.companies',
+  ]
+  for (const item of required) {
+    if (!normalized.includes(normalizedSql(item))) {
+      fail(`behavior repair migration contract missing: ${item}`)
+    }
+  }
+  if (
+    /grant execute on function public\.tracker_https_url_valid/i.test(
+      migration,
+    )
+  ) {
+    fail('behavior repair exposes the internal URL helper')
+  }
+  const replacements = [
+    ...migration.matchAll(
+      /create or replace function public\.([a-z0-9_]+)\s*\(/gi,
+    ),
+  ].map((match) => match[1])
+  if (
+    canonical(replacements as unknown as Json) !==
+    canonical([
+      'sync_application_stage_projection',
+      'dashboard_applied_applications',
+    ])
+  ) {
+    fail('behavior repair expands beyond the two reviewed functions')
   }
 }
 
@@ -652,6 +699,9 @@ function assertHostedContract(
   }
   if (!inventory.migrationVersions.includes('0054')) {
     fail('hosted migration 0054 is absent')
+  }
+  if (!inventory.migrationVersions.includes('0055')) {
+    fail('hosted migration 0055 is absent')
   }
   for (const table of TRACKER_TABLES) {
     const row = inventory.tables.find((item) => item.name === table)
@@ -1041,12 +1091,22 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
     `supabase/migrations/${REPAIR_MIGRATION_NAME}`,
   )
   requireRepairMigrationContract(await readFile(repairMigrationPath, 'utf8'))
+  const behaviorRepairMigrationPath = resolve(
+    root,
+    `supabase/migrations/${BEHAVIOR_REPAIR_MIGRATION_NAME}`,
+  )
+  requireBehaviorRepairMigrationContract(
+    await readFile(behaviorRepairMigrationPath, 'utf8'),
+  )
   const approved = preflightJson(await readFile(preflightPath, 'utf8'))
   if (approved.status !== 'PASS') fail('preflight status is not PASS')
   const projectRef = stringField(approved, 'project_ref')
   const current = {
     migration_sha256: await fileSha(migrationPath),
     repair_migration_sha256: await fileSha(repairMigrationPath),
+    behavior_repair_migration_sha256: await fileSha(
+      behaviorRepairMigrationPath,
+    ),
     schema_verifier_sha256: await fileSha(
       resolve(root, 'scripts/verify-tracker-schema.ts'),
     ),
@@ -1107,9 +1167,11 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
   const evidenceBody: JsonRecord = {
     status: 'PASS',
     checked_at: new Date().toISOString(),
-    migration_version: '0054',
+    migration_version: '0055',
     migration_sha256: current.migration_sha256,
     repair_migration_sha256: current.repair_migration_sha256,
+    behavior_repair_migration_sha256:
+      current.behavior_repair_migration_sha256,
     schema_verifier_sha256: current.schema_verifier_sha256,
     behavior_verifier_sha256: current.behavior_verifier_sha256,
     fixture_manifest_sha256: current.fixture_manifest_sha256,

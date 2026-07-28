@@ -137,7 +137,7 @@ const DIAGNOSTIC_STEPS = Object.freeze([
   'cleanup.recover.applications.exact',
   'cleanup.recover.applications.fallback',
   'cleanup.recover.events',
-  'cleanup.events.delete',
+  'cleanup.events.verify',
   'cleanup.applications.delete',
   'cleanup.user_jobs.read',
   'cleanup.user_jobs.delete',
@@ -789,7 +789,7 @@ async function seedDirectFixtures(
       description_text: 'Disposable tracker verification fixture.',
       snapshot_partial: false,
       fingerprint: job.fingerprint,
-      status: 'open',
+      status: 'closed',
     },
     1,
     secrets,
@@ -1314,22 +1314,6 @@ async function cleanupExact(
   )
   const applicationIds = [...applicationLineage.keys()]
   const eventIds = [...eventLineage.keys()]
-  if (eventIds.length > 0) {
-    await mutateExact(
-      'cleanup.events.delete',
-      apiUrl,
-      publishableKey,
-      null,
-      serviceKey,
-      'application_stage_events',
-      'DELETE',
-      `id=in.(${eventIds.join(',')})&application_id=in.(${applicationIds.join(',')})&` +
-        `user_id=in.(${FIXTURE_MANIFEST.auth_users.map((user) => user.id).join(',')})`,
-      undefined,
-      eventIds.length,
-      secrets,
-    )
-  }
   if (applicationIds.length > 0) {
     await mutateExact(
       'cleanup.applications.delete',
@@ -1343,6 +1327,21 @@ async function cleanupExact(
         `user_id=in.(${FIXTURE_MANIFEST.auth_users.map((user) => user.id).join(',')})`,
       undefined,
       applicationIds.length,
+      secrets,
+    )
+  }
+  if (eventIds.length > 0) {
+    await selectExact(
+      'cleanup.events.verify',
+      apiUrl,
+      publishableKey,
+      null,
+      serviceKey,
+      'application_stage_events',
+      `select=id&id=in.(${eventIds.join(',')})&` +
+        `application_id=in.(${applicationIds.join(',')})&` +
+        `user_id=in.(${FIXTURE_MANIFEST.auth_users.map((user) => user.id).join(',')})`,
+      0,
       secrets,
     )
   }
@@ -1551,6 +1550,12 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
         'supabase/migrations/0054_mark_job_applied_ambiguity.sql',
       ),
     ),
+    behavior_repair_migration_sha256: await fileSha(
+      resolve(
+        root,
+        'supabase/migrations/0055_tracker_behavior_and_cleanup.sql',
+      ),
+    ),
     schema_verifier_sha256: await fileSha(
       resolve(root, 'scripts/verify-tracker-schema.ts'),
     ),
@@ -1724,6 +1729,8 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
     catalog_evidence_sha256: catalogDigest,
     migration_sha256: current.migration_sha256,
     repair_migration_sha256: current.repair_migration_sha256,
+    behavior_repair_migration_sha256:
+      current.behavior_repair_migration_sha256,
     schema_verifier_sha256: current.schema_verifier_sha256,
     behavior_verifier_sha256: current.behavior_verifier_sha256,
     fixture_manifest_sha256: current.fixture_manifest_sha256,
