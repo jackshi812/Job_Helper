@@ -26,7 +26,10 @@ describe('tracker hosted RLS verifier contract', () => {
       fixture_manifest: {
         namespace: string
         auth_users: unknown[]
-        companies: unknown[]
+        companies: Array<{
+          careers_url?: string
+          source_key?: string
+        }>
         jobs: unknown[]
         user_jobs: unknown[]
         resumes: unknown[]
@@ -42,6 +45,12 @@ describe('tracker hosted RLS verifier contract', () => {
     expect(contract.fixture_manifest.namespace).toMatch(/^phase-04-tracker-/)
     expect(contract.fixture_manifest.auth_users).toHaveLength(2)
     expect(contract.fixture_manifest.companies).toHaveLength(1)
+    expect(contract.fixture_manifest.companies[0]).toMatchObject({
+      careers_url:
+        'https://job-boards.greenhouse.io/phase-04-tracker-0053-proof-v1',
+      source_key:
+        'greenhouse:global:phase-04-tracker-0053-proof-v1',
+    })
     expect(contract.fixture_manifest.jobs).toHaveLength(1)
     expect(contract.fixture_manifest.user_jobs).toHaveLength(2)
     expect(contract.fixture_manifest.resumes).toHaveLength(2)
