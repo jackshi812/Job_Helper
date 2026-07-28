@@ -1,6 +1,6 @@
 # Phase 04 Plan 03 Hosted Tracker Schema Evidence
 
-**Status:** CATALOG PASS — awaiting exact approval for the repaired hosted behavior proof.
+**Status:** SUPERSEDED — approved proof reached Dashboard RPC and exposed PostgreSQL 42501; migration 0055 approval is pending.
 
 ## Post-push identity
 
@@ -144,6 +144,11 @@ Any target, hash, catalog digest, count, lineage, authority, cleanup, or residue
 drift blocks behavior and later Phase 04 plans.
 
 ## Exact approval signal
+
+The approval below was consumed by the failed proof and is no longer valid:
+migration 0055, both verifiers, both verifier tests, the behavior scope, and
+the hosted catalog binding now differ. The current production action is bound
+only by `04-03-BEHAVIOR-REPAIR-PREFLIGHT.md`.
 
 `approve Phase 04 tracker behavior verification target=fjcsvajkkztvlrpdplwx source_commit=62e97831eb61b28aa46c0d86657b1d55e94848aa migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 repair_migration_sha256=111fc68f01dd0658cd2536c4fb6abfd99ba25179e70b98ef158e3ab22753a5c3 schema_verifier_sha256=74216fdc290a863b1e1f756e665b99f657795aad45f8d2ceafdb87a999c77349 behavior_verifier_sha256=3c1ceec5ba40767816cf5aea78c748bf8c7ad760b36c713cb814e87300555d14 repair_test_sha256=b62077aac38f8c8cdcd42fc285323d65a2ccad14ced45992f6844130733855c0 schema_test_sha256=2a6440be77a657f26268372b4d7c39eed842791661fe5d9dec7077d54230dfe0 behavior_test_sha256=06cbed496c8fe2131766609e3046faf9e2f8abb4add31da93f627456e5426f76 fixture_manifest_sha256=8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77 catalog_evidence_sha256=c208d0aa04760fe91c5f76c35615333a5f417efb7ac09ba94b98b8a45d4a1d03 behavior_scope_sha256=a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51 auth_users=2 companies=1 jobs=1 user_jobs=2 resumes=2 runtime_applications=4 runtime_events=5 source_rows_removed=1 cleanup_relations=7`
 
