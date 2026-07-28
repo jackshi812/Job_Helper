@@ -362,6 +362,16 @@ function sanitizedError(error: unknown, secrets: string[]): Error {
   return new Error(JSON.stringify(recursiveRedact(rendered, secrets)))
 }
 
+function safeRemoteErrorCode(payload: Json): string | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null
+  }
+  const code = (payload as JsonRecord).code
+  return typeof code === 'string' && /^[A-Z0-9_]{3,32}$/.test(code)
+    ? code
+    : null
+}
+
 function command(
   executable: string,
   args: string[],
@@ -442,14 +452,18 @@ async function httpJson(
       }
     }
     if (!expected.includes(response.status)) {
-      throw new Error(`HTTP ${response.status}`)
+      const remoteCode = safeRemoteErrorCode(payload)
+      throw new Error(
+        `HTTP ${response.status}${remoteCode ? ` code ${remoteCode}` : ''}`,
+      )
     }
     writeDiagnostic(step, 'pass', startedAt)
     return { payload, headers: response.headers, status: response.status }
   } catch (error) {
     writeDiagnostic(step, 'fail', startedAt)
     const reason =
-      error instanceof Error && /^HTTP \d{3}$/.test(error.message)
+      error instanceof Error &&
+      /^HTTP \d{3}(?: code [A-Z0-9_]{3,32})?$/.test(error.message)
         ? error.message
         : error instanceof Error
           ? error.name
@@ -1565,6 +1579,8 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
   let directFixturesSeeded = false
   let behaviorCompleted = false
   let cleanupCompleted = false
+  let primaryFailure: Error | null = null
+  let cleanupFailure: Error | null = null
   let residue: JsonRecord = {}
   const passwordA = `T4!${randomBytes(30).toString('base64url')}`
   const passwordB = `T4!${randomBytes(30).toString('base64url')}`
@@ -1638,7 +1654,7 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
     )
     behaviorCompleted = true
   } catch (error) {
-    throw sanitizedError(error, secrets)
+    primaryFailure = sanitizedError(error, secrets)
   } finally {
     // The finally path is exact-count, owner/parent/namespace, and memory-only
     // lineage constrained. It refuses broad cleanup when behavior lineage is
@@ -1684,7 +1700,7 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
           secrets,
         )
       } catch (cleanupError) {
-        throw sanitizedError(cleanupError, secrets)
+        cleanupFailure = sanitizedError(cleanupError, secrets)
       } finally {
         serviceRoleKey = ''
         secrets.fill('[REDACTED]')
@@ -1692,6 +1708,8 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
     }
   }
 
+  if (primaryFailure) throw primaryFailure
+  if (cleanupFailure) throw cleanupFailure
   requireCondition(behaviorCompleted, 'ordinary behavior proof did not complete')
   requireCondition(cleanupCompleted, 'exact cleanup did not complete')
   const evidenceBody: JsonRecord = {
