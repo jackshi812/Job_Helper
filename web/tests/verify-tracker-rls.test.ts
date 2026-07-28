@@ -82,6 +82,8 @@ describe('tracker hosted RLS verifier contract', () => {
     expect(verifierSource).toMatch(/p_stage/)
     expect(verifierSource).toMatch(/p_occurred_on/)
     expect(verifierSource).toContain('duplicate_warning')
+    expect(verifierSource).toContain('privileged_key_memory_only')
+    expect(verifierSource).not.toContain('service_role_memory_only')
     expect(verifierSource).toContain(
       'application_id, company, title, location, apply_url, applied_on, current_stage, current_stage_date',
     )
