@@ -1,20 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 04-application-tracker
 source: [04-VERIFICATION.md]
 started: 2026-07-28T16:56:12Z
-updated: 2026-07-28T19:28:20Z
+updated: 2026-07-28T19:31:02Z
 ---
 
 ## Current Test
 
-number: 4
-name: Compact indexed Tracker rows
-expected: |
-  Refresh the signed-in Tracker. Every application row is only slightly taller
-  than its text fields, the pin star is clearly larger, and a numbered #
-  column identifies each visible application without horizontal scrolling.
-awaiting: owner response
+[testing complete]
 
 ## Tests
 
@@ -34,15 +28,17 @@ result: pass
 
 ### 4. Compact indexed Tracker rows
 expected: Every application row is only slightly taller than its text fields, the pin star is clearly larger, and a numbered # column identifies each visible application without horizontal scrolling.
-result: pending
+result: pass
 previous_reported: "The row is a bit too wide now. just make it a bit bigger than the text box. Also make the star sign larger and add indexing"
+fix_commit: 4b29033a7733f199943794b8f9456c4a0031cf5d
+release_commit: 4b29033a7733f199943794b8f9456c4a0031cf5d
 
 ## Summary
 
 total: 4
-passed: 3
+passed: 4
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
@@ -150,7 +146,7 @@ blocked: 0
   debug_session: "inline Phase 04 UAT diagnosis, 2026-07-28"
 
 - truth: "Tracker rows remain compact, show a larger pin star, and include visible row numbering."
-  status: resolved_pending_uat
+  status: resolved
   reason: "User reported the row is too tall, requested it sit only slightly beyond the text box, and requested a larger star plus indexing."
   severity: minor
   test: 4
@@ -165,4 +161,6 @@ blocked: 0
     - "Render a dedicated # column and numbered visible rows."
     - "Increase the star glyph to text-2xl and cover the revised density contract."
   resolution: "The Status cell is horizontal, the main Notes editor is one row, the pin uses text-2xl, and a dedicated # column numbers visible applications."
+  fix_commit: "4b29033a7733f199943794b8f9456c4a0031cf5d"
+  release_commit: "4b29033a7733f199943794b8f9456c4a0031cf5d"
   debug_session: "inline Phase 04 UAT diagnosis, 2026-07-28"
