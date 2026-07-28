@@ -6,9 +6,9 @@ current_phase: 04
 current_phase_name: Application Tracker
 status: in_progress
 stopped_at: 04-03-PLAN.md exact hosted behavior approval checkpoint
-last_updated: "2026-07-28T14:21:49Z"
+last_updated: "2026-07-28T14:32:06Z"
 last_activity: 2026-07-28
-last_activity_desc: Phase 04-03 company fixture drift repaired after fail-closed hosted proof; second hosted attempt remains approval-gated
+last_activity_desc: Phase 04-03 first Mark Applied failure localized; bounded cause preservation and a fresh read-only catalog PASS await exact owner approval
 progress:
   total_phases: 15
   completed_phases: 14
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-07-27)
 
 Phase: 04 (Application Tracker) — IN PROGRESS
 Plan: 3 of 5
-Status: Awaiting exact owner approval for the repaired hosted behavior envelope
-Last activity: 2026-07-28 — Company fixture failure localized, zero residue restored, regression fixed, and read-only hosted catalog refreshed
+Status: Awaiting exact owner approval for the bounded diagnostic hosted behavior envelope
+Last activity: 2026-07-28 — First Mark Applied failure localized, zero residue restored, bounded cause regression fixed, and read-only hosted catalog refreshed
 
 Progress: [██████████] 98%
 
@@ -350,8 +350,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-28T14:02:41Z
-Stopped at: Session resumed, proceeding to 04-03 verifier instrumentation and approval-envelope refresh
+Last session: 2026-07-28T14:32:06Z
+Stopped at: Phase 04-03 bounded diagnostic envelope awaiting exact owner approval
 Resume file: .planning/phases/04-application-tracker/.continue-here.md
 Last session (2026-07-26): Phase 03.8 selective Workday recovery completed; all four requested companies are Active at 3/3 with successful natural polls, 176 exact-scope jobs, migration 0044 parity, protected sources intact, and zero verifier residue.
 Earlier Phase 03.8 closeout (superseded by the recovery above): all four new Workday candidates were precise Unsupported with zero authority; migrations/functions matched that approved release, verifier cleanup was zero-residue, and owner UAT passed.

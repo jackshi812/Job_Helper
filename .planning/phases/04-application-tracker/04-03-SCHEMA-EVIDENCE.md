@@ -1,23 +1,23 @@
 # Phase 04 Plan 03 Hosted Tracker Schema Evidence
 
-**Status:** CATALOG PASS — awaiting explicit approval after fail-closed fixture repair.
+**Status:** CATALOG PASS — awaiting explicit approval after bounded failure-cause repair.
 
 ## Post-push identity
 
 - Linked project: `fjcsvajkkztvlrpdplwx`
-- Source commit: `7450faf1041ca19094dd59b6839dc1dbc66052eb`
+- Source commit: `64d5df54f5165697e36eb6a3c46f037c6e118fb7`
 - Migration version: `0053`
 - Migration SHA-256: `7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0`
 - Schema verifier SHA-256: `e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26`
-- Behavior verifier SHA-256: `ee785a7f0730d113044a1e6caa078e25845207541d90b387407c493ecb92aa00`
+- Behavior verifier SHA-256: `3c6e396d7de9593667f9d14882794136268fdf1f2216cc8b90c4ee1947fe4fcf`
 - Schema verifier test SHA-256: `fa350e883dbf64fb405db93f13e46e1e64e85f4ae3dd0e72288440ec66007ffd`
-- Behavior verifier test SHA-256: `a6d0886b27d20faa34dae50ed34cc9a57ba8e58f5b6fa662bfa741ad1a140242`
+- Behavior verifier test SHA-256: `c844defdbe665b8aaaa34451841d630f8625c599a24d594f01b2082e461d2e09`
 - Fixture manifest SHA-256: `8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77`
-- Catalog evidence SHA-256: `a882860994072dbc5d7fc65e9ad544fc605d118c293f5080e794e2c24243919d`
+- Catalog evidence SHA-256: `be5392f7e4f23593bd95331dc993aa0360424d990d5215bff8a37e301fe93758`
 - Hosted catalog SHA-256: `38884034a76d38f1fb3379d228961c5db39d527029b62bd55a6fa084763c2bce`
 - Behavior scope SHA-256: `a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51`
 - Scoped source dirty inventory: empty
-- Catalog checked at: `2026-07-28T14:21:44.430Z`
+- Catalog checked at: `2026-07-28T14:32:06.730Z`
 
 ## Verifier repair and timeout instrumentation
 
@@ -37,11 +37,19 @@
 - RED commit `e721b96` binds the company fixture's required connector-state
   identity. GREEN commit `7450faf` supplies its exact `careers_url` and
   `source_key` without changing counts or mutation boundaries.
+- The second approved attempt seeded the complete direct fixture and
+  established two ordinary sessions, then failed at the first
+  `mark_job_applied` request. Its original HTTP/database cause was masked by a
+  later Auth Admin cleanup timeout.
+- RED commit `0031a1a` requires only a bounded remote database code and
+  preservation of the first proof failure. GREEN commit `64d5df5` implements
+  that diagnostic contract without retaining response bodies, messages,
+  details, hints, endpoints, fixture values, or credentials.
 - Migration 0053, the schema verifier, schema verifier tests, fixture manifest,
   behavior scope counts, lineage constraints, and cleanup boundaries are
   unchanged.
-- Focused tracker gate: PASS — 3 files, 22 tests.
-- Full local gate: PASS — 71 files, 1476 tests.
+- Focused tracker gate: PASS — 3 files, 23 tests.
+- Full local gate: PASS — 71 files, 1477 tests.
 - Production build: PASS.
 - Lint: PASS with two pre-existing warnings outside this repair.
 - Repository diff check: PASS.
@@ -94,13 +102,15 @@ diagnostic allowlist and output shape without expanding mutation authority.
 ## Behavior and cleanup scope awaiting approval
 
 Service authority was discovered only transiently in memory and was not
-retained. The first approved behavior attempt created exactly the two
-disposable Auth users, then stopped at the rejected company insert before any
-public fixture row existed. Admin cleanup timed out; the bounded SQL fallback
+retained. The first approved behavior attempt stopped at the rejected company
+insert before any public fixture row existed. The second approved behavior
+attempt created the complete direct fixture and two ordinary sessions, then
+stopped at the first Mark Applied RPC. In both cases, the bounded SQL fallback
 atomically required both exact manifest identities, zero storage objects, zero
-public fixture rows, and an exact two-row deletion. A following independent
-exact-ID audit returned 404 for both users and zero for all seven relations.
-No source row was removed and no ordinary-session behavior assertion ran.
+public fixture residue, and an exact two-row Auth deletion. Following
+independent exact-ID audits returned 404 for both users and zero for all seven
+relations. No source row was removed, and the ordinary-session behavior proof
+has not passed.
 
 If approved with the exact signal below, the next continuation may:
 
@@ -126,7 +136,7 @@ drift blocks behavior and later Phase 04 plans.
 
 ## Exact approval signal
 
-`approve Phase 04 tracker behavior verification target=fjcsvajkkztvlrpdplwx source_commit=7450faf1041ca19094dd59b6839dc1dbc66052eb migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 schema_verifier_sha256=e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26 behavior_verifier_sha256=ee785a7f0730d113044a1e6caa078e25845207541d90b387407c493ecb92aa00 schema_test_sha256=fa350e883dbf64fb405db93f13e46e1e64e85f4ae3dd0e72288440ec66007ffd behavior_test_sha256=a6d0886b27d20faa34dae50ed34cc9a57ba8e58f5b6fa662bfa741ad1a140242 fixture_manifest_sha256=8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77 catalog_evidence_sha256=a882860994072dbc5d7fc65e9ad544fc605d118c293f5080e794e2c24243919d behavior_scope_sha256=a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51 auth_users=2 companies=1 jobs=1 user_jobs=2 resumes=2 runtime_applications=4 runtime_events=5 source_rows_removed=1 cleanup_relations=7`
+`approve Phase 04 tracker behavior verification target=fjcsvajkkztvlrpdplwx source_commit=64d5df54f5165697e36eb6a3c46f037c6e118fb7 migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 schema_verifier_sha256=e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26 behavior_verifier_sha256=3c6e396d7de9593667f9d14882794136268fdf1f2216cc8b90c4ee1947fe4fcf schema_test_sha256=fa350e883dbf64fb405db93f13e46e1e64e85f4ae3dd0e72288440ec66007ffd behavior_test_sha256=c844defdbe665b8aaaa34451841d630f8625c599a24d594f01b2082e461d2e09 fixture_manifest_sha256=8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77 catalog_evidence_sha256=be5392f7e4f23593bd95331dc993aa0360424d990d5215bff8a37e301fe93758 behavior_scope_sha256=a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51 auth_users=2 companies=1 jobs=1 user_jobs=2 resumes=2 runtime_applications=4 runtime_events=5 source_rows_removed=1 cleanup_relations=7`
 
 Replying `defer Phase 04 tracker behavior verification` leaves production
 unchanged and performs no service-authority discovery or hosted mutation.
@@ -134,18 +144,18 @@ unchanged and performs no service-authority discovery or hosted mutation.
 <!-- tracker-preflight-json
 {
   "status": "PASS",
-  "created_at": "2026-07-28T14:21:44Z",
+  "created_at": "2026-07-28T14:32:06Z",
   "project_ref": "fjcsvajkkztvlrpdplwx",
-  "source_commit": "7450faf1041ca19094dd59b6839dc1dbc66052eb",
+  "source_commit": "64d5df54f5165697e36eb6a3c46f037c6e118fb7",
   "scoped_source_dirty_inventory": [],
   "migration": "supabase/migrations/0053_application_tracker.sql",
   "migration_sha256": "7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0",
   "schema_verifier_sha256": "e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26",
-  "behavior_verifier_sha256": "ee785a7f0730d113044a1e6caa078e25845207541d90b387407c493ecb92aa00",
+  "behavior_verifier_sha256": "3c6e396d7de9593667f9d14882794136268fdf1f2216cc8b90c4ee1947fe4fcf",
   "schema_test_sha256": "fa350e883dbf64fb405db93f13e46e1e64e85f4ae3dd0e72288440ec66007ffd",
-  "behavior_test_sha256": "a6d0886b27d20faa34dae50ed34cc9a57ba8e58f5b6fa662bfa741ad1a140242",
+  "behavior_test_sha256": "c844defdbe665b8aaaa34451841d630f8625c599a24d594f01b2082e461d2e09",
   "fixture_manifest_sha256": "8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77",
-  "catalog_evidence_sha256": "a882860994072dbc5d7fc65e9ad544fc605d118c293f5080e794e2c24243919d",
+  "catalog_evidence_sha256": "be5392f7e4f23593bd95331dc993aa0360424d990d5215bff8a37e301fe93758",
   "hosted_catalog_sha256": "38884034a76d38f1fb3379d228961c5db39d527029b62bd55a6fa084763c2bce",
   "behavior_scope_sha256": "a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51",
   "remote_migration_tail": ["0050", "0051", "0052", "0053"],
@@ -176,6 +186,6 @@ unchanged and performs no service-authority discovery or hosted mutation.
     "public.companies",
     "auth.users"
   ],
-  "approval_signal": "approve Phase 04 tracker behavior verification target=fjcsvajkkztvlrpdplwx source_commit=7450faf1041ca19094dd59b6839dc1dbc66052eb migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 schema_verifier_sha256=e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26 behavior_verifier_sha256=ee785a7f0730d113044a1e6caa078e25845207541d90b387407c493ecb92aa00 schema_test_sha256=fa350e883dbf64fb405db93f13e46e1e64e85f4ae3dd0e72288440ec66007ffd behavior_test_sha256=a6d0886b27d20faa34dae50ed34cc9a57ba8e58f5b6fa662bfa741ad1a140242 fixture_manifest_sha256=8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77 catalog_evidence_sha256=a882860994072dbc5d7fc65e9ad544fc605d118c293f5080e794e2c24243919d behavior_scope_sha256=a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51 auth_users=2 companies=1 jobs=1 user_jobs=2 resumes=2 runtime_applications=4 runtime_events=5 source_rows_removed=1 cleanup_relations=7"
+  "approval_signal": "approve Phase 04 tracker behavior verification target=fjcsvajkkztvlrpdplwx source_commit=64d5df54f5165697e36eb6a3c46f037c6e118fb7 migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 schema_verifier_sha256=e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26 behavior_verifier_sha256=3c6e396d7de9593667f9d14882794136268fdf1f2216cc8b90c4ee1947fe4fcf schema_test_sha256=fa350e883dbf64fb405db93f13e46e1e64e85f4ae3dd0e72288440ec66007ffd behavior_test_sha256=c844defdbe665b8aaaa34451841d630f8625c599a24d594f01b2082e461d2e09 fixture_manifest_sha256=8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77 catalog_evidence_sha256=be5392f7e4f23593bd95331dc993aa0360424d990d5215bff8a37e301fe93758 behavior_scope_sha256=a9cfc81a7bf1d005dbe3495898046dc6c2c8e4c2f5c77bb79ef4922d269f3b51 auth_users=2 companies=1 jobs=1 user_jobs=2 resumes=2 runtime_applications=4 runtime_events=5 source_rows_removed=1 cleanup_relations=7"
 }
 tracker-preflight-json -->
