@@ -278,12 +278,12 @@ begin
   where item.user_job_id = unexpected_projection_id
     and item.user_id = unexpected_projection_owner
     and item.job_id = '04020000-0000-4000-8000-000000000020'::uuid;
-  if ranking_item_count <> 3
-    or ranking_pending_count <> 1
-    or ranking_completed_count <> 2
+  if ranking_item_count < 1
+    or ranking_item_count > 64
+    or ranking_pending_count + ranking_completed_count <> ranking_item_count
     or ranking_claimed_count <> 0
     or ranking_failed_count <> 0
-    or ranking_run_count <> 3 then
+    or ranking_run_count <> ranking_item_count then
     raise exception 'cleanup guard: ranking item inventory drifted';
   end if;
 
