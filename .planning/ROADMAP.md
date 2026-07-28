@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)** - Reusable, fail-closed Workday identities with Fidelity admitted through the Watchlist flow and scheduled ingestion (completed 2026-07-24)
 - [x] **Phase 03.6: US-Only Workday Expansion & Dashboard Queue (INSERTED)** - Add four exact U.S.-only Workday sources while preventing dismissed and applied jobs from consuming the active Dashboard window (completed 2026-07-25)
 - [x] **Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)** - Default watchlist-only jobs view with the combined feed preserved as All Jobs (completed 2026-07-25)
-- [ ] **Phase 4: Application Tracker** - Manual application tracking from saved through offer, including external jobs, notes, JD snapshots, and optional links to resumes prepared outside the app
+- [ ] **Phase 4: Application Tracker** - Manual application tracking from Ready to Apply through terminal outcomes, including external jobs, notes, JD snapshots, and optional links to resumes prepared outside the app
 
 ## Phase Details
 
@@ -554,7 +554,7 @@ Plans:
 
 ### Phase 4: Application Tracker
 
-**Goal**: User can track every application from saved through offer, including jobs found outside the system, with notes, preserved job-description context, and optional links to resumes prepared manually outside the app
+**Goal**: User can track every application from Ready to Apply through terminal outcomes, including jobs found outside the system, with notes, preserved job-description context, and optional links to resumes prepared manually outside the app
 **Mode:** mvp
 **Depends on**: Phase 03.4
 **Requirements**: TRAK-01, TRAK-02, TRAK-03, TRAK-04

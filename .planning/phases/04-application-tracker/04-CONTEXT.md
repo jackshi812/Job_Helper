@@ -24,7 +24,7 @@ The tracker does not tailor or generate resumes, submit applications, rank manua
 
 ### Tracker table and stages
 
-- **D-05:** Use exactly six tracker stages: **Ready to Apply**, **Applied**, **Outreach Sent**, **Interview**, **Offer**, and **Rejected**. This decision supersedes the legacy seven-stage wording in TRAK-01 and the Phase 4 roadmap: **Saved** is renamed **Ready to Apply**, and **Resume Prepared** is removed.
+- **D-05:** Use exactly six tracker stages: **Ready to Apply**, **Applied**, **Outreach Sent**, **Interview**, **Offer**, and **Rejected**. **Saved** is renamed **Ready to Apply**, and **Resume Prepared** is removed.
 - **D-06:** Stage treatments are: Ready to Apply neutral, Applied blue, Outreach Sent cyan, Interview light green, Offer green, and Rejected red.
 - **D-07:** Present applications in one spreadsheet-like table with stage filters, not a Kanban board or separate tables. Each row uses a colored stage badge and a subtle matching accent.
 - **D-08:** Use hybrid Excel-style editing. Stage, relevant date, and notes edit inline. Company and title are read-only for system-discovered jobs but remain editable for manual jobs.
@@ -69,8 +69,8 @@ The tracker does not tailor or generate resumes, submit applications, rank manua
 ### Product scope and requirements
 
 - `.planning/PROJECT.md` — Product boundary, privacy model, manual resume preparation, and explicit exclusion of automated resume tailoring.
-- `.planning/REQUIREMENTS.md` — Phase 4 tracker requirements TRAK-01 through TRAK-04. D-05 in this context supersedes TRAK-01’s legacy stage labels.
-- `.planning/ROADMAP.md` — Phase goal, dependencies, success criteria, and delivery sequence. D-05 in this context supersedes the roadmap’s legacy seven-stage wording.
+- `.planning/REQUIREMENTS.md` — Phase 4 tracker requirements TRAK-01 through TRAK-04, including the canonical six-stage lifecycle.
+- `.planning/ROADMAP.md` — Phase goal, dependencies, success criteria, and delivery sequence.
 
 ### Visual direction
 

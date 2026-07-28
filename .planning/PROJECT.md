@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An invite-only web app (browser-based, no install) for two users that discovers relevant job postings within 5–15 minutes of publication, speeds up applications with AI-tailored resumes, and assists with approved outreach. Users open a URL, log in, and get a dashboard of scored job matches, a resume tailoring workflow, and a manual application tracker.
+An invite-only web app (browser-based, no install) for two users that discovers relevant job postings within 5–15 minutes of publication, ranks them transparently, and keeps applications organized. Users open a URL, log in, and get a dashboard of ranked job matches, a private resume library, and a manual application tracker.
 
 ## Core Value
 
@@ -26,8 +26,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 ### Active
 
 - [ ] Source coverage expansion: representative public ATS/portal adapters and major finance-company career sites, while preserving safe degraded-source behavior
-- [ ] Resume tailoring: pick base resume, review AI keyword edits side by side, approve, download PDF — truthful edits only, user review mandatory
-- [ ] Manual application tracker with stages: saved, resume prepared, applied, outreach sent, interview, rejected, offer
+- [ ] Manual application tracker with stages: Ready to Apply, Applied, Outreach Sent, Interview, Offer, and Rejected
 
 ### Out of Scope
 
@@ -38,6 +37,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 - Native desktop/mobile app — web app covers the need for two users
 - Paid contact-discovery APIs (Hunter/Apollo) — cost constraint; heuristic approach chosen
 - Multi-tenant/general signup — invite-only, two users, by design
+- Automated resume tailoring, DOCX editing, and PDF generation — removed by owner; resumes are prepared manually outside the app
 
 ## Context
 
@@ -45,8 +45,8 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 - LinkedIn has no open job-search API; official alerts are daily/weekly — usable only as a supplemental source
 - Career-site monitoring is heterogeneous: some platforms expose public JSON endpoints, while Workday/Oracle/iCIMS/SuccessFactors/Eightfold and branded sites require structured portal or allowlisted company-specific adapters with stricter failure handling
 - Two users only — no scaling pressure, free tiers must suffice
-- Users manually submit applications on employer sites; the copilot prepares materials, never submits
-- Product shape: login → dashboard (match feed) → preferences/watchlist → resumes (DOCX upload) → job detail with "tailor resume" → tracker table
+- Users prepare application materials and submit on employer sites manually; the copilot discovers, ranks, and tracks opportunities but never submits
+- Product shape: login → dashboard (match feed) → preferences/watchlist → resumes (private upload/library) → job detail → tracker table
 
 ## Constraints
 
@@ -54,7 +54,6 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 - **Tech stack**: Cloudflare Pages frontend, Supabase Pro backend on Micro compute (auth, Postgres, resume storage, scheduled functions)
 - **Compliance**: No scraping logged-in LinkedIn pages, no Easy Apply automation, no auto-sent LinkedIn messages — platform policy
 - **Security**: Resumes in encrypted private cloud storage with user-controlled deletion; strict per-user data separation
-- **Integrity**: Resume tailoring must remain truthful and always require user review before download
 - **Performance**: Job discovery-to-feed target 5–15 minutes
 
 ## Key Decisions
@@ -68,7 +67,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 | Hybrid monitoring (ATS endpoints + aggregator) | ATS JSON is reliable/free for watchlist; aggregator covers discovery beyond watchlist | ✓ Good — Phase 2: Greenhouse/Lever/Ashby ingestion and quota-capped Adzuna discovery passed verification; broader coverage continues in Phase 02.1 |
 | Major-employers-first source expansion | Representative adapters prove coverage without pretending that arbitrary-site scraping is universally reliable; custom finance sources are allowlisted and monitored | ✓ Ongoing — Workday finance sources, JPMorgan Oracle, and Goldman Higher are monitored through exact employer-specific contracts |
 | Phase 2 security register accepted without implementation audit | The owner chose bulk acceptance during the verification gate; this records acceptance, not evidence that mitigations were tested | ⚠ Accepted risk — a later security audit may reopen threats |
-| DOCX as base resume format | Preserves user's own formatting; app edits text and converts to PDF | ✓ Good — Phase 3 private upload/extraction works; Phase 4 will preserve formatting during tailoring |
+| Private resume library retained without automated tailoring | Users keep their resume files in the app but prepare job-specific versions manually outside it | ✓ Phase 3 private upload/extraction remains; automated editing and PDF conversion were removed from Phase 4 |
 | Deterministic ranking replaces automatic AI scoring | Ranking must be transparent, reproducible, retryable, and free of background paid-score work while preserving the feed workflow | ✓ Good — Phase 03.4 passed 13/13 verification truths, 966/966 tests, and exact-release production UAT |
 | Feed-only match delivery | Owner does not want notifications; scored matches remain in the dashboard | ✓ Chosen — notifications removed 2026-07-19 |
 | Dashboard feed scope and score tiers | Every confirmed preference pass should remain inspectable without a redundant mode; explicit tiers should own score boundaries | ✓ Phase 03.2 — one current preference-pass scope with Strong, Good, and Weak selected by default |
@@ -77,7 +76,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 | Disposable-account production verification | Proof must not overwrite real-user preferences/resume/reroute state | ✓ Phase 3 — verifier account exists only inside the paused/drained interval and is deleted before cron restoration |
 | Physical scoring-attempt accounting | The daily ceiling applies to actual paid attempts, not logical jobs | ✓ Phase 3 — atomic reservation plus `maxAttempts: 1` for scoring |
 | Heuristic contact discovery (when outreach builds in v2) | Paid APIs conflict with near-zero cost constraint | — Pending |
-| v1 scope = discovery + scoring/feed + resume tailoring | Highest-value loop; outreach and tracking polish can follow | — Pending |
+| v1 scope = discovery + deterministic ranking/feed + application tracker | Keep the app focused on finding, prioritizing, and organizing applications; resume tailoring remains manual | — Active |
 
 ## Evolution
 
@@ -97,4 +96,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-27 after Phase 03.10 completion*
+*Last updated: 2026-07-27 after Phase 4 was narrowed to application tracking*

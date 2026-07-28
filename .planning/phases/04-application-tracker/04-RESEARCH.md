@@ -18,7 +18,7 @@
 
 ### Tracker table and stages
 
-- **D-05:** Use exactly six tracker stages: **Ready to Apply**, **Applied**, **Outreach Sent**, **Interview**, **Offer**, and **Rejected**. This decision supersedes the legacy seven-stage wording in TRAK-01 and the Phase 4 roadmap: **Saved** is renamed **Ready to Apply**, and **Resume Prepared** is removed.
+- **D-05:** Use exactly six tracker stages: **Ready to Apply**, **Applied**, **Outreach Sent**, **Interview**, **Offer**, and **Rejected**. **Saved** is renamed **Ready to Apply**, and **Resume Prepared** is removed.
 - **D-06:** Stage treatments are: Ready to Apply neutral, Applied blue, Outreach Sent cyan, Interview light green, Offer green, and Rejected red.
 - **D-07:** Present applications in one spreadsheet-like table with stage filters, not a Kanban board or separate tables. Each row uses a colored stage badge and a subtle matching accent.
 - **D-08:** Use hybrid Excel-style editing. Stage, relevant date, and notes edit inline. Company and title are read-only for system-discovered jobs but remain editable for manual jobs.
@@ -63,7 +63,7 @@ None. Automated resume tailoring was intentionally removed from the product rath
 
 | ID | Description | Research Support |
 |----|-------------|------------------|
-| TRAK-01 | User can track each application through stages: saved, resume prepared, applied, outreach sent, interview, rejected, offer | Implement the six-stage lifecycle in D-05, which explicitly supersedes this legacy wording, as an event ledger plus a database-maintained current-stage projection. [VERIFIED: `04-CONTEXT.md` D-05 and `.planning/REQUIREMENTS.md`] |
+| TRAK-01 | User can track each application through exactly six stages: Ready to Apply, Applied, Outreach Sent, Interview, Offer, and Rejected | Implement the six-stage lifecycle in D-05 as an event ledger plus a database-maintained current-stage projection. [VERIFIED: `04-CONTEXT.md` D-05 and `.planning/REQUIREMENTS.md`] |
 | TRAK-02 | User can manually add a job to the tracker (jobs found outside the system) | Use a client-side draft table row followed by one atomic manual-create RPC after company, title, and HTTPS URL are valid. [VERIFIED: `04-CONTEXT.md` D-16–D-19; RECOMMENDED design] |
 | TRAK-03 | User can attach notes to each tracked application | Store one bounded `notes` field on the application row and autosave only that column. [VERIFIED: `04-CONTEXT.md` D-20; RECOMMENDED design] |
 | TRAK-04 | Tracked application links its preserved JD context and, when available, a resume the user prepared manually outside the app | Snapshot system JD/title/company/location/URL at Mark Applied time, store manual JD as plain text, and use an ownership-safe optional resume foreign key that clears only `resume_id` on resume deletion. [VERIFIED: existing `jobs`/`resumes` schema; CITED: https://www.postgresql.org/docs/current/ddl-constraints.html] |

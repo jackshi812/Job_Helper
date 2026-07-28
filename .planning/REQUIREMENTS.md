@@ -27,7 +27,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DISC-01**: System polls watchlist ATS endpoints on a schedule that keeps discovery-to-feed within 5–15 minutes
 - [x] **DISC-02**: System discovers jobs outside the watchlist via one aggregator API (breadth source, latency not guaranteed)
 - [x] **DISC-03**: System deduplicates postings across sources (stable ATS IDs + fuzzy company/title/location match) so a job is never surfaced twice
-- [x] **DISC-04**: System captures a job-description snapshot at first sight (postings vanish; snapshot feeds tailoring)
+- [x] **DISC-04**: System captures a job-description snapshot at first sight so posting context remains available after the source disappears
 - [x] **DISC-05**: System marks jobs as closed when they disappear from ATS polls (stale-job detection)
 - [x] **DISC-06**: Pipeline runs record a heartbeat; a dead or silently failing cron is detectable within one poll cycle
 - [x] **DISC-07**: System validates one representative company per feasible additional source platform (SmartRecruiters, Recruitee, Workday, Oracle Recruiting, iCIMS, SuccessFactors, and Eightfold) while preserving Greenhouse/Lever/Ashby support
@@ -42,20 +42,16 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SCOR-04**: User can view one atomically complete deterministic Dashboard feed with stored score/tier, posted time, company controls, sorting, and a direct HTTPS employer apply link
 - [x] **SCOR-05**: User can view the full JD snapshot and the same stored six-category deterministic rubric evidence on job detail
 
-### Resume Tailoring
+### Resume Management
 
 - [x] **RESU-01**: User can upload and manage multiple base resumes as DOCX files, stored in private encrypted storage
-- [ ] **RESU-02**: User can pick a base resume for a job and receive AI-suggested keyword edits that preserve the DOCX formatting
-- [ ] **RESU-03**: AI edits are truthful-only: rephrase/reorder/emphasize existing facts, never invent skills or experience; new-term diff against source resume enforced programmatically
-- [ ] **RESU-04**: User reviews edits in a word-level diff view and must approve before any edit lands
-- [ ] **RESU-05**: User can download the approved tailored resume as PDF with formatting fidelity
 
 ### Tracker
 
-- [ ] **TRAK-01**: User can track each application through stages: saved, resume prepared, applied, outreach sent, interview, rejected, offer
+- [ ] **TRAK-01**: User can track each application through exactly six stages: Ready to Apply, Applied, Outreach Sent, Interview, Offer, and Rejected
 - [ ] **TRAK-02**: User can manually add a job to the tracker (jobs found outside the system)
 - [ ] **TRAK-03**: User can attach notes to each tracked application
-- [ ] **TRAK-04**: Tracked application links its JD snapshot and tailored resume (when prepared)
+- [ ] **TRAK-04**: Tracked application links its preserved JD context and, when available, a resume the user prepared manually outside the app
 
 ## v2 Requirements
 
@@ -86,6 +82,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | Multi-tenant/public signup | Invite-only, two users, by design |
 | Interview prep / salary tools / analytics | Teal-style feature sprawl; stay narrow |
 | Browser push, email alerts, alert tuning, and notification ledger (NOTF-01..04) | Removed by owner on 2026-07-19; the product is feed-only |
+| Automated resume tailoring (former RESU-02..05) | Removed by owner on 2026-07-27; resumes will be tailored manually outside the app |
 
 ## Traceability
 
@@ -132,10 +129,6 @@ from automatic AI scoring to the complete deterministic ranking contract.
 | SCOR-04 | Phase 03.4 | Complete |
 | SCOR-05 | Phase 03.4 | Complete |
 | RESU-01 | Phase 3 | Complete |
-| RESU-02 | Phase 4 | Pending |
-| RESU-03 | Phase 4 | Pending |
-| RESU-04 | Phase 4 | Pending |
-| RESU-05 | Phase 4 | Pending |
 | TRAK-01 | Phase 4 | Pending |
 | TRAK-02 | Phase 4 | Pending |
 | TRAK-03 | Phase 4 | Pending |
@@ -143,10 +136,10 @@ from automatic AI scoring to the complete deterministic ranking contract.
 
 **Coverage:**
 
-- v1 requirements: 32 total
-- Mapped to phases: 32
+- v1 requirements: 28 total
+- Mapped to phases: 28
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-15*
-*Last updated: 2026-07-23 after Phase 03.4 deterministic ranking release*
+*Last updated: 2026-07-28 after Phase 4's six-stage tracker lifecycle was finalized*
