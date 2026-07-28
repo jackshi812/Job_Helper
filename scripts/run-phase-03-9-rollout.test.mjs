@@ -3,9 +3,11 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import {
   DEFAULT_MANIFEST,
+  MANIFEST_CHAIN_PATHS,
   REPAIR_MANIFEST_ID,
   CATALOG_REPAIR_MANIFEST_ID,
   IDENTITY_REPAIR_MANIFEST_ID,
+  assertRolloutEvidence,
   dryRunPlan,
   exactApproval,
   executeRelease,
@@ -18,8 +20,21 @@ const CURRENT_MANIFEST =
 async function fixture() {
   const bytes = await readFile(CURRENT_MANIFEST)
   const manifest = JSON.parse(bytes)
-  const hashes = await validateManifest(manifest, bytes)
+  const hashes = await validateManifest(
+    manifest,
+    bytes,
+    { filesAtSourceCommit: true },
+  )
   return { bytes, manifest, hashes }
+}
+
+async function manifestChain() {
+  return Promise.all(MANIFEST_CHAIN_PATHS.map(async (path) => {
+    const bytes = await readFile(path)
+    const manifest = JSON.parse(bytes)
+    await validateManifest(manifest, bytes, { filesAtSourceCommit: true })
+    return manifest
+  }))
 }
 
 test('dry run validates frozen bytes and emits one exact approval', async () => {
@@ -78,7 +93,11 @@ test('manifest contains exact JPMorgan scope and protected siblings', async () =
 test('repair approval binds only the amended two-function deployment', async () => {
   const bytes = await readFile(CURRENT_MANIFEST)
   const manifest = JSON.parse(bytes)
-  const hashes = await validateManifest(manifest, bytes)
+  const hashes = await validateManifest(
+    manifest,
+    bytes,
+    { filesAtSourceCommit: true },
+  )
   assert.equal(manifest.release_manifest_id, REPAIR_MANIFEST_ID)
   assert.match(
     exactApproval(manifest, hashes),
@@ -93,7 +112,11 @@ test('catalog repair approval binds only migration 0046 before activation', asyn
     '.planning/phases/03.9-jpmorgan-chase-selective-oracle-monitoring/03.9-03-CATALOG-REPAIR-MANIFEST.json',
   )
   const manifest = JSON.parse(bytes)
-  const hashes = await validateManifest(manifest, bytes)
+  const hashes = await validateManifest(
+    manifest,
+    bytes,
+    { filesAtSourceCommit: true },
+  )
   assert.equal(manifest.release_manifest_id, CATALOG_REPAIR_MANIFEST_ID)
   assert.match(
     exactApproval(manifest, hashes),
@@ -117,7 +140,11 @@ test('identity repair approval binds only migration 0047 before activation', asy
     '.planning/phases/03.9-jpmorgan-chase-selective-oracle-monitoring/03.9-04-IDENTITY-REPAIR-MANIFEST.json',
   )
   const manifest = JSON.parse(bytes)
-  const hashes = await validateManifest(manifest, bytes)
+  const hashes = await validateManifest(
+    manifest,
+    bytes,
+    { filesAtSourceCommit: true },
+  )
   assert.equal(manifest.release_manifest_id, IDENTITY_REPAIR_MANIFEST_ID)
   assert.match(
     exactApproval(manifest, hashes),
@@ -134,4 +161,19 @@ test('identity repair approval binds only migration 0047 before activation', asy
     },
   )
   assert.deepEqual(calls, [['db', 'push', '--linked', '--yes']])
+})
+
+test('historical manifest chain and final rollout evidence assert read-only', async () => {
+  const manifests = await manifestChain()
+  const evidence = JSON.parse(await readFile(
+    '.planning/phases/03.9-jpmorgan-chase-selective-oracle-monitoring/03.9-01-ROLLOUT-VERIFICATION.json',
+  ))
+  assert.equal(assertRolloutEvidence(evidence, manifests).status, 'PASS')
+
+  const drifted = structuredClone(evidence)
+  drifted.cleanup.verifier_residue_count = 1
+  assert.throws(
+    () => assertRolloutEvidence(drifted, manifests),
+    /cleanup evidence failed/,
+  )
 })
