@@ -137,7 +137,7 @@ describe('Dashboard Mark Applied → Tracker happy path', () => {
     })
   })
 
-  it('parses the exact eight-column applied projection and rejects unsafe links', async () => {
+  it('parses the applied projection membership and rejects unsafe links', async () => {
     rpcMock.mockResolvedValue({
       data: [{
         application_id: '22222222-2222-4222-8222-222222222222',
@@ -148,6 +148,7 @@ describe('Dashboard Mark Applied → Tracker happy path', () => {
         applied_on: '2026-07-20',
         current_stage: 'interview',
         current_stage_date: '2026-07-27',
+        has_watched_company: true,
       }],
       error: null,
     })
@@ -161,6 +162,7 @@ describe('Dashboard Mark Applied → Tracker happy path', () => {
       appliedOn: '2026-07-20',
       currentStage: 'interview',
       currentStageDate: '2026-07-27',
+      hasWatchedCompany: true,
     }])
 
     rpcMock.mockResolvedValue({
@@ -173,6 +175,7 @@ describe('Dashboard Mark Applied → Tracker happy path', () => {
         applied_on: '2026-07-20',
         current_stage: 'applied',
         current_stage_date: '2026-07-20',
+        has_watched_company: true,
       }],
       error: null,
     })

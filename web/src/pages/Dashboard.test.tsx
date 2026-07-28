@@ -77,6 +77,16 @@ const appliedApplication: DashboardAppliedApplication = {
   appliedOn: '2026-07-20',
   currentStage: 'interview',
   currentStageDate: '2026-07-28',
+  hasWatchedCompany: true,
+}
+
+const externalAppliedApplication: DashboardAppliedApplication = {
+  ...appliedApplication,
+  applicationId: '22222222-2222-4222-8222-222222222222',
+  company: 'External Co',
+  title: 'External Applied Analyst',
+  applyUrl: 'https://example.com/jobs/external',
+  hasWatchedCompany: false,
 }
 
 vi.mock('../lib/supabase', () => ({ supabase: {} }))
@@ -145,7 +155,12 @@ vi.mock('@tanstack/react-query', () => ({
       }
     }
     if (queryKey[0] === 'dashboard-applied-applications') {
-      return { data: [appliedApplication], error: null, isPending: false, refetch: vi.fn() }
+      return {
+        data: [appliedApplication, externalAppliedApplication],
+        error: null,
+        isPending: false,
+        refetch: vi.fn(),
+      }
     }
     return { data: [], error: null, isPending: false }
   },
@@ -376,7 +391,7 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).not.toContain('Restore')
   })
 
-  it('loads tracker-backed applied history and pins the exact eight-field contract', () => {
+  it('loads tracker-backed applied history and pins normalized membership', () => {
     expect(appliedApplication).toEqual({
       applicationId: '11111111-1111-4111-8111-111111111111',
       company: 'Acme',
@@ -386,13 +401,31 @@ describe('Dashboard precision controls', () => {
       appliedOn: '2026-07-20',
       currentStage: 'interview',
       currentStageDate: '2026-07-28',
+      hasWatchedCompany: true,
     })
     expect(dashboardSource).toContain('listDashboardAppliedApplications')
+    expect(dashboardSource).toContain('dashboardAppliedSourceRows')
     expect(dashboardSource).toContain("queryKey: ['dashboard-applied-applications']")
     expect(dashboardSource).toContain("enabled: lifecycle === 'applied'")
     expect(dashboardSource).toContain('application.appliedOn')
     expect(dashboardSource).not.toContain('application.currentStageDate}</time>')
     expect(dashboardSource).not.toMatch(/appliedOn\s*:\s*application\.currentStageDate/)
+  })
+
+  it('renders watched applied rows only by default and both rows in All Jobs', () => {
+    const watchlistMarkup = renderToStaticMarkup(
+      <Dashboard initialLifecycle="applied" />,
+    )
+    const allJobsMarkup = renderToStaticMarkup(
+      <Dashboard scope="all" initialLifecycle="applied" />,
+    )
+
+    expect(watchlistMarkup).toContain('1 applied jobs shown')
+    expect(watchlistMarkup).toContain('Analyst')
+    expect(watchlistMarkup).not.toContain('External Applied Analyst')
+    expect(allJobsMarkup).toContain('2 applied jobs shown')
+    expect(allJobsMarkup).toContain('Analyst')
+    expect(allJobsMarkup).toContain('External Applied Analyst')
   })
 
   it('renders eight applied snapshot/action columns and the shared stage treatment', () => {

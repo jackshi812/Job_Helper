@@ -7,10 +7,12 @@ import {
   deleteApplicationStageEvent,
   deleteTrackerApplication,
   getTrackerApplication,
+  listDashboardAppliedApplications,
   listTrackerApplications,
   manualDuplicateWarning,
   normalizeManualDuplicateKey,
   notesPreview,
+  parseDashboardAppliedApplication,
   parseDateOnly,
   setApplicationPin,
   setApplicationResume,
@@ -343,6 +345,84 @@ describe('tracker Supabase contracts', () => {
   it('returns no list rows and performs no query when zero stages are selected', async () => {
     await expect(listTrackerApplications([])).resolves.toEqual([])
     expect(supabase.from).not.toHaveBeenCalled()
+  })
+
+  it('parses watched membership strictly and preserves watched/external RPC order', async () => {
+    const watched = {
+      application_id: APP_ID,
+      company: 'Acme',
+      title: 'Watched Analyst',
+      location: 'Chicago',
+      apply_url: 'https://example.com/watched',
+      applied_on: '2026-07-28',
+      current_stage: 'applied',
+      current_stage_date: '2026-07-28',
+      has_watched_company: true,
+    }
+    const external = {
+      ...watched,
+      application_id: OTHER_APP_ID,
+      company: 'External Co',
+      title: 'External Analyst',
+      has_watched_company: false,
+    }
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: [watched, external],
+      error: null,
+    } as never)
+
+    await expect(listDashboardAppliedApplications()).resolves.toEqual([
+      {
+        applicationId: APP_ID,
+        company: 'Acme',
+        title: 'Watched Analyst',
+        location: 'Chicago',
+        applyUrl: 'https://example.com/watched',
+        appliedOn: '2026-07-28',
+        currentStage: 'applied',
+        currentStageDate: '2026-07-28',
+        hasWatchedCompany: true,
+      },
+      {
+        applicationId: OTHER_APP_ID,
+        company: 'External Co',
+        title: 'External Analyst',
+        location: 'Chicago',
+        applyUrl: 'https://example.com/watched',
+        appliedOn: '2026-07-28',
+        currentStage: 'applied',
+        currentStageDate: '2026-07-28',
+        hasWatchedCompany: false,
+      },
+    ])
+    expect(supabase.rpc).toHaveBeenCalledWith('dashboard_applied_applications')
+  })
+
+  it('rejects missing, non-boolean, or extra applied membership fields', () => {
+    const valid = {
+      application_id: APP_ID,
+      company: 'Acme',
+      title: 'Analyst',
+      location: null,
+      apply_url: null,
+      applied_on: '2026-07-28',
+      current_stage: 'applied',
+      current_stage_date: '2026-07-28',
+      has_watched_company: true,
+    }
+    const { has_watched_company: _omitted, ...missingMembership } = valid
+
+    expect(() => parseDashboardAppliedApplication(missingMembership)).toThrow(
+      'invalid_dashboard_applied_application',
+    )
+    expect(() => parseDashboardAppliedApplication({
+      ...valid,
+      has_watched_company: null,
+    })).toThrow('invalid_dashboard_applied_application')
+    expect(() => parseDashboardAppliedApplication({
+      ...valid,
+      unexpected_membership: false,
+    })).toThrow('invalid_dashboard_applied_application')
   })
 
   it('loads snapshots, resume label, and ordered events only for one expanded ID', async () => {

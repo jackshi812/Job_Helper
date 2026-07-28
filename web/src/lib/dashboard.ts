@@ -8,6 +8,7 @@ import {
   type LifecycleView,
   type Tier,
 } from './feed'
+import type { DashboardAppliedApplication } from './tracker'
 
 export const ALL_SCORE_TIERS: readonly Tier[] = ['Strong', 'Good', 'Weak']
 
@@ -65,6 +66,15 @@ export function dashboardSourceRows(
   return scope === 'watchlist'
     ? rows.filter(isWatchlistJob)
     : [...rows]
+}
+
+export function dashboardAppliedSourceRows(
+  applications: readonly DashboardAppliedApplication[],
+  scope: DashboardSourceScope,
+): DashboardAppliedApplication[] {
+  return scope === 'watchlist'
+    ? applications.filter(({ hasWatchedCompany }) => hasWatchedCompany)
+    : [...applications]
 }
 
 export function dashboardCompanyOptions(rows: readonly FeedRow[]): CompanyOption[] {

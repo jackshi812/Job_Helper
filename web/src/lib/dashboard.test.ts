@@ -10,6 +10,7 @@ import {
   buildDashboardFeedQuery,
   clearAllCompanies,
   copyHiddenCompanyKeys,
+  dashboardAppliedSourceRows,
   dashboardCompanyOptions,
   dashboardFeedQueryKey,
   dashboardLifecycleCopy,
@@ -42,6 +43,7 @@ import {
   reduceDashboardColumnWidth,
   type DashboardColumnStorage,
 } from './dashboardColumns'
+import type { DashboardAppliedApplication } from './tracker'
 
 vi.mock('./supabase', () => ({ supabase: {} }))
 
@@ -149,6 +151,38 @@ describe('Dashboard company options', () => {
 
     expect(dashboardWatchlistCompanyOptions([watched, external])).toEqual([
       { key: 'acme', label: 'Acme' },
+    ])
+  })
+})
+
+describe('Dashboard applied source scope', () => {
+  const watched: DashboardAppliedApplication = {
+    applicationId: '11111111-1111-4111-8111-111111111111',
+    company: 'Acme',
+    title: 'Watched Analyst',
+    location: 'Chicago',
+    applyUrl: 'https://example.com/watched',
+    appliedOn: '2026-07-27',
+    currentStage: 'applied',
+    currentStageDate: '2026-07-27',
+    hasWatchedCompany: true,
+  }
+  const external: DashboardAppliedApplication = {
+    ...watched,
+    applicationId: '22222222-2222-4222-8222-222222222222',
+    company: 'External Co',
+    title: 'External Analyst',
+    applyUrl: 'https://example.com/external',
+    hasWatchedCompany: false,
+  }
+
+  it('fails closed to normalized watched membership while All Jobs stays combined', () => {
+    expect(dashboardAppliedSourceRows([watched, external], 'watchlist')).toEqual([
+      watched,
+    ])
+    expect(dashboardAppliedSourceRows([watched, external], 'all')).toEqual([
+      watched,
+      external,
     ])
   })
 })

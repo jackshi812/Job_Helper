@@ -30,6 +30,7 @@ import {
   buildDashboardFeedQuery,
   clearAllCompanies,
   copyHiddenCompanyKeys,
+  dashboardAppliedSourceRows,
   dashboardFeedQueryKey,
   dashboardLifecycleCopy,
   dashboardLifecycleTimestamp,
@@ -335,11 +336,15 @@ function AppliedApplicationsTable({
 
 interface DashboardProps {
   scope?: DashboardSourceScope
+  initialLifecycle?: LifecycleView
 }
 
-export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
+export function Dashboard({
+  scope = 'watchlist',
+  initialLifecycle = 'active',
+}: DashboardProps) {
   const queryClient = useQueryClient()
-  const [lifecycle, setLifecycle] = useState<LifecycleView>('active')
+  const [lifecycle, setLifecycle] = useState<LifecycleView>(initialLifecycle)
   const [sortByScore, setSortByScore] = useState(false)
   const [scoreAscending, setScoreAscending] = useState(false)
   const [companyPanelOpen, setCompanyPanelOpen] = useState(false)
@@ -515,6 +520,13 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
   const rows = useMemo(
     () => dashboardSourceRows(allRows, scope),
     [allRows, scope],
+  )
+  const appliedApplications = useMemo(
+    () => dashboardAppliedSourceRows(
+      appliedApplicationsQuery.data ?? [],
+      scope,
+    ),
+    [appliedApplicationsQuery.data, scope],
   )
   const finalPage = feedQuery.data?.pages.at(-1) ?? EMPTY_DASHBOARD_PAGE
 
@@ -997,7 +1009,7 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
         && !appliedApplicationsQuery.isPending
         && !appliedApplicationsQuery.error ? (
         <p role="status" aria-live="polite" className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
-          {(appliedApplicationsQuery.data ?? []).length} applied jobs shown
+          {appliedApplications.length} applied jobs shown
         </p>
       ) : lifecycle !== 'applied' && !feedLoading && !feedError ? (
         <p role="status" aria-live="polite" className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
@@ -1031,7 +1043,7 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
                 Retry
               </button>
             </div>
-          ) : (appliedApplicationsQuery.data ?? []).length === 0 ? (
+          ) : appliedApplications.length === 0 ? (
             <div className="p-4">
               <h2 className="text-base font-semibold">No applied jobs yet</h2>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -1040,7 +1052,7 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
             </div>
           ) : (
             <AppliedApplicationsTable
-              applications={appliedApplicationsQuery.data ?? []}
+              applications={appliedApplications}
               onRequestDelete={(application) => {
                 deleteApplicationMutation.reset()
                 setDeleteCandidate(application)

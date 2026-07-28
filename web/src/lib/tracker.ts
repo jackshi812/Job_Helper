@@ -151,6 +151,7 @@ export interface DashboardAppliedApplication {
   appliedOn: string
   currentStage: TrackerStage
   currentStageDate: string
+  hasWatchedCompany: boolean
 }
 
 export interface ManualApplicationCreateInput {
@@ -463,10 +464,14 @@ export function parseDashboardAppliedApplication(
     'company',
     'current_stage',
     'current_stage_date',
+    'has_watched_company',
     'location',
     'title',
   ]
-  if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(expectedKeys)) {
+  if (
+    JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(expectedKeys)
+    || typeof row.has_watched_company !== 'boolean'
+  ) {
     throw new Error('invalid_dashboard_applied_application')
   }
   const rawApplyUrl = nullableText(row.apply_url, 'invalid_dashboard_applied_application')
@@ -486,6 +491,7 @@ export function parseDashboardAppliedApplication(
       row.current_stage_date,
       'invalid_dashboard_applied_application',
     ),
+    hasWatchedCompany: row.has_watched_company,
   }
 }
 
