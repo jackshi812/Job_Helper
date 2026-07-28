@@ -1545,6 +1545,12 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
     migration_sha256: await fileSha(
       resolve(root, 'supabase/migrations/0053_application_tracker.sql'),
     ),
+    repair_migration_sha256: await fileSha(
+      resolve(
+        root,
+        'supabase/migrations/0054_mark_job_applied_ambiguity.sql',
+      ),
+    ),
     schema_verifier_sha256: await fileSha(
       resolve(root, 'scripts/verify-tracker-schema.ts'),
     ),
@@ -1717,6 +1723,7 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
     checked_at: new Date().toISOString(),
     catalog_evidence_sha256: catalogDigest,
     migration_sha256: current.migration_sha256,
+    repair_migration_sha256: current.repair_migration_sha256,
     schema_verifier_sha256: current.schema_verifier_sha256,
     behavior_verifier_sha256: current.behavior_verifier_sha256,
     fixture_manifest_sha256: current.fixture_manifest_sha256,

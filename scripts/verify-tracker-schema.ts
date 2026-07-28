@@ -20,6 +20,7 @@ const USAGE =
   '[--migration <path>] [--output <path>] [--preflight <path>] [--evidence <path>]'
 const SHA256 = /^[a-f0-9]{64}$/
 const MIGRATION_NAME = '0053_application_tracker.sql'
+const REPAIR_MIGRATION_NAME = '0054_mark_job_applied_ambiguity.sql'
 const MANUAL_SIGNATURE =
   'create_manual_application(text, text, text, text, text, date)'
 const MANUAL_RESULT = 'application_id uuid, duplicate_warning boolean'
@@ -291,6 +292,42 @@ function requireMigrationContract(migration: string): void {
     if (!normalized.includes(normalizedSql(item))) {
       fail(`migration contract missing: ${item}`)
     }
+  }
+}
+
+function requireRepairMigrationContract(migration: string): void {
+  const normalized = normalizedSql(migration)
+  const required = [
+    'create or replace function public.mark_job_applied(p_user_job_id uuid)',
+    'target_application_id uuid',
+    'returning id into target_application_id',
+    'event.application_id = target_application_id',
+    "values(target_application_id,owner_id,'applied',current_date)",
+    'return target_application_id',
+    'security definer',
+    "set search_path = ''",
+    'revoke execute on function public.mark_job_applied(uuid) from public,anon',
+    'grant execute on function public.mark_job_applied(uuid) to authenticated',
+    'alter function public.mark_job_applied(uuid) owner to postgres',
+  ]
+  for (const item of required) {
+    if (!normalized.includes(normalizedSql(item))) {
+      fail(`repair migration contract missing: ${item}`)
+    }
+  }
+  if (/^\s*application_id uuid;\s*$/im.test(migration)) {
+    fail('repair migration retained the ambiguous application_id variable')
+  }
+  const replacements = [
+    ...migration.matchAll(
+      /create or replace function public\.([a-z0-9_]+)\s*\(/gi,
+    ),
+  ].map((match) => match[1])
+  if (
+    replacements.length !== 1 ||
+    replacements[0] !== 'mark_job_applied'
+  ) {
+    fail('repair migration expands beyond mark_job_applied')
   }
 }
 
@@ -612,6 +649,9 @@ function assertHostedContract(
 ): void {
   if (!inventory.migrationVersions.includes('0053')) {
     fail('hosted migration 0053 is absent')
+  }
+  if (!inventory.migrationVersions.includes('0054')) {
+    fail('hosted migration 0054 is absent')
   }
   for (const table of TRACKER_TABLES) {
     const row = inventory.tables.find((item) => item.name === table)
@@ -996,11 +1036,17 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
   const evidencePath = await checkedPath(root, args.evidence!)
   const migration = await readFile(migrationPath, 'utf8')
   requireMigrationContract(migration)
+  const repairMigrationPath = resolve(
+    root,
+    `supabase/migrations/${REPAIR_MIGRATION_NAME}`,
+  )
+  requireRepairMigrationContract(await readFile(repairMigrationPath, 'utf8'))
   const approved = preflightJson(await readFile(preflightPath, 'utf8'))
   if (approved.status !== 'PASS') fail('preflight status is not PASS')
   const projectRef = stringField(approved, 'project_ref')
   const current = {
     migration_sha256: await fileSha(migrationPath),
+    repair_migration_sha256: await fileSha(repairMigrationPath),
     schema_verifier_sha256: await fileSha(
       resolve(root, 'scripts/verify-tracker-schema.ts'),
     ),
@@ -1061,8 +1107,9 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
   const evidenceBody: JsonRecord = {
     status: 'PASS',
     checked_at: new Date().toISOString(),
-    migration_version: '0053',
+    migration_version: '0054',
     migration_sha256: current.migration_sha256,
+    repair_migration_sha256: current.repair_migration_sha256,
     schema_verifier_sha256: current.schema_verifier_sha256,
     behavior_verifier_sha256: current.behavior_verifier_sha256,
     fixture_manifest_sha256: current.fixture_manifest_sha256,
