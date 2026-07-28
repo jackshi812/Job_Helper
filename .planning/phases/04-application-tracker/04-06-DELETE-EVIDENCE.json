@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "checked_at": "2026-07-28T18:59:32.778Z",
+  "target": "fjcsvajkkztvlrpdplwx",
+  "source_commit": "9747a3988b055db5383fca96cb16f3ac0f62752f",
+  "migration_version": "0056",
+  "migration_sha256": "2ddc0e6f7b8df01ba88ff8bc4ce14ad4f0bc0fc96138d3a3c3c2c3fea8e65a85",
+  "verifier_sha256": "cdfcd83b90b3e0cc30a4445d7c046aeb884eddb8a26d7ed31fd8bc1cb5e08fe1",
+  "verifier_test_sha256": "7c7c317a18b1d7a3122c7e6c1751f409f3339a60174f2b0f59a412ceff41c373",
+  "migration_test_sha256": "dc8f4ff52a5606e04311681e60f0f717f88676935a6fa3d036db99d2ccb4f407",
+  "definition_sha256": "a6d4109056f18d58a9dac3507b21335dfbe4deb884b34d7ad3ccfed17eeee13c",
+  "migration_present": true,
+  "postgres_owner": true,
+  "boolean_result": true,
+  "security_definer": true,
+  "empty_search_path": true,
+  "authenticated_execute": true,
+  "anon_execute": false,
+  "owner_predicate": true,
+  "deletes_application": true,
+  "preserves_user_jobs": true
+}
