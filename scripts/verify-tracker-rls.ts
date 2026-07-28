@@ -92,6 +92,77 @@ const ZERO_RESIDUE_RELATIONS = Object.freeze([
   'public.companies',
   'auth.users',
 ])
+const DIAGNOSTIC_STEPS = Object.freeze([
+  'auth.preflight.a',
+  'auth.preflight.b',
+  'auth.create.a',
+  'auth.create.b',
+  'auth.signin.a',
+  'auth.signin.b',
+  'fixture.collision.companies',
+  'fixture.collision.jobs',
+  'fixture.collision.user_jobs',
+  'fixture.collision.resumes',
+  'fixture.seed.companies',
+  'fixture.seed.jobs',
+  'fixture.seed.user_jobs',
+  'fixture.seed.resumes',
+  'behavior.mark.a.first',
+  'behavior.mark.a.repeat',
+  'behavior.mark.b.first',
+  'behavior.manual.a.first',
+  'behavior.manual.a.duplicate',
+  'lineage.application.system_a',
+  'lineage.application.system_b',
+  'lineage.application.manual_first',
+  'lineage.application.manual_duplicate',
+  'isolation.read.b_to_a',
+  'isolation.read.a_to_b',
+  'isolation.pin.b_to_a',
+  'isolation.resume.b_to_a',
+  'behavior.resume.link.a',
+  'behavior.resume.delete.a',
+  'behavior.resume.verify.a',
+  'behavior.dashboard.before',
+  'behavior.event.repeat.a',
+  'behavior.dashboard.after',
+  'lineage.events.all',
+  'behavior.event.final_reject.b',
+  'behavior.source.remove.a',
+  'behavior.snapshot.verify.a',
+  'cleanup.recover.applications.exact',
+  'cleanup.recover.applications.fallback',
+  'cleanup.recover.events',
+  'cleanup.events.delete',
+  'cleanup.applications.delete',
+  'cleanup.user_jobs.read',
+  'cleanup.user_jobs.delete',
+  'cleanup.resumes.read',
+  'cleanup.resumes.delete',
+  'cleanup.jobs.read',
+  'cleanup.jobs.delete',
+  'cleanup.companies.read',
+  'cleanup.companies.delete',
+  'cleanup.auth.delete.a',
+  'cleanup.auth.delete.b',
+  'residue.events',
+  'residue.applications',
+  'residue.user_jobs',
+  'residue.resumes',
+  'residue.jobs',
+  'residue.companies',
+  'residue.auth.a',
+  'residue.auth.b',
+] as const)
+const DIAGNOSTIC_STATUSES = Object.freeze(['start', 'pass', 'fail'] as const)
+const DIAGNOSTIC_OUTPUT_FIELDS = Object.freeze([
+  'step',
+  'status',
+  'elapsed_ms',
+] as const)
+type DiagnosticStep = (typeof DIAGNOSTIC_STEPS)[number]
+type DiagnosticStatus = (typeof DIAGNOSTIC_STATUSES)[number]
+const DIAGNOSTIC_STEP_SET = new Set<string>(DIAGNOSTIC_STEPS)
 
 function fail(message: string): never {
   throw new Error(message)
@@ -119,6 +190,28 @@ function canonical(value: Json): string {
   return JSON.stringify(value)
 }
 
+function elapsedMs(startedAt: number): number {
+  return Math.max(0, Math.round(performance.now() - startedAt))
+}
+
+function writeDiagnostic(
+  step: DiagnosticStep,
+  status: DiagnosticStatus,
+  startedAt: number,
+): void {
+  requireCondition(
+    DIAGNOSTIC_STEP_SET.has(step),
+    'diagnostic step is outside the static allowlist',
+  )
+  process.stderr.write(
+    `[tracker-step] ${JSON.stringify({
+      step,
+      status,
+      elapsed_ms: elapsedMs(startedAt),
+    })}\n`,
+  )
+}
+
 const FIXTURE_MANIFEST_SHA256 = sha256(
   canonical(FIXTURE_MANIFEST as unknown as Json),
 )
@@ -131,6 +224,11 @@ function contractDocument(): JsonRecord {
     expected_counts: EXPECTED_COUNTS as unknown as Json,
     lineage_rules: LINEAGE_RULES as unknown as Json,
     zero_residue_relations: ZERO_RESIDUE_RELATIONS as unknown as Json,
+    diagnostics: {
+      steps: DIAGNOSTIC_STEPS as unknown as Json,
+      output_fields: DIAGNOSTIC_OUTPUT_FIELDS as unknown as Json,
+      statuses: DIAGNOSTIC_STATUSES as unknown as Json,
+    },
   }
 }
 
@@ -317,34 +415,45 @@ function discoverServiceRoleKey(root: string, projectRef: string): string {
 }
 
 async function httpJson(
+  step: DiagnosticStep,
   url: string,
   init: RequestInit,
   expected: number[],
   secrets: string[],
 ): Promise<{ payload: Json; headers: Headers; status: number }> {
-  const response = await fetch(url, {
-    ...init,
-    signal: AbortSignal.timeout(30_000),
-  })
-  const text = await response.text()
-  let payload: Json = null
-  if (text) {
-    try {
-      payload = JSON.parse(text) as Json
-    } catch {
-      payload = null
+  const startedAt = performance.now()
+  writeDiagnostic(step, 'start', startedAt)
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(30_000),
+    })
+    const text = await response.text()
+    let payload: Json = null
+    if (text) {
+      try {
+        payload = JSON.parse(text) as Json
+      } catch {
+        payload = null
+      }
     }
-  }
-  if (!expected.includes(response.status)) {
-    throw sanitizedError(
-      {
-        message: `HTTP ${response.status}`,
-        payload,
-      },
-      secrets,
+    if (!expected.includes(response.status)) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+    writeDiagnostic(step, 'pass', startedAt)
+    return { payload, headers: response.headers, status: response.status }
+  } catch (error) {
+    writeDiagnostic(step, 'fail', startedAt)
+    const reason =
+      error instanceof Error && /^HTTP \d{3}$/.test(error.message)
+        ? error.message
+        : error instanceof Error
+          ? error.name
+          : 'Error'
+    throw new Error(
+      `step ${step} failed after ${elapsedMs(startedAt)}ms (${reason})`,
     )
   }
-  return { payload, headers: response.headers, status: response.status }
 }
 
 function serviceHeaders(serviceKey: string, extra: HeadersInit = {}): HeadersInit {
@@ -370,6 +479,7 @@ function ordinaryHeaders(
 }
 
 async function postgrest(
+  step: DiagnosticStep,
   apiUrl: string,
   publishableKey: string,
   session: Session | null,
@@ -383,6 +493,7 @@ async function postgrest(
     ? serviceHeaders(serviceKey, init.headers)
     : ordinaryHeaders(publishableKey, session!, init.headers)
   return httpJson(
+    step,
     `${apiUrl}/rest/v1/${path}`,
     { ...init, headers },
     expected,
@@ -391,6 +502,7 @@ async function postgrest(
 }
 
 async function rpc(
+  step: DiagnosticStep,
   apiUrl: string,
   publishableKey: string,
   session: Session,
@@ -400,6 +512,7 @@ async function rpc(
   secrets: string[],
 ) {
   return postgrest(
+    step,
     apiUrl,
     publishableKey,
     session,
@@ -412,6 +525,7 @@ async function rpc(
 }
 
 async function createExactUser(
+  step: DiagnosticStep,
   apiUrl: string,
   serviceKey: string,
   user: (typeof FIXTURE_MANIFEST.auth_users)[number],
@@ -419,6 +533,7 @@ async function createExactUser(
   secrets: string[],
 ): Promise<void> {
   const result = await httpJson(
+    step,
     `${apiUrl}/auth/v1/admin/users`,
     {
       method: 'POST',
@@ -447,12 +562,14 @@ async function createExactUser(
 }
 
 async function deleteExactUser(
+  step: DiagnosticStep,
   apiUrl: string,
   serviceKey: string,
   userId: string,
   secrets: string[],
 ): Promise<void> {
   await httpJson(
+    step,
     `${apiUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`,
     { method: 'DELETE', headers: serviceHeaders(serviceKey) },
     [200, 204],
@@ -461,6 +578,7 @@ async function deleteExactUser(
 }
 
 async function signInWithPassword(
+  step: DiagnosticStep,
   apiUrl: string,
   publishableKey: string,
   email: string,
@@ -468,6 +586,7 @@ async function signInWithPassword(
   secrets: string[],
 ): Promise<Session> {
   const result = await httpJson(
+    step,
     `${apiUrl}/auth/v1/token?grant_type=password`,
     {
       method: 'POST',
@@ -511,6 +630,7 @@ async function expectRows(
 }
 
 async function selectExact(
+  step: DiagnosticStep,
   apiUrl: string,
   publishableKey: string,
   session: Session | null,
@@ -522,6 +642,7 @@ async function selectExact(
 ): Promise<JsonRecord[]> {
   return expectRows(
     await postgrest(
+      step,
       apiUrl,
       publishableKey,
       session,
@@ -537,6 +658,7 @@ async function selectExact(
 }
 
 async function mutateExact(
+  step: DiagnosticStep,
   apiUrl: string,
   publishableKey: string,
   session: Session | null,
@@ -550,6 +672,7 @@ async function mutateExact(
 ): Promise<JsonRecord[]> {
   return expectRows(
     await postgrest(
+      step,
       apiUrl,
       publishableKey,
       session,
@@ -582,13 +705,22 @@ async function seedDirectFixtures(
   const userJobB = FIXTURE_MANIFEST.user_jobs[1]
   const resumeA = FIXTURE_MANIFEST.resumes[0]
   const resumeB = FIXTURE_MANIFEST.resumes[1]
-  for (const [relation, query] of [
-    ['companies', `id=eq.${company.id}`],
-    ['jobs', `id=eq.${job.id}`],
-    ['user_jobs', `id=in.(${userJobA.id},${userJobB.id})`],
-    ['resumes', `id=in.(${resumeA.id},${resumeB.id})`],
+  for (const [step, relation, query] of [
+    ['fixture.collision.companies', 'companies', `id=eq.${company.id}`],
+    ['fixture.collision.jobs', 'jobs', `id=eq.${job.id}`],
+    [
+      'fixture.collision.user_jobs',
+      'user_jobs',
+      `id=in.(${userJobA.id},${userJobB.id})`,
+    ],
+    [
+      'fixture.collision.resumes',
+      'resumes',
+      `id=in.(${resumeA.id},${resumeB.id})`,
+    ],
   ] as const) {
     await selectExact(
+      step,
       apiUrl,
       publishableKey,
       null,
@@ -600,6 +732,7 @@ async function seedDirectFixtures(
     )
   }
   await mutateExact(
+    'fixture.seed.companies',
     apiUrl,
     publishableKey,
     null,
@@ -617,6 +750,7 @@ async function seedDirectFixtures(
     secrets,
   )
   await mutateExact(
+    'fixture.seed.jobs',
     apiUrl,
     publishableKey,
     null,
@@ -641,6 +775,7 @@ async function seedDirectFixtures(
     secrets,
   )
   await mutateExact(
+    'fixture.seed.user_jobs',
     apiUrl,
     publishableKey,
     null,
@@ -656,6 +791,7 @@ async function seedDirectFixtures(
     secrets,
   )
   await mutateExact(
+    'fixture.seed.resumes',
     apiUrl,
     publishableKey,
     null,
@@ -718,6 +854,7 @@ async function proveOrdinaryBehavior(
   const userJobB = FIXTURE_MANIFEST.user_jobs[1]
 
   const markedA = await rpc(
+    'behavior.mark.a.first',
     apiUrl,
     publishableKey,
     sessionA,
@@ -728,6 +865,7 @@ async function proveOrdinaryBehavior(
   )
   const systemA = scalarUuid(markedA.payload, 'user A system application ID')
   const markedAgain = await rpc(
+    'behavior.mark.a.repeat',
     apiUrl,
     publishableKey,
     sessionA,
@@ -739,6 +877,7 @@ async function proveOrdinaryBehavior(
   requireCondition(markedAgain.payload === systemA, 'Mark Applied is not idempotent')
 
   const markedB = await rpc(
+    'behavior.mark.b.first',
     apiUrl,
     publishableKey,
     sessionB,
@@ -760,6 +899,7 @@ async function proveOrdinaryBehavior(
   const firstManual = manualResult(
     (
       await rpc(
+        'behavior.manual.a.first',
         apiUrl,
         publishableKey,
         sessionA,
@@ -774,6 +914,7 @@ async function proveOrdinaryBehavior(
   const duplicateManual = manualResult(
     (
       await rpc(
+        'behavior.manual.a.duplicate',
         apiUrl,
         publishableKey,
         sessionA,
@@ -786,13 +927,24 @@ async function proveOrdinaryBehavior(
     true,
   )
 
-  for (const [id, owner, origin] of [
-    [systemA, sessionA.userId, 'system'],
-    [systemB, sessionB.userId, 'system'],
-    [firstManual, sessionA.userId, 'manual'],
-    [duplicateManual, sessionA.userId, 'manual'],
+  for (const [step, id, owner, origin] of [
+    ['lineage.application.system_a', systemA, sessionA.userId, 'system'],
+    ['lineage.application.system_b', systemB, sessionB.userId, 'system'],
+    [
+      'lineage.application.manual_first',
+      firstManual,
+      sessionA.userId,
+      'manual',
+    ],
+    [
+      'lineage.application.manual_duplicate',
+      duplicateManual,
+      sessionA.userId,
+      'manual',
+    ],
   ]) {
     const rows = await selectExact(
+      step as DiagnosticStep,
       apiUrl,
       publishableKey,
       null,
@@ -823,6 +975,7 @@ async function proveOrdinaryBehavior(
   )
 
   await selectExact(
+    'isolation.read.b_to_a',
     apiUrl,
     publishableKey,
     sessionB,
@@ -833,6 +986,7 @@ async function proveOrdinaryBehavior(
     secrets,
   )
   await selectExact(
+    'isolation.read.a_to_b',
     apiUrl,
     publishableKey,
     sessionA,
@@ -843,6 +997,7 @@ async function proveOrdinaryBehavior(
     secrets,
   )
   await rpc(
+    'isolation.pin.b_to_a',
     apiUrl,
     publishableKey,
     sessionB,
@@ -852,6 +1007,7 @@ async function proveOrdinaryBehavior(
     secrets,
   )
   await rpc(
+    'isolation.resume.b_to_a',
     apiUrl,
     publishableKey,
     sessionB,
@@ -865,6 +1021,7 @@ async function proveOrdinaryBehavior(
   )
 
   await rpc(
+    'behavior.resume.link.a',
     apiUrl,
     publishableKey,
     sessionA,
@@ -877,6 +1034,7 @@ async function proveOrdinaryBehavior(
     secrets,
   )
   await mutateExact(
+    'behavior.resume.delete.a',
     apiUrl,
     publishableKey,
     sessionA,
@@ -889,6 +1047,7 @@ async function proveOrdinaryBehavior(
     secrets,
   )
   const resumeCleared = await selectExact(
+    'behavior.resume.verify.a',
     apiUrl,
     publishableKey,
     sessionA,
@@ -901,6 +1060,7 @@ async function proveOrdinaryBehavior(
   requireCondition(resumeCleared[0].resume_id === null, 'resume delete did not clear only the link')
 
   const beforeProjection = await rpc(
+    'behavior.dashboard.before',
     apiUrl,
     publishableKey,
     sessionA,
@@ -923,6 +1083,7 @@ async function proveOrdinaryBehavior(
   const earliestApplied = beforeRow.applied_on
 
   const laterApplied = await rpc(
+    'behavior.event.repeat.a',
     apiUrl,
     publishableKey,
     sessionA,
@@ -937,6 +1098,7 @@ async function proveOrdinaryBehavior(
   )
   const laterEventId = scalarUuid(laterApplied.payload, 'later Applied event ID')
   const afterProjection = await rpc(
+    'behavior.dashboard.after',
     apiUrl,
     publishableKey,
     sessionA,
@@ -954,6 +1116,7 @@ async function proveOrdinaryBehavior(
   )
 
   const allEvents = await selectExact(
+    'lineage.events.all',
     apiUrl,
     publishableKey,
     null,
@@ -983,6 +1146,7 @@ async function proveOrdinaryBehavior(
   const finalEventB = allEvents.find((event) => event.application_id === systemB)
   requireCondition(finalEventB, 'user B final event is absent')
   await rpc(
+    'behavior.event.final_reject.b',
     apiUrl,
     publishableKey,
     sessionB,
@@ -993,6 +1157,7 @@ async function proveOrdinaryBehavior(
   )
 
   await mutateExact(
+    'behavior.source.remove.a',
     apiUrl,
     publishableKey,
     null,
@@ -1005,6 +1170,7 @@ async function proveOrdinaryBehavior(
     secrets,
   )
   const snapshot = await selectExact(
+    'behavior.snapshot.verify.a',
     apiUrl,
     publishableKey,
     sessionA,
@@ -1031,6 +1197,7 @@ async function recoverVerifiedLineage(
 ): Promise<void> {
   const ownerIds = FIXTURE_MANIFEST.auth_users.map((user) => user.id)
   const applications = await selectExact(
+    'cleanup.recover.applications.exact',
     apiUrl,
     publishableKey,
     null,
@@ -1041,6 +1208,7 @@ async function recoverVerifiedLineage(
     secrets,
   ).catch(async () => {
     const result = await postgrest(
+      'cleanup.recover.applications.fallback',
       apiUrl,
       publishableKey,
       null,
@@ -1077,6 +1245,7 @@ async function recoverVerifiedLineage(
   )
   if (applicationLineage.size === 0) return
   const eventsResult = await postgrest(
+    'cleanup.recover.events',
     apiUrl,
     publishableKey,
     null,
@@ -1127,6 +1296,7 @@ async function cleanupExact(
   const eventIds = [...eventLineage.keys()]
   if (eventIds.length > 0) {
     await mutateExact(
+      'cleanup.events.delete',
       apiUrl,
       publishableKey,
       null,
@@ -1142,6 +1312,7 @@ async function cleanupExact(
   }
   if (applicationIds.length > 0) {
     await mutateExact(
+      'cleanup.applications.delete',
       apiUrl,
       publishableKey,
       null,
@@ -1156,6 +1327,7 @@ async function cleanupExact(
     )
   }
   const remainingUserJobsResult = await postgrest(
+    'cleanup.user_jobs.read',
     apiUrl,
     publishableKey,
     null,
@@ -1180,6 +1352,7 @@ async function cleanupExact(
   }
   if (remainingUserJobs.length > 0) {
     await mutateExact(
+      'cleanup.user_jobs.delete',
       apiUrl,
       publishableKey,
       null,
@@ -1195,6 +1368,7 @@ async function cleanupExact(
     )
   }
   const remainingResumesResult = await postgrest(
+    'cleanup.resumes.read',
     apiUrl,
     publishableKey,
     null,
@@ -1218,6 +1392,7 @@ async function cleanupExact(
   }
   if (remainingResumes.length > 0) {
     await mutateExact(
+      'cleanup.resumes.delete',
       apiUrl,
       publishableKey,
       null,
@@ -1232,22 +1407,26 @@ async function cleanupExact(
     )
   }
   const jobs = await selectExact(
+    'cleanup.jobs.read',
     apiUrl, publishableKey, null, serviceKey, 'jobs',
     `select=id&id=eq.${FIXTURE_MANIFEST.jobs[0].id}`, 1, secrets,
   ).catch(() => [])
   if (jobs.length === 1) {
     await mutateExact(
+      'cleanup.jobs.delete',
       apiUrl, publishableKey, null, serviceKey, 'jobs', 'DELETE',
       `id=eq.${FIXTURE_MANIFEST.jobs[0].id}&company_id=eq.${FIXTURE_MANIFEST.companies[0].id}&external_id=eq.${FIXTURE_MANIFEST.jobs[0].external_id}`,
       undefined, 1, secrets,
     )
   }
   const companies = await selectExact(
+    'cleanup.companies.read',
     apiUrl, publishableKey, null, serviceKey, 'companies',
     `select=id&id=eq.${FIXTURE_MANIFEST.companies[0].id}`, 1, secrets,
   ).catch(() => [])
   if (companies.length === 1) {
     await mutateExact(
+      'cleanup.companies.delete',
       apiUrl, publishableKey, null, serviceKey, 'companies', 'DELETE',
       `id=eq.${FIXTURE_MANIFEST.companies[0].id}&board_token=eq.${FIXTURE_MANIFEST.companies[0].board_token}`,
       undefined, 1, secrets,
@@ -1262,27 +1441,36 @@ async function zeroResidue(
   secrets: string[],
 ): Promise<JsonRecord> {
   const checks: JsonRecord = {}
-  for (const [relation, query] of [
+  for (const [step, relation, query] of [
     [
+      'residue.events',
       'application_stage_events',
       `user_id=in.(${FIXTURE_MANIFEST.auth_users.map((user) => user.id).join(',')})`,
     ],
     [
+      'residue.applications',
       'applications',
       `user_id=in.(${FIXTURE_MANIFEST.auth_users.map((user) => user.id).join(',')})`,
     ],
     [
+      'residue.user_jobs',
       'user_jobs',
       `id=in.(${FIXTURE_MANIFEST.user_jobs.map((row) => row.id).join(',')})`,
     ],
     [
+      'residue.resumes',
       'resumes',
       `id=in.(${FIXTURE_MANIFEST.resumes.map((row) => row.id).join(',')})`,
     ],
-    ['jobs', `id=eq.${FIXTURE_MANIFEST.jobs[0].id}`],
-    ['companies', `id=eq.${FIXTURE_MANIFEST.companies[0].id}`],
+    ['residue.jobs', 'jobs', `id=eq.${FIXTURE_MANIFEST.jobs[0].id}`],
+    [
+      'residue.companies',
+      'companies',
+      `id=eq.${FIXTURE_MANIFEST.companies[0].id}`,
+    ],
   ] as const) {
     await selectExact(
+      step,
       apiUrl,
       publishableKey,
       null,
@@ -1294,8 +1482,10 @@ async function zeroResidue(
     )
     checks[`public.${relation}`] = 0
   }
-  for (const user of FIXTURE_MANIFEST.auth_users) {
+  for (let index = 0; index < FIXTURE_MANIFEST.auth_users.length; index += 1) {
+    const user = FIXTURE_MANIFEST.auth_users[index]
     const response = await httpJson(
+      index === 0 ? 'residue.auth.a' : 'residue.auth.b',
       `${apiUrl}/auth/v1/admin/users/${encodeURIComponent(user.id)}`,
       { method: 'GET', headers: serviceHeaders(serviceKey) },
       [404],
@@ -1377,8 +1567,10 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
   try {
     serviceRoleKey = discoverServiceRoleKey(root, projectRef)
     secrets.push(serviceRoleKey)
-    for (const user of FIXTURE_MANIFEST.auth_users) {
+    for (let index = 0; index < FIXTURE_MANIFEST.auth_users.length; index += 1) {
+      const user = FIXTURE_MANIFEST.auth_users[index]
       await httpJson(
+        index === 0 ? 'auth.preflight.a' : 'auth.preflight.b',
         `${apiUrl}/auth/v1/admin/users/${encodeURIComponent(user.id)}`,
         { method: 'GET', headers: serviceHeaders(serviceRoleKey) },
         [404],
@@ -1386,6 +1578,7 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
       )
     }
     await createExactUser(
+      'auth.create.a',
       apiUrl,
       serviceRoleKey,
       FIXTURE_MANIFEST.auth_users[0],
@@ -1394,6 +1587,7 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
     )
     createdUserIds.add(FIXTURE_MANIFEST.auth_users[0].id)
     await createExactUser(
+      'auth.create.b',
       apiUrl,
       serviceRoleKey,
       FIXTURE_MANIFEST.auth_users[1],
@@ -1405,6 +1599,7 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
     await seedDirectFixtures(apiUrl, publishableKey, serviceRoleKey, secrets)
 
     const sessionA = await signInWithPassword(
+      'auth.signin.a',
       apiUrl,
       publishableKey,
       FIXTURE_MANIFEST.auth_users[0].email,
@@ -1412,6 +1607,7 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
       secrets,
     )
     const sessionB = await signInWithPassword(
+      'auth.signin.b',
       apiUrl,
       publishableKey,
       FIXTURE_MANIFEST.auth_users[1].email,
@@ -1463,7 +1659,15 @@ async function runHosted(args: ReturnType<typeof parseArgs>): Promise<void> {
         }
         for (const user of [...FIXTURE_MANIFEST.auth_users].reverse()) {
           if (createdUserIds.has(user.id)) {
-            await deleteExactUser(apiUrl, serviceRoleKey, user.id, secrets)
+            await deleteExactUser(
+              user.id === FIXTURE_MANIFEST.auth_users[0].id
+                ? 'cleanup.auth.delete.a'
+                : 'cleanup.auth.delete.b',
+              apiUrl,
+              serviceRoleKey,
+              user.id,
+              secrets,
+            )
           }
         }
         cleanupCompleted = true
