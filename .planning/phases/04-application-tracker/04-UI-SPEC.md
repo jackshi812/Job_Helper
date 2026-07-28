@@ -79,8 +79,8 @@ Declared values are multiples of four:
 ### Density and Exceptions
 
 - Standard data cells: `12px 16px` padding and a 44px minimum row height.
-- Header cells: `10px 16px` padding.
-- Stage badges: `2px 10px` padding, full pill radius.
+- Header cells: `8px 16px` padding.
+- Stage badges: `4px 8px` padding, full pill radius.
 - Standard controls: 36px minimum height on fine pointers.
 - All icon-only controls and every control under `pointer: coarse`: 44px square
   or 44px minimum height.
@@ -268,7 +268,7 @@ Every editable cell owns one of these states, keyed by
 |-------|-------------------|---------------|
 | Saving | `Saving…` in 12px zinc-500 with a small nonessential spinner | `role="status" aria-live="polite"` |
 | Saved | `Saved` in 12px emerald text with a check icon | Announce once in the same polite live region |
-| Retry | `Couldn’t save. Retry` in 12px red; Retry is a real button | Error text uses `role="alert"`; button retries the unchanged draft |
+| Retry | `Couldn’t save. Retry` in 12px red; Retry is a real button | Error text uses `role="alert"`; button has the accessible name `Retry saving` and retries the unchanged draft |
 
 - **Saved** remains visible until that cell is edited again or the row leaves the
   viewport; do not rely on a fleeting toast.
@@ -294,7 +294,7 @@ The draft is a table row, not a modal. It may be taller than saved rows:
 - Stage cell: **Ready to Apply** by default and immediately editable.
 - Stage date: current date, read-only until the row is created.
 - Notes: optional compact textarea.
-- The final cell area contains **Add position** and **Cancel**.
+- The final cell area contains **Add position** and **Discard draft**.
 
 Persist nothing until company, job title, and job URL are valid. Job URL must
 parse as HTTPS. Location and job description are optional and can be added in
@@ -323,7 +323,7 @@ and announce `Position added.` On failure, retain every draft value and show:
 
 `Couldn’t add this position. Check your entries and retry.`
 
-**Cancel** removes only the unsaved client draft and needs no destructive
+**Discard draft** removes only the unsaved client draft and needs no destructive
 confirmation.
 
 ---
@@ -393,7 +393,7 @@ Deleting a non-final event uses the existing `ConfirmDialog` pattern:
 - Dialog title: `Delete timeline event?`
 - Body: `Delete {event label} from {date}? The current stage may change.`
 - Destructive action: `Delete event`
-- Secondary action: `Cancel`
+- Secondary action: `Keep event`
 
 The final remaining event cannot be deleted. Disable or omit **Delete event**
 and show:
@@ -404,6 +404,9 @@ If the server rejects a deletion after concurrent changes, retain the editor and
 show:
 
 `Couldn’t delete this event. Refresh the timeline and retry.`
+
+The visible retry action may remain **Retry**; its accessible name is
+`Retry deleting event`.
 
 No whole-application delete control is introduced in this phase.
 
@@ -494,14 +497,16 @@ them.
 | Filtered empty body | `Choose more stages or select Active stages.` |
 | Loading state | `Loading applications…` |
 | Load error | `Couldn’t load your applications. Check your connection and retry.` |
-| Load error action | `Retry` |
+| Load error action | Visible `Retry`; accessible name `Retry loading applications` |
 | Detail load error | `Couldn’t load this application’s details. Retry without leaving the table.` |
 | Position create error | `Couldn’t add this position. Check your entries and retry.` |
-| Generic cell save error | `Couldn’t save. Retry` |
+| Generic cell save error | Visible `Couldn’t save. Retry`; accessible Retry button name `Retry saving` |
 | Notes placeholder | `Add contacts, follow-ups, interview details, or next steps.` |
 | Empty JD | `No job description was saved for this position.` |
 | Final-event guard | `Every application needs one timeline event. Edit this event instead.` |
-| Destructive confirmation | `Delete timeline event?` / `Delete {event label} from {date}? The current stage may change.` / `Delete event` |
+| Manual draft secondary action | `Discard draft` |
+| Destructive confirmation | `Delete timeline event?` / `Delete {event label} from {date}? The current stage may change.` / `Delete event` / `Keep event` |
+| Event deletion retry | Visible `Retry`; accessible name `Retry deleting event` |
 
 Avoid vague labels such as **Submit**, **Save**, **Done**, or **Manage** when a
 specific noun is available. Use sentence case throughout.
@@ -513,7 +518,8 @@ specific noun is available. Use sentence case throughout.
 - Preserve the table container during initial load and show
   **Loading applications…** with `role="status"`.
 - A full-page query failure appears inside the table surface with the exact load
-  error copy and a **Retry** button. Filters and header remain available.
+  error copy and a visible **Retry** button with accessible name
+  `Retry loading applications`. Filters and header remain available.
 - The initial empty state includes **Add position** as its action.
 - The filtered empty state does not repeat the create CTA; it points users to
   stage filters.
@@ -572,9 +578,9 @@ specific noun is available. Use sentence case throughout.
   filters, and timeline nodes.
 - Saving/Saved uses a polite live region; failed save/delete/create messages use
   `role="alert"`. Avoid announcing every keystroke.
-- When a confirmation dialog opens, focus begins on **Cancel**, remains trapped
-  in the dialog, Escape cancels, and close returns focus to the originating
-  event control.
+- When a confirmation dialog opens, focus begins on **Keep event**, remains trapped
+  in the dialog, Escape keeps the event and closes the dialog, and close returns
+  focus to the originating event control.
 - On row collapse, focus returns to that row's expand button.
 - Timeline events are an ordered list; node controls expose label and date in
   their accessible names.
