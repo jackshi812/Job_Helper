@@ -566,7 +566,7 @@ Plans:
   4. A system-discovered application retains its captured JD snapshot; a manual entry can preserve the job-description context supplied by the user
   5. A tracked application can optionally link to a resume the user prepared manually outside the app, and the existing Dashboard Applied action uses the same tracker lifecycle rather than creating a competing state
 
-**Plans:** 1/5 plans executed
+**Plans:** 2/5 plans executed
 **UI hint**: yes
 
 Plans:
@@ -577,7 +577,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02-PLAN.md — Build and approve checksum-bound catalog/fixture verifiers plus the exact read-only migration preflight
+- [x] 04-02-PLAN.md — Build and approve checksum-bound catalog/fixture verifiers plus the exact read-only migration preflight
 
 **Wave 3** *(blocked on Wave 2 approval)*
 
@@ -610,7 +610,7 @@ Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03
 | 03.6 US-Only Workday Expansion & Dashboard Queue | 5/5 | Complete    | 2026-07-25 |
 | 03.7 Watchlist-First Jobs Dashboard | 1/1 | Complete | 2026-07-25 |
 | 03.8 Monitor and poll branded banking companies | 7/7 | Complete | 2026-07-26 |
-| 4. Application Tracker | 1/5 | In Progress|  |
+| 4. Application Tracker | 2/5 | In Progress|  |
 
 ## Coverage
 
