@@ -1,21 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 04-application-tracker
 source: [04-VERIFICATION.md]
 started: 2026-07-28T16:56:12Z
-updated: 2026-07-28T19:33:07Z
+updated: 2026-07-28T19:45:02Z
 ---
 
 ## Current Test
 
-number: 5
-name: Final compact row scale
-expected: |
-  Refresh the signed-in Tracker. Application rows and their text fields are
-  about 25% shorter with smaller text, Notes fields have no placeholder
-  caption, and the star, row number, and expand arrow remain larger and easy
-  to distinguish.
-awaiting: owner response
+[testing complete]
 
 ## Tests
 
@@ -42,15 +35,17 @@ release_commit: 4b29033a7733f199943794b8f9456c4a0031cf5d
 
 ### 5. Final compact row scale
 expected: Application rows and their text fields are about 25% shorter with smaller text, Notes fields have no placeholder caption, and the star, row number, and expand arrow remain larger and easy to distinguish.
-result: pending
+result: pass
 previous_reported: "still make the text box and each line smaller. no need to include captions in the notes chat box, enlarge the star. index and the expand button; font size also smaller; just a bit smaller 25%"
+fix_commit: c5a78799453449a737e13650a62dfd6135d10729
+release_commit: c5a78799453449a737e13650a62dfd6135d10729
 
 ## Summary
 
 total: 5
-passed: 4
+passed: 5
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
@@ -158,7 +153,7 @@ blocked: 0
   debug_session: "inline Phase 04 UAT diagnosis, 2026-07-28"
 
 - truth: "Tracker rows and fields are roughly 25% more compact, Notes has no placeholder caption, and the star, index, and expand arrow remain prominent."
-  status: resolved_pending_uat
+  status: resolved
   reason: "User requested one more approximately 25% density reduction, smaller row text, removal of Notes captions, and larger star/index/expand affordances."
   severity: minor
   test: 5
@@ -173,6 +168,8 @@ blocked: 0
     - "Use text-xs row/input typography and remove Notes placeholder captions."
     - "Use text-3xl star, text-lg bold index, and text-2xl expand arrow."
   resolution: "Main rows now use 36px controls, py-1 cells, text-xs typography, caption-free Notes fields, and deliberately larger star/index/expand glyphs."
+  fix_commit: "c5a78799453449a737e13650a62dfd6135d10729"
+  release_commit: "c5a78799453449a737e13650a62dfd6135d10729"
   debug_session: "inline Phase 04 UAT diagnosis, 2026-07-28"
 
 - truth: "Tracker rows remain compact, show a larger pin star, and include visible row numbering."
