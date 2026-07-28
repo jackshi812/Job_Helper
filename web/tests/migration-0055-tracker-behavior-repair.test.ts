@@ -39,9 +39,17 @@ describe('migration 0055 tracker behavior and cleanup repair', () => {
     )
     expect(migration0055).toMatch(/unexpected_projection_count|projection_count/i)
     expect(migration0055).toMatch(/ranking_item_count/i)
-    expect(migration0055).toMatch(/ranking_item_count\s*<>\s*3/i)
-    expect(migration0055).toMatch(/ranking_pending_count\s*<>\s*1/i)
-    expect(migration0055).toMatch(/ranking_completed_count\s*<>\s*2/i)
+    expect(migration0055).toMatch(
+      /ranking_item_count\s*<\s*1[\s\S]*ranking_item_count\s*>\s*64/i,
+    )
+    expect(migration0055).toMatch(
+      /ranking_pending_count\s*\+\s*ranking_completed_count\s*<>\s*ranking_item_count/i,
+    )
+    expect(migration0055).toMatch(/ranking_claimed_count\s*<>\s*0/i)
+    expect(migration0055).toMatch(/ranking_failed_count\s*<>\s*0/i)
+    expect(migration0055).toMatch(
+      /ranking_run_count\s*<>\s*ranking_item_count/i,
+    )
     expect(migration0055).toMatch(/delete from public\.user_jobs/i)
     expect(migration0055).toMatch(/deleted_projection_count\s*<>\s*1/i)
     expect(migration0055).toMatch(/delete from public\.jobs/i)
