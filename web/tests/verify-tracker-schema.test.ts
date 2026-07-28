@@ -128,4 +128,12 @@ describe('tracker schema verifier contract', () => {
     expect(verifierSource).toMatch(/repair_migration_sha256/)
     expect(verifierSource).toMatch(/hosted migration 0054 is absent/)
   })
+
+  it('binds the forward 0055 behavior and cleanup repair', () => {
+    expect(verifierSource).toContain(
+      "0055_tracker_behavior_and_cleanup.sql",
+    )
+    expect(verifierSource).toMatch(/behavior_repair_migration_sha256/)
+    expect(verifierSource).toMatch(/hosted migration 0055 is absent/)
+  })
 })

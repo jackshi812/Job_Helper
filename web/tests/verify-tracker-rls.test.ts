@@ -179,10 +179,21 @@ describe('tracker hosted RLS verifier contract', () => {
     expect(verifierSource).toMatch(/catalog_evidence_sha256/)
     expect(verifierSource).toMatch(/migration_sha256/)
     expect(verifierSource).toMatch(/repair_migration_sha256/)
+    expect(verifierSource).toMatch(/behavior_repair_migration_sha256/)
     expect(verifierSource).toMatch(/schema_verifier_sha256/)
     expect(verifierSource).toMatch(/behavior_verifier_sha256/)
     expect(verifierSource).toMatch(/fixture_manifest_sha256/)
     expect(verifierSource).toMatch(/catalog.*PASS.*seed|seed.*catalog.*PASS/is)
     expect(verifierSource).toMatch(/drift/i)
+  })
+
+  it('keeps fixtures out of scoring and verifies event cascade after application cleanup', () => {
+    expect(verifierSource).toMatch(/status:\s*'closed'/)
+    expect(verifierSource).toMatch(
+      /cleanup\.applications\.delete[\s\S]*cleanup\.events\.verify/,
+    )
+    expect(verifierSource).not.toMatch(
+      /mutateExact\(\s*'cleanup\.events\.delete'/,
+    )
   })
 })
