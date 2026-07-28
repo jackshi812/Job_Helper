@@ -11,8 +11,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **AUTH-01**: User can log in with email/password; signup is invite-only (exactly two accounts, no public registration)
 - [x] **AUTH-02**: User session persists across browser refresh
-- [x] **AUTH-03**: Each user's data (preferences, resumes, watchlist, applications, jobs) is fully isolated via row-level security — no user can read another's rows
-- [x] **AUTH-04**: User can delete their own resumes and data (user-controlled deletion)
+- [x] **AUTH-03**: Each user's personal data (preferences, resumes, ranking state/results, dismissals, applications, and tracker events) is fully isolated via row-level security. The monitored-company/source catalog and raw provider job pool are shared system data between the two invited accounts; anonymous access remains denied.
+- [x] **AUTH-04**: User can delete all personal job data and resume storage objects while retaining their login/profile and the shared company/job catalog
 
 ### Preferences & Watchlist
 
@@ -96,6 +96,9 @@ from automatic AI scoring to the complete deterministic ranking contract.
 The original Phase 02.1 finance matrix included Citi and Wells Fargo; the
 owner-approved Phase 03.8 scope removed both from current catalog/Watchlist
 membership while preserving the historical validation record.
+AUTH-03's owner-approved 2026-07-28 scope treats monitored companies and raw
+provider jobs as shared system data for the two invited accounts while keeping
+all user-derived data private. See `AUTH-03-SHARED-SCOPE-DECISION.md`.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|

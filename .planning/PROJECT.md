@@ -14,7 +14,7 @@ Discover relevant jobs fast, score them accurately, and surface them in a focuse
 
 - ✓ Invite-only auth for exactly two users with fully separated data — Phase 1 (deployed at pages.dev; RLS proven by two-account cross-access probes; UAT 6/6)
 - ✓ Base resume management: upload multiple DOCX resumes per user — shipped early in Phase 1 as the walking-skeleton vertical slice (upload/list/download/delete, per-user storage isolation)
-- ✓ Shared watchlist management for Greenhouse, Lever, and Ashby career URLs, including add/remove/re-add flows and visible source-health badges — Phase 2 (production UAT 2/2)
+- ✓ Shared monitored-company/source catalog and raw provider job pool for the two invited accounts, including add/remove/re-add flows and visible source-health badges; preferences, resumes, rankings, dismissals, and tracker records remain private — Phase 2 plus owner-confirmed AUTH-03 scope (2026-07-28)
 - ✓ Scheduled direct-ATS ingestion plus quota-capped Adzuna discovery, exact-once deduplication, immutable first-sight snapshots, safe close/reopen behavior, and public heartbeat health — Phase 2 (15/15 verification truths passed)
 - ✓ Per-user job preferences for target titles, locations, and include/exclude keywords — Phase 3 (8/8 UAT; own-row RLS)
 - ✓ Transparent deterministic ranking after owner-controlled title, location, and keyword filters, with stored score evidence and no automatic/background paid AI scoring — Phase 03.4 (13/13 verification truths; 6/6 production UAT; paid score ledger unchanged)

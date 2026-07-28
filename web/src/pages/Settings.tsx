@@ -109,9 +109,9 @@ export function Settings() {
 
     try {
       await deleteAllMyData(session.user.id)
-      await queryClient.invalidateQueries({ queryKey: ['resumes'] })
+      queryClient.clear()
       setShowDeleteDialog(false)
-      setDeleteMessage('All of your resume data was permanently deleted.')
+      setDeleteMessage('All of your personal job data was permanently deleted.')
     } catch (error) {
       setDeleteError(
         error instanceof Error && error.message === 'storage delete incomplete'
@@ -173,7 +173,9 @@ export function Settings() {
       <section className="mt-6 rounded-lg border border-red-300 bg-red-50 p-5 dark:border-red-900 dark:bg-red-950/30">
         <h2 className="text-base font-semibold text-red-900 dark:text-red-200">Danger zone</h2>
         <p className="mt-1 text-sm text-red-800 dark:text-red-300">
-          Permanently remove every resume file and database record you own. This cannot be undone.
+          Permanently remove your resumes, preferences, rankings, dismissals, and
+          tracker records. Your login and the shared company/job catalog remain.
+          This cannot be undone.
         </p>
         {deleteMessage && <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-400">{deleteMessage}</p>}
         {deleteError && <p className="mt-3 text-sm text-red-700 dark:text-red-400">{deleteError}</p>}

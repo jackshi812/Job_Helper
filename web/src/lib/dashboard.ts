@@ -4,6 +4,7 @@ import {
   type DashboardFeedOrder,
   type DashboardFeedPage,
   type DashboardFeedQuery,
+  type DashboardSourceScope,
   type FeedRow,
   type LifecycleView,
   type Tier,
@@ -12,7 +13,7 @@ import type { DashboardAppliedApplication } from './tracker'
 
 export const ALL_SCORE_TIERS: readonly Tier[] = ['Strong', 'Good', 'Weak']
 
-export type DashboardSourceScope = 'watchlist' | 'all'
+export type { DashboardSourceScope } from './feed'
 
 export interface CompanyOption {
   key: string
@@ -27,6 +28,7 @@ export interface DashboardFilterSelection {
 export interface DashboardFeedQueryInput extends DashboardFilterSelection {
   lifecycle: LifecycleView
   activeOrder: DashboardFeedOrder
+  sourceScope: DashboardSourceScope
 }
 
 export interface DashboardLifecycleCopy {
@@ -230,6 +232,7 @@ export function buildDashboardFeedQuery(
   return {
     lifecycle: input.lifecycle,
     order: input.lifecycle === 'active' ? input.activeOrder : 'newest',
+    sourceScope: input.sourceScope,
     tiers,
     hiddenCompanyKeys,
   }
@@ -240,6 +243,7 @@ export function dashboardFeedQueryKey(query: DashboardFeedQuery) {
     'dashboard-feed',
     query.lifecycle,
     query.order,
+    query.sourceScope,
     [...query.tiers],
     [...query.hiddenCompanyKeys],
   ] as const
@@ -254,6 +258,7 @@ export function resetDashboardFeedQuery(
     query: {
       lifecycle,
       order: lifecycle === 'active' ? activeOrder : 'newest',
+      sourceScope: current.sourceScope,
       tiers: [...current.tiers],
       hiddenCompanyKeys: [...current.hiddenCompanyKeys],
     },

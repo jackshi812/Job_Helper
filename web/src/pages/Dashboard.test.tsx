@@ -105,40 +105,31 @@ vi.mock('@tanstack/react-query', () => ({
     isPending: false,
     isError: false,
   }),
-  useInfiniteQuery: () => ({
-    data: {
-      pages: [{
-        rows: [row, externalRow],
-        nextCursor: 'cursor-1',
-        hasMore: true,
-        caughtUp: false,
-      }],
-      pageParams: [null],
-    },
-    error: null,
-    isPending: false,
-    isFetchingNextPage: false,
-    fetchNextPage: vi.fn(),
-    refetch: vi.fn(),
-  }),
+  useInfiniteQuery: ({ queryKey }: { queryKey: readonly unknown[] }) => {
+    const scopedRows = queryKey[3] === 'watchlist' ? [row] : [row, externalRow]
+    return {
+      data: {
+        pages: [{
+          rows: scopedRows,
+          nextCursor: 'cursor-1',
+          hasMore: true,
+          caughtUp: false,
+        }],
+        pageParams: [null],
+      },
+      error: null,
+      isPending: false,
+      isFetchingNextPage: false,
+      fetchNextPage: vi.fn(),
+      refetch: vi.fn(),
+    }
+  },
   useQuery: ({ queryKey }: { queryKey: readonly unknown[] }) => {
     if (queryKey[0] === 'preferences') {
       return { data: {}, error: null, isPending: false }
     }
     if (queryKey[0] === 'dashboard-companies') {
       return { data: [{ key: 'acme', label: 'Acme', count: 1 }], error: null, isPending: false }
-    }
-    if (queryKey[0] === 'dashboard-watchlist-company-rows') {
-      return {
-        data: {
-          rows: [row, externalRow],
-          nextCursor: null,
-          hasMore: false,
-          caughtUp: true,
-        },
-        error: null,
-        isPending: false,
-      }
     }
     if (queryKey[0] === 'ranking-state') {
       return {
@@ -219,14 +210,10 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('dashboardFeedQueryKey(feedRequest)')
     expect(dashboardSource).toContain('listFeedPage(feedRequest, pageParam)')
     expect(dashboardSource).toContain('listDashboardCompanyOptions(feedRequest)')
-    expect(dashboardSource).toContain('listFeedPage(watchlistCompanySourceRequest)')
-    expect(dashboardSource).toContain('appliedHiddenKeys: new Set()')
-    expect(dashboardSource).toContain('selectedTiers: new Set(ALL_SCORE_TIERS)')
-    expect(dashboardSource).toContain(
-      'dashboardWatchlistCompanyOptions(watchlistCompanyRowsQuery.data?.rows ?? [])',
-    )
+    expect(dashboardSource).toContain('sourceScope: scope')
     expect(dashboardSource).toContain("scope === 'watchlist'")
-    expect(dashboardSource).toContain('dashboardSourceRows(allRows, scope)')
+    expect(dashboardSource).toContain('const rows = allRows')
+    expect(dashboardSource).not.toContain('dashboardSourceRows(allRows, scope)')
     expect(dashboardSource).toContain('appliedHiddenKeys')
     expect(dashboardSource).toContain('selectedTiers')
   })

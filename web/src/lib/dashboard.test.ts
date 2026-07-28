@@ -269,6 +269,7 @@ describe('Dashboard staged filters', () => {
     expect(buildDashboardFeedQuery({
       lifecycle: 'active',
       activeOrder: 'newest',
+      sourceScope: 'watchlist',
       appliedHiddenKeys: appliedAfterSelect,
       selectedTiers: allTiers,
     }).hiddenCompanyKeys).toEqual([])
@@ -301,6 +302,7 @@ describe('Dashboard staged filters', () => {
     const query = buildDashboardFeedQuery({
       lifecycle: 'active',
       activeOrder: 'newest',
+      sourceScope: 'watchlist',
       appliedHiddenKeys: new Set([normalizedCompanyKey('Acme')]),
       selectedTiers: allTiers,
     })
@@ -312,11 +314,13 @@ describe('Dashboard staged filters', () => {
     expect(buildDashboardFeedQuery({
       lifecycle: 'active',
       activeOrder: 'score_desc',
+      sourceScope: 'watchlist',
       appliedHiddenKeys: new Set(['walmart', 'acme']),
       selectedTiers: new Set<Tier>(['Good', 'Strong']),
     })).toEqual({
       lifecycle: 'active',
       order: 'score_desc',
+      sourceScope: 'watchlist',
       hiddenCompanyKeys: ['acme', 'walmart'],
       tiers: ['Strong', 'Good'],
     })
@@ -330,6 +334,7 @@ describe('Dashboard staged filters', () => {
     expect(buildDashboardFeedQuery({
       lifecycle: 'active',
       activeOrder: 'newest',
+      sourceScope: 'watchlist',
       appliedHiddenKeys: new Set(),
       selectedTiers: empty,
     }).tiers).toEqual([])
@@ -392,6 +397,7 @@ describe('Dashboard lifecycle state', () => {
     const active = buildDashboardFeedQuery({
       lifecycle: 'active',
       activeOrder: 'score_asc',
+      sourceScope: 'watchlist',
       appliedHiddenKeys: new Set(['acme']),
       selectedTiers: new Set<Tier>(['Strong', 'Weak']),
     })
@@ -400,6 +406,7 @@ describe('Dashboard lifecycle state', () => {
       query: {
         lifecycle: 'applied',
         order: 'newest',
+        sourceScope: 'watchlist',
         hiddenCompanyKeys: ['acme'],
         tiers: ['Strong', 'Weak'],
       },
@@ -408,6 +415,10 @@ describe('Dashboard lifecycle state', () => {
     expect(resetDashboardFeedQuery(applied.query, 'active', 'score_asc').query.order)
       .toBe('score_asc')
     expect(dashboardFeedQueryKey(active)).not.toEqual(dashboardFeedQueryKey(applied.query))
+    expect(dashboardFeedQueryKey(active)).not.toEqual(dashboardFeedQueryKey({
+      ...active,
+      sourceScope: 'all',
+    }))
   })
 })
 

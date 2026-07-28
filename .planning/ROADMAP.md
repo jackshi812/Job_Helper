@@ -2,7 +2,7 @@
 
 ## Overview
 
-Four vertical phases plus inserted source-coverage phases, each ending with something two real users can exercise end-to-end. Phase 1 stands up the deployed app with invite-only auth and airtight per-user data isolation. Phase 2 builds the core ingestion engine. Phase 02.1 broadens that engine from three public ATS APIs to representative public portals and major branded finance career sites before ranking depends on it. Phase 3 closes the relevance loop with filtering, deterministic ranking, and a focused feed. Phase 4 turns matches into manually managed applications with a focused tracker.
+Four vertical phases plus inserted source-coverage phases, each ending with something two real users can exercise end-to-end. Phase 1 stands up the deployed app with invite-only auth and airtight isolation of personal data. Phase 2 builds the shared monitored-company and raw-provider-job ingestion engine. Phase 02.1 broadens that engine from three public ATS APIs to representative public portals and major branded finance career sites before ranking depends on it. Phase 3 closes the relevance loop with private filtering, deterministic ranking, and focused feeds. Phase 4 turns matches into private manually managed applications with a focused tracker.
 
 ## Phases
 
@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ### Phase 1: Foundation & Access
 
-**Goal**: Two invited users can securely access the deployed app, with every row of their data fully isolated and under their own control
+**Goal**: Two invited users can securely access the deployed app, with personal data fully isolated and under their own control while the monitored-company/raw-job system catalog is shared
 **Mode:** mvp
 **Depends on**: Nothing (first phase)
 **Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04
@@ -34,8 +34,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
   1. Each of the two invited users can log in with email/password at the deployed URL, and no public signup path exists
   2. User remains logged in after a browser refresh
-  3. Logged in as either account, no query or API call can read or modify the other user's rows (preferences, resumes, watchlist, applications, jobs) — verified with both accounts
-  4. User can delete their own resumes and data, and the deleted items are gone from both the database and storage
+  3. Logged in as either account, no query or API call can read or modify the other user's personal rows (preferences, resumes, ranking state/results, dismissals, applications, or tracker events); monitored companies and raw provider jobs are the explicit shared exception
+  4. User can delete all personal job data and resume storage objects while retaining their login/profile and the shared company/job catalog
 
 **Plans**: 3/3 plans complete
 

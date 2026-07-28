@@ -96,10 +96,12 @@ export interface FeedRow {
 
 export type LifecycleView = 'active' | 'applied' | 'dismissed'
 export type DashboardFeedOrder = 'newest' | 'score_desc' | 'score_asc'
+export type DashboardSourceScope = 'watchlist' | 'all'
 
 export interface DashboardFeedQuery {
   lifecycle: LifecycleView
   order: DashboardFeedOrder
+  sourceScope: DashboardSourceScope
   tiers: readonly Tier[]
   hiddenCompanyKeys: readonly string[]
 }
@@ -216,6 +218,7 @@ const TIER_ORDER: readonly Tier[] = ['Strong', 'Good', 'Weak']
 interface NormalizedDashboardFeedQuery {
   lifecycle: LifecycleView
   order: DashboardFeedOrder
+  sourceScope: DashboardSourceScope
   tiers: Tier[]
   hiddenCompanyKeys: string[]
 }
@@ -252,6 +255,9 @@ function normalizeDashboardFeedQuery(
   ) {
     throw new Error('invalid_dashboard_order')
   }
+  if (!['watchlist', 'all'].includes(query.sourceScope)) {
+    throw new Error('invalid_dashboard_source_scope')
+  }
 
   const tierSet = new Set(query.tiers)
   if (
@@ -285,6 +291,7 @@ function normalizeDashboardFeedQuery(
   return {
     lifecycle: query.lifecycle,
     order: query.order,
+    sourceScope: query.sourceScope,
     tiers: TIER_ORDER.filter((tier) => tierSet.has(tier)),
     hiddenCompanyKeys: [...hiddenCompanyKeys].sort(),
   }
@@ -294,6 +301,7 @@ function dashboardQuerySignature(query: NormalizedDashboardFeedQuery): string {
   const canonical = JSON.stringify([
     query.lifecycle,
     query.order,
+    query.sourceScope,
     query.tiers,
     query.hiddenCompanyKeys,
   ])
@@ -492,6 +500,7 @@ function dashboardFeedRpcArgs(
       p_tiers: normalizedQuery.tiers,
       p_hidden_company_keys: normalizedQuery.hiddenCompanyKeys,
       p_query_signature: dashboardQuerySignature(normalizedQuery),
+      p_source_scope: normalizedQuery.sourceScope,
       p_cursor: cursor,
       p_limit: limit,
     },
@@ -620,7 +629,7 @@ async function requestDashboardFeedPage(
   limit: number,
 ): Promise<DashboardFeedPage> {
   const { normalizedQuery, args } = dashboardFeedRpcArgs(query, encodedCursor, limit)
-  const { data, error } = await supabase.rpc('dashboard_feed_page', args)
+  const { data, error } = await supabase.rpc('dashboard_feed_page_v2', args)
   if (error) throw error
   if (!Array.isArray(data) || data.length > limit) {
     throw new Error('invalid_dashboard_feed_response')
@@ -688,9 +697,10 @@ export async function listDashboardCompanyOptions(
   query: DashboardFeedQuery,
 ): Promise<DashboardCompanyOption[]> {
   const normalizedQuery = normalizeDashboardFeedQuery(query)
-  const { data, error } = await supabase.rpc('dashboard_company_options', {
+  const { data, error } = await supabase.rpc('dashboard_company_options_v2', {
     p_lifecycle: normalizedQuery.lifecycle,
     p_tiers: normalizedQuery.tiers,
+    p_source_scope: normalizedQuery.sourceScope,
   })
   if (error) throw error
   if (!Array.isArray(data)) throw new Error('invalid_dashboard_company_options')

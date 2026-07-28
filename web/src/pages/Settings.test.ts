@@ -9,6 +9,7 @@ import {
   changePassword,
   deleteAllMyData,
 } from './Settings'
+import settingsSource from './Settings.tsx?raw'
 
 vi.mock('../lib/supabase', () => ({
   supabase: {
@@ -82,5 +83,15 @@ describe('Settings account actions', () => {
     expect(matchesRequiredText('DELETE', DELETE_CONFIRMATION_TEXT)).toBe(true)
     expect(matchesRequiredText('delete', DELETE_CONFIRMATION_TEXT)).toBe(false)
     expect(matchesRequiredText(' DELETE ', DELETE_CONFIRMATION_TEXT)).toBe(false)
+  })
+
+  it('clears stale personal-data caches and explains the retained shared scope', () => {
+    expect(settingsSource).toContain('queryClient.clear()')
+    expect(settingsSource).toContain(
+      'All of your personal job data was permanently deleted.',
+    )
+    expect(settingsSource).toContain(
+      'Your login and the shared company/job catalog remain.',
+    )
   })
 })

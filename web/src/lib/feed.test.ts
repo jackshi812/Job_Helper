@@ -312,6 +312,7 @@ describe('safeApplyUrl', () => {
 const ACTIVE_QUERY: DashboardFeedQuery = {
   lifecycle: 'active',
   order: 'newest',
+  sourceScope: 'all',
   tiers: ['Strong', 'Good', 'Weak'],
   hiddenCompanyKeys: ['hidden co'],
 }
@@ -375,12 +376,13 @@ describe('Dashboard lifecycle feed pages', () => {
     expect(page.caughtUp).toBe(false)
     expect(page.nextCursor).not.toBeNull()
     const call = queryMock.calls.find(([method]) => method === 'rpc')
-    expect(call?.[1]).toBe('dashboard_feed_page')
+    expect(call?.[1]).toBe('dashboard_feed_page_v2')
     expect(call?.[2]).toMatchObject({
       p_lifecycle: 'active',
       p_order: 'newest',
       p_tiers: ['Strong', 'Good', 'Weak'],
       p_hidden_company_keys: ['hidden co'],
+      p_source_scope: 'all',
       p_cursor: null,
       p_limit: 200,
     })
@@ -409,7 +411,7 @@ describe('Dashboard lifecycle feed pages', () => {
     expect(page.caughtUp).toBe(true)
     expect(queryMock.calls).toContainEqual([
       'rpc',
-      'dashboard_feed_page',
+      'dashboard_feed_page_v2',
       expect.objectContaining({ p_limit: 1 }),
     ])
   })
@@ -519,10 +521,11 @@ describe('Dashboard lifecycle feed pages', () => {
     ])
     expect(queryMock.calls).toContainEqual([
       'rpc',
-      'dashboard_company_options',
+      'dashboard_company_options_v2',
       {
         p_lifecycle: 'active',
         p_tiers: ['Strong', 'Good', 'Weak'],
+        p_source_scope: 'all',
       },
     ])
   })
@@ -560,6 +563,10 @@ describe('Dashboard cursor validation and stable merge', () => {
     expect(() => decodeDashboardFeedCursor(encoded, {
       ...ACTIVE_QUERY,
       hiddenCompanyKeys: [],
+    })).toThrow('dashboard_cursor_signature_mismatch')
+    expect(() => decodeDashboardFeedCursor(encoded, {
+      ...ACTIVE_QUERY,
+      sourceScope: 'watchlist',
     })).toThrow('dashboard_cursor_signature_mismatch')
   })
 

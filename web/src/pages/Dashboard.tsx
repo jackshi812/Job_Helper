@@ -34,8 +34,6 @@ import {
   dashboardFeedQueryKey,
   dashboardLifecycleCopy,
   dashboardLifecycleTimestamp,
-  dashboardSourceRows,
-  dashboardWatchlistCompanyOptions,
   searchCompanyOptions,
   scoreTierSummary,
   selectAllCompanies,
@@ -399,19 +397,11 @@ export function Dashboard({
     () => buildDashboardFeedQuery({
       lifecycle,
       activeOrder,
+      sourceScope: scope,
       appliedHiddenKeys,
       selectedTiers,
     }),
-    [lifecycle, activeOrder, appliedHiddenKeys, selectedTiers],
-  )
-  const watchlistCompanySourceRequest = useMemo(
-    () => buildDashboardFeedQuery({
-      lifecycle,
-      activeOrder,
-      appliedHiddenKeys: new Set(),
-      selectedTiers: new Set(ALL_SCORE_TIERS),
-    }),
-    [lifecycle, activeOrder],
+    [lifecycle, activeOrder, scope, appliedHiddenKeys, selectedTiers],
   )
   const feedKey = dashboardFeedQueryKey(feedRequest)
   const feedIdentity = JSON.stringify([scope, ...feedKey])
@@ -433,17 +423,7 @@ export function Dashboard({
   const companyOptionsQuery = useQuery({
     queryKey: ['dashboard-companies', scope, lifecycle, [...feedRequest.tiers]],
     queryFn: () => listDashboardCompanyOptions(feedRequest),
-    enabled: feedEnabled && scope === 'all',
-  })
-  const watchlistCompanyRowsQuery = useQuery({
-    queryKey: [
-      'dashboard-watchlist-company-rows',
-      lifecycle,
-      activeOrder,
-    ],
-    queryFn: () => listFeedPage(watchlistCompanySourceRequest),
-    enabled: scope === 'watchlist' && lifecycle !== 'applied',
-    refetchInterval: 60_000,
+    enabled: feedEnabled,
   })
   const rankingStateQuery = useQuery({
     queryKey: ['ranking-state'],
@@ -517,10 +497,7 @@ export function Dashboard({
     () => mergedInfinitePage(feedQuery.data).rows,
     [feedQuery.data],
   )
-  const rows = useMemo(
-    () => dashboardSourceRows(allRows, scope),
-    [allRows, scope],
-  )
+  const rows = allRows
   const appliedApplications = useMemo(
     () => dashboardAppliedSourceRows(
       appliedApplicationsQuery.data ?? [],
@@ -654,10 +631,8 @@ export function Dashboard({
     || markAppliedMutation.isPending
 
   const companyOptions = useMemo(
-    () => scope === 'watchlist'
-      ? dashboardWatchlistCompanyOptions(watchlistCompanyRowsQuery.data?.rows ?? [])
-      : (companyOptionsQuery.data ?? []),
-    [companyOptionsQuery.data, scope, watchlistCompanyRowsQuery.data],
+    () => companyOptionsQuery.data ?? [],
+    [companyOptionsQuery.data],
   )
   const searchedCompanyOptions = useMemo(
     () => searchCompanyOptions(companyOptions, companySearch),
@@ -725,10 +700,7 @@ export function Dashboard({
       setLoadMoreError('Couldn’t load more jobs. Your current results are still shown.')
       return
     }
-    const total = dashboardSourceRows(
-      mergedInfinitePage(result.data).rows,
-      scope,
-    ).length
+    const total = mergedInfinitePage(result.data).rows.length
     const appended = Math.max(0, total - previousCount)
     setQueueAnnouncement(
       `${appended} more jobs loaded. ${total} ${lifecycle} jobs shown.`,

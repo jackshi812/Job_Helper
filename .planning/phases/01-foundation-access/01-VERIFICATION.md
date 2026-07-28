@@ -8,9 +8,16 @@ behavior_unverified: 0
 
 # Phase 1: Foundation & Access Verification Report
 
-**Phase Goal:** Two invited users can securely access the deployed app, with every row of their data fully isolated and under their own control.
+**Phase Goal:** Two invited users can securely access the deployed app, with personal data fully isolated and under their own control.
 **Verified:** 2026-07-16T20:41:58Z
 **Status:** passed
+
+**Current scope clarification (owner accepted 2026-07-28):** The monitored
+company/source catalog and raw provider jobs added by Phase 2 are shared system
+data for the two invited accounts. “Their data” in this report means
+user-derived preferences, resumes, ranking state/results, dismissals,
+applications, tracker events, and usage accounting. See
+`.planning/AUTH-03-SHARED-SCOPE-DECISION.md`.
 
 ## Goal Achievement
 
@@ -20,7 +27,7 @@ behavior_unverified: 0
 |---|-------|--------|----------|
 | 1 | Both invited users can log in at the deployed URL, and outsiders have no signup path. | ✓ VERIFIED | Production UAT items 1-3 passed; signup is disabled and the anonymous page is login-only. |
 | 2 | Both users retain their identity across refresh and session renewal. | ✓ VERIFIED | Production refresh/tab-reopen checks passed for both users; fresh-client refresh-token renewal preserved each identity. |
-| 3 | One user cannot read or modify the other user's rows or storage. | ✓ VERIFIED | `scripts/verify-rls.ts` passed every two-client table, profile, and storage probe; production delete-all UAT left User 1's probe untouched. |
+| 3 | One user cannot read or modify the other user's personal rows or storage. | ✓ VERIFIED | `scripts/verify-rls.ts` passed every two-client personal-table, profile, and storage probe; production delete-all UAT left User 1's probe untouched. The Phase 2 shared system catalog/raw-job exception is owner-approved. |
 | 4 | Users can remove resume data from both database and storage. | ✓ VERIFIED | Authorized `scripts/verify-deletion.ts` run ended with zero User 1 rows and objects; production User 2 delete-all UAT also passed. |
 
 **Score:** 4/4 truths verified
@@ -54,7 +61,7 @@ behavior_unverified: 0
 |-------------|--------|----------------|
 | AUTH-01: Invite-only email/password login for two users | ✓ SATISFIED | - |
 | AUTH-02: Session persists across browser refresh | ✓ SATISFIED | - |
-| AUTH-03: Per-user data isolation through RLS | ✓ SATISFIED | - |
+| AUTH-03: Personal-data isolation through RLS with an explicit shared catalog/raw-job exception | ✓ SATISFIED | - |
 | AUTH-04: User-controlled deletion from database and storage | ✓ SATISFIED | - |
 
 **Coverage:** 4/4 requirements satisfied

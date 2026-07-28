@@ -16,7 +16,7 @@ An invite-only web app for two users that discovers relevant jobs within 5–15 
 
 ## Data and safety
 
-- Separate accounts, preferences, resumes, watchlists, applications, and drafts for each user.
+- Separate accounts and private preferences, resumes, rankings, dismissals, and applications for each user. The monitored-company/source catalog and raw provider job pool are shared between the two invited accounts.
 - Store resumes in encrypted private cloud storage with user-controlled deletion.
 - Tailoring must remain truthful and require user review.
 - Do not scrape logged-in LinkedIn pages, automate Easy Apply, or automatically send LinkedIn messages.
