@@ -331,6 +331,7 @@ Recent decisions affecting current work:
 | 2 | Raise the July 20 score-call cap to 499 with automatic UTC rollover | 2026-07-20 | 1e169cc | — |
 | 3 | Restrict All jobs to confirmed preference-pass rows regardless of score | 2026-07-20 | 7ef01d8 | — |
 | 260727-ozt | Decouple Best Fit resume routing from full ranking and route loaded dashboard pages lazily | 2026-07-27 | 1caaa5c | [260727-ozt-decouple-best-fit-resume-routing-from-fu](./quick/260727-ozt-decouple-best-fit-resume-routing-from-fu/) |
+| 5 | Restore the company Watchlist tab after both job dashboards | 2026-07-28 | 5a94667 | — |
 
 ### Blockers/Concerns
 
