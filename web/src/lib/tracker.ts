@@ -553,7 +553,7 @@ export async function getTrackerApplication(
 
 export async function listDashboardAppliedApplications():
 Promise<DashboardAppliedApplication[]> {
-  const { data, error } = await supabase.rpc('dashboard_applied_applications')
+  const { data, error } = await supabase.rpc('dashboard_applied_applications_v2')
   if (error) throw error
   if (!Array.isArray(data)) throw new Error('invalid_dashboard_applied_application')
   return data.map(parseDashboardAppliedApplication)

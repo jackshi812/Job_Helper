@@ -3,16 +3,19 @@ import migration0058 from '../../supabase/migrations/0058_dashboard_applied_watc
 
 function projectionBody() {
   return migration0058.match(
-    /create function public\.dashboard_applied_applications\(\)([\s\S]*?)\$\$;/i,
+    /create function public\.dashboard_applied_applications_v2\(\)([\s\S]*?)\$\$;/i,
   )?.[0] ?? ''
 }
 
 describe('migration 0058 — Dashboard applied watchlist scope', () => {
-  it('atomically extends the existing RPC with normalized membership', () => {
+  it('adds a versioned RPC without breaking the currently deployed client', () => {
     expect(migration0058).toMatch(/^\s*begin\s*;/i)
     expect(migration0058).toMatch(/\bcommit\s*;\s*$/i)
-    expect(migration0058).toMatch(
+    expect(migration0058).not.toMatch(
       /drop function public\.dashboard_applied_applications\(\)/i,
+    )
+    expect(migration0058).toMatch(
+      /create function public\.dashboard_applied_applications_v2\(\)/i,
     )
     expect(migration0058).toMatch(
       /returns table \([\s\S]*current_stage_date date,\s*has_watched_company boolean\s*\)/i,
@@ -52,13 +55,13 @@ describe('migration 0058 — Dashboard applied watchlist scope', () => {
     expect(projection).toMatch(/security invoker/i)
     expect(projection).toMatch(/set search_path = ''/i)
     expect(migration0058).toMatch(
-      /revoke all on function public\.dashboard_applied_applications\(\)\s*from public, anon, authenticated/i,
+      /revoke all on function public\.dashboard_applied_applications_v2\(\)\s*from public, anon, authenticated/i,
     )
     expect(migration0058).toMatch(
-      /grant execute on function public\.dashboard_applied_applications\(\)\s*to authenticated/i,
+      /grant execute on function public\.dashboard_applied_applications_v2\(\)\s*to authenticated/i,
     )
     expect(migration0058).toMatch(
-      /alter function public\.dashboard_applied_applications\(\) owner to postgres/i,
+      /alter function public\.dashboard_applied_applications_v2\(\) owner to postgres/i,
     )
   })
 })

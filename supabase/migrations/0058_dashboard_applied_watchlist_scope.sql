@@ -3,11 +3,10 @@ begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
 
--- PostgreSQL cannot replace a function when its OUT row type changes. Recreate
--- the owner-scoped projection atomically and restore its narrow ACL below.
-drop function public.dashboard_applied_applications();
-
-create function public.dashboard_applied_applications()
+-- Keep the eight-column Phase 04 RPC available to the currently deployed web
+-- client while the new build rolls out. The new client switches to this
+-- versioned projection only after the migration is present.
+create function public.dashboard_applied_applications_v2()
 returns table (
   application_id uuid,
   company text,
@@ -59,10 +58,10 @@ as $$
   order by first_applied.occurred_on desc, application.id desc;
 $$;
 
-revoke all on function public.dashboard_applied_applications()
+revoke all on function public.dashboard_applied_applications_v2()
   from public, anon, authenticated;
-grant execute on function public.dashboard_applied_applications()
+grant execute on function public.dashboard_applied_applications_v2()
   to authenticated;
-alter function public.dashboard_applied_applications() owner to postgres;
+alter function public.dashboard_applied_applications_v2() owner to postgres;
 
 commit;

@@ -395,7 +395,7 @@ describe('tracker Supabase contracts', () => {
         hasWatchedCompany: false,
       },
     ])
-    expect(supabase.rpc).toHaveBeenCalledWith('dashboard_applied_applications')
+    expect(supabase.rpc).toHaveBeenCalledWith('dashboard_applied_applications_v2')
   })
 
   it('rejects missing, non-boolean, or extra applied membership fields', () => {
