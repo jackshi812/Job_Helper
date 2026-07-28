@@ -18,7 +18,6 @@ import {
   resumeRouteIsCurrent,
   safeApplyUrl,
   tierPresentation,
-  undoJobApplied,
   type DashboardFeedOrder,
   type DashboardFeedPage,
   type FeedRow,
@@ -47,6 +46,11 @@ import {
 } from '../lib/dashboard'
 import { listResumes, resumeLabel } from '../lib/resumes'
 import {
+  listDashboardAppliedApplications,
+  TRACKER_STAGE_PRESENTATION,
+  type DashboardAppliedApplication,
+} from '../lib/tracker'
+import {
   getDeterministicRankingState,
   loadPreferences,
   retryDeterministicRankingRun,
@@ -69,6 +73,7 @@ const fullDateFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short',
 })
 const relativeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+const appliedDateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
 
 const tierBadgeStyles = {
   emerald:
@@ -129,11 +134,6 @@ interface LifecycleMutationContext {
   continuationCursor: string | null
   nextFocusId: string | null
   previousFocusId: string | null
-}
-
-interface UndoTarget {
-  id: string
-  title: string
 }
 
 interface BackfillRetry {
@@ -238,6 +238,89 @@ function DashboardHeaderCell({
   )
 }
 
+interface AppliedApplicationsTableProps {
+  applications: readonly DashboardAppliedApplication[]
+}
+
+function AppliedApplicationsTable({
+  applications,
+}: AppliedApplicationsTableProps) {
+  return (
+    <table className="w-full min-w-[1050px] border-collapse text-left text-sm">
+      <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-semibold tracking-wide text-zinc-600 uppercase dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+        <tr>
+          <th scope="col" className="px-4 py-2.5">Position</th>
+          <th scope="col" className="px-4 py-2.5">Company</th>
+          <th scope="col" className="px-4 py-2.5">Location</th>
+          <th scope="col" className="px-4 py-2.5">Applied date</th>
+          <th scope="col" className="px-4 py-2.5">Current stage</th>
+          <th scope="col" className="px-4 py-2.5">Apply link</th>
+          <th scope="col" className="px-4 py-2.5">Tracker link</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+        {applications.map((application) => {
+          const presentation = TRACKER_STAGE_PRESENTATION[application.currentStage]
+          const [year, month, day] = application.appliedOn.split('-').map(Number)
+          const appliedDate = new Date(year, month - 1, day)
+          return (
+            <tr
+              key={application.applicationId}
+              className="hover:bg-zinc-50 focus-within:bg-zinc-50 dark:hover:bg-zinc-800/50 dark:focus-within:bg-zinc-800/50"
+            >
+              <td className="px-4 py-3 font-semibold">{application.title}</td>
+              <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                {application.company}
+              </td>
+              <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                {application.location ?? '—'}
+              </td>
+              <td className="px-4 py-3">
+                <time
+                  dateTime={application.appliedOn}
+                  className="text-zinc-600 dark:text-zinc-400"
+                >
+                  {appliedDateFormatter.format(appliedDate)}
+                </time>
+              </td>
+              <td className="px-4 py-3">
+                <span
+                  className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${presentation.badgeClass}`}
+                >
+                  {presentation.label}
+                </span>
+              </td>
+              <td className="px-4 py-3">
+                {application.applyUrl ? (
+                  <a
+                    href={application.applyUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Apply to ${application.title} in a new tab`}
+                    className="inline-flex min-h-11 items-center gap-1 underline underline-offset-4"
+                  >
+                    Apply <span aria-hidden="true">↗</span>
+                  </a>
+                ) : (
+                  <span className="text-zinc-500">—</span>
+                )}
+              </td>
+              <td className="px-4 py-3">
+                <Link
+                  to={`/tracker?application=${encodeURIComponent(application.applicationId)}`}
+                  className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4"
+                >
+                  View in Tracker
+                </Link>
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
+
 interface DashboardProps {
   scope?: DashboardSourceScope
 }
@@ -260,7 +343,6 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
   const [loadMoreError, setLoadMoreError] = useState('')
   const [backfillError, setBackfillError] = useState('')
   const [backfillRetry, setBackfillRetry] = useState<BackfillRetry | null>(null)
-  const [undoTarget, setUndoTarget] = useState<UndoTarget | null>(null)
   const [columnWidths, setColumnWidths] = useState(loadDashboardColumnWidths)
   const columnWidthsRef = useRef(columnWidths)
   const resizeCoordinator = useRef<ColumnResizeCoordinator>({ activeColumnId: null })
@@ -305,7 +387,7 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
   )
   const feedKey = dashboardFeedQueryKey(feedRequest)
   const feedIdentity = JSON.stringify([scope, ...feedKey])
-  const feedEnabled = selectedTiers.size > 0
+  const feedEnabled = selectedTiers.size > 0 && lifecycle !== 'applied'
   const feedQuery = useInfiniteQuery<
     DashboardFeedPage,
     Error,
@@ -333,6 +415,11 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
   })
   const resumesQuery = useQuery({ queryKey: ['resumes'], queryFn: listResumes })
   const preferencesQuery = useQuery({ queryKey: ['preferences'], queryFn: loadPreferences })
+  const appliedApplicationsQuery = useQuery({
+    queryKey: ['dashboard-applied-applications'],
+    queryFn: listDashboardAppliedApplications,
+    enabled: lifecycle === 'applied',
+  })
 
   useEffect(() => {
     setLifecycleError('')
@@ -488,10 +575,19 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
         'Couldn’t mark this job as applied. It remains in Active. Try again.',
       )
     },
-    onSuccess: async (_data, id, context) => {
+    onSuccess: async (applicationId, _id, context) => {
       await refillVisibleQueue(context.continuationCursor)
-      setQueueAnnouncement(`Marked ${context.title} as applied.`)
-      setUndoTarget({ id, title: context.title })
+      setQueueAnnouncement(`${context.title} marked applied and added to Tracker.`)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: feedKey }),
+        queryClient.invalidateQueries({ queryKey: ['tracker-applications'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['tracker-application', applicationId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-applied-applications'],
+        }),
+      ])
     },
     onSettled: () => queryClient.invalidateQueries({
       queryKey: ['dashboard-feed'],
@@ -499,30 +595,8 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
     }),
   })
 
-  const undoAppliedMutation = useMutation({
-    mutationFn: undoJobApplied,
-    onMutate: snapshotAndRemove,
-    onError: (_error, _id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData<DashboardInfiniteData>(feedKey, context.previous)
-      }
-      setLifecycleError('Couldn’t undo Applied. Try again from Show applied.')
-    },
-    onSuccess: () => {
-      setUndoTarget(null)
-      setQueueAnnouncement('Moved back to Active.')
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['dashboard-feed'] }),
-  })
   const lifecycleMutationPending = dismissMutation.isPending
     || markAppliedMutation.isPending
-    || undoAppliedMutation.isPending
-
-  useEffect(() => {
-    if (!undoTarget) return
-    const timeout = window.setTimeout(() => setUndoTarget(null), 10_000)
-    return () => window.clearTimeout(timeout)
-  }, [undoTarget])
 
   const companyOptions = useMemo(
     () => scope === 'watchlist'
@@ -876,7 +950,13 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
         </p>
       ) : null}
 
-      {!feedLoading && !feedError ? (
+      {lifecycle === 'applied'
+        && !appliedApplicationsQuery.isPending
+        && !appliedApplicationsQuery.error ? (
+        <p role="status" aria-live="polite" className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
+          {(appliedApplicationsQuery.data ?? []).length} applied jobs shown
+        </p>
+      ) : lifecycle !== 'applied' && !feedLoading && !feedError ? (
         <p role="status" aria-live="polite" className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
           {rows.length} {lifecycleCopy.resultNoun} shown
         </p>
@@ -889,7 +969,36 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
         tabIndex={0}
         className="mt-8 overflow-x-auto rounded-lg border border-zinc-200 bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:focus-visible:outline-zinc-100"
       >
-        {feedLoading ? (
+        {lifecycle === 'applied' ? (
+          appliedApplicationsQuery.isPending ? (
+            <p role="status" className="p-4 text-sm text-zinc-600 dark:text-zinc-400">
+              Loading applied jobs…
+            </p>
+          ) : appliedApplicationsQuery.error ? (
+            <div className="p-4">
+              <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+                Couldn’t load applied jobs. Check your connection and retry.
+              </p>
+              <button
+                type="button"
+                aria-label="Retry loading applied jobs"
+                onClick={() => void appliedApplicationsQuery.refetch()}
+                className={`mt-3 ${filterButtonBase} ${filterInactive}`}
+              >
+                Retry
+              </button>
+            </div>
+          ) : (appliedApplicationsQuery.data ?? []).length === 0 ? (
+            <div className="p-4">
+              <h2 className="text-base font-semibold">No applied jobs yet</h2>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Jobs you mark applied will appear here.
+              </p>
+            </div>
+          ) : (
+            <AppliedApplicationsTable applications={appliedApplicationsQuery.data ?? []} />
+          )
+        ) : feedLoading ? (
           <p className="p-4 text-sm text-zinc-600 dark:text-zinc-400">Loading…</p>
         ) : feedError ? (
           <div className="p-4">
@@ -1154,20 +1263,6 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
                               Dismiss
                             </button>
                           </>
-                        ) : lifecycle === 'applied' ? (
-                          <button
-                            ref={(node) => {
-                              if (node) actionRefs.current.set(row.id, node)
-                              else actionRefs.current.delete(row.id)
-                            }}
-                            type="button"
-                            disabled={lifecycleMutationPending}
-                            aria-label={`Undo applied for ${jobTitle}`}
-                            onClick={() => undoAppliedMutation.mutate(row.id)}
-                            className="min-h-9 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-60 [@media(pointer:coarse)]:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
-                          >
-                            Undo applied
-                          </button>
                         ) : null}
                       </div>
                     </td>
@@ -1179,6 +1274,7 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
         )}
       </div>
 
+      {lifecycle !== 'applied' ? (
       <div className="mt-4 grid justify-items-center gap-2">
         {backfillError ? (
           <div className="text-center">
@@ -1225,23 +1321,6 @@ export function Dashboard({ scope = 'watchlist' }: DashboardProps) {
           </p>
         ) : null}
       </div>
-
-      {undoTarget ? (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed bottom-4 left-1/2 z-30 flex w-[min(448px,calc(100vw-32px))] -translate-x-1/2 flex-wrap items-center gap-3 rounded-lg border border-zinc-300 bg-white p-4 text-sm text-zinc-900 shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-        >
-          <span className="min-w-0 flex-1">Marked {undoTarget.title} as applied.</span>
-          <button
-            type="button"
-            disabled={undoAppliedMutation.isPending}
-            onClick={() => undoAppliedMutation.mutate(undoTarget.id)}
-            className={`${filterButtonBase} ${filterActive} disabled:cursor-wait disabled:opacity-60`}
-          >
-            {undoAppliedMutation.isPending ? 'Undoing…' : 'Undo'}
-          </button>
-        </div>
       ) : null}
     </section>
   )

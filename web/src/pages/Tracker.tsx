@@ -7,7 +7,7 @@ import {
   type KeyboardEvent,
 } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import DOMPurify from 'dompurify'
 import { ApplicationTimeline } from '../components/ApplicationTimeline'
 import { listResumes, resumeLabel } from '../lib/resumes'
@@ -51,6 +51,9 @@ const PRIMARY_BUTTON =
 // Enter a valid HTTPS job URL. Possible duplicate:
 const MANUAL_CREATE_ERROR =
   'Couldn’t add this position. Check your entries and retry.'
+const TRACKER_APPLICATION_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
+const EMPTY_TRACKER_APPLICATIONS: readonly TrackerApplicationListItem[] = []
 
 function localDate(): string {
   const now = new Date()
@@ -119,12 +122,14 @@ interface TrackerRowProps {
   application: TrackerApplicationListItem
   expanded: boolean
   onToggleExpanded: () => void
+  registerExpandButton: (node: HTMLButtonElement | null) => void
 }
 
 function TrackerRow({
   application,
   expanded,
   onToggleExpanded,
+  registerExpandButton,
 }: TrackerRowProps) {
   const queryClient = useQueryClient()
   const presentation = TRACKER_STAGE_PRESENTATION[application.currentStage]
@@ -248,6 +253,7 @@ function TrackerRow({
       >
         <td className="w-12 px-1 py-2 text-center">
           <button
+            ref={registerExpandButton}
             type="button"
             aria-expanded={expanded}
             aria-controls={detailId}
@@ -984,18 +990,69 @@ function ManualDraftRow({
 }
 
 export function Tracker() {
+  const [searchParams] = useSearchParams()
+  const requestedApplicationId = searchParams.get('application')
+  const focusApplicationId = requestedApplicationId
+    && TRACKER_APPLICATION_ID_PATTERN.test(requestedApplicationId)
+    ? requestedApplicationId.toLowerCase()
+    : null
   const [selectedStages, setSelectedStages] = useState<TrackerStage[]>([
     ...TRACKER_ACTIVE_STAGES,
   ])
   const [draftVisible, setDraftVisible] = useState(false)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [announcement, setAnnouncement] = useState('')
+  const expandButtonRefs = useRef(new Map<string, HTMLButtonElement>())
+  const preparedFocusId = useRef<string | null>(null)
+  const completedFocusId = useRef<string | null>(null)
 
   const applicationsQuery = useQuery({
     queryKey: ['tracker-applications', selectedStages],
     queryFn: () => listTrackerApplications(selectedStages),
   })
-  const applications = applicationsQuery.data ?? []
+  const applications = applicationsQuery.data ?? EMPTY_TRACKER_APPLICATIONS
+  const focusApplicationsQuery = useQuery({
+    queryKey: ['tracker-focus-applications'],
+    queryFn: () => listTrackerApplications(TRACKER_STAGES.map(({ slug }) => slug)),
+    enabled: focusApplicationId !== null && !applicationsQuery.isPending,
+  })
+
+  useEffect(() => {
+    if (
+      focusApplicationId === null
+      || focusApplicationsQuery.isPending
+      || focusApplicationsQuery.error
+      || preparedFocusId.current === focusApplicationId
+    ) return
+    const ownedApplication = focusApplicationsQuery.data?.find(
+      (application) => application.id === focusApplicationId,
+    )
+    preparedFocusId.current = focusApplicationId
+    if (!ownedApplication) return
+    setSelectedStages(TRACKER_STAGES.map(({ slug }) => slug))
+    setExpandedIds((current) => new Set(current).add(focusApplicationId))
+  }, [
+    focusApplicationId,
+    focusApplicationsQuery.data,
+    focusApplicationsQuery.error,
+    focusApplicationsQuery.isPending,
+  ])
+
+  useEffect(() => {
+    if (
+      focusApplicationId === null
+      || completedFocusId.current === focusApplicationId
+      || !applications.some((application) => application.id === focusApplicationId)
+      || !expandedIds.has(focusApplicationId)
+    ) return
+    const expandButton = expandButtonRefs.current.get(focusApplicationId)
+    if (!expandButton) return
+    completedFocusId.current = focusApplicationId
+    queueMicrotask(() => {
+      expandButton.scrollIntoView({ block: 'center', inline: 'nearest' })
+      expandButton.focus()
+    })
+  }, [applications, expandedIds, focusApplicationId])
 
   function toggleStage(stage: TrackerStage) {
     if (selectedStages.includes(stage) && selectedStages.length === 1) {
@@ -1152,6 +1209,10 @@ export function Tracker() {
                       else next.add(application.id)
                       return next
                     })
+                  }}
+                  registerExpandButton={(node) => {
+                    if (node) expandButtonRefs.current.set(application.id, node)
+                    else expandButtonRefs.current.delete(application.id)
                   }}
                 />
               ))}

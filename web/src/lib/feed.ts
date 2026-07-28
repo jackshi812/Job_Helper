@@ -789,12 +789,3 @@ export async function markJobApplied(userJobId: string): Promise<string> {
   }
   return data
 }
-
-export async function undoJobApplied(userJobId: string): Promise<void> {
-  const { error } = await supabase
-    .from('user_jobs')
-    .update({ applied_at: null })
-    .eq('id', userJobId)
-
-  if (error) throw error
-}
