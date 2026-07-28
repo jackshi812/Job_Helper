@@ -1,0 +1,931 @@
+{
+  "status": "PASS",
+  "checked_at": "2026-07-28T04:06:45.223Z",
+  "migration_version": "0053",
+  "migration_sha256": "7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0",
+  "schema_verifier_sha256": "e6d303172dbd206a394aec33df941bb9627bf541a899f0e894293761e4820d26",
+  "behavior_verifier_sha256": "2dede3082e76f33e4b6dcf79848a40140a4ee47d37b7044965f8b182962a531b",
+  "fixture_manifest_sha256": "7d8f88ab8c94670fc6925c7899197a1f891dc987b5d6091f3f047bf75155864a",
+  "hosted_catalog_sha256": "38884034a76d38f1fb3379d228961c5db39d527029b62bd55a6fa084763c2bce",
+  "object_counts": {
+    "tables": 2,
+    "columns": 24,
+    "constraints": 11,
+    "indexes": 9,
+    "triggers": 1,
+    "functions": 12,
+    "policies": 2,
+    "table_privileges": 3,
+    "column_privileges": 65,
+    "routine_privileges": 10
+  },
+  "backfill_counts": {
+    "legacy_applied_count": 0,
+    "system_application_count": 0,
+    "missing_application_count": 0,
+    "system_applied_event_count": 0,
+    "missing_applied_event_count": 0
+  },
+  "inventory": {
+    "migration_versions": [
+      "0001",
+      "0002",
+      "0003",
+      "0004",
+      "0005",
+      "0006",
+      "0007",
+      "0008",
+      "0009",
+      "0010",
+      "0011",
+      "0012",
+      "0013",
+      "0014",
+      "0015",
+      "0016",
+      "0017",
+      "0018",
+      "0019",
+      "0020",
+      "0021",
+      "0022",
+      "0023",
+      "0024",
+      "0025",
+      "0026",
+      "0027",
+      "0028",
+      "0029",
+      "0030",
+      "0031",
+      "0032",
+      "0033",
+      "0034",
+      "0035",
+      "0036",
+      "0037",
+      "0038",
+      "0039",
+      "0040",
+      "0041",
+      "0042",
+      "0043",
+      "0044",
+      "0045",
+      "0046",
+      "0047",
+      "0048",
+      "0049",
+      "0050",
+      "0051",
+      "0052",
+      "0053"
+    ],
+    "tables": [
+      {
+        "name": "application_stage_events",
+        "rls": true,
+        "owner": "postgres"
+      },
+      {
+        "name": "applications",
+        "rls": true,
+        "owner": "postgres"
+      }
+    ],
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "table": "application_stage_events",
+        "not_null": true
+      },
+      {
+        "name": "application_id",
+        "type": "uuid",
+        "table": "application_stage_events",
+        "not_null": true
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "table": "application_stage_events",
+        "not_null": true
+      },
+      {
+        "name": "stage",
+        "type": "text",
+        "table": "application_stage_events",
+        "not_null": true
+      },
+      {
+        "name": "occurred_on",
+        "type": "date",
+        "table": "application_stage_events",
+        "not_null": true
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "table": "application_stage_events",
+        "not_null": true
+      },
+      {
+        "name": "id",
+        "type": "uuid",
+        "table": "applications",
+        "not_null": true
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "table": "applications",
+        "not_null": true
+      },
+      {
+        "name": "origin",
+        "type": "text",
+        "table": "applications",
+        "not_null": true
+      },
+      {
+        "name": "source_job_id",
+        "type": "uuid",
+        "table": "applications",
+        "not_null": false
+      },
+      {
+        "name": "company",
+        "type": "text",
+        "table": "applications",
+        "not_null": true
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "table": "applications",
+        "not_null": true
+      },
+      {
+        "name": "location",
+        "type": "text",
+        "table": "applications",
+        "not_null": false
+      },
+      {
+        "name": "apply_url",
+        "type": "text",
+        "table": "applications",
+        "not_null": false
+      },
+      {
+        "name": "description_html",
+        "type": "text",
+        "table": "applications",
+        "not_null": false
+      },
+      {
+        "name": "description_text",
+        "type": "text",
+        "table": "applications",
+        "not_null": false
+      },
+      {
+        "name": "snapshot_partial",
+        "type": "boolean",
+        "table": "applications",
+        "not_null": true
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "table": "applications",
+        "not_null": true
+      },
+      {
+        "name": "pinned",
+        "type": "boolean",
+        "table": "applications",
+        "not_null": true
+      },
+      {
+        "name": "resume_id",
+        "type": "uuid",
+        "table": "applications",
+        "not_null": false
+      },
+      {
+        "name": "current_stage",
+        "type": "text",
+        "table": "applications",
+        "not_null": true
+      },
+      {
+        "name": "current_stage_date",
+        "type": "date",
+        "table": "applications",
+        "not_null": true
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "table": "applications",
+        "not_null": true
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "table": "applications",
+        "not_null": true
+      }
+    ],
+    "constraints": [
+      {
+        "name": "application_stage_events_application_owner_fkey",
+        "definition_sha256": "e6e688393fe440c372470e7ed1d56bfdd4343a6957637d3840c9563afee07ad2"
+      },
+      {
+        "name": "application_stage_events_pkey",
+        "definition_sha256": "8c8464f42472e42ee190fc91ca8db79b5351d3a4609040516578d229c56f6fa5"
+      },
+      {
+        "name": "application_stage_events_stage_check",
+        "definition_sha256": "f9e83984257b4dcdbd8b43b55831ce9c99b62081c999c59875637816bf7ad2fc"
+      },
+      {
+        "name": "applications_id_user_id_key",
+        "definition_sha256": "77bca1c8487ccbed1f58b6fbacda73df23f923852d402ce21ca067555d9b58b8"
+      },
+      {
+        "name": "applications_job_url_check",
+        "definition_sha256": "b28640f16bc3ad383e65094e7f5a77a3d41b5040702c3f8a71147e17f9b628f5"
+      },
+      {
+        "name": "applications_manual_fields_check",
+        "definition_sha256": "4852bad4708ee89b1c5239e00f653254b52833aa1845979e4f77a3a474b71f92"
+      },
+      {
+        "name": "applications_origin_check",
+        "definition_sha256": "0be161bd55770e9bdb02403ddab858b5e1be0ee6757a3ac69a93db02fc8c0aa4"
+      },
+      {
+        "name": "applications_pkey",
+        "definition_sha256": "8c8464f42472e42ee190fc91ca8db79b5351d3a4609040516578d229c56f6fa5"
+      },
+      {
+        "name": "applications_resume_owner_fkey",
+        "definition_sha256": "956c5560dc4294480f54d6717adff018aceba72580e0821868efd375a6148af4"
+      },
+      {
+        "name": "applications_stage_check",
+        "definition_sha256": "631edb1f4fb94f9b183c5e3624547406d1b64378ebf646c2580fcd31ecff91e3"
+      },
+      {
+        "name": "applications_user_id_fkey",
+        "definition_sha256": "7dffc1fe5c72443147ef9227e966626cdc6e5997f36e90bcc553577512766d2a"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "application_stage_events_application_order_idx",
+        "definition_sha256": "20e04f75520d3c1102ebb5ff5227725720e6e2b330fb2e49963e7aa17d210af6"
+      },
+      {
+        "name": "application_stage_events_pkey",
+        "definition_sha256": "11e9dcb508de43560d90741dd5e029bfeb4d0ba4039c93e9f6fbd3956a7a84e3"
+      },
+      {
+        "name": "application_stage_events_user_id_idx",
+        "definition_sha256": "c39d5b1b40fbf59235dc85752ffe71323cc301db64c2e7f51331d57ee572af92"
+      },
+      {
+        "name": "applications_id_user_id_key",
+        "definition_sha256": "25eb289411a2402cd3fdb4ea0327cc3f003b155761b0dfcf78efff4a89c12b95"
+      },
+      {
+        "name": "applications_pinned_updated_id_idx",
+        "definition_sha256": "70e4a8205af1036a0d268029c1303defa67230e290b922b760b4bdc22011cb5f"
+      },
+      {
+        "name": "applications_pkey",
+        "definition_sha256": "0437ad2a3d666ea6bac744348a26ef6600da0299efda7f56651f9ab3b7a9921f"
+      },
+      {
+        "name": "applications_resume_owner_idx",
+        "definition_sha256": "2919a30fc7054975a5eac178905056a29e381620ecb87d2a35dabf6b2ee971b0"
+      },
+      {
+        "name": "applications_system_source_unique_idx",
+        "definition_sha256": "ca872c5996ae56446420102eaca5ab1dbe434724fdde287f424e7378a98a4085"
+      },
+      {
+        "name": "applications_user_id_idx",
+        "definition_sha256": "141894e7df2c705012d2df019ac556244c5c78ece709d0a009c198fc25ac746e"
+      }
+    ],
+    "triggers": [
+      {
+        "name": "application_stage_events_sync_projection",
+        "definition_sha256": "6aecb91eb1ea0c3c300310f691a7e36ba2a16ec67484b25437c9211bfc251a30"
+      }
+    ],
+    "functions": [
+      {
+        "signature": "append_application_stage(uuid, text, date)",
+        "result": "uuid",
+        "security_definer": true,
+        "volatility": "v",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "fa8262517059aa38698d13a41ea6c2af6e5d5dbdff4499c9ffdff0353bcfa84f",
+        "definition_sha256": "d27db925bfe3f92b92dc3081dd39157c653c44037fb0c06f6a90ef24e4fb2192"
+      },
+      {
+        "signature": "create_manual_application(text, text, text, text, text, date)",
+        "result": "TABLE(application_id uuid, duplicate_warning boolean)",
+        "security_definer": true,
+        "volatility": "v",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "fa8262517059aa38698d13a41ea6c2af6e5d5dbdff4499c9ffdff0353bcfa84f",
+        "definition_sha256": "edd82eae1347d6a10c712416f5067620c077754f0e540c174ac3043f7f3eca8f"
+      },
+      {
+        "signature": "dashboard_applied_applications()",
+        "result": "TABLE(application_id uuid, company text, title text, location text, apply_url text, applied_on date, current_stage text, current_stage_date date)",
+        "security_definer": false,
+        "volatility": "s",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "fa8262517059aa38698d13a41ea6c2af6e5d5dbdff4499c9ffdff0353bcfa84f",
+        "definition_sha256": "a6d26581f6eabaa4e945f19822f79ba55029e8fceba55f1a4523fba049fc1317"
+      },
+      {
+        "signature": "dashboard_feed_page(text, text, text[], text[], text, jsonb, integer)",
+        "result": "TABLE(row_data jsonb, cursor_data jsonb, has_more boolean)",
+        "security_definer": false,
+        "volatility": "s",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "fa8262517059aa38698d13a41ea6c2af6e5d5dbdff4499c9ffdff0353bcfa84f",
+        "definition_sha256": "20173bef8badedb15feae9fb4a585fe29cda5c131c885b341dd8a009c011cf05"
+      },
+      {
+        "signature": "delete_application_stage_event(uuid)",
+        "result": "boolean",
+        "security_definer": true,
+        "volatility": "v",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "fa8262517059aa38698d13a41ea6c2af6e5d5dbdff4499c9ffdff0353bcfa84f",
+        "definition_sha256": "d374c20bc484f034a3c9b26b5a301eb1dd4fe1ac121e9184a7642f752e18a108"
+      },
+      {
+        "signature": "mark_job_applied(uuid)",
+        "result": "uuid",
+        "security_definer": true,
+        "volatility": "v",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "fa8262517059aa38698d13a41ea6c2af6e5d5dbdff4499c9ffdff0353bcfa84f",
+        "definition_sha256": "6c2345afa7d1d84a669e0637ee93dd7bdd370dd9918a4cdf2808ce4f3135d468"
+      },
+      {
+        "signature": "set_application_pin(uuid, boolean)",
+        "result": "boolean",
+        "security_definer": true,
+        "volatility": "v",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "fa8262517059aa38698d13a41ea6c2af6e5d5dbdff4499c9ffdff0353bcfa84f",
+        "definition_sha256": "1f1d4b7ddeaf6fe84644c83a02febe6d2b8282d838ded6c67ddccf8e996ff46b"
+      },
+      {
+        "signature": "set_application_resume(uuid, uuid)",
+        "result": "boolean",
+        "security_definer": true,
+        "volatility": "v",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "fa8262517059aa38698d13a41ea6c2af6e5d5dbdff4499c9ffdff0353bcfa84f",
+        "definition_sha256": "f7e073026fd720a6472e9da1490f3dd0e93bc186e2ea478ef7bbe5817a83c458"
+      },
+      {
+        "signature": "sync_application_stage_projection()",
+        "result": "trigger",
+        "security_definer": true,
+        "volatility": "v",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "2e2627c03a3c8438a64c1cdfd549d28d2855cd72aeddf0c665522a1569aeeb04",
+        "definition_sha256": "4f6c23f93d2144eb1fe99da49a0b53aef307d56dd911368f032274658c5a6436"
+      },
+      {
+        "signature": "tracker_https_url_valid(text)",
+        "result": "boolean",
+        "security_definer": false,
+        "volatility": "i",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "2e2627c03a3c8438a64c1cdfd549d28d2855cd72aeddf0c665522a1569aeeb04",
+        "definition_sha256": "b4f4eb9cce1787418b5f65a34712786f136c3d8cb39b8cf051ec21b0f42a4a37"
+      },
+      {
+        "signature": "update_application_stage_event(uuid, text, date)",
+        "result": "boolean",
+        "security_definer": true,
+        "volatility": "v",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "fa8262517059aa38698d13a41ea6c2af6e5d5dbdff4499c9ffdff0353bcfa84f",
+        "definition_sha256": "da6cfc54d34a064ca2f64df8f15e119f145311b7dabc796b7de792189f6b2c3c"
+      },
+      {
+        "signature": "update_application_text_field(uuid, text, text)",
+        "result": "boolean",
+        "security_definer": true,
+        "volatility": "v",
+        "search_path": "search_path=\"\"",
+        "acl_sha256": "fa8262517059aa38698d13a41ea6c2af6e5d5dbdff4499c9ffdff0353bcfa84f",
+        "definition_sha256": "eff1eae6ecb1104047bc6c043cb990470a7a5559b10bffe0618f9580fd3ed919"
+      }
+    ],
+    "policies": [
+      {
+        "name": "application_stage_events_select_own",
+        "roles": "{16485}",
+        "table": "application_stage_events",
+        "command": "r",
+        "check_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "using_sha256": "abb2d82683183540acec49069ec5c2b403521340fc0e48e77b80ca1a0f449c54"
+      },
+      {
+        "name": "applications_select_own",
+        "roles": "{16485}",
+        "table": "applications",
+        "command": "r",
+        "check_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "using_sha256": "abb2d82683183540acec49069ec5c2b403521340fc0e48e77b80ca1a0f449c54"
+      }
+    ],
+    "table_privileges": [
+      {
+        "table": "application_stage_events",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      }
+    ],
+    "column_privileges": [
+      {
+        "table": "application_stage_events",
+        "column": "application_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "application_stage_events",
+        "column": "created_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "application_stage_events",
+        "column": "id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "application_stage_events",
+        "column": "occurred_on",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "application_stage_events",
+        "column": "stage",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "application_stage_events",
+        "column": "user_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "apply_url",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "company",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "created_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "current_stage",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "current_stage_date",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "description_html",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "description_text",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "location",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "notes",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "origin",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "pinned",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "resume_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "snapshot_partial",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "source_job_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "title",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "updated_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "applications",
+        "column": "user_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "applied_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "attempts",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "claimed_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "claimed_input_revision",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "covered",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "desired_input_revision",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "deterministic_best_fit_resume_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "deterministic_breakdown",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "deterministic_eligible",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "deterministic_evaluation_time",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "deterministic_filter_code",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "deterministic_filter_detail",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "deterministic_ranked_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "deterministic_revision",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "deterministic_runner_up_resume_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "deterministic_score",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "deterministic_tier",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "dismissed_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "dismissed_at",
+        "grantee": "authenticated",
+        "privilege": "UPDATE"
+      },
+      {
+        "table": "user_jobs",
+        "column": "error_code",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "filter_detail",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "filter_reason",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "gaps",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "job_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "matched_include_keywords",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "needs_refilter",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "reasons",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "resume_route_revision",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "resume_routed_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "routed_resume_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "runner_up_resume_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "score",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "score_deferred_until",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "scored_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "scoring_input_hash",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "seen_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "seen_at",
+        "grantee": "authenticated",
+        "privilege": "UPDATE"
+      },
+      {
+        "table": "user_jobs",
+        "column": "status",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "tier",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "user_jobs",
+        "column": "user_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      }
+    ],
+    "routine_privileges": [
+      {
+        "grantee": "authenticated",
+        "routine": "append_application_stage",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "routine": "create_manual_application",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "routine": "dashboard_applied_applications",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "routine": "dashboard_feed_page",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "routine": "delete_application_stage_event",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "routine": "mark_job_applied",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "routine": "set_application_pin",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "routine": "set_application_resume",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "routine": "update_application_stage_event",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "routine": "update_application_text_field",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "backfill": {
+      "legacy_applied_count": 0,
+      "system_application_count": 0,
+      "missing_application_count": 0,
+      "system_applied_event_count": 0,
+      "missing_applied_event_count": 0
+    }
+  },
+  "catalog_evidence_sha256": "7c48b36aa4df86197b267a61592617de2ce9b84f18b58c194a323bcc3e080b88"
+}
