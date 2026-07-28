@@ -5,10 +5,10 @@
 ## Approval-bound source and target
 
 - Linked project: `fjcsvajkkztvlrpdplwx`
-- Source commit: `d504dbc49f0a616f101ae2c9f7901d11d390d3da`
+- Source commit: `d18c1b4c06471406e27d080f74d7f26c705e957c`
 - Migration: `supabase/migrations/0053_application_tracker.sql`
 - Migration SHA-256: `7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0`
-- Schema verifier SHA-256: `f49bfd67e2b670b643fee1d256d9980de0b105a87283bcc3a657d16771bfa71b`
+- Schema verifier SHA-256: `e1a9bd1b0f2f8548e34fb42221174e82f28006977e35a2931c3110120983ddee`
 - Behavior verifier SHA-256: `2dede3082e76f33e4b6dcf79848a40140a4ee47d37b7044965f8b182962a531b`
 - Schema verifier test SHA-256: `c5fa28e191ab53f3b8837e238eaab55c940c9ea6deeeed01e20352d83213784d`
 - Behavior verifier test SHA-256: `e3b7aa6fd39e43ac113245492dd70d59ca22385a38de975114b68070df1284b2`
@@ -127,27 +127,22 @@ invalidates approval and requires a fresh preflight.
 
 ## Exact approval signal
 
-`approve Phase 04 tracker schema push target=fjcsvajkkztvlrpdplwx migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 schema_verifier_sha256=f49bfd67e2b670b643fee1d256d9980de0b105a87283bcc3a657d16771bfa71b behavior_verifier_sha256=2dede3082e76f33e4b6dcf79848a40140a4ee47d37b7044965f8b182962a531b fixture_manifest_sha256=7d8f88ab8c94670fc6925c7899197a1f891dc987b5d6091f3f047bf75155864a dry_run_sha256=e32e39fd02966bfd4003a2cfda24ac0723ff7b0cc0d1f8a887f57279e4c8ac33`
+`approve Phase 04 tracker schema push target=fjcsvajkkztvlrpdplwx migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 schema_verifier_sha256=e1a9bd1b0f2f8548e34fb42221174e82f28006977e35a2931c3110120983ddee behavior_verifier_sha256=2dede3082e76f33e4b6dcf79848a40140a4ee47d37b7044965f8b182962a531b fixture_manifest_sha256=7d8f88ab8c94670fc6925c7899197a1f891dc987b5d6091f3f047bf75155864a dry_run_sha256=e32e39fd02966bfd4003a2cfda24ac0723ff7b0cc0d1f8a887f57279e4c8ac33`
 
 Replying `defer schema push` leaves production unchanged.
 
 <!-- tracker-preflight-json
 {
   "status": "PASS",
-  "created_at": "2026-07-28T03:47:38.914Z",
+  "created_at": "2026-07-28T03:48:40.367Z",
   "project_ref": "fjcsvajkkztvlrpdplwx",
-  "source_commit": "d504dbc49f0a616f101ae2c9f7901d11d390d3da",
+  "source_commit": "d18c1b4c06471406e27d080f74d7f26c705e957c",
   "scoped_dirty_inventory": [
-    ".planning/phases/04-application-tracker/04-02-PREFLIGHT.md",
-    "DS_Store",
-    "scripts/verify-tracker-rls.ts",
-    "scripts/verify-tracker-schema.ts",
-    "web/tests/verify-tracker-rls.test.ts",
-    "web/tests/verify-tracker-schema.test.ts"
+    "scripts/verify-tracker-schema.ts"
   ],
   "migration": "supabase/migrations/0053_application_tracker.sql",
   "migration_sha256": "7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0",
-  "schema_verifier_sha256": "f49bfd67e2b670b643fee1d256d9980de0b105a87283bcc3a657d16771bfa71b",
+  "schema_verifier_sha256": "e1a9bd1b0f2f8548e34fb42221174e82f28006977e35a2931c3110120983ddee",
   "behavior_verifier_sha256": "2dede3082e76f33e4b6dcf79848a40140a4ee47d37b7044965f8b182962a531b",
   "schema_test_sha256": "c5fa28e191ab53f3b8837e238eaab55c940c9ea6deeeed01e20352d83213784d",
   "behavior_test_sha256": "e3b7aa6fd39e43ac113245492dd70d59ca22385a38de975114b68070df1284b2",
@@ -279,6 +274,6 @@ Replying `defer schema push` leaves production unchanged.
     "runtime event IDs enter the memory-only lineage allowlist only through an approved application plus exact owner, parent, fixture namespace, and exact expected count verification",
     "every privileged removal requires exact owner, verified parent, fixture namespace, memory-only lineage membership, and exact expected count"
   ],
-  "approval_signal": "approve Phase 04 tracker schema push target=fjcsvajkkztvlrpdplwx migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 schema_verifier_sha256=f49bfd67e2b670b643fee1d256d9980de0b105a87283bcc3a657d16771bfa71b behavior_verifier_sha256=2dede3082e76f33e4b6dcf79848a40140a4ee47d37b7044965f8b182962a531b fixture_manifest_sha256=7d8f88ab8c94670fc6925c7899197a1f891dc987b5d6091f3f047bf75155864a dry_run_sha256=e32e39fd02966bfd4003a2cfda24ac0723ff7b0cc0d1f8a887f57279e4c8ac33"
+  "approval_signal": "approve Phase 04 tracker schema push target=fjcsvajkkztvlrpdplwx migration_sha256=7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0 schema_verifier_sha256=e1a9bd1b0f2f8548e34fb42221174e82f28006977e35a2931c3110120983ddee behavior_verifier_sha256=2dede3082e76f33e4b6dcf79848a40140a4ee47d37b7044965f8b182962a531b fixture_manifest_sha256=7d8f88ab8c94670fc6925c7899197a1f891dc987b5d6091f3f047bf75155864a dry_run_sha256=e32e39fd02966bfd4003a2cfda24ac0723ff7b0cc0d1f8a887f57279e4c8ac33"
 }
 tracker-preflight-json -->

@@ -297,7 +297,11 @@ function requireMigrationContract(migration: string): void {
 }
 
 function safeDirtyInventory(root: string): string[] {
-  const output = command('git', ['status', '--short'], root)
+  const output = execFileSync('git', ['status', '--porcelain=v1', '-z'], {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
   if (!output) return []
   const excluded = new Set([
     '.DS_Store',
@@ -307,8 +311,9 @@ function safeDirtyInventory(root: string): string[] {
     'web/zh',
   ])
   return output
-    .split('\n')
-    .map((line) => line.slice(3))
+    .split('\0')
+    .filter(Boolean)
+    .map((entry) => entry.slice(3))
     .filter((path) => !excluded.has(path))
     .sort()
 }
