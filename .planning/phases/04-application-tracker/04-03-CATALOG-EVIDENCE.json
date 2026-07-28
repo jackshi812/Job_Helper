@@ -1,13 +1,14 @@
 {
   "status": "PASS",
-  "checked_at": "2026-07-28T14:49:14.328Z",
-  "migration_version": "0054",
+  "checked_at": "2026-07-28T15:59:09.724Z",
+  "migration_version": "0055",
   "migration_sha256": "7da3c2215eb00fbee410388b79ce5dddf2e589ad9f176ad3d31c7f543ed923c0",
   "repair_migration_sha256": "111fc68f01dd0658cd2536c4fb6abfd99ba25179e70b98ef158e3ab22753a5c3",
-  "schema_verifier_sha256": "74216fdc290a863b1e1f756e665b99f657795aad45f8d2ceafdb87a999c77349",
-  "behavior_verifier_sha256": "3c1ceec5ba40767816cf5aea78c748bf8c7ad760b36c713cb814e87300555d14",
+  "behavior_repair_migration_sha256": "d468c3b6dd019006bd856001eed6209a3547072c9091ad3b101125ee33267bf3",
+  "schema_verifier_sha256": "3d2d22852dc8543e66bd7df556acff1f0d121a602cc17d6731f4920c6ae57e2e",
+  "behavior_verifier_sha256": "721a25b8d193ada2b3a6a69866e710a3d7dcf2943abdd285f9fb0ce038e0f7ea",
   "fixture_manifest_sha256": "8f49236a3704e970a274d64ecc060cea2b9bc54d07cd8741789104f906fd8a77",
-  "hosted_catalog_sha256": "38674105a76d6ff94e2ae00d5b41409bf5315981dcc2290d983bcecde81d0d3b",
+  "hosted_catalog_sha256": "50d48091d143e9314cd4cf3dfe76f9ae7f58566adb2468413d411d5bdb831f78",
   "object_counts": {
     "tables": 2,
     "columns": 24,
@@ -82,7 +83,8 @@
       "0051",
       "0052",
       "0053",
-      "0054"
+      "0054",
+      "0055"
     ],
     "tables": [
       {
@@ -358,7 +360,7 @@
         "volatility": "s",
         "search_path": "search_path=\"\"",
         "acl_sha256": "fa8262517059aa38698d13a41ea6c2af6e5d5dbdff4499c9ffdff0353bcfa84f",
-        "definition_sha256": "a6d26581f6eabaa4e945f19822f79ba55029e8fceba55f1a4523fba049fc1317"
+        "definition_sha256": "03665bc245439998e6c68da3ec9ab98733d888b6939c02082f600ec362c2becd"
       },
       {
         "signature": "dashboard_feed_page(text, text, text[], text[], text, jsonb, integer)",
@@ -412,7 +414,7 @@
         "volatility": "v",
         "search_path": "search_path=\"\"",
         "acl_sha256": "2e2627c03a3c8438a64c1cdfd549d28d2855cd72aeddf0c665522a1569aeeb04",
-        "definition_sha256": "4f6c23f93d2144eb1fe99da49a0b53aef307d56dd911368f032274658c5a6436"
+        "definition_sha256": "cecf3c45e267b161207220279b5eaf0ff4f0cd753291bde6640854b359326dc9"
       },
       {
         "signature": "tracker_https_url_valid(text)",
@@ -929,5 +931,5 @@
       "missing_applied_event_count": 0
     }
   },
-  "catalog_evidence_sha256": "c208d0aa04760fe91c5f76c35615333a5f417efb7ac09ba94b98b8a45d4a1d03"
+  "catalog_evidence_sha256": "8ee9400b4f8a2b6936dd5fa36b706051df701c642e910a30bbf65719f5e12991"
 }

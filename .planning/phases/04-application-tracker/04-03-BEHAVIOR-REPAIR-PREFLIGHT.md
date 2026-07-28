@@ -1,7 +1,7 @@
 # Phase 04 Plan 03 Behavior and Cleanup Repair Preflight
 
-**Status:** PASS — bounded inventory and dry run complete; production repair
-awaits a replacement exact approval.
+**Status:** CONSUMED — exact owner-approved migration 0055 is installed;
+exceptional cleanup and post-push residue audits passed.
 
 ## Failure and cleanup evidence
 
@@ -96,9 +96,14 @@ Replying `defer Phase 04 tracker behavior cleanup repair push` leaves the
 isolated fake job/company/projection lineage in place and performs no schema
 change.
 
+This approval was consumed on 2026-07-28. Migration 0055 removed one
+projection, 11 completed ranking items, the exact fake job, and the exact fake
+company while preserving the active Auth account and all ranking-run records.
+Post-push residue is zero.
+
 <!-- tracker-behavior-repair-preflight-json
 {
-  "status": "PASS",
+  "status": "CONSUMED",
   "created_at": "2026-07-28T15:44:16Z",
   "project_ref": "fjcsvajkkztvlrpdplwx",
   "source_commit": "4618c560ca413b29766ff40d77b58a97948ff566",
