@@ -100,6 +100,10 @@ describe('Tracker page contract', () => {
     expect(markup).toContain('Stage date')
     expect(markup).toContain('Notes')
     expect(markup).toContain('Status')
+    expect(markup).toContain(
+      'aria-label="Open Data Analyst job URL in new tab"',
+    )
+    expect(markup).not.toContain('aria-label="Data Analyst, new tab"')
     expect(markup).not.toContain('Updated')
   })
 
@@ -167,6 +171,10 @@ describe('Tracker page contract', () => {
     const markup = renderToStaticMarkup(<Tracker />)
 
     expect(markup).toContain('aria-label="Edit Data Analyst"')
+    expect(markup).toContain(
+      'aria-label="Open Data Analyst job URL in new tab"',
+    )
+    expect(markup).toContain('href="https://example.com/jobs/1"')
     expect(markup).toContain('Double-click role to edit')
     for (const field of ['company', 'title', 'stage', 'date', 'notes']) {
       expect(markup).not.toContain(

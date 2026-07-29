@@ -393,32 +393,52 @@ function TrackerRow({
                 />
               </div>
             ) : application.origin === 'manual' ? (
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label={`Edit ${application.title}`}
-                title="Double-click to edit this position"
-                onDoubleClick={() => setManualEditActive(true)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    setManualEditActive(true)
-                  }
-                }}
-                className="min-w-0 flex-1 cursor-default select-none break-words font-semibold focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
-              >
-                {application.title}
-              </span>
+              <>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Edit ${application.title}`}
+                  title="Double-click to edit this position"
+                  onDoubleClick={() => setManualEditActive(true)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setManualEditActive(true)
+                    }
+                  }}
+                  className="min-w-0 flex-1 cursor-default select-none break-words font-semibold focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
+                >
+                  {application.title}
+                </span>
+                {application.applyUrl ? (
+                  <a
+                    href={application.applyUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Open ${application.title} job URL in new tab`}
+                    title="Open job URL in a new tab"
+                    className="shrink-0 text-base font-semibold underline decoration-1 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
+                  >
+                    <span aria-hidden="true">↗</span>
+                  </a>
+                ) : null}
+              </>
             ) : application.applyUrl ? (
-              <a
-                href={application.applyUrl}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`${application.title}, new tab`}
-                className="break-words font-semibold underline decoration-1 underline-offset-4"
-              >
-                {application.title} <span aria-hidden="true">↗</span>
-              </a>
+              <>
+                <span className="min-w-0 flex-1 break-words font-semibold">
+                  {application.title}
+                </span>
+                <a
+                  href={application.applyUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`Open ${application.title} job URL in new tab`}
+                  title="Open job URL in a new tab"
+                  className="shrink-0 text-base font-semibold underline decoration-1 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
+                >
+                  <span aria-hidden="true">↗</span>
+                </a>
+              </>
             ) : (
               <span className="font-semibold">{application.title}</span>
             )}
