@@ -104,6 +104,12 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u
 const STAGE_SET = new Set<TrackerStage>(TRACKER_STAGES.map(({ slug }) => slug))
+const CHICAGO_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Chicago',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
 
 export interface TrackerStageEvent {
   id: string
@@ -233,12 +239,17 @@ function origin(value: unknown, errorCode: string): TrackerOrigin {
   return value
 }
 
-function currentDate(): string {
-  const now = new Date()
-  const year = String(now.getFullYear()).padStart(4, '0')
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
+export function chicagoDate(now = new Date()): string {
+  const parts = CHICAGO_DATE_FORMATTER.formatToParts(now)
+  const year = parts.find(({ type }) => type === 'year')?.value
+  const month = parts.find(({ type }) => type === 'month')?.value
+  const day = parts.find(({ type }) => type === 'day')?.value
+  if (!year || !month || !day) throw new Error('invalid_chicago_date')
   return `${year}-${month}-${day}`
+}
+
+function currentDate(): string {
+  return chicagoDate()
 }
 
 export function parseDateOnly(value: unknown): string | null {

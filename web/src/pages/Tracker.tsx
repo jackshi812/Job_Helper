@@ -14,6 +14,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { listResumes, resumeLabel } from '../lib/resumes'
 import {
   appendApplicationStage,
+  chicagoDate,
   createManualApplication,
   deleteApplicationStageEvent,
   deleteTrackerApplication,
@@ -54,14 +55,6 @@ const MANUAL_CREATE_ERROR =
 const TRACKER_APPLICATION_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 const EMPTY_TRACKER_APPLICATIONS: readonly TrackerApplicationListItem[] = []
-
-function localDate(): string {
-  const now = new Date()
-  const year = String(now.getFullYear()).padStart(4, '0')
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
 
 function sameStages(left: readonly TrackerStage[], right: readonly TrackerStage[]) {
   return left.length === right.length && left.every((stage) => right.includes(stage))
@@ -137,6 +130,7 @@ function TrackerRow({
   const [companyDraft, setCompanyDraft] = useState(application.company)
   const [titleDraft, setTitleDraft] = useState(application.title)
   const [notesDraft, setNotesDraft] = useState(application.notes)
+  const [manualEditActive, setManualEditActive] = useState(false)
   const [lastSave, setLastSave] = useState<
     'pin' | 'company' | 'title' | 'stage' | 'date' | 'notes' | null
   >(null)
@@ -147,6 +141,7 @@ function TrackerRow({
   useEffect(() => setCompanyDraft(application.company), [application.company])
   useEffect(() => setTitleDraft(application.title), [application.title])
   useEffect(() => setNotesDraft(application.notes), [application.notes])
+  useEffect(() => setManualEditActive(false), [application.updatedAt])
 
   async function invalidateApplication(includeDashboard = false) {
     await queryClient.invalidateQueries({ queryKey: ['tracker-applications'] })
@@ -282,10 +277,19 @@ function TrackerRow({
   }
 
   const detailId = `tracker-detail-${application.id}`
+  const rowEditable = application.origin !== 'manual' || manualEditActive
 
   return (
     <>
       <tr
+        onBlur={(event) => {
+          if (
+            manualEditActive
+            && !event.currentTarget.contains(event.relatedTarget as Node | null)
+          ) {
+            setManualEditActive(false)
+          }
+        }}
         className={`min-h-9 border-l-4 ${presentation.accentClass} ${presentation.tintClass} hover:bg-zinc-50 focus-within:bg-zinc-50 dark:hover:bg-zinc-800/50 dark:focus-within:bg-zinc-800/50`}
       >
         <td className="px-1 py-1 text-center text-lg font-bold text-zinc-600 dark:text-zinc-300">
@@ -321,7 +325,7 @@ function TrackerRow({
           </button>
         </td>
         <td className="min-w-0 break-words px-2 py-1">
-          {application.origin === 'manual' ? (
+          {application.origin === 'manual' && manualEditActive ? (
             <>
               <label className="sr-only" htmlFor={`company-${application.id}`}>
                 Company
@@ -335,8 +339,14 @@ function TrackerRow({
                 }}
                 onKeyDown={(event) => commitOnEnter(
                   event,
-                  () => companyMutation.mutate(companyDraft),
-                  () => setCompanyDraft(application.company),
+                  () => {
+                    companyMutation.mutate(companyDraft)
+                    setManualEditActive(false)
+                  },
+                  () => {
+                    setCompanyDraft(application.company)
+                    setManualEditActive(false)
+                  },
                 )}
                 className={CELL_INPUT}
               />
@@ -356,7 +366,7 @@ function TrackerRow({
                 <span aria-hidden="true">▤</span>
               </span>
             ) : null}
-            {application.origin === 'manual' ? (
+            {application.origin === 'manual' && manualEditActive ? (
               <div className="min-w-0 flex-1">
                 <label className="sr-only" htmlFor={`title-${application.id}`}>
                   Position
@@ -370,12 +380,35 @@ function TrackerRow({
                   }}
                   onKeyDown={(event) => commitOnEnter(
                     event,
-                    () => titleMutation.mutate(titleDraft),
-                    () => setTitleDraft(application.title),
+                    () => {
+                      titleMutation.mutate(titleDraft)
+                      setManualEditActive(false)
+                    },
+                    () => {
+                      setTitleDraft(application.title)
+                      setManualEditActive(false)
+                    },
                   )}
                   className={CELL_INPUT}
                 />
               </div>
+            ) : application.origin === 'manual' ? (
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label={`Edit ${application.title}`}
+                title="Double-click to edit this position"
+                onDoubleClick={() => setManualEditActive(true)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    setManualEditActive(true)
+                  }
+                }}
+                className="min-w-0 flex-1 cursor-default select-none break-words font-semibold focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
+              >
+                {application.title}
+              </span>
             ) : application.applyUrl ? (
               <a
                 href={application.applyUrl}
@@ -392,60 +425,82 @@ function TrackerRow({
           </div>
         </td>
         <td className="min-w-0 px-2 py-1">
-          <label className="sr-only" htmlFor={`stage-${application.id}`}>Stage</label>
-          <select
-            id={`stage-${application.id}`}
-            value={stageDraft}
-            disabled={stageMutation.isPending}
-            onChange={(event) => {
-              const next = event.target.value as TrackerStage
-              setStageDraft(next)
-              stageMutation.mutate(next)
-            }}
-            className={`min-h-9 w-full rounded-full border px-2 py-1 text-xs font-semibold ${TRACKER_STAGE_PRESENTATION[stageDraft].badgeClass}`}
-          >
-            {TRACKER_STAGES.map((stage) => (
-              <option key={stage.slug} value={stage.slug}>{stage.label}</option>
-            ))}
-          </select>
+          {rowEditable ? (
+            <>
+              <label className="sr-only" htmlFor={`stage-${application.id}`}>Stage</label>
+              <select
+                id={`stage-${application.id}`}
+                value={stageDraft}
+                disabled={stageMutation.isPending}
+                onChange={(event) => {
+                  const next = event.target.value as TrackerStage
+                  setStageDraft(next)
+                  stageMutation.mutate(next)
+                }}
+                className={`min-h-9 w-full rounded-full border px-2 py-1 text-xs font-semibold ${TRACKER_STAGE_PRESENTATION[stageDraft].badgeClass}`}
+              >
+                {TRACKER_STAGES.map((stage) => (
+                  <option key={stage.slug} value={stage.slug}>{stage.label}</option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <span className={`block rounded-full border px-2 py-1 text-center text-xs font-semibold ${TRACKER_STAGE_PRESENTATION[stageDraft].badgeClass}`}>
+              {TRACKER_STAGE_PRESENTATION[stageDraft].label}
+            </span>
+          )}
         </td>
         <td className="min-w-0 px-2 py-1">
-          <label className="sr-only" htmlFor={`date-${application.id}`}>Stage date</label>
-          <input
-            id={`date-${application.id}`}
-            type="date"
-            max={localDate()}
-            value={dateDraft}
-            onChange={(event) => setDateDraft(event.target.value)}
-            onBlur={() => {
-              if (dateDraft !== application.currentStageDate) dateMutation.mutate(dateDraft)
-            }}
-            onKeyDown={(event) => commitOnEnter(
-              event,
-              () => dateMutation.mutate(dateDraft),
-              () => setDateDraft(application.currentStageDate),
-            )}
-            className={CELL_INPUT}
-          />
+          {rowEditable ? (
+            <>
+              <label className="sr-only" htmlFor={`date-${application.id}`}>Stage date</label>
+              <input
+                id={`date-${application.id}`}
+                type="date"
+                max={chicagoDate()}
+                value={dateDraft}
+                onChange={(event) => setDateDraft(event.target.value)}
+                onBlur={() => {
+                  if (dateDraft !== application.currentStageDate) dateMutation.mutate(dateDraft)
+                }}
+                onKeyDown={(event) => commitOnEnter(
+                  event,
+                  () => dateMutation.mutate(dateDraft),
+                  () => setDateDraft(application.currentStageDate),
+                )}
+                className={CELL_INPUT}
+              />
+            </>
+          ) : (
+            <span>{dateDraft}</span>
+          )}
         </td>
         <td className="min-w-0 px-2 py-1">
-          <label className="sr-only" htmlFor={`notes-${application.id}`}>Notes</label>
-          <textarea
-            id={`notes-${application.id}`}
-            rows={1}
-            value={notesDraft}
-            onChange={(event) => setNotesDraft(event.target.value)}
-            onBlur={() => {
-              if (notesDraft !== application.notes) notesMutation.mutate(notesDraft)
-            }}
-            onKeyDown={(event) => commitOnEnter(
-              event,
-              () => notesMutation.mutate(notesDraft),
-              () => setNotesDraft(application.notes),
-            )}
-            className={`${CELL_INPUT} resize-none`}
-          />
-          <span className="sr-only">{notesPreview(notesDraft)}</span>
+          {rowEditable ? (
+            <>
+              <label className="sr-only" htmlFor={`notes-${application.id}`}>Notes</label>
+              <textarea
+                id={`notes-${application.id}`}
+                rows={1}
+                value={notesDraft}
+                onChange={(event) => setNotesDraft(event.target.value)}
+                onBlur={() => {
+                  if (notesDraft !== application.notes) notesMutation.mutate(notesDraft)
+                }}
+                onKeyDown={(event) => commitOnEnter(
+                  event,
+                  () => notesMutation.mutate(notesDraft),
+                  () => setNotesDraft(application.notes),
+                )}
+                className={`${CELL_INPUT} resize-none`}
+              />
+              <span className="sr-only">{notesPreview(notesDraft)}</span>
+            </>
+          ) : (
+            <span className="block whitespace-pre-wrap break-words">
+              {notesPreview(notesDraft) || '—'}
+            </span>
+          )}
         </td>
         <td className="min-w-0 px-2 py-1 text-right">
           <div className="flex items-center justify-end gap-1.5">
@@ -456,9 +511,20 @@ function TrackerRow({
                 failed={lastSaveMutation.isError}
                 onRetry={retryLastSave}
               />
+            ) : application.origin === 'manual' && !manualEditActive ? (
+              <span className="text-xs text-zinc-500">Double-click role to edit</span>
             ) : (
               <span className="text-xs text-zinc-500">—</span>
             )}
+            {application.origin === 'manual' && manualEditActive ? (
+              <button
+                type="button"
+                onClick={() => setManualEditActive(false)}
+                className="min-h-9 rounded-md px-2 text-xs font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
+              >
+                Done
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onRequestDelete}
@@ -946,7 +1012,7 @@ function ManualDraftRow({
         <input
           id="draft-date"
           type="date"
-          value={localDate()}
+          value={chicagoDate()}
           readOnly
           className={CELL_INPUT}
         />

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { supabase } from './supabase'
 import {
   appendApplicationStage,
+  chicagoDate,
   createManualApplication,
   decorateRepeatedStageOrdinals,
   deleteApplicationStageEvent,
@@ -74,6 +75,13 @@ function event(overrides: Partial<TrackerStageEvent> = {}): TrackerStageEvent {
 }
 
 describe('tracker lifecycle presentation', () => {
+  it('uses the Chicago calendar date across the UTC midnight boundary', () => {
+    expect(chicagoDate(new Date('2026-07-29T04:58:33.000Z')))
+      .toBe('2026-07-28')
+    expect(chicagoDate(new Date('2026-07-29T05:00:00.000Z')))
+      .toBe('2026-07-29')
+  })
+
   it('defines exactly the approved six stages and filter groups', () => {
     expect(TRACKER_STAGES).toEqual([
       { slug: 'ready_to_apply', label: 'Ready to Apply' },

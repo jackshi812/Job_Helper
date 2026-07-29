@@ -159,6 +159,30 @@ describe('Tracker page contract', () => {
     expect(trackerSource).not.toMatch(/createManualApplication\(\{[^}]*description/s)
   })
 
+  it('keeps manual rows read-only until the role is double-clicked', () => {
+    queryState.data = [{
+      ...applications[0],
+      origin: 'manual',
+    }]
+    const markup = renderToStaticMarkup(<Tracker />)
+
+    expect(markup).toContain('aria-label="Edit Data Analyst"')
+    expect(markup).toContain('Double-click role to edit')
+    for (const field of ['company', 'title', 'stage', 'date', 'notes']) {
+      expect(markup).not.toContain(
+        `id="${field}-11111111-1111-4111-8111-111111111111"`,
+      )
+    }
+    expect(trackerSource).toContain('onDoubleClick={() => setManualEditActive(true)}')
+    expect(trackerSource).toContain(
+      '!event.currentTarget.contains(event.relatedTarget as Node | null)',
+    )
+    expect(trackerSource).toContain(
+      'useEffect(() => setManualEditActive(false), [application.updatedAt])',
+    )
+    expect(trackerSource).toContain('setManualEditActive(false)')
+  })
+
   it('serializes same-cell writes and keeps scoped real retry actions', () => {
     for (const field of ['pin', 'stage', 'current_stage_date', 'notes']) {
       expect(trackerSource).toContain(
