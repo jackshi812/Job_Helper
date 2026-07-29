@@ -457,7 +457,7 @@ function TrackerRow({
                   setStageDraft(next)
                   stageMutation.mutate(next)
                 }}
-                className={`min-h-9 w-full rounded-full border px-2 py-1 text-xs font-semibold ${TRACKER_STAGE_PRESENTATION[stageDraft].badgeClass}`}
+                className={`min-h-9 w-full rounded-full border px-2 py-1 text-center text-xs font-semibold ${TRACKER_STAGE_PRESENTATION[stageDraft].badgeClass}`}
               >
                 {TRACKER_STAGES.map((stage) => (
                   <option key={stage.slug} value={stage.slug}>{stage.label}</option>

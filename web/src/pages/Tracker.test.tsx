@@ -234,6 +234,9 @@ describe('Tracker page contract', () => {
     expect(trackerSource).toContain('text-lg font-bold')
     expect(trackerSource).toContain('min-h-9 min-w-9 rounded-md text-2xl leading-none')
     expect(trackerSource).toContain('min-h-9 min-w-9 rounded-md text-3xl leading-none')
+    expect(trackerSource).toContain(
+      'rounded-full border px-2 py-1 text-center text-xs font-semibold',
+    )
     expect(trackerSource).toContain('rows={1}')
     expect(trackerSource).toContain('flex items-center justify-end gap-1.5')
     expect(trackerSource).toContain('colSpan={9}')
