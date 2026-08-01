@@ -791,7 +791,7 @@ describe('Phase 03.6 exact Workday identity registry and U.S. scope', () => {
     ))
     if (!contractPresent) throw new Error('PHASE_03_6_REGISTRY_SCOPE_MISSING')
 
-    expect(Object.keys(WORKDAY_IDENTITIES)).toHaveLength(10)
+    expect(Object.keys(WORKDAY_IDENTITIES)).toHaveLength(14)
     expect(Object.isFrozen(WORKDAY_IDENTITIES)).toBe(true)
   })
 
@@ -1637,7 +1637,7 @@ function phase038Detail(
 
 describe('Phase 03.8 exact Workday candidates and U.S. proof', () => {
   it('adds exactly four frozen candidates without changing the six existing identities', () => {
-    expect(Object.keys(WORKDAY_IDENTITIES)).toHaveLength(10)
+    expect(Object.keys(WORKDAY_IDENTITIES)).toHaveLength(14)
     for (const expected of phase038WorkdayCandidates) {
       const identity = resolveWorkdayIdentity(...expected.tuple)
       expect(identity).toMatchObject({

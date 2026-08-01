@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "status": "fail",
+  "window": {
+    "started_at": null,
+    "ended_at": null,
+    "duration_seconds": 0
+  },
+  "identity": {},
+  "metrics": {},
+  "query_hashes": {},
+  "checks": {
+    "gate": {
+      "status": "fail"
+    }
+  },
+  "redaction": {
+    "aggregate_only": true,
+    "raw_logs_persisted": false,
+    "raw_rows_persisted": false,
+    "raw_identifiers_persisted": false,
+    "credential_fields_persisted": false
+  },
+  "zero_effect_scope": {
+    "manual_worker_invocations": 0,
+    "queue_or_run_writes": 0,
+    "lease_or_ranking_state_writes": 0,
+    "ranking_history_deletes": 0,
+    "scheduler_mutations": 0,
+    "function_deployments": 0,
+    "web_deployments": 0,
+    "vacuum_or_maintenance_commands": 0,
+    "schema_or_configuration_mutations": 0
+  },
+  "later_deployment_authorized": false,
+  "reasons": [
+    "deployment_record_missing_score_tick_identity"
+  ]
+}

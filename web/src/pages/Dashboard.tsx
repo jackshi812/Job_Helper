@@ -135,9 +135,26 @@ interface LifecycleMutationContext {
   previousFocusId: string | null
 }
 
-interface BackfillRetry {
-  cursor: string
+export interface DismissalMutationContext {
+  removedRow: FeedRow | null
+  pageIndex: number
+  rowIndex: number
+  title: string
+  continuationCursor: string | null
+  nextFocusId: string | null
+  previousFocusId: string | null
 }
+
+type BackfillRetry =
+  | {
+    scope: 'all'
+    cursor: string
+    dismissalCommitted: boolean
+  }
+  | {
+    scope: 'watchlist'
+    dismissalCommitted: boolean
+  }
 
 const EMPTY_DASHBOARD_PAGE: DashboardFeedPage = {
   rows: [],
@@ -165,6 +182,83 @@ function removeRowFromInfiniteData(
       rows: page.rows.filter(({ id }) => id !== rowId),
     })),
   }
+}
+
+function captureDismissalContext(
+  data: DashboardInfiniteData | undefined,
+  rowId: string,
+): DismissalMutationContext {
+  const pageIndex = data?.pages.findIndex((page) =>
+    page.rows.some(({ id }) => id === rowId)) ?? -1
+  const rowIndex = pageIndex >= 0
+    ? data?.pages[pageIndex].rows.findIndex(({ id }) => id === rowId) ?? -1
+    : -1
+  const removedRow = pageIndex >= 0 && rowIndex >= 0
+    ? data?.pages[pageIndex].rows[rowIndex] ?? null
+    : null
+  const currentRows = mergedInfinitePage(data).rows
+  const mergedIndex = currentRows.findIndex(({ id }) => id === rowId)
+
+  return {
+    removedRow,
+    pageIndex,
+    rowIndex,
+    title: removedRow?.jobs?.title ?? 'Untitled role',
+    continuationCursor: data?.pages.at(-1)?.nextCursor ?? null,
+    nextFocusId: mergedIndex >= 0 ? currentRows[mergedIndex + 1]?.id ?? null : null,
+    previousFocusId: mergedIndex > 0 ? currentRows[mergedIndex - 1]?.id ?? null : null,
+  }
+}
+
+export function restoreDismissedRowInInfiniteData(
+  data: DashboardInfiniteData | undefined,
+  context: DismissalMutationContext,
+): DashboardInfiniteData | undefined {
+  if (!data || !context.removedRow) return data
+  if (data.pages.some((page) => page.rows.some(({ id }) => id === context.removedRow?.id))) {
+    return data
+  }
+
+  if (data.pages.length === 0) {
+    return {
+      ...data,
+      pages: [{
+        ...EMPTY_DASHBOARD_PAGE,
+        rows: [context.removedRow],
+        nextCursor: context.continuationCursor,
+        hasMore: context.continuationCursor !== null,
+        caughtUp: context.continuationCursor === null,
+      }],
+      pageParams: [null],
+    }
+  }
+
+  const targetPageIndex = Math.min(
+    Math.max(context.pageIndex, 0),
+    data.pages.length - 1,
+  )
+  return {
+    ...data,
+    pages: data.pages.map((page, index) => {
+      if (index !== targetPageIndex) return page
+      const insertAt = Math.min(Math.max(context.rowIndex, 0), page.rows.length)
+      return {
+        ...page,
+        rows: [
+          ...page.rows.slice(0, insertAt),
+          context.removedRow as FeedRow,
+          ...page.rows.slice(insertAt),
+        ],
+      }
+    }),
+  }
+}
+
+export function filterDismissedFeedRows(
+  rows: readonly FeedRow[],
+  dismissedIds: ReadonlySet<string>,
+): FeedRow[] {
+  return rows.filter(({ id }) => !dismissedIds.has(id))
 }
 
 function appendBackfillPage(
@@ -354,6 +448,8 @@ export function Dashboard({
   const [rankingAnnouncement, setRankingAnnouncement] = useState('')
   const [retryError, setRetryError] = useState('')
   const [lifecycleError, setLifecycleError] = useState('')
+  const [dismissPendingIds, setDismissPendingIds] = useState<Set<string>>(() => new Set())
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set())
   const [queueAnnouncement, setQueueAnnouncement] = useState('')
   const [loadMoreError, setLoadMoreError] = useState('')
   const [backfillError, setBackfillError] = useState('')
@@ -370,6 +466,8 @@ export function Dashboard({
   const observedActiveRevisionRef = useRef<number | null>(null)
   const tableRegionRef = useRef<HTMLDivElement>(null)
   const actionRefs = useRef(new Map<string, HTMLButtonElement>())
+  const dismissActionRefs = useRef(new Map<string, HTMLButtonElement>())
+  const restoredDismissFocusIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!scoreTierPopoverOpen) return
@@ -497,7 +595,10 @@ export function Dashboard({
     () => mergedInfinitePage(feedQuery.data).rows,
     [feedQuery.data],
   )
-  const rows = allRows
+  const rows = useMemo(
+    () => filterDismissedFeedRows(allRows, dismissedIds),
+    [allRows, dismissedIds],
+  )
   const appliedApplications = useMemo(
     () => dashboardAppliedSourceRows(
       appliedApplicationsQuery.data ?? [],
@@ -522,6 +623,34 @@ export function Dashboard({
       }
       tableRegionRef.current?.focus()
     })
+  }
+
+  useEffect(() => {
+    const restoredId = restoredDismissFocusIdRef.current
+    if (!restoredId) return
+    queueMicrotask(() => {
+      const dismissButton = dismissActionRefs.current.get(restoredId)
+      if (!dismissButton) return
+      restoredDismissFocusIdRef.current = null
+      dismissButton.focus()
+    })
+  }, [lifecycleError, rows])
+
+  function snapshotAndRemoveDismissal(rowId: string): DismissalMutationContext {
+    setLifecycleError('')
+    const current = queryClient.getQueryData<DashboardInfiniteData>(feedKey)
+    const context = captureDismissalContext(current, rowId)
+    setDismissPendingIds((pendingIds) => new Set(pendingIds).add(rowId))
+    setDismissedIds((excludedIds) => new Set(excludedIds).add(rowId))
+    queryClient.setQueryData<DashboardInfiniteData>(
+      feedKey,
+      (cached) => removeRowFromInfiniteData(cached, rowId),
+    )
+    if (context.rowIndex >= 0) {
+      focusAfterRemoval(context.nextFocusId, context.previousFocusId)
+    }
+    void queryClient.cancelQueries({ queryKey: feedKey })
+    return context
   }
 
   async function snapshotAndRemove(rowId: string): Promise<LifecycleMutationContext> {
@@ -549,51 +678,91 @@ export function Dashboard({
     }
   }
 
-  async function runBackfill(cursor: string | null) {
-    setBackfillError('')
-    setBackfillRetry(null)
-    if (cursor === null) return
-    try {
-      const page = await backfillDashboardFeedRow(feedRequest, cursor)
-      queryClient.setQueryData<DashboardInfiniteData>(
-        feedKey,
-        (current) => appendBackfillPage(current, page, cursor),
-      )
-    } catch {
-      setBackfillError('Couldn’t load the next job. Your current results are still shown.')
-      setBackfillRetry({ cursor })
+  function refillRequest(
+    cursor: string | null,
+    dismissalCommitted: boolean,
+  ): BackfillRetry | null {
+    if (scope === 'all') {
+      return cursor === null ? null : { scope: 'all', cursor, dismissalCommitted }
     }
+    return { scope: 'watchlist', dismissalCommitted }
   }
 
-  async function refillVisibleQueue(cursor: string | null) {
-    if (scope === 'all') {
-      await runBackfill(cursor)
-      return
-    }
-
-    const result = await feedQuery.refetch()
-    if (result.isError) {
-      setBackfillError('Couldn’t load the next job. Your current results are still shown.')
+  async function refillVisibleQueue(retry: BackfillRetry | null) {
+    setBackfillError('')
+    setBackfillRetry(null)
+    if (!retry) return
+    try {
+      if (retry.scope === 'all') {
+        const page = await backfillDashboardFeedRow(feedRequest, retry.cursor)
+        queryClient.setQueryData<DashboardInfiniteData>(
+          feedKey,
+          (current) => appendBackfillPage(current, page, retry.cursor),
+        )
+      } else {
+        const result = await feedQuery.refetch()
+        if (result.isError) throw result.error ?? new Error('dashboard_refill_failed')
+      }
+    } catch {
+      setBackfillError(retry.dismissalCommitted
+        ? 'Couldn’t refresh the queue. The job remains dismissed and your current results remain usable.'
+        : 'Couldn’t load the next job. Your current results are still shown.')
+      setBackfillRetry(retry)
     }
   }
 
   const dismissMutation = useMutation({
     mutationFn: dismissJob,
-    onMutate: snapshotAndRemove,
-    onError: (_error, _id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData<DashboardInfiniteData>(feedKey, context.previous)
+    onMutate: snapshotAndRemoveDismissal,
+    onError: (_error, id, context) => {
+      restoredDismissFocusIdRef.current = id
+      setDismissPendingIds((pendingIds) => {
+        const next = new Set(pendingIds)
+        next.delete(id)
+        return next
+      })
+      setDismissedIds((excludedIds) => {
+        const next = new Set(excludedIds)
+        next.delete(id)
+        return next
+      })
+      if (!context) {
+        setLifecycleError('Couldn’t dismiss this job. It remains in Active. Try again.')
+        return
       }
-      setLifecycleError('Couldn’t dismiss this job. It remains in Active. Try again.')
+      queryClient.setQueryData<DashboardInfiniteData>(
+        feedKey,
+        (current) => restoreDismissedRowInInfiniteData(current, context),
+      )
+      setLifecycleError(
+        `Couldn’t dismiss ${context.title}. It remains in Active. Try again.`,
+      )
     },
-    onSuccess: async (_data, _id, context) => {
-      if (lifecycle === 'active') await refillVisibleQueue(context.continuationCursor)
+    onSuccess: (_data, id, context) => {
+      setDismissPendingIds((pendingIds) => {
+        const next = new Set(pendingIds)
+        next.delete(id)
+        return next
+      })
+      if (!context) {
+        setQueueAnnouncement('Job dismissed permanently.')
+        void queryClient.invalidateQueries({
+          queryKey: ['dashboard-feed'],
+          refetchType: 'inactive',
+        }).catch(() => undefined)
+        return
+      }
       setQueueAnnouncement(`Dismissed ${context.title} permanently.`)
+      if (lifecycle === 'active') {
+        void refillVisibleQueue(
+          refillRequest(context.continuationCursor, true),
+        )
+      }
+      void queryClient.invalidateQueries({
+        queryKey: ['dashboard-feed'],
+        refetchType: 'inactive',
+      }).catch(() => undefined)
     },
-    onSettled: () => queryClient.invalidateQueries({
-      queryKey: ['dashboard-feed'],
-      refetchType: 'inactive',
-    }),
   })
 
   const markAppliedMutation = useMutation({
@@ -608,7 +777,7 @@ export function Dashboard({
       )
     },
     onSuccess: async (applicationId, _id, context) => {
-      await refillVisibleQueue(context.continuationCursor)
+      await refillVisibleQueue(refillRequest(context.continuationCursor, false))
       setQueueAnnouncement(`${context.title} marked applied and added to Tracker.`)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: feedKey }),
@@ -626,9 +795,6 @@ export function Dashboard({
       refetchType: 'inactive',
     }),
   })
-
-  const lifecycleMutationPending = dismissMutation.isPending
-    || markAppliedMutation.isPending
 
   const companyOptions = useMemo(
     () => companyOptionsQuery.data ?? [],
@@ -1246,7 +1412,7 @@ export function Dashboard({
                                 else actionRefs.current.delete(row.id)
                               }}
                               type="button"
-                              disabled={lifecycleMutationPending}
+                              disabled={markAppliedMutation.isPending}
                               aria-label={`Mark ${jobTitle} applied`}
                               onClick={() => markAppliedMutation.mutate(row.id)}
                               className="min-h-9 rounded-md border border-zinc-900 bg-zinc-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-60 [@media(pointer:coarse)]:min-h-11 dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:focus-visible:outline-zinc-100"
@@ -1254,8 +1420,12 @@ export function Dashboard({
                               Mark Applied
                             </button>
                             <button
+                              ref={(node) => {
+                                if (node) dismissActionRefs.current.set(row.id, node)
+                                else dismissActionRefs.current.delete(row.id)
+                              }}
                               type="button"
-                              disabled={lifecycleMutationPending}
+                              disabled={dismissPendingIds.has(row.id)}
                               aria-label={`Dismiss ${jobTitle}`}
                               onClick={() => dismissMutation.mutate(row.id)}
                               className="min-h-9 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-60 [@media(pointer:coarse)]:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
@@ -1284,7 +1454,7 @@ export function Dashboard({
             <button
               type="button"
               onClick={() => {
-                if (backfillRetry) void runBackfill(backfillRetry.cursor)
+                if (backfillRetry) void refillVisibleQueue(backfillRetry)
               }}
               className={`mt-2 ${filterButtonBase} ${filterInactive}`}
             >

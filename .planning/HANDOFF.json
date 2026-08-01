@@ -1,0 +1,91 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-31T21:15:03.915Z",
+  "phase": "05.1",
+  "phase_name": "ranking-and-dashboard-performance-stabilization",
+  "phase_dir": ".planning/phases/05.1-ranking-and-dashboard-performance-stabilization",
+  "plan": 2,
+  "task": 1,
+  "total_tasks": 3,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Complete Plan 05.1-01 containment implementation and proof",
+      "status": "done",
+      "commit": "4ef94da"
+    },
+    {
+      "id": 2,
+      "name": "Correct and independently verify the Plan 02/03 approval-gate contract",
+      "status": "done",
+      "commit": "1f36ef7"
+    },
+    {
+      "id": 3,
+      "name": "Generate the fresh version-2 Plan 05.1-02 approval payload",
+      "status": "in_progress",
+      "progress": "The executor was interrupted at the user's usage-limit pause before editing or committing the approval artifact. The corrected plan contract is committed and independently verified, but no valid v2 payload or owner signal exists yet."
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 3,
+      "name": "Generate and commit a fresh version-2 immutable approval payload under corrected Plan 05.1-02",
+      "status": "not_started"
+    },
+    {
+      "id": 4,
+      "name": "Present the fresh exact owner signal and seal the canonical receipt only after byte-identical approval",
+      "status": "not_started"
+    },
+    {
+      "id": 5,
+      "name": "Create Plan 05.1-02 SUMMARY/tracking, then stop before Plan 05.1-03",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Work paused at the user's request because the session is near its usage limit.",
+      "type": "external",
+      "workaround": "Resume in a fresh session with $gsd-resume-work."
+    },
+    {
+      "description": "No valid current Plan 05.1-02 owner approval exists. Payloads from commits 30955dc and a22a88b, including digest 0d997347ba6840ad6f7e1dbf89fcfe530d2c8e7c943dcce4c6f0ce08e5c0f1d1, are invalid, unsealed, never deployed, and non-reusable.",
+      "type": "technical",
+      "workaround": "Generate a fresh version-2 payload using corrected Plan 05.1-02 at HEAD 1f36ef7, then obtain a new exact owner signal."
+    }
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {
+      "action": "After a fresh version-2 payload is generated, provide its exact APPROVE or DEFER signal.",
+      "context": "Plan 05.1-02 cannot seal a receipt or authorize Plan 05.1-03 without a new byte-identical owner response bound to the corrected immutable payload.",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Bind owner approval only to immutable deployment identities; keep volatile ranking counts and logs outside approval digest equality.",
+      "rationale": "Normal scheduler activity invalidated two approval attempts even though migration bytes and scope were unchanged. Corrected Plan 03 now performs a fresh immediate operational gate and returns NO_DEPLOY_NATURAL_DRAIN when active work exists.",
+      "phase": "05.1"
+    },
+    {
+      "decision": "Use an exact ordered 87-key immutable payload allowlist and a 13-key namespaced receipt with its digest outside the hashed receipt region.",
+      "rationale": "Independent review found a blacklist could miss volatile fields and the original receipt layout could duplicate or self-reference its digest.",
+      "phase": "05.1"
+    },
+    {
+      "decision": "Pause before completing Plan 05.1-02 and do not enter Plan 05.1-03.",
+      "rationale": "The user requested a pause because the session is near its usage limit.",
+      "phase": "05.1"
+    }
+  ],
+  "uncommitted_files": [
+    ".DS_Store",
+    ".planning/STATE.md"
+  ],
+  "next_action": "Run $gsd-resume-work, acknowledge every blocking anti-pattern in the Phase 05.1 .continue-here.md, verify HEAD/stashes/dirty files, then execute corrected Plan 05.1-02 Task 1 to generate a fresh v2 approval payload. Do not reuse old payloads and do not start Plan 05.1-03.",
+  "context_notes": "Main HEAD is 1f36ef788dc96409064ca5e0dd9ea2c06f570771. Plan 05.1-01 is complete with source/evidence/summary/tracking commits c70152b/e5324a7/e565c90/4ef94da. Corrected Plan 02/03 contract commits are a7ab672 and 1f36ef7; independent gsd-plan-checker returned VERIFICATION PASSED with zero blockers. The interrupted v2 generator made no edits or commits. Current 05.1-02-CONTAINMENT-APPROVAL.md is invalid audit history from a22a88b and must be superseded, never approved. Production was never mutated or deployed and was last verified with migrations 0001-0061 only; 0062/0063 absent. No agents, async jobs, Colima VM, or local Supabase stack are running. All three Phase 5 stashes remain exact. Placeholder scan in current Phase 05.1 found only explanatory prose in 05.1-01-SUMMARY.md, not an incomplete placeholder."
+}

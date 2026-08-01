@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "phase": "05",
+  "status": "PINNED",
+  "base_sha": "e1d592e8b574ae3e474ce44661b3970954ef00d9",
+  "plan_path": ".planning/phases/05-outreach-feasibility-gate/05-01-PLAN.md",
+  "plan_blob_sha256": "2a7b1050772e674a3f880dbf5d2b8a96ae5dd48fb8e183a05ba8272a7ff6aba0",
+  "baseline_evidence_sha256": "946b49fb3c5247e5fdd1ee4c84852f65fe4596ebf74c9b6337f070cea5fde9db"
+}

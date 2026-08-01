@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "phase": "05",
+  "status": "OWNER_RESPONSE_RECORDED",
+  "checkpoint_plan": "05-07",
+  "checkpoint_task": "Task 1: Preserve the owner's one-time raw-byte no-go reconfirmation",
+  "gate": "blocking-human",
+  "owner_checkpoint_request_sha256": "2efe505ae262eb77b07f918f8a3b9e1f285aeed3ef5b2b8bc520b8771c2503f3",
+  "nonce": "cad6fe33ea5ebba6470edfface6906d69a23584ed669a1489ee0c8eb6a98320b",
+  "rights_evidence_sha256": "396724c36df4a40541cb8d385d0e8e2ca6e9f04c2c0b4736955a3fe11c65d161",
+  "quality_evidence_sha256": "4e1dc7ab58c697f48ef7e8ff5bfa1a676cc53c9965929680098b8a61cf37011c",
+  "checkpointed_decision_contract_sha256": "7f72d64fc7cedb73aff10eb91f8e939e271f4969bf2c7cc0a182b1f282216441",
+  "baseline_evidence_sha256": "946b49fb3c5247e5fdd1ee4c84852f65fe4596ebf74c9b6337f070cea5fde9db",
+  "owner_response_utf8_base64": "SSBSRUNPTkZJUk0gUEhBU0UgNSBSSUdIVFNfTk9fR087IHF1YWxpdHkgaXMgTk9UX1JVTl9SSUdIVFNfTk9fR087IHByb2R1Y3Rpb24gb3V0cmVhY2ggc2VhcmNoIHJlbWFpbnMgZGlzYWJsZWQ7IG5vIHByb3ZpZGVyIGNhbGwgb3IgcmVwcmVzZW50YXRpdmUgc3Bpa2UgaXMgcGVybWl0dGVkOyByZXF1ZXN0IG5vbmNlIGNhZDZmZTMzZWE1ZWJiYTY0NzBlZGZmYWNlNjkwNmQ2OWEyMzU4NGVkNjY5YTE0ODllZTBjOGViNmE5ODMyMGI7IHJpZ2h0cyBldmlkZW5jZSAzOTY3MjRjMzZkZjRhNDA1NDFjYjhkMzg1ZDBlOGUyY2E2ZTlmMDRjMmMwYjQ3MzY5NTVhM2ZlMTFjNjVkMTYxOyBxdWFsaXR5IGV2aWRlbmNlIDRlMWRjN2FiNThjNjk3ZjQ4ZWY3ZThmZjViZmExYTY3NmNjNTNjOTk2NTkyOTY4MDA5OGI4YTYxY2YzNzAxMWM7IGNoZWNrcG9pbnRlZCBkZWNpc2lvbiA3ZjcyZDY0ZmM3Y2VkYjczYWZmMTBlYjkxZjhlOTM5ZTI3MWY0OTY5YmYyYzdjYzBhMTgyYjFmMjgyMjE2NDQxOyBleGVjdXRpb24gYmFzZWxpbmUgOTQ2YjQ5ZmIzYzUyNDdlNWZkZDFlZTRjODQ4NTJmNjVmZTQ1OTZlYmY3NGM5YjYzMzdmMDcwY2VhNWZkZTlkYi4=",
+  "owner_response_sha256": "689c716da3483e480c4f08990a60283aa367dd9d73d0846a664cec7d2a4ad9e2",
+  "received_at": "2026-07-29T20:51:35.795Z",
+  "owner_checkpoint_evidence_sha256": "07d4613b73ac72e24721ecb8a7a5a13462724eb3a885780fca425939a340ed06"
+}

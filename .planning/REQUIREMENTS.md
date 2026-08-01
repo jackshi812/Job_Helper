@@ -1,151 +1,116 @@
 # Requirements: Job Application Copilot
 
-**Defined:** 2026-07-15
-**Core Value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed — if discovery and scoring are unreliable, nothing else matters.
+**Defined:** 2026-07-28
+**Milestone:** v1.1 Outreach Intelligence
+**Core Value:** Discover relevant jobs fast, score them accurately, and surface
+them in a focused feed — then help the user identify a small number of credible
+people for deliberate, manual outreach.
 
-## v1 Requirements
+## v1.1 Requirements
 
-Requirements for initial release. Each maps to roadmap phases.
+Requirements for the v1.1 milestone. Each requirement maps to exactly one
+roadmap phase.
 
-### Foundation
+### Feasibility and Cost
 
-- [x] **AUTH-01**: User can log in with email/password; signup is invite-only (exactly two accounts, no public registration)
-- [x] **AUTH-02**: User session persists across browser refresh
-- [x] **AUTH-03**: Each user's personal data (preferences, resumes, ranking state/results, dismissals, applications, and tracker events) is fully isolated via row-level security. The monitored-company/source catalog and raw provider job pool are shared system data between the two invited accounts; anonymous access remains denied.
-- [x] **AUTH-04**: User can delete all personal job data and resume storage objects while retaining their login/profile and the shared company/job catalog
+- [x] **OUTR-04**: Production implementation proceeds only after the selected public-web search provider permits the intended LinkedIn URL and match-reason display, persistence, and any caching, and the owner accepts the documented LinkedIn-policy posture; otherwise the feature remains disabled and is redesigned or stopped.
+- [x] **OUTR-05**: Before the complete feature is built, the historical 6–10 application, three-company representative spike remains conditional on rights clearance; because the accepted branch is `RIGHTS_NO_GO`, D-12 requires `NOT_RUN_RIGHTS_NO_GO` with zero cases and provider calls, no quality claim, disabled production outreach, and a receipt-bound owner no-go that closes the feasibility decision at a stopped milestone.
+- [ ] **OUTR-06**: Each user-requested search stays within hard per-user and global free-tier budgets using atomic per-call admission, provider backoff, and no automatic paid usage; provider-permitted company/role-scoped reuse may reduce calls without weakening freshness or user isolation.
 
-### Preferences & Watchlist
+### Outreach Profile
 
-- [x] **PREF-01**: User can set target titles, locations, include/exclude keywords, title exclusions, an optional maximum-experience scoring signal, and a validated editable deterministic ranking rubric and tier thresholds
-- [x] **PREF-02**: User can add, edit, and remove companies on a watchlist of 100+ career-site URLs
-- [x] **PREF-03**: System auto-detects ATS platform (Greenhouse/Lever/Ashby) from a pasted career-site URL and stores the polling endpoint
-- [x] **PREF-04**: User can see per-company monitoring health (last successful poll, failing sources flagged)
-- [x] **PREF-05**: Watchlist shows a clickable Link column that opens each company's stored job-search/careers URL in a new tab
+- [ ] **OUTR-07**: User can create, edit, explicitly confirm, and delete an outreach profile containing universities, schools or colleges, programs or majors, employers, internships, roles, and optional attendance or employment dates.
+- [ ] **OUTR-08**: User's outreach profile remains private to that user, is not automatically inferred from a resume, and treats omitted dates or facts as unknown rather than inferred.
 
-### Discovery & Monitoring
+### Search Flow
 
-- [x] **DISC-01**: System polls watchlist ATS endpoints on a schedule that keeps discovery-to-feed within 5–15 minutes
-- [x] **DISC-02**: System discovers jobs outside the watchlist via one aggregator API (breadth source, latency not guaranteed)
-- [x] **DISC-03**: System deduplicates postings across sources (stable ATS IDs + fuzzy company/title/location match) so a job is never surfaced twice
-- [x] **DISC-04**: System captures a job-description snapshot at first sight so posting context remains available after the source disappears
-- [x] **DISC-05**: System marks jobs as closed when they disappear from ATS polls (stale-job detection)
-- [x] **DISC-06**: Pipeline runs record a heartbeat; a dead or silently failing cron is detectable within one poll cycle
-- [x] **DISC-07**: System validates one representative company per feasible additional source platform (SmartRecruiters, Recruitee, Workday, Oracle Recruiting, iCIMS, SuccessFactors, and Eightfold) while preserving Greenhouse/Lever/Ashby support
-- [x] **DISC-08**: System validates the current owner-approved finance-company set by directly monitoring each company with a stable, safely pollable public contract; every remaining company has a canonical careers link, provider evidence, and an explicit `unsupported_with_reason` disposition and is never labeled monitored. Later owner-approved catalog removals supersede historical set membership and do not require deleted companies to retain Watchlist/catalog rows.
-- [x] **DISC-09**: Failed, blocked, changed, or implausibly empty sources retain last-known jobs, report Degraded with last-success/error detail, and never close jobs from the failed observation; new connectors are staged before scheduled activation
+- [ ] **OUTR-09**: User can manually request or refresh outreach candidates only for an owned application whose current stage is Applied, Outreach Sent, or Interview.
+- [ ] **OUTR-10**: A permitted user request runs a bounded server-side public-web search for LinkedIn profile URLs using the application company, role, saved job information, confirmed outreach-profile facts, and no-cost role vocabulary from existing job-poll history, without logging into, enumerating, or directly scraping LinkedIn.
+- [ ] **OUTR-11**: User sees “No suitable public profiles” only after a successfully
+  completed search finds no eligible candidate, while quota, provider, timeout, or insufficient-coverage failures are shown as “Coverage unknown.”
 
-### Scoring & Feed
+### Eligibility and Ranking
 
-- [x] **SCOR-01**: Deterministic title, US-location, title-exclusion, and literal keyword rules remove ineligible postings before publication
-- [x] **SCOR-02**: Eligible postings receive a reproducible, transparent 100-point deterministic ranking with no automatic/background AI scoring or paid score reservation
-- [x] **SCOR-03**: Each ranked job stores a six-category points-earned/points-possible/evidence breakdown
-- [x] **SCOR-04**: User can view one atomically complete deterministic Dashboard feed with stored score/tier, posted time, company controls, sorting, and a direct HTTPS employer apply link
-- [x] **SCOR-05**: User can view the full JD snapshot and the same stored six-category deterministic rubric evidence on job detail
+- [ ] **OUTR-12**: A candidate is eligible only when public evidence supports a usable LinkedIn profile URL, current work at the target company, a meaningful relationship to the applied role, and neither a clearly unrelated function nor excessive seniority; exact title, specialty, or direct-peer status is not required.
+- [ ] **OUTR-13**: Every eligible candidate receives the deterministic 100-point score locked by the owner: title proximity 35, academic history 30, role usefulness 15, academic timing 10, shared work or internship history 5, and evidence quality 5.
+- [ ] **OUTR-14**: Academic-history scoring awards only the strongest supported level—exact program or major above school or college above university—and academic timing ranks overlapping attendance above nearby attendance while unknown timing remains neutral.
+- [ ] **OUTR-15**: Role-usefulness scoring gives highest preference to a relevant team lead or manager without allowing an excessively senior candidate, while title-proximity scoring separately prefers exact and closely related roles.
+- [ ] **OUTR-16**: A
+  completed search returns one to five highest-ranked qualified profiles when at least one qualifies, uses deterministic tie-breaking and canonical URL deduplication, and never pads the list with weak or ineligible candidates.
 
-### Resume Management
+### Results and Lifecycle
 
-- [x] **RESU-01**: User can upload and manage multiple base resumes as DOCX files, stored in private encrypted storage
+- [ ] **OUTR-17**: User sees and the system persists only each selected candidate's canonical LinkedIn profile URL and one short match reason containing the candidate's current title, plus the minimum owner, application, order, status, and timestamp metadata required to operate the feature.
+- [ ] **OUTR-18**: A match reason includes only facts supported by transient public evidence, labels uncertain inference with “Likely” or omits it, and never persists or displays the internal score, person name as a separate field, full profile, source page, snippet, or unmatched facts.
+- [ ] **OUTR-19**: A successful manual refresh atomically replaces the prior result set, including replacing it with a valid no-match state, while a failed or coverage-unknown refresh preserves the last successful results with an explicit warning instead of presenting them as fresh.
+- [ ] **OUTR-20**: Saved outreach results remain isolated to their owner and are permanently removed by manual clear, application deletion, or a canonical stage transition to Offer or Rejected; later returning the application to an active stage does not restore deleted results.
 
-### Tracker
+## Future Requirements
 
-- [x] **TRAK-01**: User can track each application through exactly six stages: Ready to Apply, Applied, Outreach Sent, Interview, Offer, and Rejected
-- [x] **TRAK-02**: User can manually add a job to the tracker (jobs found outside the system)
-- [x] **TRAK-03**: User can attach notes to each tracked application
-- [x] **TRAK-04**: Tracked application links its preserved JD context and, when available, a resume the user prepared manually outside the app
+Deferred beyond v1.1 and excluded from the current roadmap.
 
-## v2 Requirements
+### Outreach Depth
 
-Deferred to future release. Tracked but not in current roadmap.
-
-### Outreach
-
-- **OUTR-01**: User can request likely hiring contacts for a job (heuristic email patterns, manual verification, no paid APIs)
-- **OUTR-02**: User can generate email and LinkedIn outreach drafts; nothing sent without approval; LinkedIn messages sent manually
-- **OUTR-03**: User can generate cover letters / follow-up emails
+- **OUTR-01**: User can request likely contact details for a selected person through a rights-cleared data source.
+- **OUTR-02**: User can generate email and LinkedIn outreach drafts; nothing is sent without explicit approval and LinkedIn messages remain manual.
+- **OUTR-03**: User can generate cover letters or follow-up emails.
+- **OUTR-21**: User can manually confirm or enrich one profile they opened through an explicit single-record clipper.
+- **OUTR-22**: System can use a sufficiently valuable, explicitly imported connections graph to identify first-degree relationships.
+- **OUTR-23**: System can use a rights-cleared fallback search provider when the primary provider is unavailable or lacks coverage.
 
 ### Enhancements
 
-- **ENHC-01**: Save-to-tracker from arbitrary URL (paste a LinkedIn link, parse basics)
-- **ENHC-02**: Companion browser extension for form autofill on employer application pages
+- **ENHC-01**: User can save an arbitrary job URL to the tracker and parse its basic position details.
+- **ENHC-02**: User can use a companion browser extension for employer-application form autofill.
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| LinkedIn logged-in scraping, Easy Apply automation, auto-sent LinkedIn messages | Platform policy violation, account risk — explicit PROJECT.md exclusion |
-| Auto-apply / mass apply | Policy violations and garbage applications; speed the human up instead |
-| Full resume builder with templates | Would destroy the DOCX-preservation differentiator; users have polished resumes |
-| Gamified ATS match score ("get to 80!") | Encourages keyword stuffing; conflicts with truthful-edits principle |
-| Kanban drag-drop board | Table + stage column suffices for 2 users |
-| Paid contact-discovery APIs (Hunter/Apollo) | Near-zero cost constraint |
-| Native mobile/desktop app | Web app covers the need for 2 users |
-| Multi-tenant/public signup | Invite-only, two users, by design |
-| Interview prep / salary tools / analytics | Teal-style feature sprawl; stay narrow |
-| Browser push, email alerts, alert tuning, and notification ledger (NOTF-01..04) | Removed by owner on 2026-07-19; the product is feed-only |
-| Automated resume tailoring (former RESU-02..05) | Removed by owner on 2026-07-27; resumes will be tailored manually outside the app |
+| LinkedIn Connections CSV in v1.1 | The roughly 500-person graph is unlikely to yield enough company-and-role matches to justify sensitive graph-data handling |
+| Automatic connection-status detection | The selected public-search path does not know first-degree relationship status |
+| Single-profile clipper in v1.1 | Explicitly deferred until public-search quality is understood |
+| Logged-in LinkedIn automation, profile enumeration, or direct page scraping | Conflicts with the approved human-in-the-loop posture and creates platform/account risk |
+| Email or other contact-detail discovery | v1.1 returns profile destinations only; paid contact providers violate the free-only constraint |
+| Talking points, message drafting, or automated sending | Candidate quality must be proven first; the user opens profiles and communicates manually |
+| Background outreach monitoring | Search and refresh occur only when the user requests them |
+| Saving names, full profile histories, raw source results, snippets, scores, or source pages | The approved result contract retains only URL and short title-inclusive reason |
+| Always returning five candidates | Weak-result padding would damage trust; one qualified candidate is valid |
+| Paid search or automatic pay-as-you-go | Free operation is a hard constraint |
+| The removed 30-day warm-path hit-rate or kill measurement | Explicitly deleted by the owner because the small connection graph made the metric inappropriate |
+| Google Custom Search as the v1.1 engine | Closed to new customers; the implementation remains provider-neutral and starts with a Tavily feasibility spike |
+| Native mobile/desktop app or public signup | Existing web app and two-user invite-only scope remain sufficient |
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
-
-A requirement may appear on more than one row when a later phase extends or
-replaces its implementation without inventing a new requirement ID. DISC-07,
-DISC-08, and DISC-09 were closed by Phase 02.1 and extended by Phase 03.1.
-PREF-01 and SCOR-01..05 were first closed by Phase 3 and remapped by Phase 03.4
-from automatic AI scoring to the complete deterministic ranking contract.
-The original Phase 02.1 finance matrix included Citi and Wells Fargo; the
-owner-approved Phase 03.8 scope removed both from current catalog/Watchlist
-membership while preserving the historical validation record.
-AUTH-03's owner-approved 2026-07-28 scope treats monitored companies and raw
-provider jobs as shared system data for the two invited accounts while keeping
-all user-derived data private. See `AUTH-03-SHARED-SCOPE-DECISION.md`.
+Each v1.1 requirement maps to exactly one roadmap phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Complete |
-| AUTH-02 | Phase 1 | Complete |
-| AUTH-03 | Phase 1 | Complete |
-| AUTH-04 | Phase 1 | Complete |
-| PREF-01 | Phase 3 | Complete |
-| PREF-01 | Phase 03.4 | Complete |
-| PREF-02 | Phase 2 | Complete |
-| PREF-03 | Phase 2 | Complete |
-| PREF-04 | Phase 2 | Complete |
-| PREF-05 | Phase 02.1 | Complete |
-| DISC-01 | Phase 2 | Complete |
-| DISC-02 | Phase 2 | Complete |
-| DISC-03 | Phase 2 | Complete |
-| DISC-04 | Phase 2 | Complete |
-| DISC-05 | Phase 2 | Complete |
-| DISC-06 | Phase 2 | Complete |
-| DISC-07 | Phase 02.1 | Complete |
-| DISC-07 | Phase 03.1 | Complete |
-| DISC-08 | Phase 02.1 | Complete |
-| DISC-08 | Phase 03.1 | Complete |
-| DISC-09 | Phase 02.1 | Complete |
-| DISC-09 | Phase 03.1 | Complete |
-| SCOR-01 | Phase 3 | Complete |
-| SCOR-02 | Phase 3 | Complete |
-| SCOR-03 | Phase 3 | Complete |
-| SCOR-04 | Phase 3 | Complete |
-| SCOR-05 | Phase 3 | Complete |
-| SCOR-01 | Phase 03.4 | Complete |
-| SCOR-02 | Phase 03.4 | Complete |
-| SCOR-03 | Phase 03.4 | Complete |
-| SCOR-04 | Phase 03.4 | Complete |
-| SCOR-05 | Phase 03.4 | Complete |
-| RESU-01 | Phase 3 | Complete |
-| TRAK-01 | Phase 4 | Complete |
-| TRAK-02 | Phase 4 | Complete |
-| TRAK-03 | Phase 4 | Complete |
-| TRAK-04 | Phase 4 | Complete |
+| OUTR-04 | Phase 5 | Complete |
+| OUTR-05 | Phase 5 | Complete |
+| OUTR-06 | Phase 7 | Pending |
+| OUTR-07 | Phase 6 | Pending |
+| OUTR-08 | Phase 6 | Pending |
+| OUTR-09 | Phase 7 | Pending |
+| OUTR-10 | Phase 7 | Pending |
+| OUTR-11 | Phase 7 | Pending |
+| OUTR-12 | Phase 6 | Pending |
+| OUTR-13 | Phase 6 | Pending |
+| OUTR-14 | Phase 6 | Pending |
+| OUTR-15 | Phase 6 | Pending |
+| OUTR-16 | Phase 6 | Pending |
+| OUTR-17 | Phase 7 | Pending |
+| OUTR-18 | Phase 7 | Pending |
+| OUTR-19 | Phase 7 | Pending |
+| OUTR-20 | Phase 7 | Pending |
 
 **Coverage:**
 
-- v1 requirements: 28 total
-- Mapped to phases: 28
+- v1.1 requirements: 17 total
+- Mapped to phases: 17
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-07-15*
-*Last updated: 2026-07-28 after Phase 4's six-stage tracker lifecycle was finalized*
+*Requirements defined: 2026-07-28*
+*Last updated: 2026-07-28 after roadmap traceability mapping*

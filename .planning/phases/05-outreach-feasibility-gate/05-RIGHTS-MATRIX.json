@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "phase": "05",
+  "researched_at": "2026-07-28",
+  "valid_until": "2026-08-04",
+  "sources": [
+    {
+      "source_id": "linkedin-user-agreement",
+      "official_url": "https://www.linkedin.com/legal/user-agreement",
+      "source_date_marker": "Effective 2025-11-03",
+      "retrieved_at": "2026-07-28T00:00:00Z",
+      "clause_id": "8.2(4), 8.2(12), and section 8 permission preface",
+      "short_paraphrase": "Search-tool-derived LinkedIn information and non-excepted deep links require the identified consent or permission; public visibility alone does not grant it.",
+      "evidence_sha256": "bc8d873fd7caa87a8be5088b532efc717e51da4e05763d1416b2d45bb029366a"
+    },
+    {
+      "source_id": "linkedin-crawling-terms",
+      "official_url": "https://www.linkedin.com/legal/crawling-terms",
+      "source_date_marker": "Last revised 2017-05-25",
+      "retrieved_at": "2026-07-28T00:00:00Z",
+      "clause_id": "Permission and permitted-use provisions",
+      "short_paraphrase": "Automated crawling requires express permission, and approved crawler use is limited unless separately authorized.",
+      "evidence_sha256": "e1034ce82f3c10b8e926ffd215d500f82380179174e9040060985167ac9aa185"
+    },
+    {
+      "source_id": "linkedin-robots",
+      "official_url": "https://www.linkedin.com/robots.txt",
+      "source_date_marker": "HTTP Last-Modified 2026-06-30",
+      "retrieved_at": "2026-07-28T00:00:00Z",
+      "clause_id": "Automated-access notice and User-agent wildcard rules",
+      "short_paraphrase": "The notice rejects unauthorized automated access and the wildcard rules disallow crawling; separately approved search engines are not evidence of Tavily authority.",
+      "evidence_sha256": "fc9ec234a2e9f8ad8b75b7211d47d705324be45da09623ef76c846c5eec6d7e0"
+    },
+    {
+      "source_id": "linkedin-public-profile-visibility",
+      "official_url": "https://www.linkedin.com/help/linkedin/answer/a520838/",
+      "source_date_marker": "Relative update marker displayed at review",
+      "retrieved_at": "2026-07-28T00:00:00Z",
+      "clause_id": "Public profile visibility and search-engine refresh guidance",
+      "short_paraphrase": "Members can expose a simplified public profile to search tools, but visibility and index availability do not grant downstream display or persistence rights.",
+      "evidence_sha256": "d2ce7ff0a7f03682688adc5f1695b75c4de9af720c3673ae0021e8504dbc6af8"
+    },
+    {
+      "source_id": "tavily-platform-terms",
+      "official_url": "https://www.tavily.com/terms",
+      "source_date_marker": "Last updated 2026-05-04",
+      "retrieved_at": "2026-07-28T00:00:00Z",
+      "clause_id": "Output, Customer Application, third-party rights, and retention provisions",
+      "short_paraphrase": "The reviewed terms allow documented API integration for internal business purposes but do not expressly clear this exact search, review, persistence, cache, or third-party-rights flow.",
+      "evidence_sha256": "205d4318ae71f304b3d38e6b7e411aac96044dbaa016225ed77c61adda815ae0"
+    },
+    {
+      "source_id": "tavily-acceptable-use-policy",
+      "official_url": "https://www.tavily.com/acceptable-use-policy",
+      "source_date_marker": "Last updated 2026-05-05",
+      "retrieved_at": "2026-07-28T00:00:00Z",
+      "clause_id": "Third-party obligations and unsolicited promotional communications provisions",
+      "short_paraphrase": "Customers remain responsible for third-party obligations, and the policy does not expressly classify applicant-initiated one-to-one networking under its communications restriction.",
+      "evidence_sha256": "6033919cbe9440f061c8bccc6993e683787793da5567348ae04a0216e86dd709"
+    },
+    {
+      "source_id": "tavily-privacy-policy",
+      "official_url": "https://www.tavily.com/privacy",
+      "source_date_marker": "Last updated 2025-11-24",
+      "retrieved_at": "2026-07-28T00:00:00Z",
+      "clause_id": "Query sharing, retention, and deletion provisions",
+      "short_paraphrase": "Queries may reach third-party search-index providers, and retention or deletion may depend on operational, legal, account, or contractual needs.",
+      "evidence_sha256": "a11e88f26376c9f2540968f50bcfb5c2b4e4223e602be27439784d6437c068cc"
+    },
+    {
+      "source_id": "tavily-faq-retention",
+      "official_url": "https://docs.tavily.com/faq/faq",
+      "source_date_marker": "No revision date displayed",
+      "retrieved_at": "2026-07-28T00:00:00Z",
+      "clause_id": "Zero data retention FAQ entry",
+      "short_paraphrase": "The broad zero-retention statement does not define the free-plan boundary or reconcile the platform terms, privacy language, subprocessors, backups, and deletion timing.",
+      "evidence_sha256": "76839d43ffa3d83c0f482f55483714939aa16c16dfc73873f5bfe9edb3314b11"
+    }
+  ],
+  "operations": [
+    {
+      "operation": "public_search",
+      "required": true,
+      "status": "PROHIBIT",
+      "evidence_refs": [
+        "linkedin-user-agreement",
+        "linkedin-crawling-terms",
+        "linkedin-robots",
+        "linkedin-public-profile-visibility",
+        "tavily-platform-terms"
+      ]
+    },
+    {
+      "operation": "transient_owner_review",
+      "required": true,
+      "status": "PROHIBIT",
+      "evidence_refs": [
+        "linkedin-user-agreement",
+        "tavily-platform-terms"
+      ]
+    },
+    {
+      "operation": "persist_profile_url",
+      "required": true,
+      "status": "PROHIBIT",
+      "evidence_refs": [
+        "linkedin-user-agreement",
+        "tavily-platform-terms"
+      ]
+    },
+    {
+      "operation": "persist_title_reason",
+      "required": true,
+      "status": "PROHIBIT",
+      "evidence_refs": [
+        "linkedin-user-agreement",
+        "tavily-platform-terms"
+      ]
+    },
+    {
+      "operation": "manual_networking_purpose",
+      "required": true,
+      "status": "AMBIGUOUS",
+      "evidence_refs": [
+        "tavily-acceptable-use-policy"
+      ]
+    },
+    {
+      "operation": "delete_local_raw_responses",
+      "required": true,
+      "status": "ALLOW",
+      "evidence_refs": [
+        "linkedin-user-agreement",
+        "tavily-privacy-policy"
+      ]
+    },
+    {
+      "operation": "provider_retention",
+      "required": true,
+      "status": "AMBIGUOUS",
+      "evidence_refs": [
+        "tavily-platform-terms",
+        "tavily-privacy-policy",
+        "tavily-faq-retention"
+      ]
+    },
+    {
+      "operation": "company_level_cache",
+      "required": false,
+      "status": "AMBIGUOUS",
+      "evidence_refs": [
+        "linkedin-user-agreement",
+        "tavily-platform-terms"
+      ]
+    }
+  ],
+  "rights_evidence_sha256": "396724c36df4a40541cb8d385d0e8e2ca6e9f04c2c0b4736955a3fe11c65d161"
+}

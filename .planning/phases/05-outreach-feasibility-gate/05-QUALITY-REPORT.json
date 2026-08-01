@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "phase": "05",
+  "status": "NOT_RUN_RIGHTS_NO_GO",
+  "rights_status": "RIGHTS_NO_GO",
+  "search_authorized": false,
+  "rights_evidence_sha256": "396724c36df4a40541cb8d385d0e8e2ca6e9f04c2c0b4736955a3fe11c65d161",
+  "quality_evidence_sha256": "4e1dc7ab58c697f48ef7e8ff5bfa1a676cc53c9965929680098b8a61cf37011c",
+  "cases": [],
+  "provider_call_count": 0,
+  "fixture_count": 0,
+  "raw_result_count": 0,
+  "production_mutation_count": 0
+}

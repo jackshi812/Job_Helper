@@ -1,0 +1,18 @@
+{
+  "algorithm": "ssh-ed25519",
+  "fingerprint_sha256": "SHA256:FPrmyBVv+PxnI9UpEajtjjV3B4bQQqFcyL1duuN+IhI",
+  "git_identity": "jackshi812 <jack.s@wustl.edu>",
+  "github_account": "jackshi812",
+  "github_public_url": "https://github.com/jackshi812",
+  "github_signing_key_created_at": "2026-07-30T03:39:43.371Z",
+  "github_signing_key_record_id": 1081409,
+  "github_signing_key_title": "Job Copilot owner signing",
+  "namespace": "job-copilot-phase-05-owner-v1",
+  "not_before": "2026-07-30T03:39:43.371Z",
+  "phase": "05",
+  "principal": "jackshi812",
+  "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG2D1nrByiQxldOhXWZnd4TlyKq67wGblKkgCNyWtGC8",
+  "revoked_at": null,
+  "schema_version": 1,
+  "status": "ACTIVE"
+}

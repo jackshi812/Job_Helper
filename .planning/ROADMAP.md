@@ -1,646 +1,220 @@
 # Roadmap: Job Application Copilot
 
+## Milestones
+
+- ✅ **v1.0 MVP** — Phases 1–4 plus inserted source/ranking phases; shipped
+  2026-07-28
+  ([roadmap archive](milestones/v1.0-ROADMAP.md),
+  [requirements archive](milestones/v1.0-REQUIREMENTS.md),
+  [final audit](milestones/v1.0-MILESTONE-AUDIT.md))
+
+- ⛔ **v1.1 Outreach Intelligence** — Phase 5 only; rights no-go accepted; no production outreach search; any redesign requires a separately scoped owner decision
+
 ## Overview
 
-Four vertical phases plus inserted source-coverage phases, each ending with something two real users can exercise end-to-end. Phase 1 stands up the deployed app with invite-only auth and airtight isolation of personal data. Phase 2 builds the shared monitored-company and raw-provider-job ingestion engine. Phase 02.1 broadens that engine from three public ATS APIs to representative public portals and major branded finance career sites before ranking depends on it. Phase 3 closes the relevance loop with private filtering, deterministic ranking, and focused feeds. Phase 4 turns matches into private manually managed applications with a focused tracker.
+v1.1 stopped at the accepted Phase 5 rights no-go. No production outreach search is authorized or implemented; a separately scoped owner redesign is required before any further outreach work.
 
 ## Phases
 
 **Phase Numbering:**
 
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+- Integer phases continue from the shipped v1.0 roadmap.
+- Decimal phases are reserved for urgent insertions after planning.
 
-Decimal phases appear between their surrounding integers in numeric order.
+<details>
+<summary>✅ v1.0 MVP (Phases 1–4 plus inserted phases) — SHIPPED 2026-07-28</summary>
 
-- [x] **Phase 1: Foundation & Access** - Deployed app with invite-only auth for two users and RLS-enforced data isolation (completed 2026-07-16)
-- [x] **Phase 2: Watchlist Ingestion & Monitoring** - New postings from 100+ watched sites land deduplicated within 5–15 minutes, with visible pipeline health (completed 2026-07-17)
-- [ ] **Phase 02.1: Source Coverage Expansion (INSERTED)** - Prove representative ATS/portal connectors and direct ingestion from major branded finance career sites with safe degraded-source behavior (13/13 plans executed; user-deferred UAT gap)
-- [x] **Phase 3: Scoring & Feed** - Preferences + cheap filters + AI scoring produce a focused match feed (completed 2026-07-20)
-- [x] **Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)** - Reusable, fail-closed Workday identities with Fidelity admitted through the Watchlist flow and scheduled ingestion (completed 2026-07-24)
-- [x] **Phase 03.6: US-Only Workday Expansion & Dashboard Queue (INSERTED)** - Add four exact U.S.-only Workday sources while preventing dismissed and applied jobs from consuming the active Dashboard window (completed 2026-07-25)
-- [x] **Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)** - Default watchlist-only jobs view with the combined feed preserved as All Jobs (completed 2026-07-25)
-- [x] **Phase 4: Application Tracker** - Manual application tracking from Ready to Apply through terminal outcomes, including external jobs, notes, JD snapshots, and optional links to resumes prepared outside the app (completed 2026-07-28)
+The complete historical phase and plan record is preserved in
+[the v1.0 roadmap archive](milestones/v1.0-ROADMAP.md).
+
+</details>
+
+### 🚧 v1.1 Outreach Intelligence
+
+**Milestone Goal:** Let a user request a public-source outreach search for an
+active application and receive one to five credible LinkedIn profile URLs with
+simple, evidence-grounded reasons, while remaining manual, private, free-only,
+and honest about unknown coverage.
+
+- [ ] **Phase 5: Outreach Feasibility Gate** — Prove the selected public-web path is permitted, useful, and free enough before production implementation
 
 ## Phase Details
 
-### Phase 1: Foundation & Access
+### Phase 5: Outreach Feasibility Gate
 
-**Goal**: Two invited users can securely access the deployed app, with personal data fully isolated and under their own control while the monitored-company/raw-job system catalog is shared
-**Mode:** mvp
-**Depends on**: Nothing (first phase)
-**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04
+**Goal**: The owner can make an evidence-backed go/no-go decision on the exact
+public-web-to-LinkedIn workflow before any production result collection is
+enabled.
+**Depends on**: Phase 4
+**Requirements**: OUTR-04, OUTR-05
 **Success Criteria** (what must be TRUE):
 
-  1. Each of the two invited users can log in with email/password at the deployed URL, and no public signup path exists
-  2. User remains logged in after a browser refresh
-  3. Logged in as either account, no query or API call can read or modify the other user's personal rows (preferences, resumes, ranking state/results, dismissals, applications, or tracker events); monitored companies and raw provider jobs are the explicit shared exception
-  4. User can delete all personal job data and resume storage objects while retaining their login/profile and the shared company/job catalog
+  1. The owner can review the exact proposed search, display, persistence, cache, and deletion flow against the selected provider's current rights and LinkedIn's current policy, then explicitly accept or reject that posture.
+  2. A disposable, non-production spike evaluates 6–10 representative applications across at least three companies and reports qualifying LinkedIn URL recall, current-company/title evidence, query usage, and unknown/failure outcomes.
+     Phase 5 terminal branch: the D-09/D-10 rights prerequisite did not clear, so D-12 preserves that 6–10 application, three-company representative spike only as conditional intent; the accepted `RIGHTS_NO_GO` instead requires `NOT_RUN_RIGHTS_NO_GO`, zero representative cases and provider calls, no recall/company/title quality claim, and disabled production outreach.
 
-**Plans**: 3/3 plans complete
+  3. The owner records a clear go decision only if both the rights/posture review and the representative search-quality evidence are acceptable; a no-go keeps production search disabled and stops or redirects the milestone before later phases.
+     Phase 5 terminal branch: the receipt-bound owner no-go accepts D-13, selects no redesign, and stops the milestone at Phase 5 while production outreach remains disabled.
+
+**Plans**: 20/23 plans executed
+Phase 5 final plan count (the immutable source-snapshot line above is retained for audit): **Plans**: 10/10 plans executed
+Phase 5 current gap-closure cycle: **Plans**: 19/23 plans executed
 
 Plans:
+
+- [ ] 05-20-PLAN.md
+- [x] 05-21-PLAN.md
+- [ ] 05-22-PLAN.md
+- [ ] 05-23-PLAN.md
+
+- [x] 05-01-PLAN.md — Freeze current rights evidence and prove the quality spike was not run.
+- [x] 05-02-PLAN.md — Preserve the dormant spike contract and prepare decision/residue tooling.
+- [x] 05-03-PLAN.md — Obtain the owner's exact evidence-bound no-go attestation.
+- [x] 05-04-PLAN.md — Prove Git-complete zero residue, finalize the no-go, and remove downstream roadmap admission.
+- [x] 05-05-PLAN.md — Close the future-evidence authorization bypass while preserving the accepted rights-first no-go for OUTR-04 and OUTR-05.
+- [x] 05-06-PLAN.md — Create the immutable baseline and independent owner-checkpoint evidence contracts required to repair the accepted no-go trust chain.
+- [x] 05-07-PLAN.md — Obtain and independently preserve a fresh owner checkpoint for the already accepted Phase 5 rights-first terminal no-go.
+- [x] 05-08-PLAN.md — Replace the hollow residue proof with byte-complete, immutable-baseline-bound, live-validated evidence.
+- [x] 05-09-PLAN.md — Finalize the trustworthy no-go evidence chain and semantically reconcile the literal OUTR-05/roadmap contract to the owner-accepted rights-first terminal outcome.
+- [x] 05-10-PLAN.md — Implement and test the read-only Phase 5 terminal auditor plus the exact post-execution invocation contract.
+- [x] 05-11-PLAN.md — Remove the dormant runner's reachable effectful branch while retaining its non-executable quality contract.
+- [x] 05-12-PLAN.md — Make accepted-evidence publication recoverable as a pair and enforce snapshot equality and canonical-time checks.
+- [x] 05-13-PLAN.md — Unify clean-review lifecycle semantics across residue and terminal consumers.
+- [x] 05-14-PLAN.md — Implement the selected OpenSSH owner-authentication mechanism with a pinned public trust anchor.
+- [x] 05-15-PLAN.md — Generate the fresh, byte-exact authorization request for owner signing.
+- [x] 05-16-PLAN.md — Obtain and verify the owner's fresh detached signature without exposing the private key.
+- [x] 05-17-PLAN.md — Require fresh owner authentication in accepted schemas and bind it into the stopped evidence pair.
+- [x] 05-18-PLAN.md — Propagate fresh owner authentication through residue, reconciliation, terminal, and adversarial checks.
+- [x] 05-19-PLAN.md — Regenerate the authenticated stopped evidence chain and hand off exact source scope to review and verification.
+
 **Wave 1**
 
-- [x] 01-01-PLAN.md — Walking skeleton: scaffold + schema + seeded invite-only login proven end-to-end
+Phase 5 plan 05-01 is listed in the complete inventory above.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [x] 01-02-PLAN.md — Resumes vertical slice (upload/list/download/delete) + two-account RLS proof
+Phase 5 plan 05-02 is listed in the complete inventory above.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [x] 01-03-PLAN.md — Settings deletion flows, Cloudflare Pages deploy, end-to-end phase verification
-
-### Phase 2: Watchlist Ingestion & Monitoring
-
-**Goal**: As a job seeker, I want to receive watched-site postings exactly once within 5-15 minutes and aggregator discovery every 30 minutes from 6 AM-noon Chicago and every two hours otherwise, so that I can trust my job feed without manually checking each career site.
-**Mode:** mvp
-**Depends on**: Phase 1
-**Requirements**: PREF-02, PREF-03, PREF-04, DISC-01, DISC-02, DISC-03, DISC-04, DISC-05, DISC-06
-**Success Criteria** (what must be TRUE):
-
-  1. User can add, edit, and remove companies on a watchlist page by pasting career-site URLs; the system auto-detects Greenhouse/Lever/Ashby and stores the polling endpoint
-  2. A job newly posted by a watched company appears in the system within 15 minutes of publication, and appears exactly once even when the aggregator also carries it or the company reposts it
-  3. Every captured job has a JD snapshot taken at first sight, and jobs that disappear from ATS polls are marked closed
-  4. User can view per-company monitoring health (last successful poll, consecutive failures flagged), and a dead or silently failing cron is surfaced within one poll cycle via the pipeline heartbeat
-
-**Plans**: 7/7 plans complete
-**UI hint**: yes
-
-Plans:
-**Wave 1**
-
-- [x] 02-01-PLAN.md — Watchlist management slice: paste URL → ATS detect → live verify → shared table with health badges
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 02-02-PLAN.md — Ingestion pipeline slice: per-minute due-queue polling, two-layer dedup, JD snapshots, stale-close, health + heartbeat writes
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 02-03-PLAN.md — Aggregator + liveness slice: Adzuna sweep on seed queries, stale-pipeline banner, external dead-man's switch
-
-**Gap Closure Wave 1** *(from 02-VERIFICATION.md gaps_found)*
-
-- [x] 02-04-PLAN.md — Job lifecycle correctness: reopen returned closed postings, truthful no-work heartbeat, close-grace regression tests
-- [x] 02-05-PLAN.md — Exclusive claims + non-destructive verification: FOR UPDATE SKIP LOCKED claim migration, disposable watchlist probe, hosted probes 13-16
-- [x] 02-06-PLAN.md — Discovery health + cadence: all-failed sweeps surface 503 + persisted status; accepted Chicago-local quota-safe schedule
-
-**Gap Closure Wave 2** *(blocked on Gap Closure Wave 1)*
-
-- [x] 02-07-PLAN.md — Deploy + hosted proof: [BLOCKING] db push 0008/0009, redeploy functions, run probes 1-16 and the rerunnable watchlist verifier
-
-### Phase 02.1: Source Coverage Expansion (INSERTED)
-
-**Goal:** As a job seeker, I want to monitor representative major-employer career platforms with honest active, experimental, degraded, and unsupported states, so that I can broaden my job coverage without trusting brittle or failing sources.
-**Mode:** mvp
-**Requirements**: PREF-05, DISC-07, DISC-08, DISC-09
-**Depends on:** Phase 2
-**Success Criteria** (what must be TRUE):
-
-  1. The Watchlist table includes a clickable Link column that opens each company's stored job-search/careers URL in a new tab
-  2. Existing Greenhouse/Lever/Ashby support remains intact, and one publicly testable company is connected and verified for each feasible additional platform: SmartRecruiters, Recruitee, Workday, Oracle Recruiting, iCIMS, SuccessFactors, and Eightfold
-  3. Direct-source coverage was historically validated for Morgan Stanley, Goldman Sachs, JPMorgan Chase, Bank of America, Citi, BlackRock, Wells Fargo, UBS, Barclays, Capital One, Fidelity, and Charles Schwab: companies with a stable, safely pollable public contract are monitored through shared or allowlisted adapters, while every company remaining in the current owner-approved catalog has a canonical careers link, provider evidence, and an explicit unsupported reason and is never labeled monitored. Phase 03.8 later removed Citi and Wells Fargo from current catalog/Watchlist membership by owner decision; their absence is the intended final state rather than a regression.
-  4. A blocked, changed, failed, or implausibly empty source retains its last known jobs, reports Degraded with the last successful sync and useful error detail, and never closes jobs from that failed observation
-  5. Every new connector passes manual verification and several successful syncs before scheduled polling is enabled; unsupported or unstable candidates remain clearly documented rather than being presented as reliable
-
-**Plans:** 13/13 plans executed
-**Status:** Gaps found — offline Watchlist removal can remain indefinitely pending; user accepted deferral without marking it passed.
-**UI hint:** yes
-
-Plans:
-
-**Wave 1**
-
-- [x] 02.1-01-PLAN.md — Existing-provider PollObservation and closure-safe degradation slice
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 02.1-02-PLAN.md — Closed registry, server-owned connector state, and authoritative verified-add slice
-
-**Wave 3** *(blocked on Wave 2; parallel UI/catalog and public-connector slices)*
-
-- [x] 02.1-03-PLAN.md — Safe Link/state UI and evidence-backed twelve-company finance catalog
-- [x] 02.1-04-PLAN.md — SmartRecruiters/Recruitee adapters, exact detection, registry dispatch, and strict source-schema parity
-
-**Wave 4** *(blocked on public connector wiring)*
-
-- [x] 02.1-05-PLAN.md — Server-time activation windows, replay rejection, and provider-specific promotion
-
-**Wave 5** *(blocked on activation policy)*
-
-- [x] 02.1-06-PLAN.md — Allowlisted Capital One Workday connector retained as Experimental
-
-**Wave 6** *(blocked on catalog, activation, and Workday implementation)*
-
-- [x] 02.1-07-PLAN.md — [BLOCKING] ordered schema push, function deploy, and resumable hosted proof across real server windows
-
-**Wave 7** *(blocked on hosted backend proof)*
-
-- [x] 02.1-08-PLAN.md — [APPROVAL] origin/main push, SHA-matched Cloudflare deployment proof, and deployed UI acceptance
-
-**Gap Closure Wave 1** *(from 02.1-VERIFICATION.md gaps_found)*
-
-- [x] 02.1-09-PLAN.md — Safe disposable hosted verifier with real poll-tick reopen proof and zero production-row residue
-- [x] 02.1-10-PLAN.md — Truthful Experimental health plus accessible in-modal removal failures
-- [x] 02.1-11-PLAN.md — Invocation-wide SmartRecruiters detail and time budgets with stable partial warnings
-
-**Gap Closure Wave 2** *(blocked on Gap Closure Wave 1)*
-
-- [x] 02.1-12-PLAN.md — [APPROVAL] exact-SHA deployment and exhaustive mutation-evidence hosted proof
-
-**Gap Closure Wave 3** *(blocked on Gap Closure Wave 2)*
-
-- [x] 02.1-13-PLAN.md — Final human D5 UAT concluded: Checks 1-4 passed; offline removal timeout failed; Checks 6-8 deferred by user
-
-### Phase 3: Scoring & Feed
-
-**Goal:** As a new grad seeking an entry-level job, I want to review relevant jobs scored against my preferences and resume in a web dashboard, so that I can quickly focus on the strongest opportunities that best fit me.
-**Mode:** mvp
-**Depends on**: Phase 02.1
-**Requirements**: PREF-01, RESU-01, SCOR-01, SCOR-02, SCOR-03, SCOR-04, SCOR-05
-**Success Criteria** (what must be TRUE):
-
-  1. User can set target titles, locations, and include/exclude keywords, and obviously irrelevant postings are discarded by cheap filters before any AI call is made
-  2. User can upload and manage multiple DOCX base resumes in private encrypted storage, and surviving postings receive AI scores with plain-language match reasons grounded in that resume and the user's preferences
-  3. User can view a dashboard feed of new matches showing score, match reasons, posted-time, and a direct link to the employer's apply page, plus a job detail view with the full JD snapshot and an advisory keyword-gap panel
-
-**Plans**: 11/11 plans executed; verification gaps remain
-
-- [x] 03-01-PLAN.md
-- [x] 03-02-PLAN.md
-- [x] 03-03-PLAN.md
-- [x] 03-04-PLAN.md
-- [x] 03-05-PLAN.md — notification backend (superseded and removed by Plan 07)
-- [x] 03-06-PLAN.md — notification UI (superseded and removed by Plan 07)
-- [x] 03-07-PLAN.md — feed-only implementation and hosted cleanup complete; UAT title-filter gap transferred to Plans 08-11
-
-**Gap Closure Wave 1** *(blocked on Plan 07 completion)*
-
-- [x] 03-08-PLAN.md — provider-agnostic title relevance, score freshness/CAS, truthful company persistence, and verifier latch
-
-**Gap Closure Wave 2** *(blocked on Gap Closure Wave 1)*
-
-- [x] 03-09-PLAN.md — current-preference focused feed, truthful company display, and save-time cache invalidation
-
-**Gap Closure Wave 3** *(blocked on Gap Closure Wave 2)*
-
-- [x] 03-10-PLAN.md — fail-closed verifier, rollout-only approval, deployment, and release evidence
-
-**Gap Closure Wave 4** *(blocked on Gap Closure Wave 3)*
-
-- [x] 03-11-PLAN.md — separately approved one-shot paid proof and sequential human UAT
-
-**Cross-cutting constraints:**
-
-- All Adzuna, Greenhouse, and Ashby jobs use the same preference/title filter; no source-specific relevance bypass.
-- Company names must come from normalized provider/company data and are never fabricated.
-- Notifications remain absent from runtime, schema, secrets, client, and UI.
-- Production verification is one-shot, two-fixture scoped, exact-release bound, and separately approved from rollout.
-
-**UI hint**: yes
-
-### Phase 03.10: Goldman Sachs Selective Higher Monitoring (INSERTED)
-
-**Goal:** Monitor Goldman Sachs through the exact `goldman_higher:roles` Higher contract, ingesting only complete United States Early Career and Professional roles posted within the owner-approved rolling 720 hours with approved provider-owned category evidence and exact Oracle Apply links, while preserving truthful selective lifecycle behavior.
-**Requirements**: DISC-01, DISC-07, DISC-08, DISC-09
-**Depends on:** Phase 3
-**Success Criteria** (what must be TRUE):
-
-1. Only the frozen Goldman Higher identity and exact `/results`/legacy `/roles` navigation aliases are accepted; any network, GraphQL, or Oracle Apply coordinate drift fails closed before persistence or closure.
-2. Independent Early Career and Professional listings reconcile every page and selected detail; each persisted job proves exact U.S., list/detail `startDate` within 720 hours, one of the seven approved provider terms, allowed population, complete description, and exact Oracle Apply URL.
-3. Every Goldman observation has `allowMissingClosure=false`; aged provider-open jobs remain open and disappear only from the current Active feed.
-4. Goldman reaches Active only after exact live terminal proof, three distinct clean server-timed observations, replay/same-window rejection, and a later healthy natural scheduled poll; otherwise it remains precise Unsupported with no operational authority.
-5. The forward-only exact-release rollout preserves every sibling source and real user row outside ordinary scheduler timestamps, leaves zero verifier residue, and receives final approval only from the owner's existing signed-in browser.
-
-**Plans:** 6/6 plans complete
-**Status:** Completed 2026-07-27
-
-Plans:
-
-**Wave 1**
-
-- [x] 03.10-01-PLAN.md — Implement the frozen two-population Goldman observation contract, later widened by owner approval to 720 hours
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 03.10-02-PLAN.md — Integrate Goldman evidence into persistence, activation, scheduling, and Active-feed aging
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 03.10-03-PLAN.md — Build and test the manifest-aware rollout controller without freezing release identity
+Phase 5 plan 05-03 is listed in the complete inventory above.
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [x] 03.10-04-PLAN.md — Build and behavior-test activation, hosted verification, cleanup, and owner-UAT tooling
+Phase 5 plan 05-04 is listed in the complete inventory above.
 
-**Wave 5** *(blocked on all rollout, activation, hosted-verification, UAT-helper, and safety-test tooling)*
+**Wave 10** *(gap closure; 05-11 and 05-12 may run in parallel)*
 
-- [x] 03.10-05-PLAN.md — Finalize the immutable source-commit-bound manifest and exact approval tokens over all completed executable and test bytes
+Phase 5 plans 05-11 and 05-12 are listed in the complete inventory above.
 
-**Wave 6** *(blocked on immutable manifest finalization and owner approvals)*
+**Wave 11** *(blocked on Wave 10 completion)*
 
-- [x] 03.10-06-PLAN.md — Push only manifest-covered bytes, activate or terminalize Unsupported, verify isolation, clean up, and complete owner-browser UAT
+Phase 5 plan 05-13 is listed in the complete inventory above.
 
-### Phase 03.9: JPMorgan Chase Selective Oracle Monitoring (INSERTED)
+**Wave 12** *(blocked on Waves 10–11 completion)*
 
-**Goal:** Monitor JPMorgan Chase through its exact Oracle `CX_1001` contract, ingesting only United States jobs posted within seven days in the approved Finance, Data & Analytics, Risk, Product/Investment Management, Strategy & Development, and Program Analysts & Associate families, while preserving safe rolling-window lifecycle behavior.
-**Requirements**: DISC-01, DISC-07, DISC-08, DISC-09
-**Depends on:** Phase 03.8
-**Success Criteria** (what must be TRUE):
+Phase 5 plan 05-14 is listed in the complete inventory above.
 
-1. The exact JPMorgan Oracle identity accepts only site `CX_1001`, the exact United States facet, posting-date facet `7`, and the six approved provider-owned title-family facets; caller-controlled or drifted coordinates fail before or during provider access.
-2. Every persisted JPMorgan job has stable-ID, exact U.S., recent posting-date, exact provider-family, full-detail, and bounded digest evidence and then follows the normal user preference pipeline.
-3. Complete selective observations reconcile every requested slice and detail but always set `allowMissingClosure=false`; missing, stale, capped, timed-out, or drifted observations retain last-known jobs and close none.
-4. JPMorgan activates independently only after positive exact live proof, three clean server-timed observations, and one healthy natural scheduled poll; at least one eligible job is persisted on the exact approved release.
-5. A forward-only migration and hash-bound rollout reauthorize only `oracle:jpmc:CX_1001`, preserve every sibling provider and active Workday source, require explicit production approval, and leave zero verifier residue.
+**Wave 13** *(blocked on Wave 12 completion)*
 
-**Plans:** 2/2 plans executed
-**Status:** Completed 2026-07-26
+Phase 5 plan 05-15 is listed in the complete inventory above.
 
-Plans:
+**Wave 14** *(blocked owner-signing checkpoint)*
 
-**Wave 1**
+Phase 5 plan 05-16 is listed in the complete inventory above.
 
-- [x] 03.9-01-PLAN.md — Build and freeze the exact selective JPMorgan Oracle release
+**Wave 15** *(blocked on Wave 14 completion)*
 
-**Wave 2** *(blocked on Wave 1 completion)*
+Phase 5 plan 05-17 is listed in the complete inventory above.
 
-- [x] 03.9-02-PLAN.md — Approve, deploy, activate, verify, and complete owner-browser UAT
+**Wave 16** *(blocked on Wave 15 completion)*
 
-### Phase 03.8: Monitor and poll the branded banking companies currently on watchlist (INSERTED)
+Phase 5 plan 05-18 is listed in the complete inventory above.
 
-**Goal:** Truthfully determine current monitoring support for Morgan Stanley, Goldman Sachs, JPMorgan Chase, Bank of America, BlackRock, UBS, Barclays, and Charles Schwab, activating only exact Workday identities that prove complete U.S. polling while preserving safe degraded-source behavior and removing Citi/Wells Fargo from the Phase 03.8 Watchlist scope.
-**Requirements**: DISC-01, DISC-07, DISC-08, DISC-09 (bounded extension; no new requirement ID)
-**Depends on:** Phase 3
-**Success Criteria** (what must be TRUE):
+**Wave 17** *(blocked on Wave 16 completion)*
 
-1. Every revised target has either an exact reviewed monitored identity or a current precise `unsupported_with_reason` outcome; Citi and Wells Fargo have no Phase 03.8 catalog/Watchlist row, and unsupported rows are never labeled monitored.
-2. The four Workday candidates accept only their exact server-owned identities, activate only from complete exact United States scope, and treat missing, ignored, heuristic, incomplete, or drifted country evidence as closure-ineligible.
-3. Candidate sources start Experimental at 0/3, activate independently only after three positive clean server-timed observations, and every newly Active family completes one healthy natural scheduled poll on the exact release.
-4. Polling remains bounded and staggered; one company failure cannot block siblings, close last-known jobs, or bypass close/reopen, heartbeat, authorization, or health contracts.
-5. Capital One and Fidelity remain unchanged Active Workday regression sources and are neither re-onboarded nor required to produce a new Phase 03.8 natural poll.
-6. Immutable migrations 0040/0041 remain unchanged, 0042 retains its verifier finish repair, and the exact 0042/0043/0044 migration/function releases pass explicit production approval, hosted parity/cleanup checks, and produce at least one eligible persisted job per newly Active Workday source.
-
-**Plans:** 7/7 plans executed
-
-Plans:
-**Wave 1**
-
-- [x] 03.8-01-PLAN.md — Freeze exact identities, U.S./category scope, evidence, and concurrency contracts
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 03.8-02-PLAN.md — Implement strict Eightfold, Oracle Recruiting, and Goldman Higher candidate adapters
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 03.8-03-PLAN.md — Wire exact verification, Experimental observation, and bounded Active polling
-
-**Wave 4** *(blocked on Wave 3 completion)*
-
-- [x] 03.8-04-PLAN.md — Add forward migration 0040 for truthful catalog, staged activation, and staggered claims
-
-**Wave 5** *(blocked on Wave 4 completion)*
-
-- [x] 03.8-05-PLAN.md — Approve and deploy the exact schema/function release with hosted parity proof
-
-**Wave 6** *(blocked on Wave 5 completion)*
-
-- [x] 03.8-06-PLAN.md — Extend the generic Workday contract, add forward migration 0043, and prepare an exact local-only release
-
-**Wave 7** *(blocked on Wave 6 completion)*
-
-- [x] 03.8-07-PLAN.md — Approve and deploy 0042/0043, resolve each Workday candidate independently, clean verifier authority, and complete signed-in Watchlist UAT
-
-**Post-plan recovery extension (complete):** Added a bounded seven-day
-exact-U.S. selective Workday contract, deployed the Experimental allowlist
-repair, and applied migration 0044 for exact selective scope evidence. Morgan
-Stanley, Bank of America, BlackRock, and Barclays are all Active at 3/3 with
-healthy natural polls and 111/13/37/15 persisted eligible jobs respectively.
-
-### Phase 03.7: Watchlist-First Jobs Dashboard (INSERTED)
-
-**Goal:** Prioritize postings from explicitly watched companies by making a watchlist-only jobs dashboard the default destination while preserving the existing combined watchlist-plus-external Dashboard as a secondary All Jobs view.
-**Requirements**: SCOR-04; reuse the existing feed, deterministic-ranking, lifecycle, and watchlist contracts without schema, ingestion, or provider changes
-**Depends on:** Phase 3
-**Success Criteria** (what must be TRUE):
-
-1. The default jobs destination shows only current preference-eligible postings linked to companies explicitly present in the Watchlist.
-2. The existing combined watchlist-plus-external Dashboard remains available as a clearly labeled secondary All Jobs view rather than being duplicated or removed.
-3. The watchlist-only view retains the existing company filter, deterministic score and tier controls, sorting, lifecycle actions, job details, safe apply links, active queue behavior, accessibility, responsive layout, and table interactions.
-4. The watchlist-only restriction is derived from the existing normalized job-to-company relationship and fails closed: externally discovered jobs without a watched-company relationship never appear there.
-5. The implementation reuses the current feed and Dashboard components and introduces no database migration, ingestion/provider change, company directory, external-only page, or new persistence contract.
-
-**Plans:** 1/1 plan complete; exact release deployed and hosted UAT passed
-
-Plans:
-
-- [x] 03.7-01-PLAN.md — Reuse the current Dashboard for a default watchlist-only view and secondary combined All Jobs view
-
-### Phase 03.6: US-Only Workday Expansion & Dashboard Queue (INSERTED)
-
-**Goal:** Add Nasdaq, S&P Global, Morningstar, and State Street as exact U.S.-only Workday sources while ensuring dismissed and applied jobs do not consume the active 200-job Dashboard window.
-**Requirements**: Source-coverage extension with a bounded precursor to Phase 4 application tracking; no formal requirement IDs are remapped
-**Depends on:** Phase 03.5
-**Success Criteria** (what must be TRUE):
-
-  1. Nasdaq, S&P Global, Morningstar, and State Street are admitted only through their exact validated Workday tenant/region/site identities; malformed, lookalike, and unregistered identities remain fail-closed
-  2. Each new source ingests only United States jobs using live provider country-facet evidence, including Morningstar's nested country facet, with complete-count reconciliation before closure is credible
-  3. The four sources follow the existing Experimental-to-Active observation model, while Capital One, Fidelity, other connectors, deterministic ranking, and source health remain unchanged
-  4. The normal Dashboard excludes dismissed and applied rows in the database query before applying the active 200-row limit, so those lifecycle states do not consume active-job slots
-  5. A user can mark a job applied, undo that action, and review applied or dismissed jobs separately; the state is per-user, reversible, RLS-protected, and does not delete the shared job
-  6. The Dashboard can retrieve eligible jobs beyond the first 200 through cursor pagination or a Load more interaction without duplicates or unstable ordering
-
-**Plans:** 5/5 plans complete
-
-Plans:
-
-**Wave 1**
-
-- [x] 03.6-01-PLAN.md — Exact four-source Workday registry, U.S. facet discovery, and fail-closed isolation
-
-**Wave 2** *(blocked on 03.6-01)*
-
-- [x] 03.6-02-PLAN.md — Forward-only lifecycle/source schema and server-authoritative Dashboard paging
-
-**Wave 3** *(blocked on 03.6-02)*
-
-- [x] 03.6-03-PLAN.md — Accessible Active/Applied/Dismissed queue, Load more, Undo, backfill, and caught-up UI
-
-**Wave 4** *(blocked on all implementation plans)*
-
-- [x] 03.6-04-PLAN.md — [BLOCKING] Exact-release schema/function/web approval and hosted verification
-
-**Wave 5** *(blocked on exact-release hosted verification)*
-
-- [x] 03.6-05-PLAN.md — [BLOCKING] Signed-in desktop and narrow-width deployed UAT
-
-### Phase 03.5: Generic Workday Connector & Fidelity (INSERTED)
-
-**Goal:** As a job seeker, I want to paste a Workday career URL and be able to receive job opportunities from the URL's company, so that I can monitor that company's opportunities without repeatedly checking its career site.
-**Mode:** mvp
-**Depends on**: Phase 03.4
-**Success Criteria** (what must be TRUE):
-
-  1. The Workday adapter is parameterized over origin/tenant/site and correctly polls both real Workday URL shapes (`{tenant}.{region}.myworkdayjobs.com/{site}` and `{region}.myworkdaysite.com/.../recruiting/{tenant}/{site}`), verified against Capital One (unchanged) and Fidelity
-  2. A user can paste the Fidelity board URL into the Watchlist UI and `verify-board` detects Workday, parses tenant/region/site, and admits it as a valid source — while still rejecting any URL that does not resolve to a live CXS endpoint
-  3. A new forward-only migration admits non–Capital-One Workday identities (relaxing the 0028 single-identity guardrail to an allowlist/general model) without editing any deployed migration
-  4. Fidelity ingestion is category-scoped to exclude the Sales, Customer Service, and Sales Support job families; the existing downstream dashboard filters (not the connector) enforce the experience rule
-  5. Fidelity follows the Capital One activation model (Experimental, auto-promoting to Active after clean observation windows) and reports health via the existing OK/Degraded/Unsupported badges
-  6. Capital One ingestion, all other connectors, and the deterministic feed are unchanged; every push or deploy receives a new exact-release approval, with final accepted release `edccac2dd1728a86a8ffa431f4d36bb1e10bff5c`
-
-**Requirements**: (connector expansion — no new REQUIREMENTS.md IDs; extends Phase 02.1/03.1 source-coverage scope)
-**Plans**: 4/4 plans complete
-**UI hint**: minimal (reuses existing Watchlist add-company UI)
-
-Plans:
-**Wave 1**
-
-- [x] 03.5-01-PLAN.md — Workday identity registry + adapter parameterization + Fidelity facet scoping
-- [x] 03.5-03-PLAN.md — Forward-only migration 0035 DB admission + Fidelity health/filter note
-
-**Wave 2** *(blocked on 03.5-01)*
-
-- [x] 03.5-02-PLAN.md — Both Workday URL shapes detected + registry-driven verify/dispatch (paste→verify→poll)
-
-**Wave 3** *(blocked on Wave 1 + Wave 2)*
-
-- [x] 03.5-04-PLAN.md — Exact-approved 0035/0036 production release, clean review closure, and natural live verification
-
-### Phase 03.1: SuccessFactors & Paylocity Connector Expansion (INSERTED)
-
-**Goal:** Add Paylocity Recruiting through its documented public feed and establish a bounded, allowlisted SAP SuccessFactors employer contract that either proves safe recurring ingestion or records an honest unsupported disposition, with staged activation, deduplication, non-destructive failures, scheduled polling, scoring, and dashboard delivery
-**Requirements**: DISC-07, DISC-08, DISC-09
-**Depends on:** Phase 3
-**Context:** `.planning/phases/03.1-workday-ats-connector-expansion/03.1-CONTEXT.md`
-**Research:** `.planning/phases/03.1-workday-ats-connector-expansion/03.1-RESEARCH.md`
-**Plans:** 5/5 plans complete
-
-Plans:
-**Wave 1**
-
-- [x] 03.1-01-PLAN.md — Exact Paylocity identity and bounded adapter; SuccessFactors unsupported evidence
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 03.1-02-PLAN.md — Closed registry, staged verification, lifecycle, and dispatch integration
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 03.1-03-PLAN.md — Migration 0029, Capital One regression, and resumable hosted verifier
-
-**Wave 4** *(blocked on Wave 3 completion)*
-
-- [x] 03.1-04-PLAN.md — [BLOCKING] Owner approval for production schema, Edge, activation, and paid proof
-
-**Wave 5** *(blocked on Wave 4 completion)*
-
-- [x] 03.1-05-PLAN.md — Approved deployment, three-window activation, polling, and dashboard evidence
-
-**Success Criteria** (what must be TRUE):
-
-- Paylocity employers verify, ingest, and re-poll without duplicates through the documented public Job Feed V2 contract
-- Each SuccessFactors employer is admitted only through an exact server-owned identity and a bounded live proof; unproven variants remain `unsupported_with_reason`
-- Failed, partial, malformed, drifted, or implausibly empty observations retain prior jobs and cannot advance success health or authorize closure
-- Each admitted provider reaches scheduled polling only after its own repeated, warning-free, closure-credible evidence and remains independently fail-closed
-- Jobs from admitted executable providers flow through the existing persistence, scoring, and feed contracts and appear on the dashboard without provider-specific frontend exceptions
-
-**Scope notes:**
-
-- New multi-tenant Workday expansion is **deferred**. Phase 03.1 must not widen Workday detection, identity, scheduling, or migrations.
-- The already-shipped Capital One Workday connector remains unchanged and continues to poll under its exact fixed identity.
-- The existing phase directory name is retained as a stable historical path; its active scope is defined by this roadmap section and the rewritten context.
-
-### Phase 03.2: Dashboard Precision & Company Visibility (INSERTED)
-
-**Goal:** Users can tune the current dashboard feed by company, score tier, and explicit required-experience cap while retaining truthful future ingestion and gaining a full-width, accessible, resizable results table.
-**Requirements**: PREF-01, SCOR-01, SCOR-03, SCOR-04
-**Depends on:** Phase 03.1
-**Plans:** 4/4 plans complete
-
-Plans:
-**Wave 1**
-
-- [x] 03.2-01-PLAN.md — Add persisted required-experience preference and provider-neutral filter contract
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 03.2-02-PLAN.md — Add session-only Dashboard company/tier precision controls and full-width table
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 03.2-03-PLAN.md — Add accessible persistent column resizing and final UAT/release checkpoint
-
-**Gap Closure Wave 4** *(blocked on Wave 3 completion)*
-
-- [x] 03.2-04-PLAN.md — Remove the redundant All jobs mode, preserve tier-owned complete preference-pass visibility, and run exact-release UAT
-
-### Phase 03.3: Dashboard Filter Refinements (INSERTED)
-
-**Goal:** Simplify Dashboard filtering by replacing the required-experience cap with persisted job-title exclusions, adding staged company bulk-selection actions, and consolidating score tiers into one accessible multi-select dropdown.
-**Requirements**: PREF-01, SCOR-01, SCOR-03, SCOR-04
-**Depends on:** Phase 03.2
-**Plans:** 4/4 plans resolved (3 executed, 1 superseded)
-
-**Success Criteria** (what must be TRUE):
-
-  1. Preferences no longer exposes required experience; users instead manage persisted, case-insensitive job-title exclusion keywords initially seeded with `president` and `PhD`, using safe word/phrase boundaries and the existing refilter lifecycle.
-  2. The company panel replaces Reset with `Clear all` and `Select all`; both update only the staged draft until Show results, retain truthful session-only company behavior, and expose correct disabled and empty-result states.
-  3. Strong, Good, and Weak move into one accessible multi-select dropdown while preserving all-selected defaults, zero-to-three selection states, tier/company AND semantics, counts, keyboard access, and session-only state.
-
-Plans:
-
-**Wave 1**
-
-- [x] 03.3-01-PLAN.md — Add the compatible persisted title-exclusion, filter-v4, hash, worker, and verifier contract
-- [x] 03.3-02-PLAN.md — Replace the Preferences experience control with seeded, explicit-empty-safe title-exclusion chips
-- [x] 03.3-03-PLAN.md — Add staged full-list company bulk actions and one accessible score-tier multi-select
-
-**Wave 2** *(blocked on all Wave 1 plans)*
-
-- [x] 03.3-04-PLAN.md — SUPERSEDED: partial identity evidence preserved; missing historical UAT disclosed; owner approved no-replay mark-and-skip on 2026-07-25
-
-### Phase 03.4: Replace Automatic AI Scoring with Deterministic Ranking (INSERTED)
-
-**Goal:** Remove automatic/background AI job scoring and replace it with transparent deterministic ranking while preserving ingestion, preferences, company controls, dashboard structure, job detail, apply links, dismissal, and every unrelated feature.
-**Requirements**: PREF-01, SCOR-01, SCOR-02, SCOR-03, SCOR-04, SCOR-05
-**Depends on:** Phase 03.3
-**Plans:** 9/9 plans complete
-
-**Success Criteria** (what must be TRUE):
-
-  1. No scheduled or background job-scoring path can call an AI provider or incur a paid scoring request.
-  2. Current and newly ingested jobs remain available through the existing preference filters and Dashboard while deterministic ranking replaces AI-produced scores and tiers.
-  3. The deterministic score is reproducible, transparent, and covered by owner-approved rules supplied before planning; Phase 03.4 must not invent those rules.
-  4. Existing stored AI scores may remain temporarily for compatibility or migration evidence, but they are not refreshed automatically and unrelated ingestion, preferences, company controls, table/detail behavior, and Phase 4 scope remain unchanged.
-
-**Deferred AI boundary:**
-
-- Automatic and background AI scoring remain removed.
-- Explicit AI scoring is not part of the Phase 4 tracker and remains deferred to a future owner-approved phase.
-
-**Open decision:** The owner will provide the deterministic-ranking rules before Phase 03.4 planning.
-
-Plans:
-
-**Wave 1**
-
-- [x] 03.4-01-PLAN.md — Contain automatic paid scoring first and implement the pure deterministic evaluator
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 03.4-02-PLAN.md — Add/push atomic ranking schema and build the deterministic worker
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 03.4-03-PLAN.md — Cut Preferences, Dashboard, feed, and detail to deterministic contracts
-
-**Wave 4** *(blocked on Wave 3 completion)*
-
-- [x] 03.4-04-PLAN.md — Backfill completely, release exact worker/web artifacts, and finish UAT
-
-**Wave 5** *(gap closure; blocked on Wave 4 completion)*
-
-- [x] 03.4-05-PLAN.md — Make title and explicit-country eligibility filters exact
-- [x] 03.4-06-PLAN.md — Fix preference validation, feed completeness, and truthful resume mutations
-- [x] 03.4-07-PLAN.md — Prove hosted worker bytes independently
-- [x] 03.4-08-PLAN.md — Harden SQL/worker liveness with a forward-only migration and runtime-backed tests
-
-**Wave 6** *(blocked on all Wave 5 plans)*
-
-- [x] 03.4-09-PLAN.md — Approve and release the exact repaired schema, worker, and web artifacts; finish convergence and visual UAT
-
-### Phase 4: Application Tracker
-
-**Goal**: User can track every application from Ready to Apply through terminal outcomes, including jobs found outside the system, with notes, preserved job-description context, and optional links to resumes prepared manually outside the app
-**Mode:** mvp
-**Depends on**: Phase 03.4
-**Requirements**: TRAK-01, TRAK-02, TRAK-03, TRAK-04
-**Success Criteria** (what must be TRUE):
-
-  1. User can track applications through exactly six stages: Ready to Apply, Applied, Outreach Sent, Interview, Offer, and Rejected
-  2. User can create a tracker entry from a system-discovered job or manually add a job found elsewhere
-  3. User can attach and update notes on every tracked application
-  4. A system-discovered application retains its captured JD snapshot; a manual entry can preserve the job-description context supplied by the user
-  5. A tracked application can optionally link to a resume the user prepared manually outside the app, and the existing Dashboard Applied action uses the same tracker lifecycle rather than creating a competing state
-
-**Plans:** 7/7 plans complete
-**UI hint**: yes
-
-Plans:
-
-**Wave 1**
-
-- [x] 04-01-PLAN.md — Deliver the tested atomic Dashboard Mark Applied → durable Tracker vertical slice and complete schema contract
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 04-02-PLAN.md — Build and approve checksum-bound catalog/fixture verifiers plus the exact read-only migration preflight
-
-**Wave 3** *(blocked on Wave 2 approval)*
-
-- [x] 04-03-PLAN.md — Push migration 0053, prove exact hosted catalogs, then prove ordinary-user isolation with zero fixture residue
-
-**Wave 4** *(blocked on hosted schema/security proof)*
-
-- [x] 04-04-PLAN.md — Complete the spreadsheet Tracker, manual capture, timeline, notes, JD, and optional resume experience
-
-**Wave 5** *(blocked on complete Tracker delivery)*
-
-- [x] 04-05-PLAN.md — Finish durable Dashboard Mark Applied, seven-column Show applied, and safe Tracker focus routing
-
-**Gap Closure Wave 1** *(from owner UAT)*
-
-- [x] 04-06-PLAN.md — Apply the owner-requested full-width layout, compact filters, far-right save status, safe application deletion, Dashboard resume cleanup, and navigation order
-
-**Gap Closure Wave 2** *(from revised owner UAT)*
-
-- [x] 04-07-PLAN.md — Compact and index Tracker rows, remove Notes captions, and tune row text and affordance scale to the owner-approved density
+Phase 5 plan 05-19 is listed in the complete inventory above.
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 02.1 → 3 → 03.1 → 03.2 → 03.3 → 03.4 → 03.5 → 03.6 → 03.7 → 4
+**Execution Order:** Phase 05.1 urgent stabilization; Phase 5 remains paused
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Foundation & Access | 3/3 | Complete    | 2026-07-16 |
-| 2. Watchlist Ingestion & Monitoring | 7/7 | Complete    | 2026-07-17 |
-| 02.1 Source Coverage Expansion | 13/13 | Gaps found (deferred) |  |
-| 3. Scoring & Feed | 11/11 | Complete    | 2026-07-20 |
-| 03.1 SuccessFactors & Paylocity Connector Expansion | 5/5 | Complete | 2026-07-22 |
-| 03.2 Dashboard Precision & Company Visibility | 4/4 | Complete | 2026-07-22 |
-| 03.3 Dashboard Filter Refinements | 4/4 | Resolved (one superseded) | 2026-07-25 |
-| 03.4 Replace Automatic AI Scoring with Deterministic Ranking | 9/9 | Complete    | 2026-07-23 |
-| 03.5 Generic Workday Connector & Fidelity | 4/4 | Complete | 2026-07-24 |
-| 03.6 US-Only Workday Expansion & Dashboard Queue | 5/5 | Complete    | 2026-07-25 |
-| 03.7 Watchlist-First Jobs Dashboard | 1/1 | Complete | 2026-07-25 |
-| 03.8 Monitor and poll branded banking companies | 7/7 | Complete | 2026-07-26 |
-| 4. Application Tracker | 7/7 | Complete    | 2026-07-28 |
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 5. Outreach Feasibility Gate | v1.1 | 20/23 | In Progress|  |
+| 05.1 Ranking and Dashboard Performance Stabilization | v1.1 | 8/11 | In Progress|  |
 
-## Coverage
+### Phase 05.1: Ranking and Dashboard Performance Stabilization (INSERTED)
 
-All 28 v1 requirements are mapped to a phase:
+**Goal:** Restore timely deterministic job publication and responsive Dashboard
+lifecycle actions by processing only genuine inserted/ranking-relevant changed
+jobs in bounded batches and removing refill/resume-routing work from the
+dismissal RPC critical path, while preserving deployed migration 0063.
+**Requirements:** None (operational stabilization; no outreach requirement IDs)
+**Depends on:** Deployed v1.0 baseline; operationally independent of paused Phase 5
+**Success Criteria** (what must be TRUE):
 
-| Category | Requirements | Phase |
-|----------|--------------|-------|
-| Foundation | AUTH-01..04 | Phase 1 |
-| Preferences & Watchlist | PREF-02, PREF-03, PREF-04 | Phase 2 |
-| Preferences & Watchlist | PREF-05 | Phase 02.1 |
-| Preferences & Watchlist | PREF-01 | Phase 3 |
-| Discovery & Monitoring | DISC-01..06 | Phase 2 |
-| Discovery & Monitoring | DISC-07..09 | Phase 02.1 |
-| Scoring & Feed | SCOR-01..05 | Phase 3 |
-| Resume Management | RESU-01 | Phase 3 |
-| Tracker | TRAK-01..04 | Phase 4 |
+  1. Routine ticks with no inserted/ranking-relevant changed jobs create zero ranking work; real changes enqueue bounded work proportional to changed jobs × affected owners, with atomic complete-batch publication and no paid/background AI.
+  2. Dismiss removes its card within 100 ms, leaves unrelated cards interactive, restores only that card on RPC failure, and ends the durable critical path at RPC settlement (P95 ≤1.5 seconds); refill/routing failure leaves a retryable warning without undoing success.
+  3. After the exact release, a new 24-hour observation records zero HTTP 546 failures, at least 99% successful score ticks, zero phantom `new_job` runs, no minute-cadence catalog growth, publication-to-dashboard P95 ≤15 minutes, and database-change-to-visible P95 ≤2 minutes.
+  4. Migration 0063 and its tombstone containment remain immutable; migration 0064/function/web deploy only after a fresh exact owner receipt and never include migration 0065, retention, deletion, or cleanup.
 
-Notes:
+**Plans:** 8/11 plans executed
 
-- PREF-01 (job preferences) lands in Phase 3, not Phase 2, because preferences exist to drive the cheap filters built there.
-- RESU-01 (base resume upload) remains validated in Phase 3. Automated resume tailoring (former RESU-02..05) was removed from v1 by owner decision; resumes are prepared manually outside the app.
+Plans:
+
+- [x] 05.1-01-PLAN.md
+- [x] 05.1-02-PLAN.md
+- [x] 05.1-03-PLAN.md
+- [x] 05.1-04-PLAN.md — nonblocking historical observation closeout
+- [x] 05.1-05-PLAN.md — bounded changed-job ranking and batch staging
+- [x] 05.1-06-PLAN.md — immediate per-card Dismiss and post-RPC refill
+- [x] 05.1-13-PLAN.md — nonblocking provenance/deferral closeout
+- [x] 05.1-08-PLAN.md — fresh exact 0064/function/web approval
+- [ ] 05.1-14-PLAN.md — targeted 0064 forward repair, local proof, and new exact owner approval
+- [ ] 05.1-09-PLAN.md — preserve the failed first attempt, then deploy only under the new Plan 14 receipt
+- [ ] 05.1-10-PLAN.md — new postrelease 24-hour ranking/dismissal acceptance
+
+Deferred outside active Phase 05.1 execution (history retained):
+
+- 05.1-07-DEFERRED.md — retention definitions and dry run
+- 05.1-11-DEFERRED.md — separate cleanup approval
+- 05.1-12-DEFERRED.md — bounded cleanup execution
+
+**Wave 1**
+
+- [x] 05.1-01 — Implement and prove the tombstone-aware containment migration against static tests and disposable real PostgreSQL.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 05.1-02 — Bind the tested containment artifact and obtain exact owner deployment approval.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 05.1-03 — Deploy only approved migration 0063 and let existing work drain naturally.
+
+**Wave 4** *(after completed Wave 3; parallel, zero file overlap)*
+
+- [x] 05.1-04 — Close historical observation truthfully as nonblocking; preserve evidence blob `ee54dc391bdb51fc55ca18e36ef370acac879337`.
+- [x] 05.1-05 — Implement and locally prove bounded inserted/changed-job ranking plus one set-based staging RPC; migration 0064 remains not deployed.
+- [x] 05.1-06 — Implement and test immediate per-card Dismiss, exact rollback, and detached refill/routing.
+- [x] 05.1-13 — Record D-03/D-18 supersession and D-12–D-15/D-23 deferral without historical reconstruction.
+
+**Wave 5** *(depends only on Wave 4 Plans 05 and 06)*
+
+- [x] 05.1-08 — Obtain a fresh digest-bound owner receipt for exact migration 0064, score-tick closure, and web release; exclude 0065/retention/cleanup.
+
+**Wave 6** *(forward repair; blocked on Wave 5)*
+
+- [ ] 05.1-14 — Change only the ranking-item revision check to `NOT VALID`, prove local enforcement twice, create a new source candidate, and obtain a fresh owner receipt; perform no production action.
+
+**Wave 7** *(blocked on the new Plan 14 receipt)*
+
+- [ ] 05.1-09 — Preserve the immutable failed first schema process, then perform one separately approved corrected-0064 forward-repair process and the bounded downstream function/Git-triggered web release; perform no monitoring or cleanup.
+
+**Wave 8** *(post-release; blocked on successful Wave 7 only)*
+
+- [ ] 05.1-10 — Collect a new source-bound 24-hour score-tick/phantom/freshness/dismissal acceptance window. This monitoring never gates Plans 05/06 implementation or Plan 14/09 release.
 
 ---
-*Roadmap created: 2026-07-15*
-*Granularity: coarse (research's suggested phases compressed along the dependency chain: auth/RLS → ingestion+dedupe → filtering/ranking/feed → tracker)*
+*Roadmap created: 2026-07-28 for milestone v1.1 Outreach Intelligence*

@@ -959,7 +959,7 @@ async function dryRun() {
     && verifyBoard.includes("record_connector_observation"),
   'dry-run: activation uses real-user verification and server evidence')
   check(scoreTick.includes("'claim_deterministic_ranking_work'")
-    && scoreTick.includes("'stage_deterministic_ranking_result'")
+    && scoreTick.includes("'stage_deterministic_ranking_results'")
     && scoreTick.includes("'finalize_deterministic_ranking_run'")
     && scoreTick.includes('automatic_ai_scoring: false')
     && !scoreTick.includes('generateStructured')

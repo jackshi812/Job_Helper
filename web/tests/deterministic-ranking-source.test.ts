@@ -54,15 +54,18 @@ describe('score-tick deterministic worker source contract', () => {
     const worker = read(deterministicWorkerPath)
 
     expect(worker).toContain("'enqueue_deterministic_new_jobs'")
-    expect(worker).toContain("'enqueue_deterministic_recency_refresh'")
+    expect(worker).not.toContain("'enqueue_deterministic_recency_refresh'")
     expect(worker).not.toContain("'enqueue_deterministic_route_refreshes'")
     expect(worker).toContain("'claim_deterministic_ranking_work'")
-    expect(worker).toContain("'stage_deterministic_ranking_result'")
+    expect(worker).toContain("'stage_deterministic_ranking_results'")
+    expect(worker).not.toMatch(
+      /client\.rpc\(['"]stage_deterministic_ranking_result['"]/,
+    )
     expect(worker).toContain("'finalize_deterministic_ranking_run'")
     expect(worker.match(/claim_deterministic_ranking_work/g)).toHaveLength(1)
     expect(worker).toMatch(/CLAIM_BATCH_SIZE\s*=\s*25/)
     expect(worker).toMatch(/MAX_CONCURRENCY\s*=\s*25/)
-    expect(worker).toMatch(/MAX_ITEMS_PER_INVOCATION\s*=\s*5_000/)
+    expect(worker).toMatch(/MAX_ITEMS_PER_INVOCATION\s*=\s*250/)
     expect(worker).toMatch(/MAX_INVOCATION_MS\s*=\s*45_000/)
     expect(worker).toMatch(/RECOVERY_RUN_SCAN_LIMIT\s*=\s*25/)
     expect(worker).toMatch(
@@ -113,8 +116,27 @@ describe('score-tick deterministic worker source contract', () => {
     expect(worker).toContain('strong: row.captured_strong_threshold')
     expect(worker).not.toMatch(/routeResume|ResumeExtractInput|resume_extracts/)
     expect(worker).not.toMatch(/extractsByUser|loadedExtractOwnerIds/)
-    expect(worker).toContain('p_best_fit_resume_id: null')
-    expect(worker).toContain('p_runner_up_resume_id: null')
+    expect(worker).toContain('best_fit_resume_id: null')
+    expect(worker).toContain('runner_up_resume_id: null')
+    expect(worker).toContain('job_input_revision: job.deterministic_input_revision')
+  })
+
+  it('builds exact batch records locally and persists once per claim batch', () => {
+    const worker = read(deterministicWorkerPath)
+    const processBatch = worker.slice(
+      worker.indexOf('async function processBatch'),
+      worker.indexOf('async function finalizeRuns'),
+    )
+
+    expect(worker).toContain(".select('id, title, location, description_text, posted_at, company_id, deterministic_input_revision')")
+    expect(processBatch).toContain('stage_deterministic_ranking_results')
+    expect(processBatch).toContain('p_results: records')
+    expect(processBatch).toContain('staged !== rows.length')
+    expect(processBatch.match(/stage_deterministic_ranking_results/g)).toHaveLength(1)
+    expect(processBatch).not.toMatch(
+      /client\.rpc\(['"]stage_deterministic_ranking_result['"]/,
+    )
+    expect(processBatch).toContain('Promise.allSettled')
   })
 
   it('bounds diagnostic output without logging job or resume content', () => {

@@ -21,8 +21,16 @@ const observationFrontiers = migrationFiles.flatMap((file) => {
   const definition = observationDefinition(sql)
   return definition ? [{ file, definition, sql }] : []
 })
-const latest = observationFrontiers.at(-1)
-const previous = observationFrontiers.at(-2)
+// The Paylocity repair is no longer the final definition — 0062 rebuilt the RPC
+// again to admit four more Workday candidates — so the repair and its
+// predecessor are pinned by name, and the current frontier is checked separately.
+const frontier = observationFrontiers.at(-1)
+const latest = observationFrontiers.find(
+  (entry) => entry.file === '0057_restore_paylocity_staged_activation.sql',
+)
+const previous = observationFrontiers.find(
+  (entry) => entry.file === '0048_phase_03_10_goldman_higher.sql',
+)
 
 function position(definition: string, pattern: RegExp) {
   const match = definition.match(pattern)
@@ -31,9 +39,11 @@ function position(definition: string, pattern: RegExp) {
 }
 
 describe('Paylocity activation at the migration frontier', () => {
-  it('keeps the repair as the final forward-only RPC definition', () => {
+  it('keeps the repair forward-only and superseded only by 0062', () => {
     expect(latest?.file).toBe('0057_restore_paylocity_staged_activation.sql')
     expect(previous?.file).toBe('0048_phase_03_10_goldman_higher.sql')
+    expect(frontier?.file)
+      .toBe('0062_phase_03_11_asset_manager_payments_workday.sql')
     expect(latest?.sql.trimStart()).toMatch(/^begin;/i)
     expect(latest?.sql.trimEnd()).toMatch(/commit;$/i)
     expect(latest?.sql).not.toMatch(
@@ -126,5 +136,19 @@ describe('Paylocity activation at the migration frontier', () => {
       .replace(paylocityAdmission, '')
       .replace(paylocityWindow, '')
     expect(repairedWithoutPaylocity).toBe(previous!.definition)
+  })
+
+  it('carries the Paylocity repair forward into 0062 unchanged apart from four keys', () => {
+    const addedKeys = [
+      'workday:wd5:visa:Visa',
+      'workday:wd1:pimco:pimco-careers',
+      'workday:wd5:troweprice:TRowePrice',
+      'workday:wd1:invesco:IVZ',
+    ]
+    const frontierWithoutNewKeys = frontier!.definition.replace(
+      new RegExp(`,\\n\\s+'(?:${addedKeys.join('|')})'`, 'g'),
+      '',
+    )
+    expect(frontierWithoutNewKeys).toBe(latest!.definition)
   })
 })

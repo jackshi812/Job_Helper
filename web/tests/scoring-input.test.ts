@@ -122,8 +122,8 @@ describe('semantic scoring input freshness', () => {
   it('keeps deterministic ranking source independent of resume routing', () => {
     const worker = read(deterministicWorkerPath)
     expect(worker).not.toMatch(/routeResume|resume_extracts|ResumeExtractInput/)
-    expect(worker).toContain('p_best_fit_resume_id: null')
-    expect(worker).toContain('p_runner_up_resume_id: null')
+    expect(worker).toContain('best_fit_resume_id: null')
+    expect(worker).toContain('runner_up_resume_id: null')
   })
 
   it('loads an explicit scoring-input module instead of treating its absence as infrastructure failure', async () => {
@@ -377,7 +377,7 @@ describe('score-tick deterministic worker and preserved migration evidence contr
     const worker = readWorkerBundle()
     expect(worker).not.toMatch(/claim_scoring_work|reserve_score_request|purpose\s*:\s*['"]score['"]/)
     expect(worker).toContain("'claim_deterministic_ranking_work'")
-    expect(worker).toContain("'stage_deterministic_ranking_result'")
+    expect(worker).toContain("'stage_deterministic_ranking_results'")
     expect(worker).toContain("'finalize_deterministic_ranking_run'")
     expect(worker).not.toMatch(/\.update\(|\.insert\(|\.upsert\(/)
     expect(worker).toContain('automatic_ai_scoring: false')

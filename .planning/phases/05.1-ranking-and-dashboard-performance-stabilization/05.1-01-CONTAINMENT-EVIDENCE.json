@@ -1,0 +1,309 @@
+{
+  "schema_version": 1,
+  "plan_id": "05.1-01",
+  "generated_at": "2026-07-31T17:59:14Z",
+  "source": {
+    "commit": "c70152b4d453e2cf278c798b2269800f033b5f5a",
+    "tree": "0753df42f5d7cd0b987e1a30daacbcd261b22f0c",
+    "paths_clean_before_evidence": true,
+    "commit_contains_all_artifacts": true
+  },
+  "artifacts": {
+    "migration": {
+      "path": "supabase/migrations/0063_dismissal_tombstone_ranking_containment.sql",
+      "sha256": "64a3d0b1f144924e8ef26349828eaae1617588005eea986d8d3f15246a1d993b",
+      "git_blob_oid": "1bcb1114b7c2364534b682e1d8af4167c61195b0"
+    },
+    "vitest": {
+      "path": "web/tests/migration-0063-dismissal-tombstone-ranking-containment.test.ts",
+      "sha256": "b26d7111f0a128ae227513795b26c2acfa17a30e834ffa7cc668958c2751b735",
+      "git_blob_oid": "5a4233e36140e0da1d5373e8a865ab640ead5824"
+    },
+    "sql_integration": {
+      "path": "supabase/tests/0063_dismissal_tombstone_ranking_containment.test.sql",
+      "sha256": "e83653efe24b9b5ebfd0c26696f67a1182f9449a17dcd598ca6622ccd4407b4c",
+      "git_blob_oid": "e38c30698a72afcc5074150f7c010e1dd86589fe"
+    },
+    "local_runner": {
+      "path": "scripts/verify-phase-05-1-containment-local.mjs",
+      "sha256": "22d08f759e206085500af5960743f8754b750e1b68365820dd8cb4da260416c6",
+      "git_blob_oid": "26be05e6111db91ca9ffe1b2a4cf699d967ac374"
+    }
+  },
+  "verification": {
+    "result": "passed",
+    "commands": [
+      {
+        "argv": [
+          "npm",
+          "--prefix",
+          "web",
+          "test",
+          "--",
+          "migration-0063-dismissal-tombstone-ranking-containment.test.ts",
+          "deterministic-ranking-migration.test.ts",
+          "deterministic-ranking-snapshot.integration.test.ts",
+          "resume-routing-migration.test.ts"
+        ],
+        "status": 0,
+        "output_sha256": "f071347837218bbdd293e57073506bc0ba50dd585ce56df36e20e11b1dc65311",
+        "test_files_passed": 4,
+        "tests_passed": 22
+      },
+      {
+        "argv": [
+          "env",
+          "SUPABASE_TELEMETRY_DISABLED=1",
+          "node",
+          "scripts/verify-phase-05-1-containment-local.mjs"
+        ],
+        "status": 0,
+        "output_sha256": "caffb1d7a50a33689c5301624d890afd8ee9703ddb4acb536ecd33dab4053682"
+      }
+    ],
+    "command_array_sha256": "761bb0ae5eb5a5a1c4fdb1ee4573a7f758089d7504bdaec28077c8d943b4b536",
+    "source_paths_clean": true,
+    "corrected_runner_cached_image_proof": {
+      "minimum_consecutive_passes_required": 2,
+      "consecutive_passes_observed": 4,
+      "sanitized_sql_output_sha256": [
+        "81f44e41b0c40d92c9847ad3ae75df016f1f66f8f7e1d62d3c464ec9e66ae3f0",
+        "6d3f45f56667d3a3a2f5b3a95dffb669e57cc1fb46c433c4de3978777e8779a6",
+        "898687208f0d53f349ba7645ddf4bae4470c75b98ff472e52d4e4486661e64b8",
+        "19b64e35cef5f7a4adc33e5f4887fd05052e1ef294f6da012eb92390ea8c17c5"
+      ],
+      "pull_or_install_output_detected": false,
+      "teardown_passed_every_run": true
+    }
+  },
+  "local_database_verification": {
+    "result": "passed",
+    "teardown": "passed",
+    "canonical_cwd": "/Users/jackshi/Desktop/Job_Copilot",
+    "cli_environment": {
+      "SUPABASE_TELEMETRY_DISABLED": "1"
+    },
+    "cli": {
+      "literal_path": "web/node_modules/.bin/supabase",
+      "resolved_path": "/Users/jackshi/Desktop/Job_Copilot/web/node_modules/supabase/dist/supabase.js",
+      "sha256": "253caa8c31ee5976322d04a8bd7752622c0915e7943de3f74e2b73395c54a240",
+      "version": "2.109.1"
+    },
+    "required_local_images": [
+      {
+        "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+        "id": "sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453"
+      },
+      {
+        "image": "public.ecr.aws/supabase/pg_prove:3.36",
+        "id": "sha256:eda7c5e68719e9c8287e78c017118407b48df904a51c935f5ab6098b8c0bc6bc"
+      }
+    ],
+    "network_fallback": {
+      "forbidden": true,
+      "image_preflight_before_first_cli_command": true,
+      "pull_or_install_output_detected": false
+    },
+    "command_templates": {
+      "version": [
+        "web/node_modules/.bin/supabase",
+        "--version"
+      ],
+      "start": [
+        "web/node_modules/.bin/supabase",
+        "start",
+        "--exclude",
+        "edge-runtime,gotrue,imgproxy,kong,logflare,mailpit,postgres-meta,postgrest,realtime,storage-api,studio,supavisor,vector",
+        "--workdir",
+        "{fresh-local-root}"
+      ],
+      "reset": [
+        "web/node_modules/.bin/supabase",
+        "db",
+        "reset",
+        "--local",
+        "--no-seed",
+        "--workdir",
+        "{fresh-local-root}"
+      ],
+      "test": [
+        "web/node_modules/.bin/supabase",
+        "test",
+        "db",
+        "{fresh-local-root}/supabase/tests/0063_dismissal_tombstone_ranking_containment.test.sql",
+        "--local",
+        "--workdir",
+        "{fresh-local-root}"
+      ],
+      "test_replay": [
+        "web/node_modules/.bin/supabase",
+        "test",
+        "db",
+        "{fresh-local-root}/supabase/tests/0063_dismissal_tombstone_ranking_containment.test.sql",
+        "--local",
+        "--workdir",
+        "{fresh-local-root}"
+      ],
+      "stop": [
+        "web/node_modules/.bin/supabase",
+        "stop",
+        "--no-backup",
+        "--workdir",
+        "{fresh-local-root}"
+      ]
+    },
+    "command_array_sha256": "22c1a76b0b5984fc44ca14212e9b85ffb32ecb0ac9deee6eb105f62174e727dd",
+    "migration_manifest": [
+      "supabase/migrations/0001_profiles.sql",
+      "supabase/migrations/0002_resumes.sql",
+      "supabase/migrations/0003_storage.sql",
+      "supabase/migrations/0004_delete_my_data.sql",
+      "supabase/migrations/0005_watchlist.sql",
+      "supabase/migrations/0006_jobs_pipeline.sql",
+      "supabase/migrations/0007_discovery.sql",
+      "supabase/migrations/0008_claim_exclusive.sql",
+      "supabase/migrations/0009_discovery_health_cadence.sql",
+      "supabase/migrations/0010_atomic_discovery_reservations.sql",
+      "supabase/migrations/0011_lock_before_quota_clock.sql",
+      "supabase/migrations/0012_connector_state.sql",
+      "supabase/migrations/0013_source_coverage_catalog.sql",
+      "supabase/migrations/0014_public_connectors.sql",
+      "supabase/migrations/0015_activation_windows.sql",
+      "supabase/migrations/0016_workday_experimental.sql",
+      "supabase/migrations/0017_preferences.sql",
+      "supabase/migrations/0018_resume_extracts.sql",
+      "supabase/migrations/0019_user_jobs_scoring.sql",
+      "supabase/migrations/0020_notifications.sql",
+      "supabase/migrations/0021_claim_scoring_work_definer.sql",
+      "supabase/migrations/0022_refilter_definer.sql",
+      "supabase/migrations/0023_delete_my_data_definer.sql",
+      "supabase/migrations/0024_remove_notifications.sql",
+      "supabase/migrations/0025_scoring_freshness.sql",
+      "supabase/migrations/0026_resume_display_name.sql",
+      "supabase/migrations/0027_score_budget_after_free_work.sql",
+      "supabase/migrations/0028_capital_one_recent_active.sql",
+      "supabase/migrations/0029_paylocity_connector.sql",
+      "supabase/migrations/0030_dashboard_precision.sql",
+      "supabase/migrations/0031_dashboard_filter_refinements.sql",
+      "supabase/migrations/0032_deterministic_ranking.sql",
+      "supabase/migrations/0033_deterministic_ranking_gap_closure.sql",
+      "supabase/migrations/0034_repair_deterministic_ranking_retry.sql",
+      "supabase/migrations/0035_generic_workday_fidelity.sql",
+      "supabase/migrations/0036_workday_fidelity_integrity_repair.sql",
+      "supabase/migrations/0037_us_workday_dashboard_queue.sql",
+      "supabase/migrations/0038_dashboard_feed_page_repair.sql",
+      "supabase/migrations/0039_ranking_breakdown_validator_grant.sql",
+      "supabase/migrations/0040_phase_03_8_branded_connectors.sql",
+      "supabase/migrations/0041_phase_03_8_verifier_rpc_qualification.sql",
+      "supabase/migrations/0042_phase_03_8_verifier_finish_fk_order.sql",
+      "supabase/migrations/0043_phase_03_8_workday_candidates.sql",
+      "supabase/migrations/0044_phase_03_8_selective_workday_scope_evidence.sql",
+      "supabase/migrations/0045_phase_03_9_jpmorgan_oracle.sql",
+      "supabase/migrations/0046_phase_03_9_jpmorgan_catalog_repair.sql",
+      "supabase/migrations/0047_phase_03_9_jpmorgan_company_identity.sql",
+      "supabase/migrations/0048_phase_03_10_goldman_higher.sql",
+      "supabase/migrations/0049_phase_03_10_goldman_30_day.sql",
+      "supabase/migrations/0050_phase_03_10_goldman_provider_id_regex.sql",
+      "supabase/migrations/0051_resume_delete_fk_indexes.sql",
+      "supabase/migrations/0052_decouple_resume_routing.sql",
+      "supabase/migrations/0053_application_tracker.sql",
+      "supabase/migrations/0054_mark_job_applied_ambiguity.sql",
+      "supabase/migrations/0055_tracker_behavior_and_cleanup.sql",
+      "supabase/migrations/0056_delete_tracker_application.sql",
+      "supabase/migrations/0057_restore_paylocity_staged_activation.sql",
+      "supabase/migrations/0058_dashboard_applied_watchlist_scope.sql",
+      "supabase/migrations/0059_shared_scope_and_personal_data_cleanup.sql",
+      "supabase/migrations/0060_ranking_item_owner_delete_index.sql",
+      "supabase/migrations/0061_tracker_chicago_dates.sql",
+      "supabase/migrations/0063_dismissal_tombstone_ranking_containment.sql"
+    ],
+    "migration_manifest_sha256": "117681fef8dae6a91016689725651f2512e5bea1e4271d1ea4e44ed8ba5b7850",
+    "excluded_migrations": [
+      "0062"
+    ],
+    "sql_test": {
+      "path": "supabase/tests/0063_dismissal_tombstone_ranking_containment.test.sql",
+      "sha256": "e83653efe24b9b5ebfd0c26696f67a1182f9449a17dcd598ca6622ccd4407b4c"
+    },
+    "historical_local_baseline": {
+      "kind": "synthetic_historical_prerequisites_only",
+      "sha256": "a913977ab484acf717a8c61e33d539a9d3f0a3184fc4ed9ef0ccb7ab8ba3814e",
+      "removed_with_disposable_database": true
+    },
+    "test_output_sha256": "19b64e35cef5f7a4adc33e5f4887fd05052e1ef294f6da012eb92390ea8c17c5",
+    "runner_output_sha256": "caffb1d7a50a33689c5301624d890afd8ee9703ddb4acb536ecd33dab4053682",
+    "red_output_sha256": "110c40173def3b31f12a86047f32f95e93dd78a3a648292752b4da195acfa987",
+    "assertion_groups": [
+      "real_enqueue_repeated_tombstone_no_work",
+      "real_enqueue_genuine_arrival_full_snapshot",
+      "real_0052_finalizer_atomic_publication",
+      "post_publication_enqueue_idempotence",
+      "owner_source_external_id_isolation",
+      "live_catalog_and_acl_contract"
+    ],
+    "synthetic_fixture_rollback": "passed_by_second_invocation",
+    "hosted_or_linked_writes": 0
+  },
+  "network_incident": {
+    "disclosed": true,
+    "occurred": true,
+    "stage": "Task 1 RED runner development",
+    "exact_image_only_pull": "public.ecr.aws/supabase/pg_prove:3.36",
+    "image_id_after_pull": "sha256:eda7c5e68719e9c8287e78c017118407b48df904a51c935f5ab6098b8c0bc6bc",
+    "cause": "The pinned Supabase test db command automatically fetched its missing pg_prove image before the runner had a local-image preflight.",
+    "hosted_supabase_accessed": false,
+    "production_system_accessed": false,
+    "production_write_performed": false,
+    "package_manager_install_performed": false,
+    "cached_image_removed": false,
+    "remediation": "The committed runner now inspects both exact Docker image tags before the first Supabase CLI command and rejects pull, download, or install output.",
+    "post_remediation_network_access_observed": false,
+    "post_remediation_cached_image_passes": 4
+  },
+  "local_synthetic_effects": {
+    "database_calls": "real enqueue and migration-0052 finalizer calls in a disposable local database only",
+    "fixtures": "unmistakably synthetic",
+    "transaction_rollback_verified": true,
+    "disposable_database_removed": true
+  },
+  "preserved_stashes": [
+    {
+      "object_id": "913be95897066e53e6e1be0bd6e9483ab52a8437",
+      "subject": "On main: wip: preserve concurrent phase 5 planning edits during performance diagnosis"
+    },
+    {
+      "object_id": "2e6738fcf39a8a764be9e3664ee4023b01f051c9",
+      "subject": "On main: wip: preserve remaining work before performance diagnosis"
+    },
+    {
+      "object_id": "db09c3a2ff51dfa6652b36b0b809c1f9654f0117",
+      "subject": "On main: wip: phase 5 before connector throughput diagnosis"
+    }
+  ],
+  "release_boundary": {
+    "hosted_schema_through": "0061",
+    "hosted_observation_status": "requires_later_read_only_revalidation",
+    "preexisting_pending_migrations": [
+      "supabase/migrations/0062_phase_03_11_asset_manager_payments_workday.sql"
+    ],
+    "containment_release_migrations": [
+      "supabase/migrations/0063_dismissal_tombstone_ranking_containment.sql"
+    ]
+  },
+  "scope": {
+    "production_deployed": false,
+    "production_write_performed": false,
+    "linked_migration_applied": false,
+    "worker_invoked": false,
+    "queue_mutated": false,
+    "queue_repaired": false,
+    "ranking_history_deleted": false,
+    "storage_maintenance_performed": false,
+    "dashboard_changed": false,
+    "retention_changed": false,
+    "ranking_redesigned": false,
+    "paid_ai_scoring_restored": false
+  },
+  "approval_status": "not_requested",
+  "deployment_status": "not_deployed"
+}

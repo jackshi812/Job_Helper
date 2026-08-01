@@ -29,6 +29,11 @@ export const BLACKROCK_WORKDAY_SOURCE_KEY =
   'workday:wd1:blackrock:BlackRock_Professional'
 export const BARCLAYS_WORKDAY_SOURCE_KEY =
   'workday:wd3:barclays:External_Career_Site_Barclays'
+export const VISA_WORKDAY_SOURCE_KEY = 'workday:wd5:visa:Visa'
+export const PIMCO_WORKDAY_SOURCE_KEY = 'workday:wd1:pimco:pimco-careers'
+export const T_ROWE_PRICE_WORKDAY_SOURCE_KEY =
+  'workday:wd5:troweprice:TRowePrice'
+export const INVESCO_WORKDAY_SOURCE_KEY = 'workday:wd1:invesco:IVZ'
 export const UNITED_STATES_WORKDAY_FACET_ID = 'bc33aa3152ec42d4995f4791a106ed09'
 
 export type WorkdayHostForm = 'jobs' | 'site'
@@ -276,6 +281,81 @@ const barclaysIdentity: WorkdayIdentity = Object.freeze({
   selectiveRecentUsScope,
 })
 
+const visaIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://visa.wd5.myworkdayjobs.com',
+  cxsRoot: 'https://visa.wd5.myworkdayjobs.com/wday/cxs/visa/Visa',
+  publicBoard: 'https://visa.wd5.myworkdayjobs.com/Visa',
+  tenant: 'visa',
+  site: 'Visa',
+  region: 'wd5',
+  hostForm: 'jobs',
+  sourceKey: VISA_WORKDAY_SOURCE_KEY,
+  companyName: 'Visa',
+  applyCapitalOneEligibility: false,
+  countryScope: unitedStatesScope(['locationMainGroup', 'locationCountry']),
+  requireDetailCountryProof: true,
+  selectiveRecentUsScope,
+})
+
+const pimcoIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://pimco.wd1.myworkdayjobs.com',
+  cxsRoot: 'https://pimco.wd1.myworkdayjobs.com/wday/cxs/pimco/pimco-careers',
+  publicBoard: 'https://pimco.wd1.myworkdayjobs.com/pimco-careers',
+  tenant: 'pimco',
+  site: 'pimco-careers',
+  region: 'wd1',
+  hostForm: 'jobs',
+  sourceKey: PIMCO_WORKDAY_SOURCE_KEY,
+  companyName: 'PIMCO',
+  applyCapitalOneEligibility: false,
+  countryScope: unitedStatesScope(['locationMainGroup', 'locationCountry']),
+  // Both flags are load-bearing, not decoration. observeConnector only admits a
+  // Workday identity to the experimental observation path when it carries one
+  // of these candidate contracts, and PIMCO's 96 U.S. rows overrun the adapter's
+  // 60-detail default, which caps hydration and yields a permanently partial,
+  // never-credible observation. The selective scope raises the ceiling to 199
+  // and bounds hydration to recent rows; the detail proof is real, since PIMCO
+  // details carry an authoritative country.
+  requireDetailCountryProof: true,
+  selectiveRecentUsScope,
+})
+
+/**
+ * T. Rowe Price and Invesco publish no country facet at all — their only
+ * location facet is a flat city list — so neither can be scoped by facet. Both
+ * take the selective recent-U.S. path (BlackRock/Barclays shape): enumerate the
+ * complete listing population, hydrate every recent row, and retain only rows
+ * whose detail response proves the United States.
+ */
+const tRowePriceIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://troweprice.wd5.myworkdayjobs.com',
+  cxsRoot:
+    'https://troweprice.wd5.myworkdayjobs.com/wday/cxs/troweprice/TRowePrice',
+  publicBoard: 'https://troweprice.wd5.myworkdayjobs.com/TRowePrice',
+  tenant: 'troweprice',
+  site: 'TRowePrice',
+  region: 'wd5',
+  hostForm: 'jobs',
+  sourceKey: T_ROWE_PRICE_WORKDAY_SOURCE_KEY,
+  companyName: 'T. Rowe Price',
+  applyCapitalOneEligibility: false,
+  selectiveRecentUsScope,
+})
+
+const invescoIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://invesco.wd1.myworkdayjobs.com',
+  cxsRoot: 'https://invesco.wd1.myworkdayjobs.com/wday/cxs/invesco/IVZ',
+  publicBoard: 'https://invesco.wd1.myworkdayjobs.com/IVZ',
+  tenant: 'invesco',
+  site: 'IVZ',
+  region: 'wd1',
+  hostForm: 'jobs',
+  sourceKey: INVESCO_WORKDAY_SOURCE_KEY,
+  companyName: 'Invesco',
+  applyCapitalOneEligibility: false,
+  selectiveRecentUsScope,
+})
+
 export const WORKDAY_IDENTITIES = Object.freeze({
   [CAPITAL_ONE_WORKDAY_SOURCE_KEY]: capitalOneIdentity,
   [FIDELITY_WORKDAY_SOURCE_KEY]: fidelityIdentity,
@@ -287,6 +367,10 @@ export const WORKDAY_IDENTITIES = Object.freeze({
   [BANK_OF_AMERICA_WORKDAY_SOURCE_KEY]: bankOfAmericaIdentity,
   [BLACKROCK_WORKDAY_SOURCE_KEY]: blackRockIdentity,
   [BARCLAYS_WORKDAY_SOURCE_KEY]: barclaysIdentity,
+  [VISA_WORKDAY_SOURCE_KEY]: visaIdentity,
+  [PIMCO_WORKDAY_SOURCE_KEY]: pimcoIdentity,
+  [T_ROWE_PRICE_WORKDAY_SOURCE_KEY]: tRowePriceIdentity,
+  [INVESCO_WORKDAY_SOURCE_KEY]: invescoIdentity,
 })
 
 export const CAPITAL_ONE_WORKDAY_IDENTITY = capitalOneIdentity
@@ -299,6 +383,10 @@ export const MORGAN_STANLEY_WORKDAY_IDENTITY = morganStanleyIdentity
 export const BANK_OF_AMERICA_WORKDAY_IDENTITY = bankOfAmericaIdentity
 export const BLACKROCK_WORKDAY_IDENTITY = blackRockIdentity
 export const BARCLAYS_WORKDAY_IDENTITY = barclaysIdentity
+export const VISA_WORKDAY_IDENTITY = visaIdentity
+export const PIMCO_WORKDAY_IDENTITY = pimcoIdentity
+export const T_ROWE_PRICE_WORKDAY_IDENTITY = tRowePriceIdentity
+export const INVESCO_WORKDAY_IDENTITY = invescoIdentity
 
 /**
  * Pure, fail-closed resolver. Returns an admitted identity only when ALL four

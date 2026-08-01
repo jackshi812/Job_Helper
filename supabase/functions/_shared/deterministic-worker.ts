@@ -6,7 +6,7 @@ import {
 export const CLAIM_BATCH_SIZE = 25
 export const MAX_CONCURRENCY = 25
 export const MAINTENANCE_BATCH_SIZE = 25
-export const MAX_ITEMS_PER_INVOCATION = 5_000
+export const MAX_ITEMS_PER_INVOCATION = 250
 export const MAX_INVOCATION_MS = 45_000
 export const RESPONSE_CLEANUP_MARGIN_MS = 1_000
 export const RECOVERY_RUN_SCAN_LIMIT = 25
@@ -84,6 +84,22 @@ interface RankingJobRow {
   description_text: string | null
   posted_at: string | null
   company_id: string | null
+  deterministic_input_revision: number
+}
+
+interface StagedRankingResult {
+  item_id: string
+  revision: number
+  job_input_revision: number
+  eligible: boolean | null
+  score: number | null
+  tier: string | null
+  breakdown: unknown
+  filter_code: string | null
+  filter_detail: string | null
+  best_fit_resume_id: null
+  runner_up_resume_id: null
+  error_code: string | null
 }
 
 interface BuildingRankingStateRow {
@@ -148,16 +164,13 @@ async function runMaintenance(
   client: DeterministicWorkerClient,
   context: DeadlineContext,
 ): Promise<void> {
-  for (const rpc of [
-    'enqueue_deterministic_new_jobs',
-    'enqueue_deterministic_recency_refresh',
-  ] as const) {
-    const { error } = await awaitOperation(
-      client.rpc(rpc, { batch_size: MAINTENANCE_BATCH_SIZE }),
-      context,
-    )
-    if (error) throw error
-  }
+  const { error } = await awaitOperation(
+    client.rpc('enqueue_deterministic_new_jobs', {
+      batch_size: MAINTENANCE_BATCH_SIZE,
+    }),
+    context,
+  )
+  if (error) throw error
 }
 
 async function claimWork(
@@ -174,40 +187,14 @@ async function claimWork(
   return (data ?? []) as ClaimedRankingRow[]
 }
 
-async function stageFailure(
-  client: DeterministicWorkerClient,
-  row: ClaimedRankingRow,
-  error: unknown,
-  context: DeadlineContext,
-): Promise<void> {
-  const { error: stageError } = await awaitOperation(
-    client.rpc('stage_deterministic_ranking_result', {
-      p_item_id: row.item_id,
-      p_revision: row.revision,
-      p_eligible: null,
-      p_score: null,
-      p_tier: null,
-      p_breakdown: null,
-      p_filter_code: null,
-      p_filter_detail: null,
-      p_best_fit_resume_id: null,
-      p_runner_up_resume_id: null,
-      p_error_code: diagnosticCode(error),
-    }),
-    context,
-  )
-  if (stageError) throw stageError
-}
-
-async function processRow(
-  client: DeterministicWorkerClient,
+function processRow(
   row: ClaimedRankingRow,
   jobs: Map<string, RankingJobRow>,
   context: DeadlineContext,
-): Promise<boolean> {
+): StagedRankingResult {
+  const job = jobs.get(row.job_id)
   try {
     assertWithinDeadline(context)
-    const job = jobs.get(row.job_id)
     if (!job) throw new Error('ranking_job_missing')
 
     const result = evaluateDeterministicRanking({
@@ -233,31 +220,38 @@ async function processRow(
         strong: row.captured_strong_threshold,
       },
     })
-    const { data: staged, error: stageError } = await awaitOperation(
-      client.rpc('stage_deterministic_ranking_result', {
-        p_item_id: row.item_id,
-        p_revision: row.revision,
-        p_eligible: result.eligible,
-        p_score: result.score,
-        p_tier: result.tier,
-        p_breakdown: result.breakdown,
-        p_filter_code: result.filterReason,
-        p_filter_detail: result.filterDetail,
-        p_best_fit_resume_id: null,
-        p_runner_up_resume_id: null,
-        p_error_code: null,
-      }),
-      context,
-    )
-    if (stageError) throw stageError
-    if (staged !== true) throw new Error('ranking_stage_stale')
-    return true
+    return {
+      item_id: row.item_id,
+      revision: row.revision,
+      job_input_revision: job.deterministic_input_revision,
+      eligible: result.eligible,
+      score: result.score,
+      tier: result.tier,
+      breakdown: result.breakdown,
+      filter_code: result.filterReason,
+      filter_detail: result.filterDetail,
+      best_fit_resume_id: null,
+      runner_up_resume_id: null,
+      error_code: null,
+    }
   } catch (error) {
     if (context.signal.aborted || isAbort(error)) {
       throw new DeterministicWorkerDeadlineError()
     }
-    await stageFailure(client, row, error, context)
-    return false
+    return {
+      item_id: row.item_id,
+      revision: row.revision,
+      job_input_revision: job?.deterministic_input_revision ?? 0,
+      eligible: null,
+      score: null,
+      tier: null,
+      breakdown: null,
+      filter_code: null,
+      filter_detail: null,
+      best_fit_resume_id: null,
+      runner_up_resume_id: null,
+      error_code: diagnosticCode(error),
+    }
   }
 }
 
@@ -272,7 +266,7 @@ async function loadJobs(
 
   const operation = client
     .from('jobs')
-    .select('id, title, location, description_text, posted_at, company_id')
+    .select('id, title, location, description_text, posted_at, company_id, deterministic_input_revision')
     .in('id', ids)
   const { data, error } = await awaitOperation(operation, context)
   if (error) throw error
@@ -286,24 +280,34 @@ async function processBatch(
   context: DeadlineContext,
 ): Promise<number> {
   const jobs = await loadJobs(client, rows, context)
-  const results: PromiseSettledResult<boolean>[] = []
+  const settled: PromiseSettledResult<StagedRankingResult>[] = []
   for (let offset = 0; offset < rows.length; offset += MAX_CONCURRENCY) {
     assertWithinDeadline(context)
     const chunk = rows.slice(offset, offset + MAX_CONCURRENCY)
-    results.push(
+    settled.push(
       ...await Promise.allSettled(
         chunk.map((row) =>
-          processRow(client, row, jobs, context)
+          Promise.resolve().then(() => processRow(row, jobs, context))
         ),
       ),
     )
     if (context.signal.aborted) throw new DeterministicWorkerDeadlineError()
-    const rejected = results.find((result) => result.status === 'rejected')
+    const rejected = settled.find((result) => result.status === 'rejected')
     if (rejected?.status === 'rejected') throw rejected.reason
   }
-  return results.filter(
-    (result) => result.status === 'fulfilled' && result.value,
-  ).length
+
+  const records = settled.map((result) => {
+    if (result.status === 'rejected') throw result.reason
+    return result.value
+  })
+  const { data: staged, error: stageError } = await awaitOperation(
+    client.rpc('stage_deterministic_ranking_results', { p_results: records }),
+    context,
+  )
+  if (stageError) throw stageError
+  if (staged !== rows.length) throw new Error('ranking_stage_incomplete')
+
+  return records.filter((record) => record.error_code === null).length
 }
 
 async function finalizeRuns(

@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
-import type { FeedRow } from '../lib/feed'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { InfiniteData } from '@tanstack/react-query'
+import type { DashboardFeedPage, FeedRow } from '../lib/feed'
 import type { DashboardAppliedApplication } from '../lib/tracker'
 import dashboardSource from './Dashboard.tsx?raw'
 import resizeHandleSource from '../components/ColumnResizeHandle.tsx?raw'
@@ -18,7 +19,25 @@ import {
   type ColumnResizeCoordinator,
   type DashboardColumnStorage,
 } from '../lib/dashboardColumns'
-import { Dashboard } from './Dashboard'
+import {
+  Dashboard,
+  filterDismissedFeedRows,
+  restoreDismissedRowInInfiniteData,
+} from './Dashboard'
+
+const reactQueryHarness = vi.hoisted(() => ({
+  mutationOptions: new Map<string, unknown>(),
+  feedRefetch: vi.fn(),
+  queryClient: {
+    cancelQueries: vi.fn(),
+    getQueriesData: vi.fn(),
+    getQueryData: vi.fn(),
+    invalidateQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+    setQueriesData: vi.fn(),
+    setQueryData: vi.fn(),
+  },
+}))
 
 const row: FeedRow = {
   id: 'user-job-1',
@@ -68,6 +87,28 @@ const externalRow: FeedRow = {
   },
 }
 
+const secondRow: FeedRow = {
+  ...row,
+  id: 'user-job-2',
+  jobs: {
+    ...row.jobs!,
+    id: 'job-2',
+    title: 'Associate',
+    absolute_url: 'https://example.com/jobs/2',
+  },
+}
+
+const thirdRow: FeedRow = {
+  ...row,
+  id: 'user-job-3',
+  jobs: {
+    ...row.jobs!,
+    id: 'job-3',
+    title: 'Senior Analyst',
+    absolute_url: 'https://example.com/jobs/3',
+  },
+}
+
 const appliedApplication: DashboardAppliedApplication = {
   applicationId: '11111111-1111-4111-8111-111111111111',
   company: 'Acme',
@@ -98,13 +139,16 @@ vi.mock('react-router', () => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
-  useMutation: () => ({
-    mutate: vi.fn(),
-    mutateAsync: vi.fn(),
-    reset: vi.fn(),
-    isPending: false,
-    isError: false,
-  }),
+  useMutation: (options: { mutationFn: { name?: string } }) => {
+    reactQueryHarness.mutationOptions.set(options.mutationFn.name ?? 'anonymous', options)
+    return {
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+      isPending: false,
+      isError: false,
+    }
+  },
   useInfiniteQuery: ({ queryKey }: { queryKey: readonly unknown[] }) => {
     const scopedRows = queryKey[3] === 'watchlist' ? [row] : [row, externalRow]
     return {
@@ -121,7 +165,7 @@ vi.mock('@tanstack/react-query', () => ({
       isPending: false,
       isFetchingNextPage: false,
       fetchNextPage: vi.fn(),
-      refetch: vi.fn(),
+      refetch: reactQueryHarness.feedRefetch,
     }
   },
   useQuery: ({ queryKey }: { queryKey: readonly unknown[] }) => {
@@ -155,16 +199,226 @@ vi.mock('@tanstack/react-query', () => ({
     }
     return { data: [], error: null, isPending: false }
   },
-  useQueryClient: () => ({
-    cancelQueries: vi.fn(),
-    getQueriesData: vi.fn(() => []),
-    getQueryData: vi.fn(),
-    invalidateQueries: vi.fn(),
-    refetchQueries: vi.fn(),
-    setQueriesData: vi.fn(),
-    setQueryData: vi.fn(),
-  }),
+  useQueryClient: () => reactQueryHarness.queryClient,
 }))
+
+type DashboardData = InfiniteData<DashboardFeedPage, string | null>
+
+interface DismissMutationOptions {
+  onMutate: (rowId: string) => unknown
+  onError: (error: Error, rowId: string, context: unknown) => void
+  onSuccess: (data: void, rowId: string, context: unknown) => unknown
+  onSettled?: () => unknown
+}
+
+function dashboardData(pages: FeedRow[][]): DashboardData {
+  return {
+    pages: pages.map((rows, index) => ({
+      rows,
+      nextCursor: index === pages.length - 1 ? 'cursor-next' : `cursor-${index + 1}`,
+      hasMore: true,
+      caughtUp: false,
+    })),
+    pageParams: pages.map((_rows, index) => index === 0 ? null : `cursor-${index}`),
+  }
+}
+
+function dismissMutationOptions(scope: 'all' | 'watchlist' = 'all'): DismissMutationOptions {
+  renderToStaticMarkup(<Dashboard scope={scope} />)
+  const options = reactQueryHarness.mutationOptions.get('dismissJob')
+  if (!options) throw new Error('dismiss mutation options were not captured')
+  return options as DismissMutationOptions
+}
+
+beforeEach(() => {
+  reactQueryHarness.mutationOptions.clear()
+  reactQueryHarness.feedRefetch.mockReset()
+  reactQueryHarness.feedRefetch.mockResolvedValue({ isError: false })
+  for (const mock of Object.values(reactQueryHarness.queryClient)) mock.mockReset()
+  reactQueryHarness.queryClient.cancelQueries.mockResolvedValue(undefined)
+  reactQueryHarness.queryClient.getQueriesData.mockReturnValue([])
+  reactQueryHarness.queryClient.invalidateQueries.mockResolvedValue(undefined)
+  reactQueryHarness.queryClient.refetchQueries.mockResolvedValue(undefined)
+})
+
+describe('Dashboard dismissal transaction', () => {
+  it('removes the exact card synchronously before unresolved query cancellation', () => {
+    let cache = dashboardData([[row, secondRow], [thirdRow]])
+    let releaseCancellation!: () => void
+    const cancellation = new Promise<void>((resolve) => {
+      releaseCancellation = resolve
+    })
+    reactQueryHarness.queryClient.getQueryData.mockImplementation(() => cache)
+    reactQueryHarness.queryClient.setQueryData.mockImplementation(
+      (_key, updater: (current: DashboardData) => DashboardData) => {
+        cache = updater(cache)
+      },
+    )
+    reactQueryHarness.queryClient.cancelQueries.mockReturnValue(cancellation)
+    const mutation = dismissMutationOptions()
+
+    const startedAt = performance.now()
+    const context = mutation.onMutate(secondRow.id) as Record<string, unknown>
+    const elapsed = performance.now() - startedAt
+
+    expect(context).not.toBeInstanceOf(Promise)
+    expect(elapsed).toBeLessThan(100)
+    expect(cache.pages.flatMap(({ rows }) => rows.map(({ id }) => id))).toEqual([
+      row.id,
+      thirdRow.id,
+    ])
+    expect(context).toMatchObject({
+      removedRow: secondRow,
+      pageIndex: 0,
+      rowIndex: 1,
+      title: 'Associate',
+      continuationCursor: 'cursor-next',
+      nextFocusId: thirdRow.id,
+      previousFocusId: row.id,
+    })
+    expect(
+      reactQueryHarness.queryClient.setQueryData.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      reactQueryHarness.queryClient.cancelQueries.mock.invocationCallOrder[0],
+    )
+
+    releaseCancellation()
+  })
+
+  it('rolls back only the failed card while preserving concurrent cache changes', () => {
+    let cache = dashboardData([[row, secondRow], [thirdRow]])
+    reactQueryHarness.queryClient.getQueryData.mockImplementation(() => cache)
+    reactQueryHarness.queryClient.setQueryData.mockImplementation(
+      (_key, updater: (current: DashboardData) => DashboardData) => {
+        cache = updater(cache)
+      },
+    )
+    const mutation = dismissMutationOptions()
+    const context = mutation.onMutate(secondRow.id)
+    const concurrentRow = {
+      ...thirdRow,
+      id: 'user-job-concurrent',
+      jobs: { ...thirdRow.jobs!, id: 'job-concurrent', title: 'Concurrent role' },
+    }
+    cache = {
+      ...cache,
+      pages: cache.pages.map((page, index) => index === 1
+        ? { ...page, rows: [...page.rows, concurrentRow] }
+        : page),
+    }
+
+    mutation.onError(new Error('rpc failed'), secondRow.id, context)
+
+    expect(cache.pages[0].rows.map(({ id }) => id)).toEqual([row.id, secondRow.id])
+    expect(cache.pages[1].rows.map(({ id }) => id)).toEqual([
+      thirdRow.id,
+      concurrentRow.id,
+    ])
+    expect(
+      cache.pages.flatMap(({ rows }) => rows).filter(({ id }) => id === secondRow.id),
+    ).toHaveLength(1)
+  })
+
+  it('restores into the nearest surviving page and keeps session-excluded IDs hidden', () => {
+    const original = dashboardData([[row], [secondRow, thirdRow]])
+    const context = {
+      removedRow: secondRow,
+      pageIndex: 1,
+      rowIndex: 0,
+      title: 'Associate',
+      continuationCursor: 'cursor-next',
+      nextFocusId: thirdRow.id,
+      previousFocusId: row.id,
+    }
+    const current = dashboardData([[row, thirdRow]])
+
+    const restored = restoreDismissedRowInInfiniteData(current, context)
+
+    expect(original.pages[1].rows[0]).toBe(secondRow)
+    expect(restored?.pages[0].rows.map(({ id }) => id)).toEqual([
+      secondRow.id,
+      row.id,
+      thirdRow.id,
+    ])
+    expect(filterDismissedFeedRows(restored!.pages[0].rows, new Set([secondRow.id])))
+      .toEqual([row, thirdRow])
+  })
+
+  it('scopes pending state and restored focus to Dismiss without gating other controls', () => {
+    expect(dashboardSource).toContain('dismissPendingIds.has(row.id)')
+    expect(dashboardSource).toContain('disabled={markAppliedMutation.isPending}')
+    expect(dashboardSource).not.toContain('const lifecycleMutationPending =')
+    expect(dashboardSource).toContain('dismissActionRefs.current.set(row.id, node)')
+    expect(dashboardSource).toContain('restoredDismissFocusIdRef')
+    expect(dashboardSource).toContain('Couldn’t dismiss ${context.title}.')
+  })
+})
+
+describe('Dashboard dismissal settlement', () => {
+  it('settles at RPC success while watchlist refill and invalidation remain unresolved', async () => {
+    let resolveRefill!: (value: { isError: false }) => void
+    const refill = new Promise<{ isError: false }>((resolve) => {
+      resolveRefill = resolve
+    })
+    let resolveInvalidation!: () => void
+    const invalidation = new Promise<void>((resolve) => {
+      resolveInvalidation = resolve
+    })
+    reactQueryHarness.feedRefetch.mockReturnValue(refill)
+    reactQueryHarness.queryClient.invalidateQueries.mockReturnValue(invalidation)
+    const mutation = dismissMutationOptions('watchlist')
+    const context = {
+      removedRow: row,
+      pageIndex: 0,
+      rowIndex: 0,
+      title: 'Analyst',
+      continuationCursor: 'cursor-next',
+      nextFocusId: secondRow.id,
+      previousFocusId: null,
+    }
+
+    const result = mutation.onSuccess(undefined, row.id, context)
+    const refillStartedBeforeRelease = reactQueryHarness.feedRefetch.mock.calls.length === 1
+    const invalidationStartedBeforeRelease =
+      reactQueryHarness.queryClient.invalidateQueries.mock.calls.some(([options]) =>
+        (options as { refetchType?: string }).refetchType === 'inactive')
+
+    resolveRefill({ isError: false })
+    resolveInvalidation()
+    if (result instanceof Promise) await result
+
+    expect(result).toBeUndefined()
+    expect(refillStartedBeforeRelease).toBe(true)
+    expect(invalidationStartedBeforeRelease).toBe(true)
+  })
+
+  it('launches durable success state before detached work and removes dismiss onSettled', () => {
+    const dismissSource = dashboardSource.match(
+      /const dismissMutation = useMutation\([\s\S]*?\n  const markAppliedMutation/,
+    )?.[0] ?? ''
+    const pendingClear = dismissSource.indexOf('setDismissPendingIds')
+    const announcement = dismissSource.indexOf('setQueueAnnouncement')
+    const detachedRefill = dismissSource.indexOf('void refillVisibleQueue')
+
+    expect(dismissSource).toContain('onSuccess: (_data, id, context) =>')
+    expect(dismissSource).not.toContain('onSuccess: async')
+    expect(dismissSource).not.toContain('onSettled:')
+    expect(pendingClear).toBeGreaterThanOrEqual(0)
+    expect(announcement).toBeGreaterThan(pendingClear)
+    expect(detachedRefill).toBeGreaterThan(announcement)
+  })
+
+  it('keeps refill failures retryable for all-jobs and watchlist scopes', () => {
+    expect(dashboardSource).toContain("scope: 'all'")
+    expect(dashboardSource).toContain("scope: 'watchlist'")
+    expect(dashboardSource).toContain(
+      'The job remains dismissed and your current results remain usable.',
+    )
+    expect(dashboardSource).toContain('void refillVisibleQueue(backfillRetry)')
+    expect(dashboardSource).toContain('setBackfillError(\'\')')
+    expect(dashboardSource).toContain('setBackfillRetry(null)')
+  })
+})
 
 describe('Dashboard precision controls', () => {
   it('renders Active by default with exclusive lifecycle controls and truthful count copy', () => {
@@ -212,7 +466,7 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('listDashboardCompanyOptions(feedRequest)')
     expect(dashboardSource).toContain('sourceScope: scope')
     expect(dashboardSource).toContain("scope === 'watchlist'")
-    expect(dashboardSource).toContain('const rows = allRows')
+    expect(dashboardSource).toContain('filterDismissedFeedRows(allRows, dismissedIds)')
     expect(dashboardSource).not.toContain('dashboardSourceRows(allRows, scope)')
     expect(dashboardSource).toContain('appliedHiddenKeys')
     expect(dashboardSource).toContain('selectedTiers')
@@ -333,7 +587,7 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('if (index >= 0) focusAfterRemoval')
     expect(dashboardSource).toContain('focusAfterRemoval')
     expect(dashboardSource).toContain('tableRegionRef.current?.focus()')
-    expect(dashboardSource).toContain('const lifecycleMutationPending =')
+    expect(dashboardSource).toContain('disabled={markAppliedMutation.isPending}')
     expect(dashboardSource).toContain('role="status"')
     expect(dashboardSource).toContain('aria-live="polite"')
     expect(dashboardSource).toContain(

@@ -1,20 +1,20 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_phase: 04
-status: completed
-stopped_at: Phase 04 complete; v1.0 milestone ready to archive
-last_updated: "2026-07-28T19:47:34.281Z"
-last_activity: 2026-07-28
-last_activity_desc: Phase 04 complete with 7/7 plans, 5/5 owner UAT, and exact production release evidence
+milestone: v1.1
+milestone_name: Outreach Intelligence
+current_phase: 05.1
+current_phase_name: ranking-and-dashboard-performance-stabilization
+status: in_progress
+stopped_at: Completed 05.1-08-PLAN.md
+last_updated: "2026-08-01T22:26:20.647Z"
+last_activity: 2026-08-01
+last_activity_desc: Sealed the source/build-input/target-bound owner receipt without starting Plan 09
 progress:
-  total_phases: 15
-  completed_phases: 15
-  total_plans: 88
-  completed_plans: 88
-  percent: 100
-current_phase_name: Application Tracker
+  total_phases: 2
+  completed_phases: 1
+  total_plans: 33
+  completed_plans: 31
+  percent: 50
 ---
 
 # Project State
@@ -24,22 +24,21 @@ current_phase_name: Application Tracker
 See: .planning/PROJECT.md (updated 2026-07-28)
 
 **Core value:** Discover relevant jobs fast, score them accurately, and surface them in a focused feed.
-**Current focus:** v1.0 milestone complete — ready to archive
+**Current focus:** Phase 05.1 — ranking-and-dashboard-performance-stabilization
 
 ## Current Position
 
-Phase: 04 (Application Tracker) — COMPLETE
-Plan: 7 of 7
-Status: Complete
-Last activity: 2026-07-28 — exact production release passed 5/5 owner UAT
-
-Progress: [██████████] 100%
+Phase: 05.1 (ranking-and-dashboard-performance-stabilization) — IN PROGRESS
+Plan: 8 of 10 active plans complete
+Next plan: 05.1-09 (independently revalidate and deploy only the exact fresh receipt-bound 0064/function/web release)
+Status: Plan 05.1-08 APPROVED; receipt ad142876... is the sole current Plan 09 authority, while migration 0064/function/web remain undeployed and Plan 08 production mutations remain zero
+Last activity: 2026-08-01 — Sealed the source/build-input/target-bound owner receipt without starting Plan 09
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 60
+- Total plans completed: 88
 - Average duration: 23m
 - Total execution time: 1665m
 
@@ -62,8 +61,9 @@ Progress: [██████████] 100%
 
 - Last Phase 04 gap closures: full-width Tracker, safe deletion, and compact
   indexed row refinements
-- Trend: Phase 04 closed with 7/7 plans, 1,532 passing tests, 45/45 security
-  threats closed, and 5/5 owner UAT on the exact live release
+
+- Trend: v1.0 closed with 88/88 plans, 1,561 passing tests, 28/28
+  requirements, and a zero-residue hosted release verifier
 
 *Updated after each plan completion*
 | Phase 02 P01 | 16 min | 3 tasks | 8 files |
@@ -129,6 +129,23 @@ Progress: [██████████] 100%
 | Phase 03.10 P05 | 12min | 1 tasks | 2 files |
 | Phase 04 P01 | 7min | 2 tasks | 7 files |
 | Phase 04 P02 | 14min | 2 tasks | 5 files |
+| Phase 05 P01 | 6m | 2 tasks | 4 files |
+| Phase 05 P02 | 14m | 3 tasks | 7 files |
+| Phase 05 P04 | 13m | 3 tasks | 8 files |
+| Phase 05 P05 | 5 min | 2 tasks | 3 files |
+| Phase 05 P06 | 11 min | 2 tasks | 6 files |
+| Phase 05 P08 | 18 min | 2 tasks | 2 files |
+| Phase 05 P07 | 3 min | 1 tasks | 1 files |
+| Phase 05 P10 | 18 min | 2 tasks | 2 files |
+| Phase 05 P09 | 25min | 3 tasks | 12 files |
+| Phase 05.1 P01 | 37min | 2 tasks | 5 files |
+| Phase 05.1 P02 | 42min | 3 tasks | 2 files |
+| Phase 05.1 P03 | 42min | 2 tasks | 2 files |
+| Phase 05.1 P05 | 24min | 3 tasks | 9 files |
+| Phase 05.1 P06 | 8 min | 2 tasks | 2 files |
+| Phase 05.1 P04 | 2min | 1 tasks | 1 files |
+| Phase 05.1 P13 | 3min | 1 tasks | 1 files |
+| Phase 05.1 P08 | 12min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -313,6 +330,52 @@ Recent decisions affecting current work:
 - [Phase 04]: Whole-application deletion is owner-scoped and preserves `user_jobs.applied_at`, so deleting Tracker history cannot return a system job to Active.
 - [Phase 04]: The owner-approved Tracker is a full-width compact indexed table with dropdown filters, far-right save status, and no horizontal-scroll contract; Dashboard best-fit resume routing is absent while Resume Library upload remains.
 - [Phase 04]: Exact release `c5a78799453449a737e13650a62dfd6135d10729` passed all 1,532 tests and 5/5 signed-in owner UAT checks.
+- [Phase 05]: Treat the current LinkedIn prohibitions and Tavily ambiguities as RIGHTS_NO_GO before request one; owner acknowledgement cannot substitute for permission.
+- [Phase 05]: Keep required local raw-response deletion separate from ambiguous provider-side retention and optional company-level caching.
+- [Phase 05]: Use canonical SHA-256 digests only for drift detection; a digest neither authenticates an owner nor grants permission.
+- [Phase 05]: Keep the complete eight-case quality contract import-only and unreachable under the committed RIGHTS_NO_GO matrix. — Preserves D-12 and proves the conditional boundary without a provider effect.
+- [Phase 05]: Hash only the stable no-go projection; owner checkpoint provenance and zero-residue evidence remain separately validated non-circular fields. — Avoids a decision/residue digest cycle while keeping later owner acceptance exact.
+- [Phase 05]: Limit residue claims to two allowlisted repository roots across worktree, index, and the immutable Phase 5 plan-baseline-to-HEAD range; provider-side retention remains NOT_ASSERTED. — Proves controlled local and Git cleanup without overstating external provider deletion.
+- [Phase 05]: Accept the owner-attested rights no-go and structurally stop outreach at Phase 5 — Quality remains NOT_RUN_RIGHTS_NO_GO; zero local/Git residue is proven; production search and downstream phases remain unauthorized.
+- [Phase 05]: Accept retrieval timestamps only as canonical UTC whole seconds or exactly three fractional-second digits. — Rejects offset-bearing and variably precise timestamps so evidence chronology has one deterministic representation.
+- [Phase 05]: Cap the research-start to validity-start difference at seven UTC calendar days while keeping valid_until inclusive through its final millisecond. — Preserves the approved current matrix interval without allowing an overlong evidence horizon.
+- [Phase 05]: Anchor Phase 5 permanently to commit e1d592e8b574ae3e474ce44661b3970954ef00d9 and the exact 05-01 plan blob, never to the newest plan edit. — Prevents later plan edits from moving the residue-history trust anchor.
+- [Phase 05]: Treat the pending request hash as preparation only; an accepted owner receipt can be created solely from byte-exact raw stdin at the blocking Plan 05-07 boundary. — A digest does not authenticate the owner and the autonomous plan must not manufacture a response.
+- [Phase 05]: Preserve owner and decision lineage after v1 replacement by reconstructing the exact v1 no-go projection from accepted decision v2. — Request and receipt validation must survive legacy decision overwrite without trusting an extra file.
+- [Phase 05]: Reconstruct residue evidence from the pinned baseline through an explicit source head, then validate later Phase 5 bookkeeping as a separate live administrative tail.
+- [Phase 05]: Treat a current untracked verification report only as bounded worktree bytes; committed verification lineage begins exclusively from the source-head tree.
+- [Phase 05]: Accept the immutable pre-schema decision placeholder only by its exact path, empty-object state, and historical blob digest.
+- [Phase 05]: Keep --validate-contract non-authoritative and independent of final lifecycle files. — Plan 05-09 needs stable semantic and evidence validation before code review, verification, and tracking closeout exist.
+- [Phase 05]: Require only exact Phase 5-owned paths to be clean during terminal audit. — Unrelated work remains outside the Phase 5 claim and is represented only by a sanitized count and SHA-256 while its complete porcelain buffer stays unchanged.
+- [Phase 05]: Keep final document fingerprints and live HEAD ephemeral in stdout. — Persisting mutable closeout bytes would create a self-referential evidence cycle; stable reconciliation stores only semantic projection and accepted evidence digests.
+- [Phase 05]: Accepted status is derived only from the exact owner receipt, recomputed v1 checkpoint lineage, and complete v2 zero-residue record.
+- [Phase 05]: Complete OUTR-05 with the representative spike conditional on rights clearance; accepted RIGHTS_NO_GO closes as NOT_RUN_RIGHTS_NO_GO with no quality claim.
+- [Phase 05]: Complete the executor handoff while deferring the authoritative terminal audit until the execute-phase orchestrator fully returns.
+- [Phase 05.1]: Use exact owner/source/external_id tombstone identity in enqueue qualification and projection seeding while preserving full-snapshot construction. — Durable provider identity prevents cross-owner suppression and preserves the existing publication contract.
+- [Phase 05.1]: Exclude migration 0062 and bind migration 0063 as the sole containment approval candidate. — The diagnosed hosted schema was observed only through 0061, so containment must fail closed against bundling unrelated pending work.
+- [Phase 05.1]: Replay historical verification prerequisites only as synthetic disposable local baseline state. — Immutable historical migrations depend on prior approval-probe outcomes; synthetic baseline state enables exact local replay without hosted data.
+- [Phase 05.1]: Preflight exact cached Docker images before every Supabase workflow and fail on pull, download, or install output. — This prevents automatic network fallback and makes later local verification fail closed.
+- [Phase 05.1]: Owner approved only payload 5eeafb9d590a3acc5ad4d50cc01c5c4881d95b4b9b85e1fef9f3127aa178adcf for the exact one-attempt migration 0063 boundary; Plan 05.1-02 performed no deployment. — Authorization is cryptographically scoped to the immutable containment payload and cannot authorize any excluded action.
+- [Phase 05.1]: Operational counts remain non-authorizing and may drift; Plan 05.1-03 must independently pass its immutable and zero-active-work gates immediately before any push. — Volatile observations cannot safely become reusable deployment authority.
+- [Phase 05.1]: Commits 30955dc/a22a88b and prior payload digests remain invalid, unsealed, never deployed, and non-reusable. — Stale payload history must not be mistaken for live owner authority.
+- [Phase 05.1]: Apply only receipt-bound migration 0063 after the final immutable and zero-active-work gates; migration 0062 remains excluded and absent.
+- [Phase 05.1]: Accept the non-fatal pg-delta catalog-cache warning without retry only because the exact push exited zero and independent post-state verification passed.
+- [Phase 05.1]: Recover any future containment mismatch only through a separately tested and owner-approved forward migration; deployed 0063 and migration history remain immutable.
+- [Phase 05.1]: D-21 supersedes the Plan 04/13 historical runtime/scheduler provenance prerequisite. Preserve those artifacts as truthful nonblocking audit material; use only current implementation proofs and a new postrelease observation.
+- [Phase 05.1]: D-22 makes Plans 05.1-05 and 05.1-06 immediate parallel local implementation after completed Plan 03. Neither depends on Plan 04 or Plan 13, and migration 0064 stays undeployed until a fresh Plan 08 receipt.
+- [Phase 05.1]: D-23 defers retention, deletion, cleanup, approval, and vacuum work outside active Phase 05.1. Former Plans 07/11/12 remain preserved as `*-DEFERRED.md` and cannot block implementation, release, or acceptance.
+- [Phase 05.1]: Represent routine ranking work as a deduplicated owner/job queue keyed by a captured job-input revision, with no catalog backfill and a hard 25-row enqueue bound.
+- [Phase 05.1]: Stage every claimed worker batch in one exact-key JSON RPC and cap each invocation at 250 items; automatic maintenance no longer requests catalog recency refreshes.
+- [Phase 05.1]: Verify migration 0064 only in a disposable local root containing 0001-0061, 0063, and 0064, with exact cached-image identity preflight and migration 0062 excluded.
+- [Phase 05.1]: Keep migration 0064 local and undeployed until a fresh Plan 05.1-08 approval boundary authorizes its exact release payload.
+- [Phase 05.1]: Keep successful dismissal IDs excluded for the Dashboard component session so late feed responses cannot visibly resurrect them.
+- [Phase 05.1]: Rollback patches the current cache with only the captured row instead of restoring the Mark Applied whole-cache snapshot.
+- [Phase 05.1]: Dismiss success returns at the durable RPC callback; refill/routing and inactive invalidation are explicitly detached background work.
+- [Phase 05.1]: Close Plan 05.1-04 as NONBLOCKING_AUDIT_ONLY under D-21. — Preserve the failed historical observation and its omissions without gating D-22 implementation or claiming post-redesign acceptance.
+- [Phase 05.1]: Plan 05.1-13 is SUPERSEDED_NONBLOCKING under D-21/D-23: preserve failed provenance and deferred retention history without historical reconstruction or release authority.
+- [Phase 05.1]: Plan 08 authorizes only migration 0064, the exact recursive score-tick closure, and one non-force fast-forward of the approved source commit through the established Cloudflare Git integration. — This keeps the fresh owner receipt limited to the three reviewed one-attempt release effects.
+- [Phase 05.1]: Plan 08 treats tracked web source/build inputs and Cloudflare build settings as pre-deployment authority; local generated asset filenames and hashes have no authority. — Only Plan 09 can seal the unique provider-built deployment and production-domain bytes.
+- [Phase 05.1]: Plan 08 accepts only the exact current repository-owner response bound to payload 6b0a48868ead8c153d4b4da5f993d556a13a3b261d50af2fdb3f012567e83c9f; rejected and prior receipts remain non-reusable. — Actor, payload, and scope drift must require a fresh checkpoint rather than reuse old assent.
 
 ### Pending Todos
 
@@ -322,6 +385,25 @@ Recent decisions affecting current work:
 - Add SuccessFactors and Paylocity connectors
 - Refine company visibility controls
 - Consolidate score tier controls
+
+### Roadmap Evolution
+
+- Phase 05.1 inserted after Phase 5: Ranking and Dashboard Performance Stabilization (URGENT)
+
+## Deferred Items
+
+Items acknowledged and deferred at milestone close on 2026-07-28:
+
+| Category | Item | Status |
+|----------|------|--------|
+| todo | 2026-07-20-add-company-visibility-filter.md | acknowledged; implemented/superseded reconciliation deferred |
+| todo | 2026-07-20-add-entry-level-only-job-preference-filter.md | acknowledged; implemented/superseded reconciliation deferred |
+| todo | 2026-07-20-add-successfactors-and-paylocity-connectors.md | acknowledged; implemented/superseded reconciliation deferred |
+| todo | 2026-07-20-pilot-workday-polling-for-10-companies.md | acknowledged; implemented/superseded reconciliation deferred |
+| todo | 2026-07-22-consolidate-score-tier-controls.md | acknowledged; implemented/superseded reconciliation deferred |
+| uat | 03.10-UAT.md | unknown label; 0 pending scenarios |
+| uat | 03.4-UAT.md | passed label; 0 pending scenarios |
+| uat | 03.6-UAT.md | pass label; 0 pending scenarios |
 
 ### Quick Tasks Completed
 
@@ -337,6 +419,8 @@ Recent decisions affecting current work:
 
 - [Phase 2 verification]: cron-job.org failure email delivery and HTTP 200 recovery were observed, but recovery-email receipt was user-waived and remains unverified; do not record it as passed.
 - [Phase 02.1 UAT]: offline Watchlist removal can remain indefinitely at `Removing…` with both actions disabled and no modal error. Curi Capital remained after recovery. The user accepted deferring the fix and Checks 6-8; do not record the behavior as passed.
+- [Phase 05.1]: migration 0064 is local-only and has no deployment authority. Future release requires Plan 05/06 proofs plus a fresh exact Plan 08 owner receipt for 0064/function/web; 0065/retention/cleanup remain excluded.
+- Phase 05.1 Plan 08: rejected payload f3cac981… / receipt 93b9b258… remains NOT_APPROVED and non-reusable. Fresh payload 6b0a4886… / receipt ad142876… is APPROVED only for the exact three one-attempt Plan 09 effects; 0062/0065, retention/cleanup/history, manual calls/deploys, retries, rollback, and force push remain unauthorized.
 
 ### Roadmap Evolution
 
@@ -359,11 +443,21 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-28T19:47:34Z
-Stopped at: Phase 04 complete with all 7 plans and v1.0 ready to archive
+Last session: 2026-08-01T22:26:20.633Z
+Phase 05 complete session timestamp: 2026-07-29T21:44:11.387Z
+Stopped at: Completed 05.1-08-PLAN.md
+Phase 05 complete session handoff: Completed 05-09-PLAN.md
 Resume file: None
 Last session (2026-07-26): Phase 03.8 selective Workday recovery completed; all four requested companies are Active at 3/3 with successful natural polls, 176 exact-scope jobs, migration 0044 parity, protected sources intact, and zero verifier residue.
 Earlier Phase 03.8 closeout (superseded by the recovery above): all four new Workday candidates were precise Unsupported with zero authority; migrations/functions matched that approved release, verifier cleanup was zero-residue, and owner UAT passed.
 Last session (2026-07-25): Phase 03.7 passed local checks, exact-release byte verification, and 3/3 owner-approved signed-in UAT checks on release `baf81fcaa72443995f227b118d10eec90da25679`; no Phase 03.7 gaps remain.
 Last session (2026-07-25): Phase 03.6 passed 6/6 formal truths, 20/20 hosted checks, 30/30 security threats, 24/24 UI review checks, and 12/12 owner-approved UAT interactions on exact release `70cc6e527ffe57d3bfc18f706625dfc7e121c59cb636dea06df9ba6557b96f2b`; no Phase 03.6 gaps remain.
 Last session (2026-07-20): Phase 3 passed 17/17 formal truths, 52/52 planned security threats, and 8/8 human UAT on exact release `0202952`; no Phase 3 gaps remain.
+
+## Operator Next Steps
+
+- Execute Plan 05.1-09 only after independently recomputing the unchanged fresh
+  payload/receipt, release source, tracked web inputs, targets, Cloudflare build
+  settings, commands, limits, and exclusions. Plan 09 may perform only the
+  receipt-bound 0064/function/non-force Git-triggered web release once; the
+  rejected packet remains non-authorizing audit history.
