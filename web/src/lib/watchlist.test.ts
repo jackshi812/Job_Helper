@@ -6,16 +6,19 @@ import workdayCandidateMigration from '../../../supabase/migrations/0043_phase_0
 import {
   activationPresentation,
   addCompany,
+  COLLAPSED_COMPANIES_STORAGE_KEY,
   COMPANY_COLUMNS,
   deriveHealth,
   healthPresentation,
   listCompanies,
+  loadCollapsedCompanyKeys,
   mergeCoverageRows,
   groupWatchlistRows,
   REMOVE_COMPANY_TIMEOUT_MESSAGE,
   REMOVE_COMPANY_TIMEOUT_MS,
   removeCompany,
   safeCareersUrl,
+  saveCollapsedCompanyKeys,
   SOURCE_COVERAGE_CATALOG_COLUMNS,
   type SourceCoverageCatalogRecord,
   type CompanyRecord,
@@ -186,6 +189,43 @@ describe('watchlist row grouping', () => {
     expect(grouped.visible.map((row) => row.name)).toEqual(['Beta'])
     expect(grouped.other.map((row) => row.name)).toEqual(['Alpha', 'Gamma'])
     expect(rows.map((row) => row.name)).toEqual(['Alpha', 'Beta', 'Gamma'])
+  })
+
+  it('persists and restores collapsed company keys', () => {
+    const values = new Map<string, string>()
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    }
+
+    saveCollapsedCompanyKeys(new Set(['company:beta', 'company:alpha']), storage)
+
+    expect(values.get(COLLAPSED_COMPANIES_STORAGE_KEY)).toBe(
+      '["company:alpha","company:beta"]',
+    )
+    expect([...loadCollapsedCompanyKeys(storage)]).toEqual(['company:alpha', 'company:beta'])
+
+    saveCollapsedCompanyKeys(new Set(), storage)
+    expect(values.has(COLLAPSED_COMPANIES_STORAGE_KEY)).toBe(false)
+  })
+
+  it('ignores malformed or unavailable collapsed-company storage', () => {
+    const malformedStorage = {
+      getItem: () => '{not-json',
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    }
+    const unavailableStorage = {
+      getItem: () => { throw new Error('blocked') },
+      setItem: () => { throw new Error('blocked') },
+      removeItem: () => { throw new Error('blocked') },
+    }
+
+    expect(loadCollapsedCompanyKeys(malformedStorage)).toEqual(new Set())
+    expect(loadCollapsedCompanyKeys(unavailableStorage)).toEqual(new Set())
+    expect(() => saveCollapsedCompanyKeys(new Set(['company:alpha']), unavailableStorage))
+      .not.toThrow()
   })
 })
 

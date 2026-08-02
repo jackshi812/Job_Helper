@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import {
@@ -7,8 +7,10 @@ import {
   groupWatchlistRows,
   healthPresentation,
   listCompanies,
+  loadCollapsedCompanyKeys,
   removeCompany,
   safeCareersUrl,
+  saveCollapsedCompanyKeys,
   type WatchlistRow,
 } from '../lib/watchlist'
 
@@ -162,8 +164,12 @@ export function Watchlist() {
   const queryClient = useQueryClient()
   const urlInput = useRef<HTMLInputElement>(null)
   const [companyToRemove, setCompanyToRemove] = useState<WatchlistRow | null>(null)
-  const [collapsedCompanyKeys, setCollapsedCompanyKeys] = useState<Set<string>>(() => new Set())
+  const [collapsedCompanyKeys, setCollapsedCompanyKeys] = useState(loadCollapsedCompanyKeys)
   const [otherCompaniesExpanded, setOtherCompaniesExpanded] = useState(false)
+
+  useEffect(() => {
+    saveCollapsedCompanyKeys(collapsedCompanyKeys)
+  }, [collapsedCompanyKeys])
 
   const companiesQuery = useQuery({
     queryKey: ['watchlist'],

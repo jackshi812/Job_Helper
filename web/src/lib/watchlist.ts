@@ -13,6 +13,51 @@ export const SOURCE_COVERAGE_CATALOG_COLUMNS =
 export const REMOVE_COMPANY_TIMEOUT_MS = 10_000
 export const REMOVE_COMPANY_TIMEOUT_MESSAGE =
   'Removal timed out. Check your connection, then retry or keep the company.'
+export const COLLAPSED_COMPANIES_STORAGE_KEY =
+  'job-copilot:watchlist:collapsed-companies:v1'
+
+type CollapsedCompaniesStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
+
+function browserStorage(): CollapsedCompaniesStorage | null {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage
+  } catch {
+    return null
+  }
+}
+
+export function loadCollapsedCompanyKeys(
+  storage: CollapsedCompaniesStorage | null = browserStorage(),
+): Set<string> {
+  if (!storage) return new Set()
+
+  try {
+    const stored = storage.getItem(COLLAPSED_COMPANIES_STORAGE_KEY)
+    if (!stored) return new Set()
+    const parsed: unknown = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((key): key is string => typeof key === 'string'))
+  } catch {
+    return new Set()
+  }
+}
+
+export function saveCollapsedCompanyKeys(
+  keys: ReadonlySet<string>,
+  storage: CollapsedCompaniesStorage | null = browserStorage(),
+): void {
+  if (!storage) return
+
+  try {
+    if (keys.size === 0) {
+      storage.removeItem(COLLAPSED_COMPANIES_STORAGE_KEY)
+      return
+    }
+    storage.setItem(COLLAPSED_COMPANIES_STORAGE_KEY, JSON.stringify([...keys].sort()))
+  } catch {
+    // Storage can be unavailable in privacy-restricted browsing contexts.
+  }
+}
 
 export interface CompanyRecord {
   id: string
