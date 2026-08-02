@@ -209,16 +209,16 @@ export function mergeCoverageRows(
   return [...companyRows, ...catalogRows]
 }
 
-export function orderWatchlistRows(
+export function groupWatchlistRows(
   rows: WatchlistRow[],
   collapsedKeys: ReadonlySet<string>,
-): WatchlistRow[] {
-  if (collapsedKeys.size === 0) return rows
+): { visible: WatchlistRow[]; other: WatchlistRow[] } {
+  if (collapsedKeys.size === 0) return { visible: rows, other: [] }
 
-  return [
-    ...rows.filter((row) => !collapsedKeys.has(row.key)),
-    ...rows.filter((row) => collapsedKeys.has(row.key)),
-  ]
+  return {
+    visible: rows.filter((row) => !collapsedKeys.has(row.key)),
+    other: rows.filter((row) => collapsedKeys.has(row.key)),
+  }
 }
 
 export async function listCompanies(): Promise<WatchlistRow[]> {
