@@ -209,6 +209,18 @@ export function mergeCoverageRows(
   return [...companyRows, ...catalogRows]
 }
 
+export function orderWatchlistRows(
+  rows: WatchlistRow[],
+  collapsedKeys: ReadonlySet<string>,
+): WatchlistRow[] {
+  if (collapsedKeys.size === 0) return rows
+
+  return [
+    ...rows.filter((row) => !collapsedKeys.has(row.key)),
+    ...rows.filter((row) => collapsedKeys.has(row.key)),
+  ]
+}
+
 export async function listCompanies(): Promise<WatchlistRow[]> {
   const { data: companies, error: companiesError } = await supabase
     .from('companies')

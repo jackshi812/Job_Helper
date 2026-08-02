@@ -6,6 +6,7 @@ import {
   addCompany,
   healthPresentation,
   listCompanies,
+  orderWatchlistRows,
   removeCompany,
   safeCareersUrl,
   type WatchlistRow,
@@ -140,10 +141,28 @@ function HealthStatus({ row }: { row: WatchlistRow }) {
   )
 }
 
+function DisclosureChevron({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`size-4 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
 export function Watchlist() {
   const queryClient = useQueryClient()
   const urlInput = useRef<HTMLInputElement>(null)
   const [companyToRemove, setCompanyToRemove] = useState<WatchlistRow | null>(null)
+  const [collapsedCompanyKeys, setCollapsedCompanyKeys] = useState<Set<string>>(() => new Set())
 
   const companiesQuery = useQuery({
     queryKey: ['watchlist'],
@@ -171,6 +190,15 @@ export function Watchlist() {
     if (!url) return
     addMutation.reset()
     addMutation.mutate(url)
+  }
+
+  function toggleCompanyCollapsed(key: string) {
+    setCollapsedCompanyKeys((current) => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   }
 
   return (
@@ -245,37 +273,72 @@ export function Watchlist() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-              {companiesQuery.data.map((row) => (
-                <tr key={row.key} className="hover:bg-zinc-50 focus-within:bg-zinc-50 dark:hover:bg-zinc-800/50 dark:focus-within:bg-zinc-800/50">
-                  <td className="max-w-48 truncate px-4 py-3 font-semibold" title={row.name}>{row.name}</td>
-                  <td className="px-4 py-3"><CareersLink row={row} /></td>
-                  <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{row.provider}</td>
-                  <td className="px-4 py-3"><ActivationBadge row={row} /></td>
-                  <td className="px-4 py-3"><HealthStatus row={row} /></td>
-                  <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
-                    {row.created_at ? dateFormatter.format(new Date(row.created_at)) : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end">
-                      {row.company_id ? (
+              {orderWatchlistRows(companiesQuery.data, collapsedCompanyKeys).map((row) => {
+                const collapsed = collapsedCompanyKeys.has(row.key)
+                if (collapsed) {
+                  return (
+                    <tr key={row.key} className="bg-zinc-50 dark:bg-zinc-950/50">
+                      <td colSpan={7} className="p-0">
                         <button
                           type="button"
-                          aria-label={`Remove ${row.name}`}
-                          onClick={() => {
-                            removeMutation.reset()
-                            setCompanyToRemove(row)
-                          }}
-                          className="min-h-9 rounded-md border border-red-300 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950 dark:focus-visible:outline-red-400"
+                          aria-expanded={false}
+                          aria-label={`Expand ${row.name}`}
+                          title={`Expand ${row.name}`}
+                          onClick={() => toggleCompanyCollapsed(row.key)}
+                          className="flex min-h-11 w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-zinc-900 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
                         >
-                          Remove
+                          <DisclosureChevron expanded={false} />
+                          <span className="max-w-64 truncate font-semibold">{row.name}</span>
+                          <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+                            Hidden
+                          </span>
+                          <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">Expand</span>
                         </button>
-                      ) : (
-                        <span aria-label="No action available" className="text-zinc-400">—</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      </td>
+                    </tr>
+                  )
+                }
+
+                return (
+                  <tr key={row.key} className="hover:bg-zinc-50 focus-within:bg-zinc-50 dark:hover:bg-zinc-800/50 dark:focus-within:bg-zinc-800/50">
+                    <td className="max-w-48 truncate px-4 py-3 font-semibold" title={row.name}>{row.name}</td>
+                    <td className="px-4 py-3"><CareersLink row={row} /></td>
+                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{row.provider}</td>
+                    <td className="px-4 py-3"><ActivationBadge row={row} /></td>
+                    <td className="px-4 py-3"><HealthStatus row={row} /></td>
+                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                      {row.created_at ? dateFormatter.format(new Date(row.created_at)) : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          aria-expanded={true}
+                          aria-label={`Collapse ${row.name}`}
+                          title={`Collapse ${row.name}`}
+                          onClick={() => toggleCompanyCollapsed(row.key)}
+                          className="flex size-9 items-center justify-center rounded-md border border-zinc-300 text-zinc-600 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
+                        >
+                          <DisclosureChevron expanded />
+                        </button>
+                        {row.company_id ? (
+                          <button
+                            type="button"
+                            aria-label={`Remove ${row.name}`}
+                            onClick={() => {
+                              removeMutation.reset()
+                              setCompanyToRemove(row)
+                            }}
+                            className="min-h-9 rounded-md border border-red-300 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950 dark:focus-visible:outline-red-400"
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}

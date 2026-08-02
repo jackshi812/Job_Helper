@@ -11,6 +11,7 @@ import {
   healthPresentation,
   listCompanies,
   mergeCoverageRows,
+  orderWatchlistRows,
   REMOVE_COMPANY_TIMEOUT_MESSAGE,
   REMOVE_COMPANY_TIMEOUT_MS,
   removeCompany,
@@ -171,6 +172,21 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
     source_key: null,
   },
 ]
+
+describe('watchlist row ordering', () => {
+  it('moves collapsed companies to the bottom without changing either group order', () => {
+    const rows = mergeCoverageRows([
+      company({ id: 'company-alpha', name: 'Alpha', source_key: 'greenhouse:global:alpha' }),
+      company({ id: 'company-beta', name: 'Beta', source_key: 'greenhouse:global:beta' }),
+      company({ id: 'company-gamma', name: 'Gamma', source_key: 'greenhouse:global:gamma' }),
+    ], [])
+
+    const ordered = orderWatchlistRows(rows, new Set([rows[0].key, rows[2].key]))
+
+    expect(ordered.map((row) => row.name)).toEqual(['Beta', 'Alpha', 'Gamma'])
+    expect(rows.map((row) => row.name)).toEqual(['Alpha', 'Beta', 'Gamma'])
+  })
+})
 
 describe('finance coverage presentation', () => {
   afterEach(() => {
