@@ -559,15 +559,21 @@ describe('Dashboard dismissal settlement', () => {
     expect(detachedRefill).toBeGreaterThan(announcement)
   })
 
-  it('keeps refill failures retryable for all-jobs and watchlist scopes', () => {
+  it('keeps refill failures retryable only in their originating feed', () => {
     expect(dashboardSource).toContain("scope: 'all'")
     expect(dashboardSource).toContain("scope: 'watchlist'")
     expect(dashboardSource).toContain(
       'The job remains dismissed and your current results remain usable.',
     )
-    expect(dashboardSource).toContain('void refillVisibleQueue(backfillRetry)')
-    expect(dashboardSource).toContain('setBackfillError(\'\')')
-    expect(dashboardSource).toContain('setBackfillRetry(null)')
+    expect(dashboardSource).toContain(
+      'void refillVisibleQueue(visibleBackfillFailure.retry)',
+    )
+    expect(dashboardSource).toContain(
+      'backfillFailures.get(feedKeyIdentity(feedKey))',
+    )
+    expect(dashboardSource).toContain('setBackfillFailures((current) => {')
+    expect(dashboardSource).toContain('next.delete(targetIdentity)')
+    expect(dashboardSource).toContain('next.set(targetIdentity, {')
   })
 })
 

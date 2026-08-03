@@ -48,6 +48,7 @@ const trackerOperations = vi.hoisted(() => ({
   updateApplicationStageEvent: vi.fn(),
 }))
 const dashboardOperations = vi.hoisted(() => ({
+  backfillDashboardFeedRow: vi.fn(),
   dismissJob: vi.fn(),
   listDashboardCompanyOptions: vi.fn(),
   listFeedPage: vi.fn(),
@@ -132,6 +133,7 @@ vi.mock('../lib/feed', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/feed')>()
   return {
     ...actual,
+    backfillDashboardFeedRow: dashboardOperations.backfillDashboardFeedRow,
     dismissJob: dashboardOperations.dismissJob,
     listDashboardCompanyOptions: dashboardOperations.listDashboardCompanyOptions,
     listFeedPage: dashboardOperations.listFeedPage,
@@ -204,6 +206,7 @@ function mutationOptions(scope: string, occurrence = 0) {
 
 describe('Tracker page contract', () => {
   beforeEach(() => {
+    dashboardOperations.backfillDashboardFeedRow.mockReset()
     dashboardOperations.dismissJob.mockReset()
     queryState.data = applications
     queryState.error = null
@@ -511,7 +514,7 @@ describe('Tracker page contract', () => {
     const eventId = await stage.mutationFn('offer' as never)
     const stageSettlement = stage.onSuccess?.(eventId, 'offer' as never, stageContext)
     const dateInput = {
-      occurredOn: '2026-08-03',
+      occurredOn: '2026-08-01',
       dependentAttemptId: stageContext.attemptId,
     }
     const dateResult = await date.mutationFn(dateInput as never)
@@ -522,13 +525,16 @@ describe('Tracker page contract', () => {
     expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
       '44444444-4444-4444-8444-444444444444',
       'offer',
-      '2026-08-03',
+      '2026-08-01',
     )
     expect(reactQueryHarness.queryClient.fetchQuery).not.toHaveBeenCalled()
     expect(reactQueryHarness.queryClient.invalidateQueries).toHaveBeenCalledTimes(6)
     expect(reactQueryHarness.queryClient.getQueryData(
       ['tracker-application', applications[0].id],
-    )).toMatchObject({ currentStage: 'offer', currentStageDate: '2026-08-03' })
+    )).toMatchObject({ currentStage: 'offer' })
+    expect((reactQueryHarness.queryClient.getQueryData(
+      ['tracker-application', applications[0].id],
+    ) as TrackerApplicationDetail).currentStageDate).not.toBe('2026-08-01')
   })
 
   it('fetches authoritative detail for a standalone date write even when detail is cached', async () => {
@@ -1382,32 +1388,51 @@ describe('Tracker mounted performance invariants', () => {
     vi.unstubAllGlobals()
   })
 
-  it('retains the append-returned event over inactive same-day detail and skewed time', async () => {
+  it('consumes an appended event once, then targets the reconciled current event', async () => {
     const document = installTestDom()
     const returnedEventId = '55555555-5555-4555-8555-555555555555'
-    const skewedDetail: TrackerApplicationDetail = {
+    const authoritativeEventId = '66666666-6666-4666-8666-666666666666'
+    const initialDetail: TrackerApplicationDetail = {
       ...detail(),
+      events: [{
+        ...detail().events[0],
+        id: authoritativeEventId,
+        stage: 'applied',
+        occurredOn: '2026-08-03',
+      }],
+    }
+    const reconciledApplication: TrackerApplicationListItem = {
+      ...applications[0],
+      currentStage: 'applied',
+      currentStageDate: '2026-08-03',
+      updatedAt: '2026-08-03T22:00:00.000Z',
+    }
+    const reconciledDetail: TrackerApplicationDetail = {
+      ...initialDetail,
+      ...reconciledApplication,
       events: [
         {
-          ...detail().events[0],
-          id: '66666666-6666-4666-8666-666666666666',
-          stage: 'applied',
+          ...initialDetail.events[0],
           occurredOn: '2026-08-03',
-          createdAt: '2099-08-03T20:00:00.000Z',
         },
         {
-          ...detail().events[0],
-          id: '77777777-7777-4777-8777-777777777777',
-          stage: 'interview',
-          occurredOn: '2026-08-03',
-          createdAt: '2099-08-03T21:00:00.000Z',
+          ...initialDetail.events[0],
+          id: returnedEventId,
+          stage: 'offer',
+          occurredOn: '2026-08-02',
+          createdAt: '2026-08-03T21:00:00.000Z',
         },
       ],
     }
-    trackerOperations.listTrackerApplications.mockResolvedValue(applications)
-    trackerOperations.getTrackerApplication.mockResolvedValue(skewedDetail)
+    let appendMovedBeforeCurrent = false
+    trackerOperations.listTrackerApplications.mockImplementation(async () =>
+      appendMovedBeforeCurrent ? [reconciledApplication] : applications)
+    trackerOperations.getTrackerApplication.mockImplementation(async () =>
+      appendMovedBeforeCurrent ? reconciledDetail : initialDetail)
     trackerOperations.appendApplicationStage.mockResolvedValue(returnedEventId)
-    trackerOperations.updateApplicationStageEvent.mockResolvedValue(undefined)
+    trackerOperations.updateApplicationStageEvent.mockImplementation(async (eventId: string) => {
+      if (eventId === returnedEventId) appendMovedBeforeCurrent = true
+    })
     const {
       createRoot,
       MountedTracker,
@@ -1445,14 +1470,8 @@ describe('Tracker mounted performance invariants', () => {
       await Promise.resolve()
     })
     await flushMountedWork(react.act)
-    const cachedDetail = queryClient.getQueryData<TrackerApplicationDetail>([
-      'tracker-application',
-      applications[0].id,
-    ])
-    expect(cachedDetail?.events.some(({ id }) => id === returnedEventId)).toBe(false)
-
     await react.act(async () => {
-      nativeSetValue(dateControl, '2026-08-04')
+      nativeSetValue(dateControl, '2026-08-02')
       dateControl.dispatchEvent(new TestEvent('input'))
       dateControl.dispatchEvent(new TestEvent('change'))
       const enter = new TestEvent('keydown') as TestEvent & { key: string }
@@ -1465,7 +1484,37 @@ describe('Tracker mounted performance invariants', () => {
     expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
       returnedEventId,
       'offer',
+      '2026-08-02',
+    )
+
+    await flushMountedWork(react.act)
+    trackerOperations.updateApplicationStageEvent.mockClear()
+    const reconciledDateControl = findTestElement(container, (element) =>
+      element.getAttribute('id') === `date-${applications[0].id}`)
+    if (!reconciledDateControl) throw new Error('reconciled date control not mounted')
+    await react.act(async () => {
+      nativeSetValue(reconciledDateControl, '2026-08-04')
+      reconciledDateControl.dispatchEvent(new TestEvent('input'))
+      reconciledDateControl.dispatchEvent(new TestEvent('change'))
+      const enter = new TestEvent('keydown') as TestEvent & { key: string }
+      enter.key = 'Enter'
+      reconciledDateControl.dispatchEvent(enter)
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect(trackerOperations.getTrackerApplication).toHaveBeenLastCalledWith(
+      applications[0].id,
+    )
+    expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
+      authoritativeEventId,
+      'applied',
       '2026-08-04',
+    )
+    expect(trackerOperations.updateApplicationStageEvent).not.toHaveBeenCalledWith(
+      returnedEventId,
+      expect.anything(),
+      expect.anything(),
     )
 
     await react.act(async () => root.unmount())
@@ -1507,6 +1556,7 @@ function mountedDashboardPage(rows: FeedRow[]): DashboardFeedPage {
 
 describe('Dashboard mounted performance invariants', () => {
   beforeEach(() => {
+    dashboardOperations.backfillDashboardFeedRow.mockReset()
     dashboardOperations.dismissJob.mockReset()
     dashboardOperations.listDashboardCompanyOptions.mockReset()
     dashboardOperations.listDashboardCompanyOptions.mockResolvedValue([])
@@ -1926,6 +1976,84 @@ describe('Dashboard mounted performance invariants', () => {
     )
     expect(requestedOrders.filter((order) => order === 'newest').length).toBeGreaterThan(1)
     expect(requestedOrders.filter((order) => order === 'score_desc')).toHaveLength(1)
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps a detached origin refill failure out of the newly sorted view', async () => {
+    const document = installTestDom()
+    const remainingRow = {
+      ...mountedDashboardRow,
+      id: 'dashboard-row-failure-remaining',
+      jobs: {
+        ...mountedDashboardRow.jobs!,
+        id: 'dashboard-job-failure-remaining',
+        title: 'Dashboard Failure Remaining',
+      },
+    }
+    const sortedRow = {
+      ...mountedDashboardRow,
+      id: 'dashboard-row-failure-sorted',
+      jobs: {
+        ...mountedDashboardRow.jobs!,
+        id: 'dashboard-job-failure-sorted',
+        title: 'Dashboard Failure Sorted',
+      },
+    }
+    const originRefill = deferred<DashboardFeedPage>()
+    dashboardOperations.backfillDashboardFeedRow.mockReturnValue(originRefill.promise)
+    dashboardOperations.listFeedPage.mockImplementation(
+      async (request: { order: string }) => {
+        if (request.order === 'score_desc') return mountedDashboardPage([sortedRow])
+        return {
+          rows: [mountedDashboardRow, remainingRow],
+          nextCursor: 'origin-next',
+          hasMore: true,
+          caughtUp: false,
+        }
+      },
+    )
+    dashboardOperations.dismissJob.mockResolvedValue(undefined)
+    const {
+      createRoot,
+      MountedDashboard,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedDashboard()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedDashboard, { scope: 'all' }),
+    )))
+    await flushMountedWork(react.act)
+    const dismiss = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Dismiss Dashboard A')
+    await react.act(async () => {
+      dismiss?.dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    const scoreSort = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Score↕')
+    if (!scoreSort) throw new Error('score sort not mounted')
+    await react.act(async () => scoreSort.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+
+    await react.act(async () => {
+      originRefill.reject(new Error('origin refill failed'))
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect(container.textContent).toContain('Dashboard Failure Sorted')
+    expect(container.textContent).not.toContain('Couldn’t refresh the queue.')
+    expect(findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Retry')).toBeNull()
 
     await react.act(async () => root.unmount())
     vi.unstubAllGlobals()

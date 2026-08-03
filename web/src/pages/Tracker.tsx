@@ -249,6 +249,7 @@ function TrackerRow({
   const [manualEditActive, setManualEditActive] = useState(false)
   const stageAttemptRef = useRef<StageAttempt | null>(null)
   const nextStageAttemptIdRef = useRef(0)
+  const authoritativeUpdatedAtRef = useRef(application.updatedAt)
   const [lastSave, setLastSave] = useState<
     'pin' | 'company' | 'title' | 'stage' | 'date' | 'notes' | null
   >(null)
@@ -263,6 +264,11 @@ function TrackerRow({
   useEffect(() => setTitleDraft(application.title), [application.title])
   useEffect(() => setNotesDraft(application.notes), [application.notes])
   useEffect(() => setManualEditActive(false), [application.updatedAt])
+  useEffect(() => {
+    if (authoritativeUpdatedAtRef.current === application.updatedAt) return
+    authoritativeUpdatedAtRef.current = application.updatedAt
+    if (stageAttemptRef.current?.status === 'succeeded') clearStageAttempt()
+  }, [application.updatedAt, clearStageAttempt])
 
   const pinMutation = useMutation({
     mutationFn: (pinned: boolean) => setApplicationPin(application.id, pinned),
@@ -328,8 +334,6 @@ function TrackerRow({
           || stageAttempt.status !== 'succeeded'
         ) throw new Error(STAGE_DATE_DEPENDENCY_FAILED)
         latestEvent = { id: stageAttempt.eventId, stage: stageAttempt.stage }
-      } else if (stageAttempt?.status === 'succeeded') {
-        latestEvent = { id: stageAttempt.eventId, stage: stageAttempt.stage }
       } else {
         const detail = await queryClient.fetchQuery({
           queryKey: ['tracker-application', application.id],
@@ -351,12 +355,8 @@ function TrackerRow({
     onMutate: ({ dependentAttemptId }) => {
       if (dependentAttemptId === null) setLastSave('date')
     },
-    onSuccess: ({ eventId, stage, occurredOn }) => {
+    onSuccess: ({ eventId, occurredOn }) => {
       setLastSave('date')
-      patchKnownTrackerApplication(cacheClient, application, {
-        currentStage: stage,
-        currentStageDate: occurredOn,
-      })
       queryClient.setQueryData<TrackerApplicationDetail>(
         ['tracker-application', application.id],
         (current) => current
@@ -375,6 +375,12 @@ function TrackerRow({
           ? 'stage'
           : 'date',
       )
+    },
+    onSettled: (_data, _error, { dependentAttemptId }) => {
+      if (
+        dependentAttemptId !== null
+        && stageAttemptRef.current?.attemptId === dependentAttemptId
+      ) clearStageAttempt()
     },
   })
   const companyMutation = useMutation({
@@ -449,7 +455,7 @@ function TrackerRow({
     } else if (lastSave === 'stage' && stageMutation.variables !== undefined) {
       stageMutation.mutate(stageMutation.variables)
     } else if (lastSave === 'date' && dateMutation.variables !== undefined) {
-      dateMutation.mutate(dateMutation.variables)
+      saveStageDate(dateMutation.variables.occurredOn)
     } else if (lastSave === 'notes' && notesMutation.variables !== undefined) {
       notesMutation.mutate(notesMutation.variables)
     }
@@ -484,6 +490,7 @@ function TrackerRow({
     dateMutation.mutate({
       occurredOn,
       dependentAttemptId: stageAttempt?.status === 'pending'
+        || stageAttempt?.status === 'succeeded'
         ? stageAttempt.attemptId
         : null,
     })

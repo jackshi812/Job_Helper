@@ -227,11 +227,20 @@ type BackfillRetry =
     target: LifecycleMutationTarget
   }
 
+interface BackfillFailure {
+  message: string
+  retry: BackfillRetry
+}
+
 interface LifecycleMutationTarget {
   feedKey: ReturnType<typeof dashboardFeedQueryKey>
   feedRequest: DashboardFeedQuery
   lifecycle: LifecycleView
   scope: DashboardSourceScope
+}
+
+function feedKeyIdentity(feedKey: ReturnType<typeof dashboardFeedQueryKey>): string {
+  return JSON.stringify(feedKey)
 }
 
 const EMPTY_DASHBOARD_PAGE: DashboardFeedPage = {
@@ -555,8 +564,8 @@ export function Dashboard({
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set())
   const [queueAnnouncement, setQueueAnnouncement] = useState('')
   const [loadMoreError, setLoadMoreError] = useState('')
-  const [backfillError, setBackfillError] = useState('')
-  const [backfillRetry, setBackfillRetry] = useState<BackfillRetry | null>(null)
+  const [backfillFailures, setBackfillFailures] =
+    useState<Map<string, BackfillFailure>>(() => new Map())
   const [deleteCandidate, setDeleteCandidate] =
     useState<DashboardAppliedApplication | null>(null)
   const [columnWidths, setColumnWidths] = useState(loadDashboardColumnWidths)
@@ -608,6 +617,7 @@ export function Dashboard({
   )
   const feedKey = useMemo(() => dashboardFeedQueryKey(feedRequest), [feedRequest])
   const feedIdentity = JSON.stringify([scope, ...feedKey])
+  const visibleBackfillFailure = backfillFailures.get(feedKeyIdentity(feedKey)) ?? null
   const feedEnabled = selectedTiers.size > 0 && lifecycle !== 'applied'
   const feedQuery = useInfiniteQuery<
     DashboardFeedPage,
@@ -697,8 +707,6 @@ export function Dashboard({
   useEffect(() => {
     setLifecycleError('')
     setLoadMoreError('')
-    setBackfillError('')
-    setBackfillRetry(null)
   }, [feedIdentity])
 
   useEffect(() => {
@@ -862,9 +870,14 @@ export function Dashboard({
   }
 
   async function refillVisibleQueue(retry: BackfillRetry | null) {
-    setBackfillError('')
-    setBackfillRetry(null)
     if (!retry) return
+    const targetIdentity = feedKeyIdentity(retry.target.feedKey)
+    setBackfillFailures((current) => {
+      if (!current.has(targetIdentity)) return current
+      const next = new Map(current)
+      next.delete(targetIdentity)
+      return next
+    })
     try {
       if (retry.scope === 'all' || retry.cursor !== undefined) {
         const cursor = retry.cursor
@@ -897,10 +910,16 @@ export function Dashboard({
         )
       }
     } catch {
-      setBackfillError(retry.dismissalCommitted
-        ? 'Couldn’t refresh the queue. The job remains dismissed and your current results remain usable.'
-        : 'Couldn’t load the next job. Your current results are still shown.')
-      setBackfillRetry(retry)
+      setBackfillFailures((current) => {
+        const next = new Map(current)
+        next.set(targetIdentity, {
+          message: retry.dismissalCommitted
+            ? 'Couldn’t refresh the queue. The job remains dismissed and your current results remain usable.'
+            : 'Couldn’t load the next job. Your current results are still shown.',
+          retry,
+        })
+        return next
+      })
     }
   }
 
@@ -1670,15 +1689,15 @@ export function Dashboard({
 
       {lifecycle !== 'applied' ? (
       <div className="mt-4 grid justify-items-center gap-2">
-        {backfillError ? (
+        {visibleBackfillFailure ? (
           <div className="text-center">
             <p role="alert" className="text-sm text-red-700 dark:text-red-400">
-              {backfillError}
+              {visibleBackfillFailure.message}
             </p>
             <button
               type="button"
               onClick={() => {
-                if (backfillRetry) void refillVisibleQueue(backfillRetry)
+                void refillVisibleQueue(visibleBackfillFailure.retry)
               }}
               className={`mt-2 ${filterButtonBase} ${filterInactive}`}
             >
