@@ -2,9 +2,13 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   TRACKER_ACTIVE_STAGES,
+  TRACKER_STAGES,
+  TRACKER_TERMINAL_STAGES,
+  type TrackerApplicationDetail,
   type TrackerApplicationListItem,
+  type TrackerStage,
 } from '../lib/tracker'
-import { Tracker } from './Tracker'
+import { patchTrackerApplicationCaches, Tracker } from './Tracker'
 import trackerSource from './Tracker.tsx?raw'
 
 const applications: TrackerApplicationListItem[] = [{
@@ -29,28 +33,81 @@ const queryState = vi.hoisted(() => ({
   isPending: false,
 }))
 
-const invalidateQueries = vi.hoisted(() => vi.fn())
+const focusQueryState = vi.hoisted(() => ({
+  data: undefined as TrackerApplicationDetail | undefined,
+  error: null as Error | null,
+  isPending: false,
+}))
+const searchParamState = vi.hoisted(() => ({ value: null as string | null }))
+const trackerOperations = vi.hoisted(() => ({
+  appendApplicationStage: vi.fn(),
+  getTrackerApplication: vi.fn(),
+  updateApplicationStageEvent: vi.fn(),
+}))
+const reactQueryHarness = vi.hoisted(() => {
+  const queryOptions: object[] = []
+  const mutationOptions: object[] = []
+  const cache = new Map<string, { key: readonly unknown[]; data: unknown }>()
+  const keyId = (key: readonly unknown[]) => JSON.stringify(key)
+  const queryClient = {
+    fetchQuery: vi.fn(),
+    getQueriesData: vi.fn(({ queryKey }: { queryKey: readonly unknown[] }) =>
+      [...cache.values()]
+        .filter(({ key }) => queryKey.every((part, index) => key[index] === part))
+        .map(({ key, data }) => [key, data] as [readonly unknown[], unknown])),
+    getQueryData: vi.fn((queryKey: readonly unknown[]) => cache.get(keyId(queryKey))?.data),
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn((
+      queryKey: readonly unknown[],
+      value: unknown | ((current: unknown) => unknown),
+    ) => {
+      const id = keyId(queryKey)
+      const current = cache.get(id)?.data
+      const data = typeof value === 'function'
+        ? (value as (current: unknown) => unknown)(current)
+        : value
+      cache.set(id, { key: queryKey, data })
+      return data
+    }),
+  }
+  return { cache, keyId, mutationOptions, queryClient, queryOptions }
+})
+
+vi.mock('../lib/tracker', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/tracker')>()
+  return {
+    ...actual,
+    appendApplicationStage: trackerOperations.appendApplicationStage,
+    getTrackerApplication: trackerOperations.getTrackerApplication,
+    updateApplicationStageEvent: trackerOperations.updateApplicationStageEvent,
+  }
+})
 
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({
-    ...queryState,
-    refetch: vi.fn(),
-  }),
-  useMutation: (options: object) => ({
-    mutate: vi.fn(),
-    mutateAsync: vi.fn(),
-    reset: vi.fn(),
-    variables: undefined,
-    error: null,
-    isPending: false,
-    isError: false,
-    isSuccess: false,
-    options,
-  }),
-  useQueryClient: () => ({
-    invalidateQueries,
-    fetchQuery: vi.fn(),
-  }),
+  useQuery: (options: { queryKey: readonly unknown[] }) => {
+    reactQueryHarness.queryOptions.push(options)
+    const state = options.queryKey[0] === 'tracker-applications'
+      ? queryState
+      : options.queryKey[0] === 'tracker-application' && options.queryKey[1] === searchParamState.value
+        ? focusQueryState
+        : { data: undefined, error: null, isPending: false }
+    return { ...state, refetch: vi.fn() }
+  },
+  useMutation: (options: object) => {
+    reactQueryHarness.mutationOptions.push(options)
+    return {
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+      variables: undefined,
+      error: null,
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      options,
+    }
+  },
+  useQueryClient: () => reactQueryHarness.queryClient,
 }))
 
 vi.mock('../lib/resumes', () => ({
@@ -65,15 +122,85 @@ vi.mock('react-router', () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
     <a href={to}>{children}</a>
   ),
-  useSearchParams: () => [new URLSearchParams()],
+  useSearchParams: () => [new URLSearchParams(
+    searchParamState.value ? { application: searchParamState.value } : undefined,
+  )],
 }))
+
+function detail(
+  item: TrackerApplicationListItem = applications[0],
+): TrackerApplicationDetail {
+  return {
+    ...item,
+    descriptionHtml: null,
+    descriptionText: null,
+    snapshotPartial: false,
+    createdAt: '2026-07-20T15:00:00.000Z',
+    resume: null,
+    events: [{
+      id: '22222222-2222-4222-8222-222222222222',
+      applicationId: item.id,
+      stage: item.currentStage,
+      occurredOn: item.currentStageDate,
+      createdAt: '2026-07-28T15:00:00.000Z',
+    }],
+  }
+}
+
+function setCached(queryKey: readonly unknown[], data: unknown) {
+  reactQueryHarness.cache.set(reactQueryHarness.keyId(queryKey), { key: queryKey, data })
+}
+
+function mutationOptions(scope: string, occurrence = 0) {
+  const matches = reactQueryHarness.mutationOptions.filter((options) =>
+    (options as { scope?: { id?: string } }).scope?.id === scope)
+  const options = matches[occurrence]
+  if (!options) throw new Error(`mutation options not found for ${scope} at ${occurrence}`)
+  return options as {
+    mutationFn: (input: never) => Promise<unknown>
+    onSuccess?: (result: unknown, variables: never) => unknown
+  }
+}
 
 describe('Tracker page contract', () => {
   beforeEach(() => {
     queryState.data = applications
     queryState.error = null
     queryState.isPending = false
-    invalidateQueries.mockReset()
+    focusQueryState.data = undefined
+    focusQueryState.error = null
+    focusQueryState.isPending = false
+    searchParamState.value = null
+    reactQueryHarness.cache.clear()
+    reactQueryHarness.mutationOptions.length = 0
+    reactQueryHarness.queryOptions.length = 0
+    for (const mock of Object.values(reactQueryHarness.queryClient)) mock.mockReset()
+    reactQueryHarness.queryClient.getQueriesData.mockImplementation(
+      ({ queryKey }: { queryKey: readonly unknown[] }) =>
+        [...reactQueryHarness.cache.values()]
+          .filter(({ key }) => queryKey.every((part, index) => key[index] === part))
+          .map(({ key, data }) => [key, data]),
+    )
+    reactQueryHarness.queryClient.getQueryData.mockImplementation(
+      (queryKey: readonly unknown[]) =>
+        reactQueryHarness.cache.get(reactQueryHarness.keyId(queryKey))?.data,
+    )
+    reactQueryHarness.queryClient.setQueryData.mockImplementation((
+      queryKey: readonly unknown[],
+      value: unknown | ((current: unknown) => unknown),
+    ) => {
+      const id = reactQueryHarness.keyId(queryKey)
+      const current = reactQueryHarness.cache.get(id)?.data
+      const data = typeof value === 'function'
+        ? (value as (current: unknown) => unknown)(current)
+        : value
+      reactQueryHarness.cache.set(id, { key: queryKey, data })
+      return data
+    })
+    reactQueryHarness.queryClient.invalidateQueries.mockResolvedValue(undefined)
+    trackerOperations.appendApplicationStage.mockReset()
+    trackerOperations.getTrackerApplication.mockReset()
+    trackerOperations.updateApplicationStageEvent.mockReset()
   })
 
   it('renders the header, compact filters, table semantics, and eight columns', () => {
@@ -191,12 +318,15 @@ describe('Tracker page contract', () => {
     expect(trackerSource).toContain('setManualEditActive(false)')
   })
 
-  it('serializes same-cell writes and keeps scoped real retry actions', () => {
-    for (const field of ['pin', 'stage', 'current_stage_date', 'notes']) {
+  it('serializes stage/date writes together and keeps scoped real retry actions', () => {
+    for (const field of ['pin', 'notes']) {
       expect(trackerSource).toContain(
         `scope: { id: \`\${application.id}:${field}\` }`,
       )
     }
+    expect(trackerSource.match(/scope: \{ id: `\$\{application\.id\}:stage-date` \}/g))
+      .toHaveLength(2)
+    expect(trackerSource.match(/disabled=\{stageDateMutationPending\}/g)).toHaveLength(2)
     expect(trackerSource).toContain('retry: false')
     expect(trackerSource).toContain('Retry saving')
     expect(trackerSource).toMatch(/\w+Mutation\.variables/)
@@ -248,19 +378,106 @@ describe('Tracker page contract', () => {
     expect(trackerSource).not.toMatch(/grid-cols-[1-9].*application/i)
   })
 
-  it('resolves a focus target only through an owned all-stage list', () => {
+  it('starts one targeted owned-detail focus query in parallel with the selected list', () => {
+    searchParamState.value = applications[0].id
+    queryState.isPending = true
+    renderToStaticMarkup(<Tracker />)
+    const focusOptions = reactQueryHarness.queryOptions.find((options) =>
+      JSON.stringify((options as { queryKey: readonly unknown[] }).queryKey)
+        === JSON.stringify(['tracker-application', applications[0].id])) as {
+          enabled?: boolean
+          queryFn: () => Promise<unknown>
+        } | undefined
+
+    expect(focusOptions?.enabled).toBe(true)
+    expect(focusOptions).toBeDefined()
+    expect(trackerSource).toContain('getTrackerApplication(focusApplicationId)')
+    expect(trackerSource).not.toContain("queryKey: ['tracker-focus-applications']")
+    expect(trackerSource).not.toContain(
+      'listTrackerApplications(TRACKER_STAGES.map(({ slug }) => slug))',
+    )
     expect(trackerSource).toContain('useSearchParams')
     expect(trackerSource).toContain("searchParams.get('application')")
     expect(trackerSource).toContain('TRACKER_APPLICATION_ID_PATTERN')
-    expect(trackerSource).toContain("queryKey: ['tracker-focus-applications']")
-    expect(trackerSource).toContain(
-      'listTrackerApplications(TRACKER_STAGES.map(({ slug }) => slug))',
-    )
-    expect(trackerSource).toContain('focusApplicationsQuery.data?.find')
-    expect(trackerSource).toContain('application.id === focusApplicationId')
-    expect(trackerSource).not.toContain('getTrackerApplication(focusApplicationId')
+    expect(trackerSource).toContain('focusApplicationQuery.data?.currentStage')
+    expect(trackerSource).toContain('setSelectedStages([ownedStage])')
     expect(trackerSource).not.toContain('Application not found')
     expect(trackerSource).not.toContain('You do not have access')
+  })
+
+  it('patches stage membership across every valid cached list without losing fields', () => {
+    const unrelated = { ...applications[0], id: '33333333-3333-4333-8333-333333333333' }
+    const keys: Array<[readonly unknown[], TrackerApplicationListItem[]]> = [
+      [['tracker-applications', [...TRACKER_ACTIVE_STAGES]], [applications[0], unrelated]],
+      [['tracker-applications', [...TRACKER_TERMINAL_STAGES]], [unrelated]],
+      [['tracker-applications', TRACKER_STAGES.map(({ slug }) => slug)], [applications[0]]],
+      [['tracker-applications', ['offer']], []],
+      [['tracker-applications', []], [applications[0]]],
+      [['tracker-applications', 'offer'], [applications[0]]],
+    ]
+    for (const [key, data] of keys) setCached(key, data)
+    const terminal = {
+      ...applications[0],
+      currentStage: 'offer' as TrackerStage,
+      currentStageDate: '2026-08-03',
+    }
+
+    patchTrackerApplicationCaches(reactQueryHarness.queryClient, terminal)
+
+    expect(reactQueryHarness.queryClient.getQueryData(keys[0][0])).toEqual([unrelated])
+    expect(reactQueryHarness.queryClient.getQueryData(keys[1][0])).toContainEqual(terminal)
+    expect(reactQueryHarness.queryClient.getQueryData(keys[2][0])).toContainEqual(terminal)
+    expect(reactQueryHarness.queryClient.getQueryData(keys[3][0])).toEqual([terminal])
+    expect(reactQueryHarness.queryClient.getQueryData(keys[4][0])).toEqual([applications[0]])
+    expect(reactQueryHarness.queryClient.getQueryData(keys[5][0])).toEqual([applications[0]])
+    expect(terminal.notes).toBe(applications[0].notes)
+
+    const active = { ...terminal, currentStage: 'interview' as TrackerStage }
+    patchTrackerApplicationCaches(reactQueryHarness.queryClient, active)
+    expect(reactQueryHarness.queryClient.getQueryData(keys[0][0])).toContainEqual(active)
+    expect(reactQueryHarness.queryClient.getQueryData(keys[1][0])).toEqual([unrelated])
+    expect(reactQueryHarness.queryClient.getQueryData(keys[3][0])).toEqual([])
+  })
+
+  it('hands the returned stage event to the serialized date write before any detail fetch', async () => {
+    setCached(['tracker-applications', [...TRACKER_ACTIVE_STAGES]], applications)
+    setCached(['tracker-application', applications[0].id], detail())
+    trackerOperations.appendApplicationStage.mockResolvedValue(
+      '44444444-4444-4444-8444-444444444444',
+    )
+    trackerOperations.updateApplicationStageEvent.mockResolvedValue(undefined)
+    renderToStaticMarkup(<Tracker />)
+    const scope = `${applications[0].id}:stage-date`
+    const stage = mutationOptions(scope, 0)
+    const date = mutationOptions(scope, 1)
+
+    const eventId = await stage.mutationFn('offer' as never)
+    stage.onSuccess?.(eventId, 'offer' as never)
+    await date.mutationFn('2026-08-03' as never)
+
+    expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
+      '44444444-4444-4444-8444-444444444444',
+      'offer',
+      '2026-08-03',
+    )
+    expect(reactQueryHarness.queryClient.fetchQuery).not.toHaveBeenCalled()
+    expect(reactQueryHarness.queryClient.invalidateQueries).toHaveBeenCalled()
+  })
+
+  it('resolves a date write from cached detail before fetch fallback', async () => {
+    setCached(['tracker-application', applications[0].id], detail())
+    trackerOperations.updateApplicationStageEvent.mockResolvedValue(undefined)
+    renderToStaticMarkup(<Tracker />)
+    const date = mutationOptions(`${applications[0].id}:stage-date`, 1)
+
+    await date.mutationFn('2026-08-03' as never)
+
+    expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
+      '22222222-2222-4222-8222-222222222222',
+      'applied',
+      '2026-08-03',
+    )
+    expect(reactQueryHarness.queryClient.fetchQuery).not.toHaveBeenCalled()
   })
 
   it('expands, scrolls, and focuses only the matched owned row', () => {
