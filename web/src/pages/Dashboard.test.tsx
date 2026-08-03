@@ -281,19 +281,21 @@ describe('Dashboard refresh paths', () => {
         ...original.pages[0],
         rows: [{ ...row, deterministic_score: 99 }],
       }
-      let cache = original
+      let cache: DashboardData | undefined = original
       const loadHead = vi.fn().mockResolvedValue(nextHead)
-      const setData = vi.fn((updater: (current: DashboardData) => DashboardData) => {
+      const setData = vi.fn((
+        updater: (current: DashboardData | undefined) => DashboardData | undefined,
+      ) => {
         cache = updater(cache)
       })
 
       await refreshDashboardFeedHead(loadHead, setData)
 
       expect(loadHead).toHaveBeenCalledTimes(1)
-      expect(cache.pages[0]).toBe(nextHead)
-      expect(cache.pages[1]).toBe(original.pages[1])
-      expect(cache.pages[2]).toBe(original.pages[2])
-      expect(cache.pageParams).toBe(original.pageParams)
+      expect(cache?.pages[0]).toBe(nextHead)
+      expect(cache?.pages[1]).toBe(original.pages[1])
+      expect(cache?.pages[2]).toBe(original.pages[2])
+      expect(cache?.pageParams).toBe(original.pageParams)
       expect(reactQueryHarness.feedRefetch).not.toHaveBeenCalled()
     },
   )

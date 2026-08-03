@@ -754,10 +754,12 @@ export function Dashboard({
     if (!retry) return
     try {
       if (retry.scope === 'all' || retry.cursor !== undefined) {
-        const page = await backfillDashboardFeedRow(feedRequest, retry.cursor)
+        const cursor = retry.cursor
+        if (cursor === undefined) return
+        const page = await backfillDashboardFeedRow(feedRequest, cursor)
         queryClient.setQueryData<DashboardInfiniteData>(
           feedKey,
-          (current) => appendBackfillPage(current, page, retry.cursor),
+          (current) => appendBackfillPage(current, page, cursor),
         )
       } else {
         const result = await feedQuery.refetch()

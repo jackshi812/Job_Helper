@@ -422,7 +422,12 @@ describe('Tracker page contract', () => {
       currentStageDate: '2026-08-03',
     }
 
-    patchTrackerApplicationCaches(reactQueryHarness.queryClient, terminal)
+    patchTrackerApplicationCaches(
+      reactQueryHarness.queryClient as unknown as Parameters<
+        typeof patchTrackerApplicationCaches
+      >[0],
+      terminal,
+    )
 
     expect(reactQueryHarness.queryClient.getQueryData(keys[0][0])).toEqual([unrelated])
     expect(reactQueryHarness.queryClient.getQueryData(keys[1][0])).toContainEqual(terminal)
@@ -433,7 +438,12 @@ describe('Tracker page contract', () => {
     expect(terminal.notes).toBe(applications[0].notes)
 
     const active = { ...terminal, currentStage: 'interview' as TrackerStage }
-    patchTrackerApplicationCaches(reactQueryHarness.queryClient, active)
+    patchTrackerApplicationCaches(
+      reactQueryHarness.queryClient as unknown as Parameters<
+        typeof patchTrackerApplicationCaches
+      >[0],
+      active,
+    )
     expect(reactQueryHarness.queryClient.getQueryData(keys[0][0])).toContainEqual(active)
     expect(reactQueryHarness.queryClient.getQueryData(keys[1][0])).toEqual([unrelated])
     expect(reactQueryHarness.queryClient.getQueryData(keys[3][0])).toEqual([])
