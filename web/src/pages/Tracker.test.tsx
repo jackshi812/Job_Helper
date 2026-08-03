@@ -42,7 +42,11 @@ const searchParamState = vi.hoisted(() => ({ value: null as string | null }))
 const trackerOperations = vi.hoisted(() => ({
   appendApplicationStage: vi.fn(),
   getTrackerApplication: vi.fn(),
+  listTrackerApplications: vi.fn(),
   updateApplicationStageEvent: vi.fn(),
+}))
+const resumeOperations = vi.hoisted(() => ({
+  listResumes: vi.fn(),
 }))
 const reactQueryHarness = vi.hoisted(() => {
   const queryOptions: object[] = []
@@ -79,6 +83,7 @@ vi.mock('../lib/tracker', async (importOriginal) => {
     ...actual,
     appendApplicationStage: trackerOperations.appendApplicationStage,
     getTrackerApplication: trackerOperations.getTrackerApplication,
+    listTrackerApplications: trackerOperations.listTrackerApplications,
     updateApplicationStageEvent: trackerOperations.updateApplicationStageEvent,
   }
 })
@@ -111,7 +116,7 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 vi.mock('../lib/resumes', () => ({
-  listResumes: vi.fn(),
+  listResumes: resumeOperations.listResumes,
   resumeLabel: ({ display_name: displayName, filename }: {
     display_name: string | null
     filename: string
@@ -200,7 +205,9 @@ describe('Tracker page contract', () => {
     reactQueryHarness.queryClient.invalidateQueries.mockResolvedValue(undefined)
     trackerOperations.appendApplicationStage.mockReset()
     trackerOperations.getTrackerApplication.mockReset()
+    trackerOperations.listTrackerApplications.mockReset()
     trackerOperations.updateApplicationStageEvent.mockReset()
+    resumeOperations.listResumes.mockReset()
   })
 
   it('renders the header, compact filters, table semantics, and eight columns', () => {
@@ -535,5 +542,523 @@ describe('Tracker page contract', () => {
     expect(trackerSource).toContain('initialFocus="cancel"')
     expect(trackerSource).toContain('deleteTrackerApplication')
     expect(trackerSource).toContain('will not return to Active')
+  })
+})
+
+class TestEvent {
+  readonly type: string
+  readonly bubbles: boolean
+  target: TestElement | null = null
+  currentTarget: TestNode | null = null
+  defaultPrevented = false
+  cancelBubble = false
+  returnValue = true
+  timeStamp = Date.now()
+
+  constructor(type: string, init: { bubbles?: boolean } = {}) {
+    this.type = type
+    this.bubbles = init.bubbles ?? true
+  }
+
+  preventDefault() {
+    this.defaultPrevented = true
+    this.returnValue = false
+  }
+
+  stopPropagation() {
+    this.cancelBubble = true
+  }
+}
+
+type TestListener = (event: TestEvent) => void
+
+class TestNode {
+  readonly nodeType: number
+  readonly ownerDocument: TestDocument
+  parentNode: TestNode | null = null
+  childNodes: TestNode[] = []
+  nodeValue: string | null = null
+  private listeners = new Map<string, Array<{
+    callback: TestListener
+    capture: boolean
+  }>>()
+
+  constructor(nodeType: number, ownerDocument: TestDocument) {
+    this.nodeType = nodeType
+    this.ownerDocument = ownerDocument
+  }
+
+  get firstChild() {
+    return this.childNodes[0] ?? null
+  }
+
+  get lastChild(): TestNode | null {
+    return this.childNodes.at(-1) ?? null
+  }
+
+  get textContent(): string {
+    if (this.nodeType === 3 || this.nodeType === 8) return this.nodeValue ?? ''
+    return this.childNodes.map((child) => child.textContent).join('')
+  }
+
+  set textContent(value: string) {
+    this.childNodes = []
+    if (value !== '') this.appendChild(this.ownerDocument.createTextNode(value))
+  }
+
+  appendChild<T extends TestNode>(child: T): T {
+    child.parentNode?.removeChild(child)
+    child.parentNode = this
+    this.childNodes.push(child)
+    return child
+  }
+
+  insertBefore<T extends TestNode>(child: T, before: TestNode | null): T {
+    if (before === null) return this.appendChild(child)
+    child.parentNode?.removeChild(child)
+    const index = this.childNodes.indexOf(before)
+    if (index < 0) throw new Error('reference node not found')
+    child.parentNode = this
+    this.childNodes.splice(index, 0, child)
+    return child
+  }
+
+  removeChild<T extends TestNode>(child: T): T {
+    const index = this.childNodes.indexOf(child)
+    if (index < 0) throw new Error('child node not found')
+    this.childNodes.splice(index, 1)
+    child.parentNode = null
+    return child
+  }
+
+  contains(candidate: TestNode | null): boolean {
+    let current = candidate
+    while (current) {
+      if (current === this) return true
+      current = current.parentNode
+    }
+    return false
+  }
+
+  addEventListener(
+    type: string,
+    callback: TestListener,
+    options?: boolean | { capture?: boolean },
+  ) {
+    const capture = typeof options === 'boolean' ? options : Boolean(options?.capture)
+    const listeners = this.listeners.get(type) ?? []
+    listeners.push({ callback, capture })
+    this.listeners.set(type, listeners)
+  }
+
+  removeEventListener(type: string, callback: TestListener) {
+    this.listeners.set(
+      type,
+      (this.listeners.get(type) ?? []).filter((listener) => listener.callback !== callback),
+    )
+  }
+
+  dispatchEvent(event: TestEvent): boolean {
+    event.target = this as unknown as TestElement
+    const path: TestNode[] = []
+    function appendPath(node: TestNode) {
+      path.push(node)
+      if (node.parentNode) appendPath(node.parentNode)
+    }
+    appendPath(this)
+    for (const node of [...path].reverse()) {
+      for (const listener of node.listeners.get(event.type) ?? []) {
+        if (!listener.capture) continue
+        event.currentTarget = node
+        listener.callback(event)
+        if (event.cancelBubble) return !event.defaultPrevented
+      }
+    }
+    for (const node of path) {
+      for (const listener of node.listeners.get(event.type) ?? []) {
+        if (listener.capture) continue
+        event.currentTarget = node
+        listener.callback(event)
+        if (event.cancelBubble || !event.bubbles) return !event.defaultPrevented
+      }
+    }
+    return !event.defaultPrevented
+  }
+}
+
+class TestTextNode extends TestNode {
+  constructor(value: string, ownerDocument: TestDocument, nodeType = 3) {
+    super(nodeType, ownerDocument)
+    this.nodeValue = value
+  }
+}
+
+class TestElement extends TestNode {
+  readonly tagName: string
+  readonly nodeName: string
+  readonly namespaceURI = 'http://www.w3.org/1999/xhtml'
+  readonly style: Record<string, string> & { setProperty: (name: string, value: string) => void }
+  readonly attributes = new Map<string, string>()
+  scrollIntoViewCalls = 0
+  _value = ''
+  checked = false
+  selected = false
+
+  constructor(tagName: string, ownerDocument: TestDocument) {
+    super(1, ownerDocument)
+    this.tagName = tagName.toUpperCase()
+    this.nodeName = this.tagName
+    const style = {} as TestElement['style']
+    style.setProperty = (name, value) => {
+      style[name] = value
+    }
+    this.style = style
+  }
+
+  get value() {
+    if (this.tagName === 'SELECT') {
+      return this.options.find((option) => option.selected)?.value ?? this._value
+    }
+    if (this.tagName === 'OPTION') {
+      return this.attributes.get('value') ?? this.textContent
+    }
+    return this._value
+  }
+
+  set value(value: string) {
+    this._value = String(value)
+    if (this.tagName === 'SELECT') {
+      for (const option of this.options) option.selected = option.value === this._value
+    }
+  }
+
+  get options(): TestElement[] {
+    return this.childNodes.filter(
+      (child): child is TestElement => child instanceof TestElement && child.tagName === 'OPTION',
+    )
+  }
+
+  get disabled() {
+    return this.attributes.has('disabled')
+  }
+
+  set disabled(value: boolean) {
+    if (value) this.attributes.set('disabled', '')
+    else this.attributes.delete('disabled')
+  }
+
+  setAttribute(name: string, value: unknown) {
+    this.attributes.set(name, String(value))
+    if (name === 'value') this._value = String(value)
+    if (name === 'disabled') this.disabled = true
+  }
+
+  getAttribute(name: string) {
+    return this.attributes.get(name) ?? null
+  }
+
+  hasAttribute(name: string) {
+    return this.attributes.has(name)
+  }
+
+  removeAttribute(name: string) {
+    this.attributes.delete(name)
+  }
+
+  focus() {
+    this.ownerDocument.activeElement = this
+  }
+
+  blur() {
+    if (this.ownerDocument.activeElement === this) {
+      this.ownerDocument.activeElement = this.ownerDocument.body
+    }
+  }
+
+  scrollIntoView() {
+    this.scrollIntoViewCalls += 1
+  }
+}
+
+class TestDocument extends TestNode {
+  readonly documentElement: TestElement
+  readonly body: TestElement
+  activeElement: TestElement
+  defaultView: Record<string, unknown> = {}
+  oninput: unknown = null
+
+  constructor() {
+    super(9, undefined as unknown as TestDocument)
+    ;(this as { ownerDocument: TestDocument }).ownerDocument = this
+    this.documentElement = new TestElement('html', this)
+    this.body = new TestElement('body', this)
+    this.documentElement.appendChild(this.body)
+    this.appendChild(this.documentElement)
+    this.activeElement = this.body
+  }
+
+  createElement(tagName: string) {
+    return new TestElement(tagName, this)
+  }
+
+  createElementNS(_namespace: string, tagName: string) {
+    return this.createElement(tagName)
+  }
+
+  createTextNode(value: string) {
+    return new TestTextNode(value, this)
+  }
+
+  createComment(value: string) {
+    return new TestTextNode(value, this, 8)
+  }
+
+  getElementById(id: string) {
+    return findTestElement(this, (element) => element.getAttribute('id') === id)
+  }
+}
+
+function findTestElement(
+  root: TestNode,
+  predicate: (element: TestElement) => boolean,
+): TestElement | null {
+  for (const child of root.childNodes) {
+    if (child instanceof TestElement && predicate(child)) return child
+    const nested = findTestElement(child, predicate)
+    if (nested) return nested
+  }
+  return null
+}
+
+function nativeSetValue(element: TestElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(TestElement.prototype, 'value')?.set
+  if (!setter) throw new Error('native value setter not found')
+  setter.call(element, value)
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => {
+    resolve = done
+  })
+  return { promise, resolve }
+}
+
+function installTestDom() {
+  const document = new TestDocument()
+  const window = {
+    document,
+    Event: TestEvent,
+    Node: TestNode,
+    Element: TestElement,
+    HTMLElement: TestElement,
+    HTMLInputElement: TestElement,
+    HTMLSelectElement: TestElement,
+    HTMLTextAreaElement: TestElement,
+    HTMLIFrameElement: class TestIFrameElement extends TestElement {},
+    SVGElement: TestElement,
+    getComputedStyle: () => ({}),
+  }
+  document.defaultView = window
+  vi.stubGlobal('document', document)
+  vi.stubGlobal('window', window)
+  vi.stubGlobal('Node', TestNode)
+  vi.stubGlobal('Element', TestElement)
+  vi.stubGlobal('HTMLElement', TestElement)
+  vi.stubGlobal('HTMLInputElement', TestElement)
+  vi.stubGlobal('HTMLSelectElement', TestElement)
+  vi.stubGlobal('HTMLTextAreaElement', TestElement)
+  vi.stubGlobal('Event', TestEvent)
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+  return document
+}
+
+async function loadMountedTracker() {
+  vi.resetModules()
+  vi.doUnmock('@tanstack/react-query')
+  const react = await import('react')
+  const { createRoot } = await import('react-dom/client')
+  const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
+  const { Tracker: MountedTracker } = await import('./Tracker')
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+  return { createRoot, MountedTracker, QueryClientProvider, queryClient, react }
+}
+
+async function flushMountedWork(act: (callback: () => Promise<void>) => Promise<void>) {
+  await act(async () => {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+  })
+}
+
+describe('Tracker mounted performance invariants', () => {
+  beforeEach(() => {
+    searchParamState.value = null
+    trackerOperations.appendApplicationStage.mockReset()
+    trackerOperations.getTrackerApplication.mockReset()
+    trackerOperations.listTrackerApplications.mockReset()
+    trackerOperations.updateApplicationStageEvent.mockReset()
+    resumeOperations.listResumes.mockReset()
+    resumeOperations.listResumes.mockResolvedValue([])
+  })
+
+  it('filters, expands, scrolls, and focuses a terminal deep-link only after its row loads', async () => {
+    const document = installTestDom()
+    const target = {
+      ...applications[0],
+      currentStage: 'offer' as const,
+      currentStageDate: '2026-08-03',
+    }
+    const activeList = deferred<TrackerApplicationListItem[]>()
+    const terminalList = deferred<TrackerApplicationListItem[]>()
+    const ownedDetail = deferred<TrackerApplicationDetail>()
+    searchParamState.value = target.id
+    trackerOperations.listTrackerApplications.mockImplementation(
+      (selectedStages: readonly TrackerStage[]) =>
+        selectedStages.length === 1 && selectedStages[0] === 'offer'
+          ? terminalList.promise
+          : activeList.promise,
+    )
+    trackerOperations.getTrackerApplication.mockReturnValue(ownedDetail.promise)
+    const {
+      createRoot,
+      MountedTracker,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedTracker()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => {
+      root.render(react.createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        react.createElement(MountedTracker),
+      ))
+    })
+
+    expect(trackerOperations.listTrackerApplications).toHaveBeenCalledWith(
+      TRACKER_ACTIVE_STAGES,
+    )
+    expect(trackerOperations.getTrackerApplication).toHaveBeenCalledWith(target.id)
+    expect(trackerOperations.listTrackerApplications).toHaveBeenCalledTimes(1)
+
+    await react.act(async () => {
+      ownedDetail.resolve(detail(target))
+      activeList.resolve([])
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect(trackerOperations.listTrackerApplications).toHaveBeenLastCalledWith(['offer'])
+    expect(trackerOperations.listTrackerApplications).toHaveBeenCalledTimes(2)
+    expect(findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Show details for Data Analyst')).toBeNull()
+
+    await react.act(async () => {
+      terminalList.resolve([target])
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    const expandButton = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Hide details for Data Analyst')
+    expect(expandButton).not.toBeNull()
+    expect(expandButton?.getAttribute('aria-expanded')).toBe('true')
+    expect(expandButton?.scrollIntoViewCalls).toBe(1)
+    expect(document.activeElement).toBe(expandButton)
+    expect(trackerOperations.getTrackerApplication.mock.calls.every(([id]) =>
+      id === target.id)).toBe(true)
+    expect(trackerOperations.listTrackerApplications.mock.calls.some(([stages]) =>
+      Array.isArray(stages) && stages.length === TRACKER_STAGES.length)).toBe(false)
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps live stage/date controls pending and queues the date against the new event', async () => {
+    const document = installTestDom()
+    const stageWrite = deferred<string>()
+    trackerOperations.listTrackerApplications.mockResolvedValue(applications)
+    trackerOperations.appendApplicationStage.mockReturnValue(stageWrite.promise)
+    trackerOperations.updateApplicationStageEvent.mockResolvedValue(undefined)
+    const {
+      createRoot,
+      MountedTracker,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedTracker()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => {
+      root.render(react.createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        react.createElement(MountedTracker),
+      ))
+    })
+    await flushMountedWork(react.act)
+
+    const stageControl = findTestElement(container, (element) =>
+      element.getAttribute('id') === `stage-${applications[0].id}`)
+    const dateControl = findTestElement(container, (element) =>
+      element.getAttribute('id') === `date-${applications[0].id}`)
+    if (!stageControl || !dateControl) throw new Error('stage/date controls not mounted')
+
+    await react.act(async () => {
+      nativeSetValue(stageControl, 'offer')
+      stageControl.dispatchEvent(new TestEvent('change'))
+      nativeSetValue(dateControl, '2026-08-03')
+      dateControl.dispatchEvent(new TestEvent('input'))
+      dateControl.dispatchEvent(new TestEvent('change'))
+      await Promise.resolve()
+    })
+    expect(dateControl.value).toBe('2026-08-03')
+    await react.act(async () => {
+      const enter = new TestEvent('keydown') as TestEvent & { key: string }
+      enter.key = 'Enter'
+      dateControl.dispatchEvent(enter)
+      await Promise.resolve()
+    })
+
+    expect(stageControl.disabled).toBe(true)
+    expect(dateControl.disabled).toBe(true)
+    expect(trackerOperations.appendApplicationStage).toHaveBeenCalledWith(
+      applications[0].id,
+      'offer',
+    )
+    expect(trackerOperations.updateApplicationStageEvent).not.toHaveBeenCalled()
+    expect(queryClient.getMutationCache().getAll()).toHaveLength(2)
+
+    await react.act(async () => {
+      stageWrite.resolve('44444444-4444-4444-8444-444444444444')
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
+      '44444444-4444-4444-8444-444444444444',
+      'offer',
+      '2026-08-03',
+    )
+    expect(
+      trackerOperations.updateApplicationStageEvent.mock.invocationCallOrder[0],
+    ).toBeGreaterThan(
+      trackerOperations.appendApplicationStage.mock.invocationCallOrder[0],
+    )
+    expect(stageControl.disabled).toBe(false)
+    expect(dateControl.disabled).toBe(false)
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
   })
 })
