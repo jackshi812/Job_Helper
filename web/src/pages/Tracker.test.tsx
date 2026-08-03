@@ -48,6 +48,7 @@ const trackerOperations = vi.hoisted(() => ({
   updateApplicationStageEvent: vi.fn(),
 }))
 const dashboardOperations = vi.hoisted(() => ({
+  dismissJob: vi.fn(),
   listDashboardCompanyOptions: vi.fn(),
   listFeedPage: vi.fn(),
   markJobApplied: vi.fn(),
@@ -131,6 +132,7 @@ vi.mock('../lib/feed', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/feed')>()
   return {
     ...actual,
+    dismissJob: dashboardOperations.dismissJob,
     listDashboardCompanyOptions: dashboardOperations.listDashboardCompanyOptions,
     listFeedPage: dashboardOperations.listFeedPage,
     markJobApplied: dashboardOperations.markJobApplied,
@@ -194,12 +196,15 @@ function mutationOptions(scope: string, occurrence = 0) {
   if (!options) throw new Error(`mutation options not found for ${scope} at ${occurrence}`)
   return options as {
     mutationFn: (input: never) => Promise<unknown>
-    onSuccess?: (result: unknown, variables: never) => unknown
+    onError?: (error: Error, variables: never, context?: unknown) => unknown
+    onMutate?: (variables: never) => unknown
+    onSuccess?: (result: unknown, variables: never, context?: unknown) => unknown
   }
 }
 
 describe('Tracker page contract', () => {
   beforeEach(() => {
+    dashboardOperations.dismissJob.mockReset()
     queryState.data = applications
     queryState.error = null
     queryState.isPending = false
@@ -502,10 +507,15 @@ describe('Tracker page contract', () => {
     const stage = mutationOptions(scope, 0)
     const date = mutationOptions(scope, 1)
 
+    const stageContext = stage.onMutate?.('offer' as never) as { attemptId: number }
     const eventId = await stage.mutationFn('offer' as never)
-    const stageSettlement = stage.onSuccess?.(eventId, 'offer' as never)
-    const dateResult = await date.mutationFn('2026-08-03' as never)
-    const dateSettlement = date.onSuccess?.(dateResult, '2026-08-03' as never)
+    const stageSettlement = stage.onSuccess?.(eventId, 'offer' as never, stageContext)
+    const dateInput = {
+      occurredOn: '2026-08-03',
+      dependentAttemptId: stageContext.attemptId,
+    }
+    const dateResult = await date.mutationFn(dateInput as never)
+    const dateSettlement = date.onSuccess?.(dateResult, dateInput as never)
 
     expect(stageSettlement).toBeUndefined()
     expect(dateSettlement).toBeUndefined()
@@ -521,20 +531,26 @@ describe('Tracker page contract', () => {
     )).toMatchObject({ currentStage: 'offer', currentStageDate: '2026-08-03' })
   })
 
-  it('resolves a date write from cached detail before fetch fallback', async () => {
+  it('fetches authoritative detail for a standalone date write even when detail is cached', async () => {
     setCached(['tracker-application', applications[0].id], detail())
+    reactQueryHarness.queryClient.fetchQuery.mockResolvedValue(detail())
     trackerOperations.updateApplicationStageEvent.mockResolvedValue(undefined)
     renderToStaticMarkup(<Tracker />)
     const date = mutationOptions(`${applications[0].id}:stage-date`, 1)
 
-    await date.mutationFn('2026-08-03' as never)
+    await date.mutationFn({
+      occurredOn: '2026-08-03',
+      dependentAttemptId: null,
+    } as never)
 
     expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
       '22222222-2222-4222-8222-222222222222',
       'applied',
       '2026-08-03',
     )
-    expect(reactQueryHarness.queryClient.fetchQuery).not.toHaveBeenCalled()
+    expect(reactQueryHarness.queryClient.fetchQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ staleTime: 0 }),
+    )
   })
 
   it('fetches detail for a date write only when no authoritative or cached event exists', async () => {
@@ -543,7 +559,10 @@ describe('Tracker page contract', () => {
     renderToStaticMarkup(<Tracker />)
     const date = mutationOptions(`${applications[0].id}:stage-date`, 1)
 
-    await date.mutationFn('2026-08-03' as never)
+    await date.mutationFn({
+      occurredOn: '2026-08-03',
+      dependentAttemptId: null,
+    } as never)
 
     expect(reactQueryHarness.queryClient.fetchQuery).toHaveBeenCalledTimes(1)
     expect(trackerOperations.getTrackerApplication).not.toHaveBeenCalled()
@@ -1304,6 +1323,154 @@ describe('Tracker mounted performance invariants', () => {
     await react.act(async () => root.unmount())
     vi.unstubAllGlobals()
   })
+
+  it('aborts a queued date write when its exact stage attempt fails', async () => {
+    const document = installTestDom()
+    const stageWrite = deferred<string>()
+    trackerOperations.listTrackerApplications.mockResolvedValue(applications)
+    trackerOperations.appendApplicationStage.mockReturnValue(stageWrite.promise)
+    trackerOperations.updateApplicationStageEvent.mockResolvedValue(undefined)
+    const {
+      createRoot,
+      MountedTracker,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedTracker()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedTracker),
+    )))
+    await flushMountedWork(react.act)
+    const stageControl = findTestElement(container, (element) =>
+      element.getAttribute('id') === `stage-${applications[0].id}`)
+    const dateControl = findTestElement(container, (element) =>
+      element.getAttribute('id') === `date-${applications[0].id}`)
+    if (!stageControl || !dateControl) throw new Error('stage/date controls not mounted')
+
+    await react.act(async () => {
+      nativeSetValue(stageControl, 'offer')
+      stageControl.dispatchEvent(new TestEvent('change'))
+      nativeSetValue(dateControl, '2026-08-03')
+      dateControl.dispatchEvent(new TestEvent('input'))
+      dateControl.dispatchEvent(new TestEvent('change'))
+      await Promise.resolve()
+    })
+    await react.act(async () => {
+      const enter = new TestEvent('keydown') as TestEvent & { key: string }
+      enter.key = 'Enter'
+      dateControl.dispatchEvent(enter)
+      await Promise.resolve()
+    })
+    await react.act(async () => {
+      stageWrite.reject(new Error('stage append failed'))
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect(trackerOperations.updateApplicationStageEvent).not.toHaveBeenCalled()
+    expect(container.textContent).toContain('Couldn’t save. Retry')
+    expect(queryClient.getMutationCache().getAll().map(({ state }) => state.status))
+      .toEqual(['error', 'error'])
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('retains the append-returned event over inactive same-day detail and skewed time', async () => {
+    const document = installTestDom()
+    const returnedEventId = '55555555-5555-4555-8555-555555555555'
+    const skewedDetail: TrackerApplicationDetail = {
+      ...detail(),
+      events: [
+        {
+          ...detail().events[0],
+          id: '66666666-6666-4666-8666-666666666666',
+          stage: 'applied',
+          occurredOn: '2026-08-03',
+          createdAt: '2099-08-03T20:00:00.000Z',
+        },
+        {
+          ...detail().events[0],
+          id: '77777777-7777-4777-8777-777777777777',
+          stage: 'interview',
+          occurredOn: '2026-08-03',
+          createdAt: '2099-08-03T21:00:00.000Z',
+        },
+      ],
+    }
+    trackerOperations.listTrackerApplications.mockResolvedValue(applications)
+    trackerOperations.getTrackerApplication.mockResolvedValue(skewedDetail)
+    trackerOperations.appendApplicationStage.mockResolvedValue(returnedEventId)
+    trackerOperations.updateApplicationStageEvent.mockResolvedValue(undefined)
+    const {
+      createRoot,
+      MountedTracker,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedTracker()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedTracker),
+    )))
+    await flushMountedWork(react.act)
+    const expandButton = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Show details for Data Analyst')
+    await react.act(async () => expandButton?.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+    const collapseButton = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Hide details for Data Analyst')
+    await react.act(async () => collapseButton?.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+
+    const stageControl = findTestElement(container, (element) =>
+      element.getAttribute('id') === `stage-${applications[0].id}`)
+    const dateControl = findTestElement(container, (element) =>
+      element.getAttribute('id') === `date-${applications[0].id}`)
+    if (!stageControl || !dateControl) throw new Error('stage/date controls not mounted')
+    await react.act(async () => {
+      nativeSetValue(stageControl, 'offer')
+      stageControl.dispatchEvent(new TestEvent('change'))
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+    const cachedDetail = queryClient.getQueryData<TrackerApplicationDetail>([
+      'tracker-application',
+      applications[0].id,
+    ])
+    expect(cachedDetail?.events.some(({ id }) => id === returnedEventId)).toBe(false)
+
+    await react.act(async () => {
+      nativeSetValue(dateControl, '2026-08-04')
+      dateControl.dispatchEvent(new TestEvent('input'))
+      dateControl.dispatchEvent(new TestEvent('change'))
+      const enter = new TestEvent('keydown') as TestEvent & { key: string }
+      enter.key = 'Enter'
+      dateControl.dispatchEvent(enter)
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
+      returnedEventId,
+      'offer',
+      '2026-08-04',
+    )
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
 })
 
 const mountedDashboardRow: FeedRow = {
@@ -1340,6 +1507,7 @@ function mountedDashboardPage(rows: FeedRow[]): DashboardFeedPage {
 
 describe('Dashboard mounted performance invariants', () => {
   beforeEach(() => {
+    dashboardOperations.dismissJob.mockReset()
     dashboardOperations.listDashboardCompanyOptions.mockReset()
     dashboardOperations.listDashboardCompanyOptions.mockResolvedValue([])
     dashboardOperations.listFeedPage.mockReset()
@@ -1517,6 +1685,247 @@ describe('Dashboard mounted performance invariants', () => {
       (feedQuery.state.data as { pages: DashboardFeedPage[] }).pages
         .flatMap(({ rows }) => rows.map(({ id }) => id)),
     ).toEqual([mountedDashboardRow.id, concurrent.id])
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps an applied row excluded when a concurrent dismissal refetch returns it', async () => {
+    const document = installTestDom()
+    const dismissRow = {
+      ...mountedDashboardRow,
+      id: 'dashboard-row-dismiss',
+      jobs: {
+        ...mountedDashboardRow.jobs!,
+        id: 'dashboard-job-dismiss',
+        title: 'Dashboard Dismiss',
+      },
+    }
+    const appliedWrite = deferred<string>()
+    dashboardOperations.listFeedPage
+      .mockResolvedValueOnce(mountedDashboardPage([mountedDashboardRow, dismissRow]))
+      .mockResolvedValue(mountedDashboardPage([mountedDashboardRow]))
+    dashboardOperations.markJobApplied.mockReturnValue(appliedWrite.promise)
+    dashboardOperations.dismissJob.mockResolvedValue(undefined)
+    const {
+      createRoot,
+      MountedDashboard,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedDashboard()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedDashboard),
+    )))
+    await flushMountedWork(react.act)
+    const markApplied = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Mark Dashboard A applied')
+    const dismiss = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Dismiss Dashboard Dismiss')
+    await react.act(async () => {
+      markApplied?.dispatchEvent(new TestEvent('click'))
+      dismiss?.dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    const feedQuery = queryClient.getQueryCache().findAll({
+      queryKey: ['dashboard-feed'],
+    })[0]
+    expect(
+      (feedQuery.state.data as { pages: DashboardFeedPage[] }).pages
+        .flatMap(({ rows }) => rows.map(({ id }) => id)),
+    ).not.toContain(mountedDashboardRow.id)
+
+    await react.act(async () => {
+      appliedWrite.resolve('11111111-1111-4111-8111-111111111111')
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect(
+      (feedQuery.state.data as { pages: DashboardFeedPage[] }).pages
+        .flatMap(({ rows }) => rows.map(({ id }) => id)),
+    ).not.toContain(mountedDashboardRow.id)
+    expect(findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Mark Dashboard A applied')).toBeNull()
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('restores a rejected Mark Applied only to its originating query after sorting changes', async () => {
+    const document = installTestDom()
+    const remainingRow = {
+      ...mountedDashboardRow,
+      id: 'dashboard-row-origin-remaining',
+      jobs: {
+        ...mountedDashboardRow.jobs!,
+        id: 'dashboard-job-origin-remaining',
+        title: 'Dashboard Origin Remaining',
+      },
+    }
+    const sortedRow = {
+      ...mountedDashboardRow,
+      id: 'dashboard-row-sorted',
+      jobs: {
+        ...mountedDashboardRow.jobs!,
+        id: 'dashboard-job-sorted',
+        title: 'Dashboard Sorted',
+      },
+    }
+    const appliedWrite = deferred<string>()
+    dashboardOperations.listFeedPage.mockImplementation(
+      async (request: { order: string }) => mountedDashboardPage(
+        request.order === 'newest'
+          ? [mountedDashboardRow, remainingRow]
+          : [sortedRow],
+      ),
+    )
+    dashboardOperations.markJobApplied.mockReturnValue(appliedWrite.promise)
+    const {
+      createRoot,
+      MountedDashboard,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedDashboard()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedDashboard),
+    )))
+    await flushMountedWork(react.act)
+    const markApplied = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Mark Dashboard A applied')
+    await react.act(async () => markApplied?.dispatchEvent(new TestEvent('click')))
+    const scoreSort = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Score↕')
+    if (!scoreSort) {
+      throw new Error(`score sort not mounted: ${findTestElements(
+        container,
+        (element) => element.tagName === 'BUTTON',
+      ).map(({ textContent }) => textContent).join('|')}`)
+    }
+    await react.act(async () => scoreSort?.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+
+    const queries = queryClient.getQueryCache().findAll({ queryKey: ['dashboard-feed'] })
+    const originQuery = queries.find(({ queryKey }) => queryKey[2] === 'newest')
+    const currentQuery = queries.find(({ queryKey }) => queryKey[2] === 'score_desc')
+    if (!originQuery || !currentQuery) throw new Error('both feed identities must be cached')
+    const currentData = currentQuery.state.data
+    await react.act(async () => {
+      appliedWrite.reject(new Error('mark applied failed'))
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect((originQuery.state.data as { pages: DashboardFeedPage[] }).pages[0].rows)
+      .toEqual([mountedDashboardRow, remainingRow])
+    expect(currentQuery.state.data).toBe(currentData)
+    expect((currentQuery.state.data as { pages: DashboardFeedPage[] }).pages[0].rows)
+      .toEqual([sortedRow])
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('refills a resolved dismissal only through its originating request after sorting changes', async () => {
+    const document = installTestDom()
+    const remainingRow = {
+      ...mountedDashboardRow,
+      id: 'dashboard-row-resolve-remaining',
+      jobs: {
+        ...mountedDashboardRow.jobs!,
+        id: 'dashboard-job-resolve-remaining',
+        title: 'Dashboard Resolve Remaining',
+      },
+    }
+    const sortedRow = {
+      ...mountedDashboardRow,
+      id: 'dashboard-row-resolve-sorted',
+      jobs: {
+        ...mountedDashboardRow.jobs!,
+        id: 'dashboard-job-resolve-sorted',
+        title: 'Dashboard Resolve Sorted',
+      },
+    }
+    const dismissWrite = deferred<void>()
+    let dismissalCommitted = false
+    dashboardOperations.listFeedPage.mockImplementation(
+      async (request: { order: string }) => mountedDashboardPage(
+        request.order === 'score_desc'
+          ? [sortedRow]
+          : dismissalCommitted ? [remainingRow] : [mountedDashboardRow, remainingRow],
+      ),
+    )
+    dashboardOperations.dismissJob.mockImplementation(async () => {
+      await dismissWrite.promise
+      dismissalCommitted = true
+    })
+    const {
+      createRoot,
+      MountedDashboard,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedDashboard()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedDashboard),
+    )))
+    await flushMountedWork(react.act)
+    const dismiss = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Dismiss Dashboard A')
+    await react.act(async () => dismiss?.dispatchEvent(new TestEvent('click')))
+    const scoreSort = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Score↕')
+    if (!scoreSort) {
+      throw new Error(`score sort not mounted: ${findTestElements(
+        container,
+        (element) => element.tagName === 'BUTTON',
+      ).map(({ textContent }) => textContent).join('|')}`)
+    }
+    await react.act(async () => scoreSort?.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+
+    const queries = queryClient.getQueryCache().findAll({ queryKey: ['dashboard-feed'] })
+    const originQuery = queries.find(({ queryKey }) => queryKey[2] === 'newest')
+    const currentQuery = queries.find(({ queryKey }) => queryKey[2] === 'score_desc')
+    if (!originQuery || !currentQuery) throw new Error('both feed identities must be cached')
+    const currentData = currentQuery.state.data
+    await react.act(async () => {
+      dismissWrite.resolve()
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect((originQuery.state.data as { pages: DashboardFeedPage[] }).pages[0].rows)
+      .toEqual([remainingRow])
+    expect(currentQuery.state.data).toBe(currentData)
+    expect((currentQuery.state.data as { pages: DashboardFeedPage[] }).pages[0].rows)
+      .toEqual([sortedRow])
+    const requestedOrders = dashboardOperations.listFeedPage.mock.calls.map(
+      ([request]) => (request as { order: string }).order,
+    )
+    expect(requestedOrders.filter((order) => order === 'newest').length).toBeGreaterThan(1)
+    expect(requestedOrders.filter((order) => order === 'score_desc')).toHaveLength(1)
 
     await react.act(async () => root.unmount())
     vi.unstubAllGlobals()

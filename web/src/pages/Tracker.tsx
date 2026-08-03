@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -216,6 +217,18 @@ interface TrackerRowProps {
   registerExpandButton: (node: HTMLButtonElement | null) => void
 }
 
+type StageAttempt =
+  | { attemptId: number; stage: TrackerStage; status: 'pending' }
+  | { attemptId: number; eventId: string; stage: TrackerStage; status: 'succeeded' }
+  | { attemptId: number; stage: TrackerStage; status: 'failed' }
+
+interface StageDateInput {
+  occurredOn: string
+  dependentAttemptId: number | null
+}
+
+const STAGE_DATE_DEPENDENCY_FAILED = 'stage_date_dependency_failed'
+
 function TrackerRow({
   application,
   rowNumber,
@@ -234,14 +247,14 @@ function TrackerRow({
   const [titleDraft, setTitleDraft] = useState(application.title)
   const [notesDraft, setNotesDraft] = useState(application.notes)
   const [manualEditActive, setManualEditActive] = useState(false)
-  const currentStageEventRef = useRef<{
-    id: string
-    stage: TrackerStage
-  } | null>(null)
-  const queuedStageDateRef = useRef(false)
+  const stageAttemptRef = useRef<StageAttempt | null>(null)
+  const nextStageAttemptIdRef = useRef(0)
   const [lastSave, setLastSave] = useState<
     'pin' | 'company' | 'title' | 'stage' | 'date' | 'notes' | null
   >(null)
+  const clearStageAttempt = useCallback(() => {
+    stageAttemptRef.current = null
+  }, [])
 
   useEffect(() => setPinDraft(application.pinned), [application.pinned])
   useEffect(() => setStageDraft(application.currentStage), [application.currentStage])
@@ -265,54 +278,63 @@ function TrackerRow({
     mutationFn: (stage: TrackerStage) => appendApplicationStage(application.id, stage),
     scope: { id: `${application.id}:stage-date` },
     retry: false,
-    onMutate: () => setLastSave('stage'),
-    onSuccess: (eventId, stage) => {
+    onMutate: (stage) => {
+      const attemptId = ++nextStageAttemptIdRef.current
+      stageAttemptRef.current = { attemptId, stage, status: 'pending' }
+      setLastSave('stage')
+      return { attemptId }
+    },
+    onSuccess: (eventId, stage, context) => {
       const currentStageDate = chicagoDate()
-      currentStageEventRef.current = queuedStageDateRef.current
-        ? { id: eventId, stage }
-        : null
+      if (
+        context
+        && stageAttemptRef.current?.attemptId === context.attemptId
+      ) {
+        stageAttemptRef.current = {
+          attemptId: context.attemptId,
+          eventId,
+          stage,
+          status: 'succeeded',
+        }
+      }
       patchKnownTrackerApplication(cacheClient, application, {
         currentStage: stage,
         currentStageDate,
       })
-      queryClient.setQueryData<TrackerApplicationDetail>(
-        ['tracker-application', application.id],
-        (current) => current
-          ? {
-            ...current,
-            events: current.events.some(({ id }) => id === eventId)
-              ? current.events
-              : [...current.events, {
-                id: eventId,
-                applicationId: application.id,
-                stage,
-                occurredOn: currentStageDate,
-                createdAt: new Date().toISOString(),
-              }],
-          }
-          : current,
-      )
       reconcileTrackerApplication(queryClient, application.id, true)
     },
-    onError: () => {
-      currentStageEventRef.current = null
-      queuedStageDateRef.current = false
+    onError: (_error, stage, context) => {
+      if (
+        context
+        && stageAttemptRef.current?.attemptId === context.attemptId
+      ) {
+        stageAttemptRef.current = {
+          attemptId: context.attemptId,
+          stage,
+          status: 'failed',
+        }
+      }
+      setLastSave('stage')
     },
   })
   const dateMutation = useMutation({
-    mutationFn: async (occurredOn: string) => {
-      const cachedDetail = queryClient.getQueryData<TrackerApplicationDetail>(
-        ['tracker-application', application.id],
-      )
-      const queuedStageEvent = currentStageEventRef.current
-      currentStageEventRef.current = null
-      queuedStageDateRef.current = false
-      let latestEvent = queuedStageEvent
-        ?? sortTrackerEvents(cachedDetail?.events ?? []).at(-1)
-      if (!latestEvent) {
+    mutationFn: async ({ occurredOn, dependentAttemptId }: StageDateInput) => {
+      const stageAttempt = stageAttemptRef.current
+      let latestEvent: { id: string; stage: TrackerStage } | undefined
+      if (dependentAttemptId !== null) {
+        if (
+          !stageAttempt
+          || stageAttempt.attemptId !== dependentAttemptId
+          || stageAttempt.status !== 'succeeded'
+        ) throw new Error(STAGE_DATE_DEPENDENCY_FAILED)
+        latestEvent = { id: stageAttempt.eventId, stage: stageAttempt.stage }
+      } else if (stageAttempt?.status === 'succeeded') {
+        latestEvent = { id: stageAttempt.eventId, stage: stageAttempt.stage }
+      } else {
         const detail = await queryClient.fetchQuery({
           queryKey: ['tracker-application', application.id],
           queryFn: () => getTrackerApplication(application.id),
+          staleTime: 0,
         })
         latestEvent = sortTrackerEvents(detail.events).at(-1)
       }
@@ -326,11 +348,11 @@ function TrackerRow({
     },
     scope: { id: `${application.id}:stage-date` },
     retry: false,
-    onMutate: () => {
-      queuedStageDateRef.current = stageMutation.isPending
-      setLastSave('date')
+    onMutate: ({ dependentAttemptId }) => {
+      if (dependentAttemptId === null) setLastSave('date')
     },
     onSuccess: ({ eventId, stage, occurredOn }) => {
+      setLastSave('date')
       patchKnownTrackerApplication(cacheClient, application, {
         currentStage: stage,
         currentStageDate: occurredOn,
@@ -346,6 +368,13 @@ function TrackerRow({
           : current,
       )
       reconcileTrackerApplication(queryClient, application.id, true)
+    },
+    onError: (error) => {
+      setLastSave(
+        error instanceof Error && error.message === STAGE_DATE_DEPENDENCY_FAILED
+          ? 'stage'
+          : 'date',
+      )
     },
   })
   const companyMutation = useMutation({
@@ -449,6 +478,16 @@ function TrackerRow({
 
   const detailId = `tracker-detail-${application.id}`
   const rowEditable = application.origin !== 'manual' || manualEditActive
+
+  function saveStageDate(occurredOn: string) {
+    const stageAttempt = stageAttemptRef.current
+    dateMutation.mutate({
+      occurredOn,
+      dependentAttemptId: stageAttempt?.status === 'pending'
+        ? stageAttempt.attemptId
+        : null,
+    })
+  }
 
   return (
     <>
@@ -653,11 +692,11 @@ function TrackerRow({
                 disabled={stageDateMutationPending}
                 onChange={(event) => setDateDraft(event.target.value)}
                 onBlur={() => {
-                  if (dateDraft !== application.currentStageDate) dateMutation.mutate(dateDraft)
+                  if (dateDraft !== application.currentStageDate) saveStageDate(dateDraft)
                 }}
                 onKeyDown={(event) => commitOnEnter(
                   event,
-                  () => dateMutation.mutate(dateDraft),
+                  () => saveStageDate(dateDraft),
                   () => setDateDraft(application.currentStageDate),
                 )}
                 className={CELL_INPUT}
@@ -732,6 +771,7 @@ function TrackerRow({
           application={application}
           expanded={expanded}
           detailId={detailId}
+          onTimelineMutation={clearStageAttempt}
         />
       ) : null}
     </>
@@ -742,12 +782,14 @@ interface TrackerDetailRowProps {
   application: TrackerApplicationListItem
   expanded: boolean
   detailId: string
+  onTimelineMutation: () => void
 }
 
 function TrackerDetailRow({
   application,
   expanded,
   detailId,
+  onTimelineMutation,
 }: TrackerDetailRowProps) {
   const queryClient = useQueryClient()
   const cacheClient = queryClient as unknown as TrackerCacheClient
@@ -785,6 +827,7 @@ function TrackerDetailRow({
           }
           : current,
       )
+      onTimelineMutation()
       reconcileTrackerApplication(queryClient, application.id, true)
     },
   })
@@ -799,6 +842,7 @@ function TrackerDetailRow({
           ? { ...current, events: current.events.filter(({ id }) => id !== eventId) }
           : current,
       )
+      onTimelineMutation()
       reconcileTrackerApplication(queryClient, application.id, true)
     },
   })

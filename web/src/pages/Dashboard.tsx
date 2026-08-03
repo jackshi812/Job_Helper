@@ -19,6 +19,7 @@ import {
   tierPresentation,
   type DashboardFeedOrder,
   type DashboardFeedPage,
+  type DashboardFeedQuery,
   type FeedRow,
   type LifecycleView,
   type Tier,
@@ -196,6 +197,10 @@ interface LifecycleMutationContext {
   continuationCursor: string | null
   nextFocusId: string | null
   previousFocusId: string | null
+  feedKey: ReturnType<typeof dashboardFeedQueryKey>
+  feedRequest: DashboardFeedQuery
+  lifecycle: LifecycleView
+  scope: DashboardSourceScope
 }
 
 export interface DismissalMutationContext {
@@ -213,12 +218,21 @@ type BackfillRetry =
     scope: 'all'
     cursor: string
     dismissalCommitted: boolean
+    target: LifecycleMutationTarget
   }
   | {
     scope: 'watchlist'
     cursor?: string
     dismissalCommitted: boolean
+    target: LifecycleMutationTarget
   }
+
+interface LifecycleMutationTarget {
+  feedKey: ReturnType<typeof dashboardFeedQueryKey>
+  feedRequest: DashboardFeedQuery
+  lifecycle: LifecycleView
+  scope: DashboardSourceScope
+}
 
 const EMPTY_DASHBOARD_PAGE: DashboardFeedPage = {
   rows: [],
@@ -245,6 +259,25 @@ function removeRowFromInfiniteData(
       ...page,
       rows: page.rows.filter(({ id }) => id !== rowId),
     })),
+  }
+}
+
+function filterDashboardPageRows(
+  page: DashboardFeedPage,
+  excludedIds: ReadonlySet<string>,
+): DashboardFeedPage {
+  if (excludedIds.size === 0) return page
+  return { ...page, rows: page.rows.filter(({ id }) => !excludedIds.has(id)) }
+}
+
+export function filterDashboardInfiniteDataRows(
+  data: DashboardInfiniteData | undefined,
+  excludedIds: ReadonlySet<string>,
+): DashboardInfiniteData | undefined {
+  if (!data || excludedIds.size === 0) return data
+  return {
+    ...data,
+    pages: data.pages.map((page) => filterDashboardPageRows(page, excludedIds)),
   }
 }
 
@@ -329,18 +362,20 @@ function appendBackfillPage(
   data: DashboardInfiniteData | undefined,
   page: DashboardFeedPage,
   cursor: string,
+  excludedIds: ReadonlySet<string>,
 ): DashboardInfiniteData | undefined {
   if (!data) return data
-  if (page.rows.length === 0) {
+  const visiblePage = filterDashboardPageRows(page, excludedIds)
+  if (visiblePage.rows.length === 0) {
     const pages = [...data.pages]
     const last = pages.at(-1)
-    if (last) pages[pages.length - 1] = { ...last, ...page, rows: last.rows }
+    if (last) pages[pages.length - 1] = { ...last, ...visiblePage, rows: last.rows }
     return { ...data, pages }
   }
   const existingIds = new Set(mergedInfinitePage(data).rows.map(({ id }) => id))
-  const rows = page.rows.filter(({ id }) => !existingIds.has(id))
+  const rows = visiblePage.rows.filter(({ id }) => !existingIds.has(id))
   return {
-    pages: [...data.pages, { ...page, rows }],
+    pages: [...data.pages, { ...visiblePage, rows }],
     pageParams: [...data.pageParams, cursor],
   }
 }
@@ -515,6 +550,8 @@ export function Dashboard({
   const [dismissPendingIds, setDismissPendingIds] = useState<Set<string>>(() => new Set())
   const [markAppliedPendingIds, setMarkAppliedPendingIds] =
     useState<Set<string>>(() => new Set())
+  const [markAppliedExcludedIds, setMarkAppliedExcludedIds] =
+    useState<Set<string>>(() => new Set())
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set())
   const [queueAnnouncement, setQueueAnnouncement] = useState('')
   const [loadMoreError, setLoadMoreError] = useState('')
@@ -580,7 +617,10 @@ export function Dashboard({
     string | null
   >({
     queryKey: feedKey,
-    queryFn: ({ pageParam }) => listFeedPage(feedRequest, pageParam),
+    queryFn: async ({ pageParam }) => filterDashboardPageRows(
+      await listFeedPage(feedRequest, pageParam),
+      markAppliedExcludedIdsRef.current,
+    ),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: feedEnabled,
@@ -589,7 +629,13 @@ export function Dashboard({
   const refreshFeedHead = useCallback(
     () => refreshDashboardFeedHead(
       () => listFeedPage(feedRequest, null),
-      (updater) => queryClient.setQueryData<DashboardInfiniteData>(feedKey, updater),
+      (updater) => queryClient.setQueryData<DashboardInfiniteData>(
+        feedKey,
+        (current) => filterDashboardInfiniteDataRows(
+          updater(current),
+          markAppliedExcludedIdsRef.current,
+        ),
+      ),
       {
         coordinator: headRefreshCoordinatorRef.current,
         feedIdentity,
@@ -690,9 +736,13 @@ export function Dashboard({
     () => mergedInfinitePage(feedQuery.data).rows,
     [feedQuery.data],
   )
+  const hiddenLifecycleIds = useMemo(
+    () => new Set([...dismissedIds, ...markAppliedExcludedIds]),
+    [dismissedIds, markAppliedExcludedIds],
+  )
   const rows = useMemo(
-    () => filterDismissedFeedRows(allRows, dismissedIds),
-    [allRows, dismissedIds],
+    () => filterDismissedFeedRows(allRows, hiddenLifecycleIds),
+    [allRows, hiddenLifecycleIds],
   )
   const appliedApplications = useMemo(
     () => dashboardAppliedSourceRows(
@@ -731,31 +781,57 @@ export function Dashboard({
     })
   }, [lifecycleError, rows])
 
-  function snapshotAndRemoveDismissal(rowId: string): DismissalMutationContext {
+  function captureLifecycleTarget(): LifecycleMutationTarget {
+    const capturedRequest: DashboardFeedQuery = {
+      ...feedRequest,
+      tiers: [...feedRequest.tiers],
+      hiddenCompanyKeys: [...feedRequest.hiddenCompanyKeys],
+    }
+    return {
+      feedKey: dashboardFeedQueryKey(capturedRequest),
+      feedRequest: capturedRequest,
+      lifecycle,
+      scope,
+    }
+  }
+
+  function snapshotAndRemoveDismissal(
+    target: LifecycleMutationTarget,
+    rowId: string,
+  ): LifecycleMutationContext {
     setLifecycleError('')
-    const current = queryClient.getQueryData<DashboardInfiniteData>(feedKey)
-    const context = captureDismissalContext(current, rowId)
+    const current = queryClient.getQueryData<DashboardInfiniteData>(target.feedKey)
+    const context = { ...captureDismissalContext(current, rowId), ...target }
     setDismissPendingIds((pendingIds) => new Set(pendingIds).add(rowId))
     setDismissedIds((excludedIds) => new Set(excludedIds).add(rowId))
     queryClient.setQueryData<DashboardInfiniteData>(
-      feedKey,
-      (cached) => removeRowFromInfiniteData(cached, rowId),
+      target.feedKey,
+      (cached) => filterDashboardInfiniteDataRows(
+        removeRowFromInfiniteData(cached, rowId),
+        markAppliedExcludedIdsRef.current,
+      ),
     )
     if (context.rowIndex >= 0) {
       focusAfterRemoval(context.nextFocusId, context.previousFocusId)
     }
-    void queryClient.cancelQueries({ queryKey: feedKey })
+    void queryClient.cancelQueries({ queryKey: target.feedKey })
     return context
   }
 
-  async function snapshotAndRemove(rowId: string): Promise<LifecycleMutationContext> {
+  async function snapshotAndRemove(
+    target: LifecycleMutationTarget,
+    rowId: string,
+  ): Promise<LifecycleMutationContext> {
     setLifecycleError('')
-    await queryClient.cancelQueries({ queryKey: feedKey })
-    const current = queryClient.getQueryData<DashboardInfiniteData>(feedKey)
-    const context = captureDismissalContext(current, rowId)
+    await queryClient.cancelQueries({ queryKey: target.feedKey })
+    const current = queryClient.getQueryData<DashboardInfiniteData>(target.feedKey)
+    const context = { ...captureDismissalContext(current, rowId), ...target }
     queryClient.setQueryData<DashboardInfiniteData>(
-      feedKey,
-      (cached) => removeRowFromInfiniteData(cached, rowId),
+      target.feedKey,
+      (cached) => filterDashboardInfiniteDataRows(
+        removeRowFromInfiniteData(cached, rowId),
+        markAppliedExcludedIdsRef.current,
+      ),
     )
     if (context.rowIndex >= 0) {
       focusAfterRemoval(context.nextFocusId, context.previousFocusId)
@@ -764,19 +840,25 @@ export function Dashboard({
   }
 
   function refillRequest(
+    target: LifecycleMutationTarget,
     cursor: string | null,
     dismissalCommitted: boolean,
   ): BackfillRetry | null {
-    if (scope === 'all') {
-      return cursor === null ? null : { scope: 'all', cursor, dismissalCommitted }
+    if (target.scope === 'all') {
+      return cursor === null
+        ? null
+        : { scope: 'all', cursor, dismissalCommitted, target }
     }
-    return { scope: 'watchlist', dismissalCommitted }
+    return { scope: 'watchlist', dismissalCommitted, target }
   }
 
-  function appliedRefillRequest(cursor: string | null): BackfillRetry | null {
+  function appliedRefillRequest(
+    target: LifecycleMutationTarget,
+    cursor: string | null,
+  ): BackfillRetry | null {
     return cursor === null
       ? null
-      : { scope, cursor, dismissalCommitted: false }
+      : { scope: target.scope, cursor, dismissalCommitted: false, target }
   }
 
   async function refillVisibleQueue(retry: BackfillRetry | null) {
@@ -787,14 +869,32 @@ export function Dashboard({
       if (retry.scope === 'all' || retry.cursor !== undefined) {
         const cursor = retry.cursor
         if (cursor === undefined) return
-        const page = await backfillDashboardFeedRow(feedRequest, cursor)
+        const page = await backfillDashboardFeedRow(retry.target.feedRequest, cursor)
         queryClient.setQueryData<DashboardInfiniteData>(
-          feedKey,
-          (current) => appendBackfillPage(current, page, cursor),
+          retry.target.feedKey,
+          (current) => filterDashboardInfiniteDataRows(
+            appendBackfillPage(
+              current,
+              page,
+              cursor,
+              markAppliedExcludedIdsRef.current,
+            ),
+            markAppliedExcludedIdsRef.current,
+          ),
         )
       } else {
-        const result = await feedQuery.refetch()
-        if (result.isError) throw result.error ?? new Error('dashboard_refill_failed')
+        await queryClient.refetchQueries({
+          queryKey: retry.target.feedKey,
+          exact: true,
+          type: 'all',
+        })
+        queryClient.setQueryData<DashboardInfiniteData>(
+          retry.target.feedKey,
+          (current) => filterDashboardInfiniteDataRows(
+            current,
+            markAppliedExcludedIdsRef.current,
+          ),
+        )
       }
     } catch {
       setBackfillError(retry.dismissalCommitted
@@ -806,7 +906,7 @@ export function Dashboard({
 
   const dismissMutation = useMutation({
     mutationFn: dismissJob,
-    onMutate: snapshotAndRemoveDismissal,
+    onMutate: (id) => snapshotAndRemoveDismissal(captureLifecycleTarget(), id),
     onError: (_error, id, context) => {
       restoredDismissFocusIdRef.current = id
       setDismissPendingIds((pendingIds) => {
@@ -824,8 +924,11 @@ export function Dashboard({
         return
       }
       queryClient.setQueryData<DashboardInfiniteData>(
-        feedKey,
-        (current) => restoreDismissedRowInInfiniteData(current, context),
+        context.feedKey,
+        (current) => filterDashboardInfiniteDataRows(
+          restoreDismissedRowInInfiniteData(current, context),
+          markAppliedExcludedIdsRef.current,
+        ),
       )
       setLifecycleError(
         `Couldn’t dismiss ${context.title}. It remains in Active. Try again.`,
@@ -846,9 +949,9 @@ export function Dashboard({
         return
       }
       setQueueAnnouncement(`Dismissed ${context.title} permanently.`)
-      if (lifecycle === 'active') {
+      if (context.lifecycle === 'active') {
         void refillVisibleQueue(
-          refillRequest(context.continuationCursor, true),
+          refillRequest(context, context.continuationCursor, true),
         )
       }
       void queryClient.invalidateQueries({
@@ -862,11 +965,17 @@ export function Dashboard({
     mutationFn: markJobApplied,
     onMutate: (id) => {
       markAppliedExcludedIdsRef.current.add(id)
+      setMarkAppliedExcludedIds((excludedIds) => new Set(excludedIds).add(id))
       setMarkAppliedPendingIds((pendingIds) => new Set(pendingIds).add(id))
-      return snapshotAndRemove(id)
+      return snapshotAndRemove(captureLifecycleTarget(), id)
     },
     onError: (_error, id, context) => {
       markAppliedExcludedIdsRef.current.delete(id)
+      setMarkAppliedExcludedIds((excludedIds) => {
+        const next = new Set(excludedIds)
+        next.delete(id)
+        return next
+      })
       setMarkAppliedPendingIds((pendingIds) => {
         const next = new Set(pendingIds)
         next.delete(id)
@@ -874,8 +983,11 @@ export function Dashboard({
       })
       if (context) {
         queryClient.setQueryData<DashboardInfiniteData>(
-          feedKey,
-          (current) => restoreDismissedRowInInfiniteData(current, context),
+          context.feedKey,
+          (current) => filterDashboardInfiniteDataRows(
+            restoreDismissedRowInInfiniteData(current, context),
+            markAppliedExcludedIdsRef.current,
+          ),
         )
       }
       setLifecycleError(
@@ -889,7 +1001,7 @@ export function Dashboard({
         return next
       })
       setQueueAnnouncement(`${context.title} marked applied and added to Tracker.`)
-      void refillVisibleQueue(appliedRefillRequest(context.continuationCursor))
+      void refillVisibleQueue(appliedRefillRequest(context, context.continuationCursor))
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['tracker-applications'] }),
         queryClient.invalidateQueries({
@@ -900,7 +1012,8 @@ export function Dashboard({
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard-feed'],
-          predicate: (query) => JSON.stringify(query.queryKey) !== JSON.stringify(feedKey),
+          predicate: (query) =>
+            JSON.stringify(query.queryKey) !== JSON.stringify(context.feedKey),
           refetchType: 'inactive',
         }),
       ]).catch(() => undefined)

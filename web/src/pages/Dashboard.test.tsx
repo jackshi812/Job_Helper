@@ -10,6 +10,7 @@ import {
   type FeedRow,
 } from '../lib/feed'
 import type { DashboardAppliedApplication } from '../lib/tracker'
+import { dashboardFeedQueryKey } from '../lib/dashboard'
 import dashboardSource from './Dashboard.tsx?raw'
 import resizeHandleSource from '../components/ColumnResizeHandle.tsx?raw'
 import {
@@ -28,6 +29,7 @@ import {
 import {
   Dashboard,
   createDashboardHeadRefreshCoordinator,
+  filterDashboardInfiniteDataRows,
   filterDismissedFeedRows,
   refreshDashboardFeedHead,
   replaceDashboardFeedHead,
@@ -493,17 +495,24 @@ describe('Dashboard dismissal transaction', () => {
 
 describe('Dashboard dismissal settlement', () => {
   it('settles at RPC success while watchlist refill and invalidation remain unresolved', async () => {
-    let resolveRefill!: (value: { isError: false }) => void
-    const refill = new Promise<{ isError: false }>((resolve) => {
+    let resolveRefill!: () => void
+    const refill = new Promise<void>((resolve) => {
       resolveRefill = resolve
     })
     let resolveInvalidation!: () => void
     const invalidation = new Promise<void>((resolve) => {
       resolveInvalidation = resolve
     })
-    reactQueryHarness.feedRefetch.mockReturnValue(refill)
+    reactQueryHarness.queryClient.refetchQueries.mockReturnValue(refill)
     reactQueryHarness.queryClient.invalidateQueries.mockReturnValue(invalidation)
     const mutation = dismissMutationOptions('watchlist')
+    const feedRequest: DashboardFeedQuery = {
+      lifecycle: 'active',
+      order: 'newest',
+      sourceScope: 'watchlist',
+      tiers: ['Strong', 'Good', 'Weak'],
+      hiddenCompanyKeys: [],
+    }
     const context = {
       removedRow: row,
       pageIndex: 0,
@@ -512,15 +521,20 @@ describe('Dashboard dismissal settlement', () => {
       continuationCursor: 'cursor-next',
       nextFocusId: secondRow.id,
       previousFocusId: null,
+      feedKey: dashboardFeedQueryKey(feedRequest),
+      feedRequest,
+      lifecycle: 'active',
+      scope: 'watchlist',
     }
 
     const result = mutation.onSuccess(undefined, row.id, context)
-    const refillStartedBeforeRelease = reactQueryHarness.feedRefetch.mock.calls.length === 1
+    const refillStartedBeforeRelease =
+      reactQueryHarness.queryClient.refetchQueries.mock.calls.length === 1
     const invalidationStartedBeforeRelease =
       reactQueryHarness.queryClient.invalidateQueries.mock.calls.some(([options]) =>
         (options as { refetchType?: string }).refetchType === 'inactive')
 
-    resolveRefill({ isError: false })
+    resolveRefill()
     resolveInvalidation()
     if (result instanceof Promise) await result
 
@@ -688,7 +702,7 @@ describe('Dashboard Mark Applied settlement', () => {
     )?.[0] ?? ''
 
     expect(markAppliedSource.indexOf('setMarkAppliedPendingIds')).toBeLessThan(
-      markAppliedSource.indexOf('snapshotAndRemove(id)'),
+      markAppliedSource.indexOf('snapshotAndRemove(captureLifecycleTarget(), id)'),
     )
     expect(markAppliedSource).toContain('next.delete(id)')
     expect(dashboardSource).toContain('disabled={markAppliedPendingIds.has(row.id)}')
@@ -741,7 +755,8 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('listDashboardCompanyOptions(feedRequest)')
     expect(dashboardSource).toContain('sourceScope: scope')
     expect(dashboardSource).toContain("scope === 'watchlist'")
-    expect(dashboardSource).toContain('filterDismissedFeedRows(allRows, dismissedIds)')
+    expect(dashboardSource).toContain('filterDismissedFeedRows(allRows, hiddenLifecycleIds)')
+    expect(dashboardSource).toContain('markAppliedExcludedIds')
     expect(dashboardSource).not.toContain('dashboardSourceRows(allRows, scope)')
     expect(dashboardSource).toContain('appliedHiddenKeys')
     expect(dashboardSource).toContain('selectedTiers')
@@ -855,8 +870,10 @@ describe('Dashboard precision controls', () => {
   })
 
   it('pins exact optimistic rollback, focus recovery, durable invalidation, and backfill failure isolation', () => {
-    expect(dashboardSource).toContain('getQueryData<DashboardInfiniteData>(feedKey)')
-    expect(dashboardSource).toContain('setQueryData<DashboardInfiniteData>(feedKey')
+    expect(dashboardSource).toContain(
+      'getQueryData<DashboardInfiniteData>(target.feedKey)',
+    )
+    expect(dashboardSource).toContain('setQueryData<DashboardInfiniteData>(')
     expect(dashboardSource).toContain('removeRowFromInfiniteData')
     expect(dashboardSource).toContain('if (context.rowIndex >= 0)')
     expect(dashboardSource).toContain('restoreDismissedRowInInfiniteData(current, context)')
@@ -885,6 +902,21 @@ describe('Dashboard precision controls', () => {
     expect(markAppliedSource).not.toContain('onSettled:')
     expect(markAppliedSource).not.toContain('queryKey: feedKey')
     expect(markAppliedSource).toContain('void refillVisibleQueue')
+  })
+
+  it('filters lifecycle exclusions from every cached page without changing cursors', () => {
+    const original = dashboardData([[row, secondRow], [thirdRow]])
+
+    const filtered = filterDashboardInfiniteDataRows(
+      original,
+      new Set([secondRow.id, thirdRow.id]),
+    )
+
+    expect(filtered?.pages.flatMap(({ rows }) => rows.map(({ id }) => id))).toEqual([row.id])
+    expect(filtered?.pageParams).toBe(original.pageParams)
+    expect(filtered?.pages.map(({ nextCursor }) => nextCursor)).toEqual(
+      original.pages.map(({ nextCursor }) => nextCursor),
+    )
   })
 
   it('pins explicit 200-row continuation, retained-row retries, dedupe, and truthful exhaustion', () => {
