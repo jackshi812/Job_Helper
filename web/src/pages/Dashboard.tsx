@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   useInfiniteQuery,
   useMutation,
@@ -127,6 +127,35 @@ function LifecycleTime({ row, lifecycle }: { row: FeedRow; lifecycle: LifecycleV
 
 type DashboardInfiniteData = InfiniteData<DashboardFeedPage, string | null>
 
+export function replaceDashboardFeedHead(
+  data: DashboardInfiniteData | undefined,
+  head: DashboardFeedPage,
+): DashboardInfiniteData | undefined {
+  if (!data || data.pages.length === 0) return data
+  return {
+    ...data,
+    pages: [head, ...data.pages.slice(1)],
+  }
+}
+
+export async function refreshDashboardFeedHead(
+  loadHead: () => Promise<DashboardFeedPage>,
+  setData: (
+    updater: (current: DashboardInfiniteData | undefined) => DashboardInfiniteData | undefined,
+  ) => void,
+): Promise<void> {
+  try {
+    const head = await loadHead()
+    setData((current) => replaceDashboardFeedHead(current, head))
+  } catch {
+    // Background refresh failures retain every currently rendered page.
+  }
+}
+
+export function retryDashboardFeed<T>(refetch: () => Promise<T>): Promise<T> {
+  return refetch()
+}
+
 interface LifecycleMutationContext {
   previous: DashboardInfiniteData | undefined
   title: string
@@ -153,6 +182,7 @@ type BackfillRetry =
   }
   | {
     scope: 'watchlist'
+    cursor?: string
     dismissalCommitted: boolean
   }
 
@@ -449,6 +479,8 @@ export function Dashboard({
   const [retryError, setRetryError] = useState('')
   const [lifecycleError, setLifecycleError] = useState('')
   const [dismissPendingIds, setDismissPendingIds] = useState<Set<string>>(() => new Set())
+  const [markAppliedPendingIds, setMarkAppliedPendingIds] =
+    useState<Set<string>>(() => new Set())
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set())
   const [queueAnnouncement, setQueueAnnouncement] = useState('')
   const [loadMoreError, setLoadMoreError] = useState('')
@@ -501,7 +533,7 @@ export function Dashboard({
     }),
     [lifecycle, activeOrder, scope, appliedHiddenKeys, selectedTiers],
   )
-  const feedKey = dashboardFeedQueryKey(feedRequest)
+  const feedKey = useMemo(() => dashboardFeedQueryKey(feedRequest), [feedRequest])
   const feedIdentity = JSON.stringify([scope, ...feedKey])
   const feedEnabled = selectedTiers.size > 0 && lifecycle !== 'applied'
   const feedQuery = useInfiniteQuery<
@@ -516,8 +548,30 @@ export function Dashboard({
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: feedEnabled,
-    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
   })
+  const refreshFeedHead = useCallback(
+    () => refreshDashboardFeedHead(
+      () => listFeedPage(feedRequest, null),
+      (updater) => queryClient.setQueryData<DashboardInfiniteData>(feedKey, updater),
+    ),
+    [feedKey, feedRequest, queryClient],
+  )
+
+  useEffect(() => {
+    if (!feedEnabled) return
+    const intervalId = window.setInterval(() => {
+      void refreshFeedHead()
+    }, 60_000)
+    const handleFocus = () => {
+      void refreshFeedHead()
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [feedEnabled, refreshFeedHead])
   const companyOptionsQuery = useQuery({
     queryKey: ['dashboard-companies', scope, lifecycle, [...feedRequest.tiers]],
     queryFn: () => listDashboardCompanyOptions(feedRequest),
@@ -571,8 +625,8 @@ export function Dashboard({
 
     observedActiveRevisionRef.current = state.activeRevision
     setRankingAnnouncement('Rankings updated.')
-    void queryClient.refetchQueries({ queryKey: ['dashboard-feed'] })
-  }, [queryClient, rankingStateQuery.data])
+    void refreshFeedHead()
+  }, [rankingStateQuery.data, refreshFeedHead])
 
   const retryRankingMutation = useMutation({
     mutationFn: retryDeterministicRankingRun,
@@ -688,12 +742,18 @@ export function Dashboard({
     return { scope: 'watchlist', dismissalCommitted }
   }
 
+  function appliedRefillRequest(cursor: string | null): BackfillRetry | null {
+    return cursor === null
+      ? null
+      : { scope, cursor, dismissalCommitted: false }
+  }
+
   async function refillVisibleQueue(retry: BackfillRetry | null) {
     setBackfillError('')
     setBackfillRetry(null)
     if (!retry) return
     try {
-      if (retry.scope === 'all') {
+      if (retry.scope === 'all' || retry.cursor !== undefined) {
         const page = await backfillDashboardFeedRow(feedRequest, retry.cursor)
         queryClient.setQueryData<DashboardInfiniteData>(
           feedKey,
@@ -767,8 +827,16 @@ export function Dashboard({
 
   const markAppliedMutation = useMutation({
     mutationFn: markJobApplied,
-    onMutate: snapshotAndRemove,
-    onError: (_error, _id, context) => {
+    onMutate: (id) => {
+      setMarkAppliedPendingIds((pendingIds) => new Set(pendingIds).add(id))
+      return snapshotAndRemove(id)
+    },
+    onError: (_error, id, context) => {
+      setMarkAppliedPendingIds((pendingIds) => {
+        const next = new Set(pendingIds)
+        next.delete(id)
+        return next
+      })
       if (context?.previous) {
         queryClient.setQueryData<DashboardInfiniteData>(feedKey, context.previous)
       }
@@ -776,11 +844,15 @@ export function Dashboard({
         'Couldn’t mark this job as applied. It remains in Active. Try again.',
       )
     },
-    onSuccess: async (applicationId, _id, context) => {
-      await refillVisibleQueue(refillRequest(context.continuationCursor, false))
+    onSuccess: (applicationId, id, context) => {
+      setMarkAppliedPendingIds((pendingIds) => {
+        const next = new Set(pendingIds)
+        next.delete(id)
+        return next
+      })
       setQueueAnnouncement(`${context.title} marked applied and added to Tracker.`)
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: feedKey }),
+      void refillVisibleQueue(appliedRefillRequest(context.continuationCursor))
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['tracker-applications'] }),
         queryClient.invalidateQueries({
           queryKey: ['tracker-application', applicationId],
@@ -788,12 +860,13 @@ export function Dashboard({
         queryClient.invalidateQueries({
           queryKey: ['dashboard-applied-applications'],
         }),
-      ])
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-feed'],
+          predicate: (query) => JSON.stringify(query.queryKey) !== JSON.stringify(feedKey),
+          refetchType: 'inactive',
+        }),
+      ]).catch(() => undefined)
     },
-    onSettled: () => queryClient.invalidateQueries({
-      queryKey: ['dashboard-feed'],
-      refetchType: 'inactive',
-    }),
   })
 
   const companyOptions = useMemo(
@@ -1206,7 +1279,7 @@ export function Dashboard({
             </p>
             <button
               type="button"
-              onClick={() => void feedQuery.refetch()}
+              onClick={() => void retryDashboardFeed(feedQuery.refetch)}
               className="mt-3 min-h-9 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
             >
               Retry
@@ -1412,7 +1485,7 @@ export function Dashboard({
                                 else actionRefs.current.delete(row.id)
                               }}
                               type="button"
-                              disabled={markAppliedMutation.isPending}
+                              disabled={markAppliedPendingIds.has(row.id)}
                               aria-label={`Mark ${jobTitle} applied`}
                               onClick={() => markAppliedMutation.mutate(row.id)}
                               className="min-h-9 rounded-md border border-zinc-900 bg-zinc-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-60 [@media(pointer:coarse)]:min-h-11 dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:focus-visible:outline-zinc-100"

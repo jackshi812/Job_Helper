@@ -519,110 +519,6 @@ function parseFeedRow(value: unknown): FeedRow {
   return value as FeedRow
 }
 
-interface ResumeRouteResponseRow {
-  user_job_id: string
-  best_fit_resume_id: string | null
-  runner_up_resume_id: string | null
-}
-
-function parseResumeRouteResponse(
-  value: unknown,
-  requestedIds: Set<string>,
-): { revision: number; routes: ResumeRouteResponseRow[] } {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('invalid_resume_route_response')
-  }
-  const candidate = value as {
-    route_revision?: unknown
-    updated_count?: unknown
-    routes?: unknown
-  }
-  if (
-    !Number.isSafeInteger(candidate.route_revision)
-    || (candidate.route_revision as number) < 1
-    || !Number.isSafeInteger(candidate.updated_count)
-    || (candidate.updated_count as number) < 0
-    || !Array.isArray(candidate.routes)
-    || candidate.routes.length > requestedIds.size
-    || candidate.updated_count !== candidate.routes.length
-  ) {
-    throw new Error('invalid_resume_route_response')
-  }
-  const seen = new Set<string>()
-  const routes = candidate.routes.map((value): ResumeRouteResponseRow => {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      throw new Error('invalid_resume_route_response')
-    }
-    const route = value as Partial<ResumeRouteResponseRow>
-    if (
-      typeof route.user_job_id !== 'string'
-      || !UUID_PATTERN.test(route.user_job_id)
-      || !requestedIds.has(route.user_job_id)
-      || seen.has(route.user_job_id)
-      || (
-        route.best_fit_resume_id !== null
-        && (
-          typeof route.best_fit_resume_id !== 'string'
-          || !UUID_PATTERN.test(route.best_fit_resume_id)
-        )
-      )
-      || (
-        route.runner_up_resume_id !== null
-        && (
-          typeof route.runner_up_resume_id !== 'string'
-          || !UUID_PATTERN.test(route.runner_up_resume_id)
-        )
-      )
-      || (
-        route.best_fit_resume_id !== null
-        && route.best_fit_resume_id === route.runner_up_resume_id
-      )
-    ) {
-      throw new Error('invalid_resume_route_response')
-    }
-    seen.add(route.user_job_id)
-    return route as ResumeRouteResponseRow
-  })
-  return { revision: candidate.route_revision as number, routes }
-}
-
-async function routeDashboardPage(
-  page: DashboardFeedPage,
-  limit: number,
-): Promise<DashboardFeedPage> {
-  const ids = [...new Set(page.rows.map(({ id }) => id))]
-  if (ids.length === 0) return page
-  if (ids.length > limit || ids.length > DASHBOARD_PAGE_SIZE) {
-    return page
-  }
-  try {
-    const { data, error } = await supabase.functions.invoke(
-      'route-dashboard-resumes',
-      { body: { user_job_ids: ids } },
-    )
-    if (error) throw error
-    const parsed = parseResumeRouteResponse(data, new Set(ids))
-    if (parsed.routes.length === 0) return page
-    const byId = new Map(parsed.routes.map((route) => [route.user_job_id, route]))
-    return {
-      ...page,
-      rows: page.rows.map((row) => {
-        const route = byId.get(row.id)
-        return route
-          ? {
-            ...row,
-            deterministic_best_fit_resume_id: route.best_fit_resume_id,
-            deterministic_runner_up_resume_id: route.runner_up_resume_id,
-            resume_route_revision: parsed.revision,
-          }
-          : row
-      }),
-    }
-  } catch {
-    return page
-  }
-}
-
 async function requestDashboardFeedPage(
   query: DashboardFeedQuery,
   encodedCursor: string | null,
@@ -668,7 +564,7 @@ async function requestDashboardFeedPage(
     throw new Error('dashboard_cursor_signature_mismatch')
   }
 
-  const page = {
+  return {
     rows: parsed.map(({ row }) => row),
     nextCursor: hasMore
       ? encodeDashboardFeedCursor(lastCursor, normalizedQuery)
@@ -676,7 +572,6 @@ async function requestDashboardFeedPage(
     hasMore,
     caughtUp: !hasMore,
   }
-  return routeDashboardPage(page, limit)
 }
 
 export function listFeedPage(

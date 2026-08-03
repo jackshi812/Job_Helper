@@ -2,7 +2,13 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InfiniteData } from '@tanstack/react-query'
-import type { DashboardFeedPage, FeedRow } from '../lib/feed'
+import {
+  encodeDashboardFeedCursor,
+  type DashboardFeedCursor,
+  type DashboardFeedPage,
+  type DashboardFeedQuery,
+  type FeedRow,
+} from '../lib/feed'
 import type { DashboardAppliedApplication } from '../lib/tracker'
 import dashboardSource from './Dashboard.tsx?raw'
 import resizeHandleSource from '../components/ColumnResizeHandle.tsx?raw'
@@ -219,6 +225,12 @@ interface DismissMutationOptions {
   onSettled?: () => unknown
 }
 
+interface MarkAppliedMutationOptions {
+  onMutate: (rowId: string) => Promise<unknown>
+  onError: (error: Error, rowId: string, context: unknown) => void
+  onSuccess: (applicationId: string, rowId: string, context: unknown) => unknown
+}
+
 function dashboardData(pages: FeedRow[][]): DashboardData {
   return {
     pages: pages.map((rows, index) => ({
@@ -236,6 +248,15 @@ function dismissMutationOptions(scope: 'all' | 'watchlist' = 'all'): DismissMuta
   const options = reactQueryHarness.mutationOptions.get('dismissJob')
   if (!options) throw new Error('dismiss mutation options were not captured')
   return options as DismissMutationOptions
+}
+
+function markAppliedMutationOptions(
+  scope: 'all' | 'watchlist' = 'all',
+): MarkAppliedMutationOptions {
+  renderToStaticMarkup(<Dashboard scope={scope} />)
+  const options = reactQueryHarness.mutationOptions.get('markJobApplied')
+  if (!options) throw new Error('mark applied mutation options were not captured')
+  return options as MarkAppliedMutationOptions
 }
 
 beforeEach(() => {
@@ -486,6 +507,105 @@ describe('Dashboard dismissal settlement', () => {
     expect(dashboardSource).toContain('void refillVisibleQueue(backfillRetry)')
     expect(dashboardSource).toContain('setBackfillError(\'\')')
     expect(dashboardSource).toContain('setBackfillRetry(null)')
+  })
+})
+
+describe('Dashboard Mark Applied settlement', () => {
+  it('restores the exact optimistic snapshot and keeps the existing error copy', async () => {
+    const original = dashboardData([[row, secondRow], [thirdRow]])
+    let cache = original
+    reactQueryHarness.queryClient.getQueryData.mockImplementation(() => cache)
+    reactQueryHarness.queryClient.setQueryData.mockImplementation(
+      (_key, value: DashboardData | ((current: DashboardData) => DashboardData)) => {
+        cache = typeof value === 'function' ? value(cache) : value
+      },
+    )
+    const mutation = markAppliedMutationOptions()
+
+    const context = await mutation.onMutate(secondRow.id)
+    expect(cache.pages.flatMap(({ rows }) => rows)).not.toContain(secondRow)
+
+    mutation.onError(new Error('rpc failed'), secondRow.id, context)
+
+    expect(cache).toBe(original)
+    expect(dashboardSource).toContain(
+      'Couldn’t mark this job as applied. It remains in Active. Try again.',
+    )
+  })
+
+  it.each(['all', 'watchlist'] as const)(
+    'settles immediately with at most one cursor backfill for %s scope',
+    async (scope) => {
+      const original = dashboardData([[row], [secondRow], [thirdRow]])
+      const feedRequest: DashboardFeedQuery = {
+        lifecycle: 'active',
+        order: 'newest',
+        sourceScope: scope,
+        tiers: ['Strong', 'Good', 'Weak'],
+        hiddenCompanyKeys: [],
+      }
+      const continuation: DashboardFeedCursor = {
+        v: 1,
+        lifecycle: 'active',
+        order: 'newest',
+        signature: 'ignored-by-encoder',
+        id: '00000000-0000-4000-8000-000000000000',
+        posted_at: '2026-07-22T00:00:00.000Z',
+        first_seen_at: '2026-07-22T00:00:00.000Z',
+        score: 42,
+        lifecycle_at: null,
+      }
+      const encodedCursor = encodeDashboardFeedCursor(continuation, feedRequest)
+      original.pages[2] = { ...original.pages[2], nextCursor: encodedCursor }
+      let cache = original
+      reactQueryHarness.queryClient.getQueryData.mockImplementation(() => cache)
+      reactQueryHarness.queryClient.setQueryData.mockImplementation(
+        (_key, value: DashboardData | ((current: DashboardData) => DashboardData)) => {
+          cache = typeof value === 'function' ? value(cache) : value
+        },
+      )
+      reactQueryHarness.queryClient.invalidateQueries.mockReturnValue(
+        new Promise<void>(() => undefined),
+      )
+      const mutation = markAppliedMutationOptions(scope)
+      const context = await mutation.onMutate(row.id)
+      expect(context).toMatchObject({ continuationCursor: encodedCursor })
+
+      const result = mutation.onSuccess(
+        '11111111-1111-4111-8111-111111111111',
+        row.id,
+        context,
+      )
+
+      expect(result).toBeUndefined()
+      expect(supabaseRpc).toHaveBeenCalledTimes(1)
+      expect(supabaseRpc).toHaveBeenCalledWith(
+        'dashboard_feed_page_v2',
+        expect.objectContaining({
+          p_cursor: expect.objectContaining({ id: continuation.id }),
+          p_limit: 1,
+          p_source_scope: scope,
+        }),
+      )
+      expect(
+        reactQueryHarness.queryClient.invalidateQueries.mock.calls.some(([options]) =>
+          (options as { queryKey?: readonly unknown[] }).queryKey?.length !== 1
+          && (options as { queryKey?: readonly unknown[] }).queryKey?.[0] === 'dashboard-feed'),
+      ).toBe(false)
+      expect(dashboardSource).toContain("refetchType: 'inactive'")
+    },
+  )
+
+  it('adds row-local pending state before the optimistic cache removal', () => {
+    const markAppliedSource = dashboardSource.match(
+      /const markAppliedMutation = useMutation\([\s\S]*?\n  const companyOptions/,
+    )?.[0] ?? ''
+
+    expect(markAppliedSource.indexOf('setMarkAppliedPendingIds')).toBeLessThan(
+      markAppliedSource.indexOf('snapshotAndRemove(id)'),
+    )
+    expect(markAppliedSource).toContain('next.delete(id)')
+    expect(dashboardSource).toContain('disabled={markAppliedPendingIds.has(row.id)}')
   })
 })
 
