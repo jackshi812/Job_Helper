@@ -391,7 +391,7 @@ describe('Tracker page contract', () => {
 
     expect(focusOptions?.enabled).toBe(true)
     expect(focusOptions).toBeDefined()
-    expect(trackerSource).toContain('getTrackerApplication(focusApplicationId)')
+    expect(trackerSource).toMatch(/getTrackerApplication\(focusApplicationId(?: as string)?\)/)
     expect(trackerSource).not.toContain("queryKey: ['tracker-focus-applications']")
     expect(trackerSource).not.toContain(
       'listTrackerApplications(TRACKER_STAGES.map(({ slug }) => slug))',
@@ -446,22 +446,31 @@ describe('Tracker page contract', () => {
       '44444444-4444-4444-8444-444444444444',
     )
     trackerOperations.updateApplicationStageEvent.mockResolvedValue(undefined)
+    reactQueryHarness.queryClient.invalidateQueries.mockReturnValue(
+      new Promise<void>(() => undefined),
+    )
     renderToStaticMarkup(<Tracker />)
     const scope = `${applications[0].id}:stage-date`
     const stage = mutationOptions(scope, 0)
     const date = mutationOptions(scope, 1)
 
     const eventId = await stage.mutationFn('offer' as never)
-    stage.onSuccess?.(eventId, 'offer' as never)
-    await date.mutationFn('2026-08-03' as never)
+    const stageSettlement = stage.onSuccess?.(eventId, 'offer' as never)
+    const dateResult = await date.mutationFn('2026-08-03' as never)
+    const dateSettlement = date.onSuccess?.(dateResult, '2026-08-03' as never)
 
+    expect(stageSettlement).toBeUndefined()
+    expect(dateSettlement).toBeUndefined()
     expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
       '44444444-4444-4444-8444-444444444444',
       'offer',
       '2026-08-03',
     )
     expect(reactQueryHarness.queryClient.fetchQuery).not.toHaveBeenCalled()
-    expect(reactQueryHarness.queryClient.invalidateQueries).toHaveBeenCalled()
+    expect(reactQueryHarness.queryClient.invalidateQueries).toHaveBeenCalledTimes(6)
+    expect(reactQueryHarness.queryClient.getQueryData(
+      ['tracker-application', applications[0].id],
+    )).toMatchObject({ currentStage: 'offer', currentStageDate: '2026-08-03' })
   })
 
   it('resolves a date write from cached detail before fetch fallback', async () => {
@@ -478,6 +487,23 @@ describe('Tracker page contract', () => {
       '2026-08-03',
     )
     expect(reactQueryHarness.queryClient.fetchQuery).not.toHaveBeenCalled()
+  })
+
+  it('fetches detail for a date write only when no authoritative or cached event exists', async () => {
+    reactQueryHarness.queryClient.fetchQuery.mockResolvedValue(detail())
+    trackerOperations.updateApplicationStageEvent.mockResolvedValue(undefined)
+    renderToStaticMarkup(<Tracker />)
+    const date = mutationOptions(`${applications[0].id}:stage-date`, 1)
+
+    await date.mutationFn('2026-08-03' as never)
+
+    expect(reactQueryHarness.queryClient.fetchQuery).toHaveBeenCalledTimes(1)
+    expect(trackerOperations.getTrackerApplication).not.toHaveBeenCalled()
+    expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
+      '22222222-2222-4222-8222-222222222222',
+      'applied',
+      '2026-08-03',
+    )
   })
 
   it('expands, scrolls, and focuses only the matched owned row', () => {
