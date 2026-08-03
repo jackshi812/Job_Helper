@@ -7,6 +7,7 @@ import {
   DEFAULT_TITLE_EXCLUSIONS,
   chipComparisonKey,
   loadPreferences,
+  mergeChips,
   parseChips,
   rankingRubricToForm,
   savePreferences,
@@ -34,6 +35,8 @@ interface ChipInputProps {
   disabled: boolean
   error?: string
   errorId: string
+  draftValue?: string
+  onDraftChange?: (value: string) => void
 }
 
 function ChipInput({
@@ -45,9 +48,17 @@ function ChipInput({
   disabled,
   error,
   errorId,
+  draftValue,
+  onDraftChange,
 }: ChipInputProps) {
-  const [draft, setDraft] = useState('')
+  const [localDraft, setLocalDraft] = useState('')
+  const draft = draftValue ?? localDraft
   const helperId = `${id}-helper`
+
+  function setDraft(value: string) {
+    if (onDraftChange) onDraftChange(value)
+    else setLocalDraft(value)
+  }
 
   function commit(raw: string) {
     const additions = parseChips(raw)
@@ -108,6 +119,7 @@ function ChipInput({
       ) : null}
       <input
         id={id}
+        name={id}
         type="text"
         value={draft}
         disabled={disabled}
@@ -196,6 +208,7 @@ function PointInput({
 export function Preferences() {
   const queryClient = useQueryClient()
   const [titles, setTitles] = useState<string[]>([])
+  const [titleDraft, setTitleDraft] = useState('')
   const [locations, setLocations] = useState<string[]>([])
   const [includeKeywords, setIncludeKeywords] = useState<string[]>([])
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([])
@@ -237,9 +250,9 @@ export function Preferences() {
     return { maxRequiredExperience, rubric, goodThreshold, strongThreshold }
   }
 
-  function currentTextArrays() {
+  function currentTextArrays(nextTitles = titles) {
     return {
-      titles,
+      titles: nextTitles,
       title_exclude_keywords: titleExcludeKeywords,
       locations,
       include_keywords: includeKeywords,
@@ -247,8 +260,8 @@ export function Preferences() {
     }
   }
 
-  function validateVisibleForm() {
-    const textArrayValidation = validatePreferenceTextArrays(currentTextArrays())
+  function validateVisibleForm(nextTitles = titles) {
+    const textArrayValidation = validatePreferenceTextArrays(currentTextArrays(nextTitles))
     const rankingValidation = validateRankingForm(currentRankingForm())
     const nextFieldErrors = {
       ...textArrayValidation.fieldErrors,
@@ -294,23 +307,7 @@ export function Preferences() {
   }
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const validation = validateVisibleForm()
-      if (!validation.valid || !validation.rankingValidation.value) {
-        throw new Error('invalid_ranking_form')
-      }
-      return savePreferences({
-        titles,
-        locations,
-        include_keywords: includeKeywords,
-        exclude_keywords: excludeKeywords,
-        title_exclude_keywords: titleExcludeKeywords,
-        max_required_experience: validation.rankingValidation.value.maxRequiredExperience,
-        ranking_rubric: validation.rankingValidation.value.rubric,
-        ranking_good_threshold: validation.rankingValidation.value.goodThreshold,
-        ranking_strong_threshold: validation.rankingValidation.value.strongThreshold,
-      })
-    },
+    mutationFn: savePreferences,
     onSuccess: async () => {
       setError(null)
       setFormValidationError(false)
@@ -330,14 +327,31 @@ export function Preferences() {
     event.preventDefault()
     setMessage(null)
     setError(null)
-    const validation = validateVisibleForm()
+    const visibleDraft = new FormData(event.currentTarget).get('pref-titles')
+    const submittedTitles = mergeChips(
+      titles,
+      typeof visibleDraft === 'string' ? visibleDraft : titleDraft,
+    )
+    const validation = validateVisibleForm(submittedTitles)
     if (!validation.valid) {
       setFormValidationError(true)
       focusInvalidField(validation.firstInvalidField)
       return
     }
     setFormValidationError(false)
-    saveMutation.mutate()
+    setTitles(submittedTitles)
+    setTitleDraft('')
+    saveMutation.mutate({
+      titles: submittedTitles,
+      locations,
+      include_keywords: includeKeywords,
+      exclude_keywords: excludeKeywords,
+      title_exclude_keywords: titleExcludeKeywords,
+      max_required_experience: validation.rankingValidation.value!.maxRequiredExperience,
+      ranking_rubric: validation.rankingValidation.value!.rubric,
+      ranking_good_threshold: validation.rankingValidation.value!.goodThreshold,
+      ranking_strong_threshold: validation.rankingValidation.value!.strongThreshold,
+    })
   }
 
   const pending = saveMutation.isPending
@@ -403,6 +417,8 @@ export function Preferences() {
             disabled={pending}
             error={fieldErrors['pref-titles']}
             errorId="pref-titles-error"
+            draftValue={titleDraft}
+            onDraftChange={setTitleDraft}
           />
           <ChipInput
             id="pref-title-exclude"
@@ -441,7 +457,7 @@ export function Preferences() {
               value={maxRequiredExperience}
               disabled={pending}
               onChange={(event) => setMaxRequiredExperience(event.target.value)}
-              onBlur={validateVisibleForm}
+              onBlur={() => validateVisibleForm()}
               aria-invalid={fieldErrors['pref-max-experience'] ? 'true' : undefined}
               aria-describedby={
                 fieldErrors['pref-max-experience']
@@ -580,7 +596,7 @@ export function Preferences() {
                       value={rubric.includeKeywordSteps[key]}
                       disabled={pending}
                       onChange={(event) => updateKeywordStep(key, event.target.value)}
-                      onBlur={validateVisibleForm}
+                      onBlur={() => validateVisibleForm()}
                       aria-invalid={
                         fieldErrors[id] || fieldErrors['ranking-keyword-steps']
                           ? 'true'

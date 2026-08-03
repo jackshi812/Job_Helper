@@ -2,12 +2,13 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import preferencesSource from './Preferences.tsx?raw'
 import { Preferences } from './Preferences'
+import type { SavePreferencesInput, SavePreferencesResult } from '../lib/preferences'
 
 const mocks = vi.hoisted(() => ({
   cancelQueries: vi.fn(),
   invalidateQueries: vi.fn(),
   mutationOptions: undefined as undefined | {
-    mutationFn: () => Promise<void>
+    mutationFn: (input: SavePreferencesInput) => Promise<SavePreferencesResult>
     onSuccess: () => Promise<void>
     onError: () => void
   },
@@ -110,6 +111,11 @@ describe('deterministic ranking preference form', () => {
   it('wires semantic groups, accessible errors, invalid focus, and complete save payload', () => {
     expect(preferencesSource).toContain('chipComparisonKey(value)')
     expect(preferencesSource).toContain('chipComparisonKey(addition)')
+    expect(preferencesSource).toContain('draftValue={titleDraft}')
+    expect(preferencesSource).toContain('onDraftChange={setTitleDraft}')
+    expect(preferencesSource).toContain("new FormData(event.currentTarget).get('pref-titles')")
+    expect(preferencesSource).toContain('titles: submittedTitles')
+    expect(preferencesSource).toContain('mutationFn: savePreferences')
     expect(preferencesSource).toContain('validatePreferenceTextArrays')
     expect(preferencesSource).toContain('textArrayValidation.fieldErrors')
     expect(preferencesSource).toContain('requestAnimationFrame')
@@ -160,7 +166,6 @@ describe('preference save cache gap', () => {
   it('keeps the complete prior feed cache untouched after an accepted save', async () => {
     const mutation = captureMutation()
 
-    await mutation.mutationFn()
     await mutation.onSuccess()
 
     expect(mocks.cancelQueries).not.toHaveBeenCalled()
@@ -171,18 +176,29 @@ describe('preference save cache gap', () => {
 
   it('sends title exclusions, blank maximum, rubric, and thresholds explicitly', async () => {
     const mutation = captureMutation()
+    const payload: SavePreferencesInput = {
+      titles: ['Equity Research', 'finance'],
+      locations: [],
+      include_keywords: [],
+      exclude_keywords: [],
+      title_exclude_keywords: [],
+      max_required_experience: null,
+      ranking_rubric: {
+        strictTitle: 30,
+        weakTitle: 20,
+        preferredLocation: 10,
+        recency: 10,
+        watchlist: 10,
+        experience: 20,
+        includeKeywordSteps: { one: 3, two: 5, three: 10, four: 15, fivePlus: 20 },
+      },
+      ranking_good_threshold: 50,
+      ranking_strong_threshold: 75,
+    }
 
-    await mutation.mutationFn()
+    await mutation.mutationFn(payload)
 
-    expect(mocks.savePreferences).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title_exclude_keywords: [],
-        max_required_experience: null,
-        ranking_rubric: expect.objectContaining({ strictTitle: 30 }),
-        ranking_good_threshold: 50,
-        ranking_strong_threshold: 75,
-      }),
-    )
+    expect(mocks.savePreferences).toHaveBeenCalledWith(payload)
   })
 
   it('keeps feed cache untouched when saving fails', () => {

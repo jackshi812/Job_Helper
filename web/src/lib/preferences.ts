@@ -189,6 +189,18 @@ export function parseChips(raw: string): string[] {
   return chips
 }
 
+export function mergeChips(values: readonly string[], raw: string): string[] {
+  const next = [...values]
+  const seen = new Set(next.map((value) => chipComparisonKey(value)))
+  for (const addition of parseChips(raw)) {
+    const comparisonKey = chipComparisonKey(addition)
+    if (seen.has(comparisonKey)) continue
+    seen.add(comparisonKey)
+    next.push(addition)
+  }
+  return next
+}
+
 export function validatePreferenceTextArray(
   field: PreferenceTextArrayField,
   values: readonly string[],

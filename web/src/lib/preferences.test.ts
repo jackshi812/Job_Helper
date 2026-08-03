@@ -5,6 +5,7 @@ import {
   PREFERENCE_COLUMNS,
   chipComparisonKey,
   getDeterministicRankingState,
+  mergeChips,
   parseChips,
   retryDeterministicRankingRun,
   savePreferences,
@@ -78,6 +79,15 @@ describe('parseChips', () => {
 
   it('returns an empty array for a blank string', () => {
     expect(parseChips('   ')).toEqual([])
+  })
+})
+
+describe('mergeChips', () => {
+  it('commits a visible draft without losing existing titles or adding duplicates', () => {
+    expect(mergeChips(['Equity Research'], 'finance, ＥＱＵＩＴＹ ＲＥＳＥＡＲＣＨ')).toEqual([
+      'Equity Research',
+      'finance',
+    ])
   })
 })
 
