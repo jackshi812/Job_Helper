@@ -27,6 +27,7 @@ import {
 } from '../lib/dashboardColumns'
 import {
   Dashboard,
+  createDashboardHeadRefreshCoordinator,
   filterDismissedFeedRows,
   refreshDashboardFeedHead,
   replaceDashboardFeedHead,
@@ -243,6 +244,14 @@ function dashboardData(pages: FeedRow[][]): DashboardData {
   }
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => {
+    resolve = done
+  })
+  return { promise, resolve }
+}
+
 function dismissMutationOptions(scope: 'all' | 'watchlist' = 'all'): DismissMutationOptions {
   renderToStaticMarkup(<Dashboard scope={scope} />)
   const options = reactQueryHarness.mutationOptions.get('dismissJob')
@@ -311,6 +320,42 @@ describe('Dashboard refresh paths', () => {
 
     expect(setData).not.toHaveBeenCalled()
     expect(replaceDashboardFeedHead(undefined, original.pages[0])).toBeUndefined()
+  })
+
+  it('accepts only the newest head generation and filters pending or applied rows', async () => {
+    const original = dashboardData([[row], [secondRow], [thirdRow]])
+    const interval = deferred<DashboardFeedPage>()
+    const focus = deferred<DashboardFeedPage>()
+    const ranking = deferred<DashboardFeedPage>()
+    const coordinator = createDashboardHeadRefreshCoordinator()
+    const excludedIds = new Set<string>([secondRow.id])
+    let cache: DashboardData | undefined = original
+    const setData = (
+      updater: (current: DashboardData | undefined) => DashboardData | undefined,
+    ) => {
+      cache = updater(cache)
+    }
+    const options = {
+      coordinator,
+      feedIdentity: 'active-watchlist',
+      excludedIds: () => excludedIds,
+    }
+    const intervalRefresh = refreshDashboardFeedHead(
+      () => interval.promise,
+      setData,
+      options,
+    )
+    const focusRefresh = refreshDashboardFeedHead(() => focus.promise, setData, options)
+    const rankingRefresh = refreshDashboardFeedHead(() => ranking.promise, setData, options)
+
+    ranking.resolve({ ...original.pages[0], rows: [secondRow, thirdRow] })
+    await rankingRefresh
+    focus.resolve({ ...original.pages[0], rows: [{ ...row, deterministic_score: 70 }] })
+    interval.resolve({ ...original.pages[0], rows: [{ ...row, deterministic_score: 60 }] })
+    await Promise.all([intervalRefresh, focusRefresh])
+
+    expect(cache?.pages[0].rows).toEqual([thirdRow])
+    expect(cache?.pages.slice(1)).toEqual(original.pages.slice(1))
   })
 
   it('manual Retry invokes the full infinite-query refetch only', async () => {
@@ -513,7 +558,7 @@ describe('Dashboard dismissal settlement', () => {
 })
 
 describe('Dashboard Mark Applied settlement', () => {
-  it('restores the exact optimistic snapshot and keeps the existing error copy', async () => {
+  it('restores the failed row in place and keeps the existing error copy', async () => {
     const original = dashboardData([[row, secondRow], [thirdRow]])
     let cache = original
     reactQueryHarness.queryClient.getQueryData.mockImplementation(() => cache)
@@ -529,10 +574,49 @@ describe('Dashboard Mark Applied settlement', () => {
 
     mutation.onError(new Error('rpc failed'), secondRow.id, context)
 
-    expect(cache).toBe(original)
+    expect(cache).toStrictEqual(original)
+    expect(cache).not.toBe(original)
     expect(dashboardSource).toContain(
       'Couldn’t mark this job as applied. It remains in Active. Try again.',
     )
+  })
+
+  it('keeps a successful concurrent removal and unrelated cache additions when another row fails', async () => {
+    let cache = dashboardData([[row, secondRow], [thirdRow]])
+    cache.pages[1] = { ...cache.pages[1], nextCursor: null, hasMore: false, caughtUp: true }
+    reactQueryHarness.queryClient.getQueryData.mockImplementation(() => cache)
+    reactQueryHarness.queryClient.setQueryData.mockImplementation(
+      (_key, value: DashboardData | ((current: DashboardData) => DashboardData)) => {
+        cache = typeof value === 'function' ? value(cache) : value
+      },
+    )
+    const mutation = markAppliedMutationOptions()
+    const firstContext = await mutation.onMutate(row.id)
+    const secondContext = await mutation.onMutate(secondRow.id)
+    const concurrentRow = {
+      ...thirdRow,
+      id: 'user-job-concurrent-applied',
+      jobs: { ...thirdRow.jobs!, id: 'job-concurrent-applied', title: 'Concurrent role' },
+    }
+    cache = {
+      ...cache,
+      pages: cache.pages.map((page, index) => index === 1
+        ? { ...page, rows: [...page.rows, concurrentRow] }
+        : page),
+    }
+
+    mutation.onSuccess(
+      '11111111-1111-4111-8111-111111111111',
+      secondRow.id,
+      secondContext,
+    )
+    mutation.onError(new Error('first failed'), row.id, firstContext)
+
+    expect(cache.pages.flatMap(({ rows }) => rows.map(({ id }) => id))).toEqual([
+      row.id,
+      thirdRow.id,
+      concurrentRow.id,
+    ])
   })
 
   it.each(['all', 'watchlist'] as const)(
@@ -773,9 +857,9 @@ describe('Dashboard precision controls', () => {
   it('pins exact optimistic rollback, focus recovery, durable invalidation, and backfill failure isolation', () => {
     expect(dashboardSource).toContain('getQueryData<DashboardInfiniteData>(feedKey)')
     expect(dashboardSource).toContain('setQueryData<DashboardInfiniteData>(feedKey')
-    expect(dashboardSource).toContain('previous')
     expect(dashboardSource).toContain('removeRowFromInfiniteData')
-    expect(dashboardSource).toContain('if (index >= 0) focusAfterRemoval')
+    expect(dashboardSource).toContain('if (context.rowIndex >= 0)')
+    expect(dashboardSource).toContain('restoreDismissedRowInInfiniteData(current, context)')
     expect(dashboardSource).toContain('focusAfterRemoval')
     expect(dashboardSource).toContain('tableRegionRef.current?.focus()')
     expect(dashboardSource).toContain('markAppliedPendingIds.has(row.id)')

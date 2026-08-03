@@ -1,4 +1,4 @@
-import { lazy, StrictMode, Suspense } from 'react'
+import { Component, lazy, StrictMode, Suspense, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router'
@@ -37,6 +37,48 @@ const Watchlist = lazy(() => import('./pages/Watchlist').then((module) => ({
 
 const queryClient = new QueryClient()
 
+interface RouteLoadBoundaryProps {
+  children: ReactNode
+}
+
+interface RouteLoadBoundaryState {
+  failed: boolean
+}
+
+export class RouteLoadBoundary extends Component<
+  RouteLoadBoundaryProps,
+  RouteLoadBoundaryState
+> {
+  state: RouteLoadBoundaryState = { failed: false }
+
+  static getDerivedStateFromError(): RouteLoadBoundaryState {
+    return { failed: true }
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <main className="grid min-h-screen place-items-center p-6">
+          <section className="max-w-md rounded-lg border border-zinc-200 p-6 text-center dark:border-zinc-800">
+            <h1 className="text-lg font-semibold">This page couldn’t load</h1>
+            <p role="alert" className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              Check your connection, then reload the page to try again.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-4 min-h-11 rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
+            >
+              Reload page
+            </button>
+          </section>
+        </main>
+      )
+    }
+    return this.props.children
+  }
+}
+
 // Remove the retired notification worker and its browser-side subscription for
 // users who enabled push before the feature was removed. Permission itself is a
 // browser setting and cannot be reset programmatically.
@@ -69,14 +111,15 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <Suspense
-            fallback={(
-              <p role="status" aria-live="polite" className="p-4 text-sm">
-                Loading…
-              </p>
-            )}
-          >
-            <Routes>
+          <RouteLoadBoundary>
+            <Suspense
+              fallback={(
+                <p role="status" aria-live="polite" className="p-4 text-sm">
+                  Loading…
+                </p>
+              )}
+            >
+              <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route
@@ -95,8 +138,9 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="tracker" element={<Tracker />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
-            </Routes>
-          </Suspense>
+              </Routes>
+            </Suspense>
+          </RouteLoadBoundary>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

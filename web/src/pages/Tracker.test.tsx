@@ -8,6 +8,7 @@ import {
   type TrackerApplicationListItem,
   type TrackerStage,
 } from '../lib/tracker'
+import type { DashboardFeedPage, FeedRow } from '../lib/feed'
 import { patchTrackerApplicationCaches, Tracker } from './Tracker'
 import trackerSource from './Tracker.tsx?raw'
 
@@ -41,9 +42,19 @@ const focusQueryState = vi.hoisted(() => ({
 const searchParamState = vi.hoisted(() => ({ value: null as string | null }))
 const trackerOperations = vi.hoisted(() => ({
   appendApplicationStage: vi.fn(),
+  deleteApplicationStageEvent: vi.fn(),
   getTrackerApplication: vi.fn(),
   listTrackerApplications: vi.fn(),
   updateApplicationStageEvent: vi.fn(),
+}))
+const dashboardOperations = vi.hoisted(() => ({
+  listDashboardCompanyOptions: vi.fn(),
+  listFeedPage: vi.fn(),
+  markJobApplied: vi.fn(),
+}))
+const preferenceOperations = vi.hoisted(() => ({
+  getDeterministicRankingState: vi.fn(),
+  loadPreferences: vi.fn(),
 }))
 const resumeOperations = vi.hoisted(() => ({
   listResumes: vi.fn(),
@@ -82,6 +93,7 @@ vi.mock('../lib/tracker', async (importOriginal) => {
   return {
     ...actual,
     appendApplicationStage: trackerOperations.appendApplicationStage,
+    deleteApplicationStageEvent: trackerOperations.deleteApplicationStageEvent,
     getTrackerApplication: trackerOperations.getTrackerApplication,
     listTrackerApplications: trackerOperations.listTrackerApplications,
     updateApplicationStageEvent: trackerOperations.updateApplicationStageEvent,
@@ -114,6 +126,25 @@ vi.mock('@tanstack/react-query', () => ({
   },
   useQueryClient: () => reactQueryHarness.queryClient,
 }))
+
+vi.mock('../lib/feed', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/feed')>()
+  return {
+    ...actual,
+    listDashboardCompanyOptions: dashboardOperations.listDashboardCompanyOptions,
+    listFeedPage: dashboardOperations.listFeedPage,
+    markJobApplied: dashboardOperations.markJobApplied,
+  }
+})
+
+vi.mock('../lib/preferences', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/preferences')>()
+  return {
+    ...actual,
+    getDeterministicRankingState: preferenceOperations.getDeterministicRankingState,
+    loadPreferences: preferenceOperations.loadPreferences,
+  }
+})
 
 vi.mock('../lib/resumes', () => ({
   listResumes: resumeOperations.listResumes,
@@ -830,6 +861,18 @@ function findTestElement(
   return null
 }
 
+function findTestElements(
+  root: TestNode,
+  predicate: (element: TestElement) => boolean,
+): TestElement[] {
+  const matches: TestElement[] = []
+  for (const child of root.childNodes) {
+    if (child instanceof TestElement && predicate(child)) matches.push(child)
+    matches.push(...findTestElements(child, predicate))
+  }
+  return matches
+}
+
 function nativeSetValue(element: TestElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(TestElement.prototype, 'value')?.set
   if (!setter) throw new Error('native value setter not found')
@@ -838,14 +881,20 @@ function nativeSetValue(element: TestElement, value: string) {
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((done) => {
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((done, fail) => {
     resolve = done
+    reject = fail
   })
-  return { promise, resolve }
+  return { promise, reject, resolve }
 }
 
 function installTestDom() {
   const document = new TestDocument()
+  const windowListeners = new Map<string, TestListener[]>()
+  const intervalCallbacks = new Map<number, () => void>()
+  const storage = new Map<string, string>()
+  let nextIntervalId = 1
   const window = {
     document,
     Event: TestEvent,
@@ -857,7 +906,40 @@ function installTestDom() {
     HTMLTextAreaElement: TestElement,
     HTMLIFrameElement: class TestIFrameElement extends TestElement {},
     SVGElement: TestElement,
+    __intervalCallbacks: intervalCallbacks,
+    addEventListener: (type: string, listener: TestListener) => {
+      windowListeners.set(type, [...(windowListeners.get(type) ?? []), listener])
+    },
+    clearInterval: (id: number) => intervalCallbacks.delete(id),
+    dispatchEvent: (event: TestEvent) => {
+      for (const listener of windowListeners.get(event.type) ?? []) listener(event)
+      return !event.defaultPrevented
+    },
     getComputedStyle: () => ({}),
+    localStorage: {
+      getItem: (key: string) => storage.get(key) ?? null,
+      removeItem: (key: string) => storage.delete(key),
+      setItem: (key: string, value: string) => storage.set(key, value),
+    },
+    location: {
+      hash: '',
+      href: 'http://localhost/',
+      pathname: '/',
+      protocol: 'http:',
+      reload: vi.fn(),
+      search: '',
+    },
+    removeEventListener: (type: string, listener: TestListener) => {
+      windowListeners.set(
+        type,
+        (windowListeners.get(type) ?? []).filter((candidate) => candidate !== listener),
+      )
+    },
+    setInterval: (callback: () => void) => {
+      const id = nextIntervalId++
+      intervalCallbacks.set(id, callback)
+      return id
+    },
   }
   document.defaultView = window
   vi.stubGlobal('document', document)
@@ -869,6 +951,7 @@ function installTestDom() {
   vi.stubGlobal('HTMLSelectElement', TestElement)
   vi.stubGlobal('HTMLTextAreaElement', TestElement)
   vi.stubGlobal('Event', TestEvent)
+  vi.stubGlobal('navigator', { userAgent: 'test' })
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   return document
 }
@@ -889,6 +972,22 @@ async function loadMountedTracker() {
   return { createRoot, MountedTracker, QueryClientProvider, queryClient, react }
 }
 
+async function loadMountedDashboard() {
+  vi.resetModules()
+  vi.doUnmock('@tanstack/react-query')
+  const react = await import('react')
+  const { createRoot } = await import('react-dom/client')
+  const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
+  const { Dashboard: MountedDashboard } = await import('./Dashboard')
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+  return { createRoot, MountedDashboard, QueryClientProvider, queryClient, react }
+}
+
 async function flushMountedWork(act: (callback: () => Promise<void>) => Promise<void>) {
   await act(async () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 0))
@@ -899,11 +998,53 @@ describe('Tracker mounted performance invariants', () => {
   beforeEach(() => {
     searchParamState.value = null
     trackerOperations.appendApplicationStage.mockReset()
+    trackerOperations.deleteApplicationStageEvent.mockReset()
     trackerOperations.getTrackerApplication.mockReset()
     trackerOperations.listTrackerApplications.mockReset()
     trackerOperations.updateApplicationStageEvent.mockReset()
     resumeOperations.listResumes.mockReset()
     resumeOperations.listResumes.mockResolvedValue([])
+  })
+
+  it('focuses the same application again after the normalized deep-link disappears', async () => {
+    const document = installTestDom()
+    searchParamState.value = applications[0].id
+    trackerOperations.listTrackerApplications.mockResolvedValue(applications)
+    trackerOperations.getTrackerApplication.mockResolvedValue(detail())
+    const {
+      createRoot,
+      MountedTracker,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedTracker()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+    const tree = () => react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedTracker),
+    )
+
+    await react.act(async () => root.render(tree()))
+    await flushMountedWork(react.act)
+    const expandButton = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Hide details for Data Analyst')
+    expect(expandButton?.scrollIntoViewCalls).toBe(1)
+
+    searchParamState.value = null
+    await react.act(async () => root.render(tree()))
+    await flushMountedWork(react.act)
+    searchParamState.value = applications[0].id
+    await react.act(async () => root.render(tree()))
+    await flushMountedWork(react.act)
+
+    expect(expandButton?.scrollIntoViewCalls).toBe(2)
+    expect(document.activeElement).toBe(expandButton)
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
   })
 
   it('filters, expands, scrolls, and focuses a terminal deep-link only after its row loads', async () => {
@@ -1058,7 +1199,376 @@ describe('Tracker mounted performance invariants', () => {
     expect(stageControl.disabled).toBe(false)
     expect(dateControl.disabled).toBe(false)
 
+    const stagedEventId = '44444444-4444-4444-8444-444444444444'
+    let authoritativeDetail: TrackerApplicationDetail = {
+      ...detail(),
+      currentStage: 'offer',
+      currentStageDate: '2026-08-03',
+      events: [
+        ...detail().events,
+        {
+          id: stagedEventId,
+          applicationId: applications[0].id,
+          stage: 'offer',
+          occurredOn: '2026-08-03',
+          createdAt: '2026-08-03T12:00:00.000Z',
+        },
+      ],
+    }
+    trackerOperations.getTrackerApplication.mockImplementation(
+      async () => authoritativeDetail,
+    )
+    trackerOperations.updateApplicationStageEvent.mockImplementation(
+      async (eventId: string, stage: TrackerStage, occurredOn: string) => {
+        authoritativeDetail = {
+          ...authoritativeDetail,
+          events: authoritativeDetail.events.map((event) =>
+            event.id === eventId ? { ...event, stage, occurredOn } : event),
+        }
+      },
+    )
+    trackerOperations.deleteApplicationStageEvent.mockImplementation(
+      async (eventId: string) => {
+        authoritativeDetail = {
+          ...authoritativeDetail,
+          events: authoritativeDetail.events.filter(({ id }) => id !== eventId),
+        }
+      },
+    )
+
+    const expandButton = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Show details for Data Analyst')
+    await react.act(async () => expandButton?.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+
+    const editApplied = findTestElement(container, (element) =>
+      element.getAttribute('aria-label')?.startsWith('Edit Applied from') ?? false)
+    if (!editApplied) throw new Error(`applied timeline event not mounted: ${container.textContent}`)
+    await react.act(async () => editApplied?.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+    const saveEvent = findTestElement(container, (element) => element.textContent === 'Save event')
+    const editorForm = saveEvent?.parentNode?.parentNode
+    const timelineDate = editorForm
+      ? findTestElement(editorForm, (element) => element.tagName === 'INPUT')
+      : null
+    if (!editorForm || !timelineDate) {
+      throw new Error(`timeline editor not mounted: ${container.textContent}`)
+    }
+    await react.act(async () => {
+      nativeSetValue(timelineDate, '2026-08-01')
+      timelineDate.dispatchEvent(new TestEvent('input'))
+      timelineDate.dispatchEvent(new TestEvent('change'))
+      editorForm.dispatchEvent(new TestEvent('submit'))
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    const editOffer = findTestElement(container, (element) =>
+      element.getAttribute('aria-label')?.startsWith('Edit Offer from') ?? false)
+    await react.act(async () => editOffer?.dispatchEvent(new TestEvent('click')))
+    const requestDelete = findTestElement(container, (element) =>
+      element.textContent === 'Delete event')
+    await react.act(async () => requestDelete?.dispatchEvent(new TestEvent('click')))
+    const deleteButtons = findTestElements(container, (element) =>
+      element.textContent === 'Delete event')
+    const confirmDelete = deleteButtons.at(-1)
+    await react.act(async () => {
+      confirmDelete?.dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    trackerOperations.updateApplicationStageEvent.mockClear()
+    await react.act(async () => {
+      nativeSetValue(dateControl, '2026-08-04')
+      dateControl.dispatchEvent(new TestEvent('input'))
+      dateControl.dispatchEvent(new TestEvent('change'))
+      const enter = new TestEvent('keydown') as TestEvent & { key: string }
+      enter.key = 'Enter'
+      dateControl.dispatchEvent(enter)
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
+      detail().events[0].id,
+      'applied',
+      '2026-08-04',
+    )
+    expect(trackerOperations.updateApplicationStageEvent).not.toHaveBeenCalledWith(
+      stagedEventId,
+      expect.anything(),
+      expect.anything(),
+    )
+
     await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+})
+
+const mountedDashboardRow: FeedRow = {
+  id: 'dashboard-row-a',
+  deterministic_revision: 1,
+  deterministic_eligible: true,
+  deterministic_score: 50,
+  deterministic_tier: 'Good',
+  deterministic_breakdown: [],
+  deterministic_filter_code: null,
+  deterministic_filter_detail: null,
+  deterministic_ranked_at: '2026-08-03T12:00:00.000Z',
+  deterministic_best_fit_resume_id: null,
+  deterministic_runner_up_resume_id: null,
+  seen_at: null,
+  dismissed_at: null,
+  applied_at: null,
+  jobs: {
+    id: 'dashboard-job-a',
+    title: 'Dashboard A',
+    location: 'Chicago, IL',
+    absolute_url: 'https://example.com/a',
+    posted_at: '2026-08-03T12:00:00.000Z',
+    first_seen_at: '2026-08-03T12:00:00.000Z',
+    status: 'open',
+    source_company_name: null,
+    companies: { name: 'Acme' },
+  },
+}
+
+function mountedDashboardPage(rows: FeedRow[]): DashboardFeedPage {
+  return { rows, nextCursor: null, hasMore: false, caughtUp: true }
+}
+
+describe('Dashboard mounted performance invariants', () => {
+  beforeEach(() => {
+    dashboardOperations.listDashboardCompanyOptions.mockReset()
+    dashboardOperations.listDashboardCompanyOptions.mockResolvedValue([])
+    dashboardOperations.listFeedPage.mockReset()
+    dashboardOperations.markJobApplied.mockReset()
+    preferenceOperations.getDeterministicRankingState.mockReset()
+    preferenceOperations.getDeterministicRankingState.mockResolvedValue({
+      activeRevision: 1,
+      desiredRevision: 1,
+      status: 'idle',
+      errorCode: null,
+      retryAvailable: false,
+      updatedAt: '2026-08-03T12:00:00.000Z',
+    })
+    preferenceOperations.loadPreferences.mockReset()
+    preferenceOperations.loadPreferences.mockResolvedValue(null)
+  })
+
+  it('drives interval, focus, and ranking refreshes while only the newest head settles', async () => {
+    const document = installTestDom()
+    const intervalHead = deferred<DashboardFeedPage>()
+    const focusHead = deferred<DashboardFeedPage>()
+    const rankingHead = deferred<DashboardFeedPage>()
+    const staleAfterApplied = deferred<DashboardFeedPage>()
+    const initial = mountedDashboardPage([mountedDashboardRow])
+    dashboardOperations.listFeedPage
+      .mockResolvedValueOnce(initial)
+      .mockReturnValueOnce(intervalHead.promise)
+      .mockReturnValueOnce(focusHead.promise)
+      .mockReturnValueOnce(rankingHead.promise)
+      .mockReturnValueOnce(staleAfterApplied.promise)
+    dashboardOperations.markJobApplied.mockResolvedValue(
+      '11111111-1111-4111-8111-111111111111',
+    )
+    const {
+      createRoot,
+      MountedDashboard,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedDashboard()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedDashboard),
+    )))
+    await flushMountedWork(react.act)
+
+    const testWindow = window as unknown as {
+      __intervalCallbacks: Map<number, () => void>
+      dispatchEvent: (event: TestEvent) => boolean
+    }
+    await react.act(async () => {
+      testWindow.__intervalCallbacks.values().next().value?.()
+      testWindow.dispatchEvent(new TestEvent('focus'))
+      queryClient.setQueryData(['ranking-state'], {
+        activeRevision: 2,
+        desiredRevision: 2,
+        status: 'idle',
+        errorCode: null,
+        retryAvailable: false,
+        updatedAt: '2026-08-03T12:01:00.000Z',
+      })
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+    expect(dashboardOperations.listFeedPage).toHaveBeenCalledTimes(4)
+
+    const newestRow = { ...mountedDashboardRow, deterministic_score: 93 }
+    rankingHead.resolve(mountedDashboardPage([newestRow]))
+    focusHead.resolve(mountedDashboardPage([
+      { ...mountedDashboardRow, deterministic_score: 82 },
+    ]))
+    intervalHead.resolve(mountedDashboardPage([
+      { ...mountedDashboardRow, deterministic_score: 71 },
+    ]))
+    await flushMountedWork(react.act)
+    const feedQuery = queryClient.getQueryCache().findAll({
+      queryKey: ['dashboard-feed'],
+    })[0]
+    expect((feedQuery.state.data as { pages: DashboardFeedPage[] }).pages[0].rows)
+      .toEqual([newestRow])
+
+    testWindow.dispatchEvent(new TestEvent('focus'))
+    await flushMountedWork(react.act)
+    const markApplied = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Mark Dashboard A applied')
+    await react.act(async () => markApplied?.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+    staleAfterApplied.resolve(mountedDashboardPage([mountedDashboardRow]))
+    await flushMountedWork(react.act)
+
+    expect((feedQuery.state.data as { pages: DashboardFeedPage[] }).pages[0].rows)
+      .toEqual([])
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('preserves a successful concurrent Mark Applied and a concurrent cache addition', async () => {
+    const document = installTestDom()
+    const second = {
+      ...mountedDashboardRow,
+      id: 'dashboard-row-b',
+      jobs: { ...mountedDashboardRow.jobs!, id: 'dashboard-job-b', title: 'Dashboard B' },
+    }
+    const concurrent = {
+      ...mountedDashboardRow,
+      id: 'dashboard-row-concurrent',
+      jobs: {
+        ...mountedDashboardRow.jobs!,
+        id: 'dashboard-job-concurrent',
+        title: 'Dashboard Concurrent',
+      },
+    }
+    const firstWrite = deferred<string>()
+    const secondWrite = deferred<string>()
+    dashboardOperations.listFeedPage.mockResolvedValue(
+      mountedDashboardPage([mountedDashboardRow, second]),
+    )
+    dashboardOperations.markJobApplied.mockImplementation((id: string) =>
+      id === mountedDashboardRow.id ? firstWrite.promise : secondWrite.promise)
+    const {
+      createRoot,
+      MountedDashboard,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedDashboard()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedDashboard),
+    )))
+    await flushMountedWork(react.act)
+    const firstButton = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Mark Dashboard A applied')
+    const secondButton = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Mark Dashboard B applied')
+    await react.act(async () => {
+      firstButton?.dispatchEvent(new TestEvent('click'))
+      secondButton?.dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+    const feedQuery = queryClient.getQueryCache().findAll({
+      queryKey: ['dashboard-feed'],
+    })[0]
+    queryClient.setQueryData(feedQuery.queryKey, (current: unknown) => {
+      const data = current as { pages: DashboardFeedPage[]; pageParams: unknown[] }
+      return {
+        ...data,
+        pages: data.pages.map((page, index) => index === 0
+          ? { ...page, rows: [...page.rows, concurrent] }
+          : page),
+      }
+    })
+
+    await react.act(async () => {
+      secondWrite.resolve('22222222-2222-4222-8222-222222222222')
+      await Promise.resolve()
+      firstWrite.reject(new Error('first write failed'))
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect(
+      (feedQuery.state.data as { pages: DashboardFeedPage[] }).pages
+        .flatMap(({ rows }) => rows.map(({ id }) => id)),
+    ).toEqual([mountedDashboardRow.id, concurrent.id])
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+})
+
+describe('mounted route load recovery', () => {
+  it('renders an accessible recovery state when a lazy route import rejects', async () => {
+    const document = installTestDom()
+    const container = document.createElement('div')
+    container.setAttribute('id', 'root')
+    document.body.appendChild(container)
+    vi.resetModules()
+    vi.doUnmock('@tanstack/react-query')
+    vi.doMock('react-router', async () => {
+      const react = await import('react')
+      return {
+        BrowserRouter: ({ children }: { children: React.ReactNode }) => children,
+        Route: ({ element, path }: { element?: React.ReactNode; path?: string }) =>
+          path === '/login' ? element : null,
+        Routes: ({ children }: { children: React.ReactNode }) => children,
+        Link: ({ children }: { children: React.ReactNode }) =>
+          react.createElement('a', null, children),
+        useSearchParams: () => [new URLSearchParams()],
+      }
+    })
+    vi.doMock('../auth/AuthProvider', () => ({
+      AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+    }))
+    vi.doMock('../auth/RequireAuth', () => ({
+      RequireAuth: ({ children }: { children: React.ReactNode }) => children,
+    }))
+    vi.doMock('../components/Shell', () => ({ Shell: () => null }))
+    vi.doMock('./Login', () => {
+      throw new Error('lazy chunk rejected')
+    })
+    const react = await import('react')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    await react.act(async () => {
+      await import('../main')
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect(findTestElement(container, (element) => element.getAttribute('role') === 'alert')
+      ?.textContent).toContain('Check your connection')
+    const reload = findTestElement(container, (element) => element.textContent === 'Reload page')
+    reload?.dispatchEvent(new TestEvent('click'))
+    expect((window.location.reload as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1)
+
+    consoleError.mockRestore()
     vi.unstubAllGlobals()
   })
 })

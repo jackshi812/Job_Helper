@@ -238,6 +238,7 @@ function TrackerRow({
     id: string
     stage: TrackerStage
   } | null>(null)
+  const queuedStageDateRef = useRef(false)
   const [lastSave, setLastSave] = useState<
     'pin' | 'company' | 'title' | 'stage' | 'date' | 'notes' | null
   >(null)
@@ -267,12 +268,35 @@ function TrackerRow({
     onMutate: () => setLastSave('stage'),
     onSuccess: (eventId, stage) => {
       const currentStageDate = chicagoDate()
-      currentStageEventRef.current = { id: eventId, stage }
+      currentStageEventRef.current = queuedStageDateRef.current
+        ? { id: eventId, stage }
+        : null
       patchKnownTrackerApplication(cacheClient, application, {
         currentStage: stage,
         currentStageDate,
       })
+      queryClient.setQueryData<TrackerApplicationDetail>(
+        ['tracker-application', application.id],
+        (current) => current
+          ? {
+            ...current,
+            events: current.events.some(({ id }) => id === eventId)
+              ? current.events
+              : [...current.events, {
+                id: eventId,
+                applicationId: application.id,
+                stage,
+                occurredOn: currentStageDate,
+                createdAt: new Date().toISOString(),
+              }],
+          }
+          : current,
+      )
       reconcileTrackerApplication(queryClient, application.id, true)
+    },
+    onError: () => {
+      currentStageEventRef.current = null
+      queuedStageDateRef.current = false
     },
   })
   const dateMutation = useMutation({
@@ -280,7 +304,10 @@ function TrackerRow({
       const cachedDetail = queryClient.getQueryData<TrackerApplicationDetail>(
         ['tracker-application', application.id],
       )
-      let latestEvent = currentStageEventRef.current
+      const queuedStageEvent = currentStageEventRef.current
+      currentStageEventRef.current = null
+      queuedStageDateRef.current = false
+      let latestEvent = queuedStageEvent
         ?? sortTrackerEvents(cachedDetail?.events ?? []).at(-1)
       if (!latestEvent) {
         const detail = await queryClient.fetchQuery({
@@ -299,9 +326,11 @@ function TrackerRow({
     },
     scope: { id: `${application.id}:stage-date` },
     retry: false,
-    onMutate: () => setLastSave('date'),
+    onMutate: () => {
+      queuedStageDateRef.current = stageMutation.isPending
+      setLastSave('date')
+    },
     onSuccess: ({ eventId, stage, occurredOn }) => {
-      currentStageEventRef.current = { id: eventId, stage }
       patchKnownTrackerApplication(cacheClient, application, {
         currentStage: stage,
         currentStageDate: occurredOn,
@@ -745,13 +774,33 @@ function TrackerDetailRow({
     }) => updateApplicationStageEvent(eventId, stage, occurredOn),
     scope: { id: `${application.id}:timeline` },
     retry: false,
-    onSuccess: () => reconcileTrackerApplication(queryClient, application.id, true),
+    onSuccess: (_result, { eventId, stage, occurredOn }) => {
+      queryClient.setQueryData<TrackerApplicationDetail>(
+        ['tracker-application', application.id],
+        (current) => current
+          ? {
+            ...current,
+            events: current.events.map((event) =>
+              event.id === eventId ? { ...event, stage, occurredOn } : event),
+          }
+          : current,
+      )
+      reconcileTrackerApplication(queryClient, application.id, true)
+    },
   })
   const eventDeleteMutation = useMutation({
     mutationFn: deleteApplicationStageEvent,
     scope: { id: `${application.id}:timeline-delete` },
     retry: false,
-    onSuccess: () => reconcileTrackerApplication(queryClient, application.id, true),
+    onSuccess: (_result, eventId) => {
+      queryClient.setQueryData<TrackerApplicationDetail>(
+        ['tracker-application', application.id],
+        (current) => current
+          ? { ...current, events: current.events.filter(({ id }) => id !== eventId) }
+          : current,
+      )
+      reconcileTrackerApplication(queryClient, application.id, true)
+    },
   })
   const resumeMutation = useMutation({
     mutationFn: (resumeId: string | null) => setApplicationResume(
@@ -1261,6 +1310,11 @@ export function Tracker() {
   const expandButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const preparedFocusId = useRef<string | null>(null)
   const completedFocusId = useRef<string | null>(null)
+
+  useEffect(() => {
+    preparedFocusId.current = null
+    completedFocusId.current = null
+  }, [focusApplicationId])
 
   const applicationsQuery = useQuery({
     queryKey: ['tracker-applications', selectedStages],

@@ -127,6 +127,15 @@ function LifecycleTime({ row, lifecycle }: { row: FeedRow; lifecycle: LifecycleV
 
 type DashboardInfiniteData = InfiniteData<DashboardFeedPage, string | null>
 
+export interface DashboardHeadRefreshCoordinator {
+  feedIdentity: string | null
+  generation: number
+}
+
+export function createDashboardHeadRefreshCoordinator(): DashboardHeadRefreshCoordinator {
+  return { feedIdentity: null, generation: 0 }
+}
+
 export function replaceDashboardFeedHead(
   data: DashboardInfiniteData | undefined,
   head: DashboardFeedPage,
@@ -143,10 +152,33 @@ export async function refreshDashboardFeedHead(
   setData: (
     updater: (current: DashboardInfiniteData | undefined) => DashboardInfiniteData | undefined,
   ) => void,
+  options?: {
+    coordinator?: DashboardHeadRefreshCoordinator
+    feedIdentity?: string
+    excludedIds?: () => ReadonlySet<string>
+  },
 ): Promise<void> {
+  const coordinator = options?.coordinator
+  const feedIdentity = options?.feedIdentity ?? 'default'
+  if (coordinator && coordinator.feedIdentity !== feedIdentity) {
+    coordinator.feedIdentity = feedIdentity
+    coordinator.generation += 1
+  }
+  const generation = coordinator ? ++coordinator.generation : 0
   try {
     const head = await loadHead()
-    setData((current) => replaceDashboardFeedHead(current, head))
+    if (
+      coordinator
+      && (
+        coordinator.feedIdentity !== feedIdentity
+        || coordinator.generation !== generation
+      )
+    ) return
+    const excludedIds = options?.excludedIds?.() ?? new Set<string>()
+    const visibleHead = excludedIds.size === 0
+      ? head
+      : { ...head, rows: head.rows.filter(({ id }) => !excludedIds.has(id)) }
+    setData((current) => replaceDashboardFeedHead(current, visibleHead))
   } catch {
     // Background refresh failures retain every currently rendered page.
   }
@@ -157,7 +189,9 @@ export function retryDashboardFeed<T>(refetch: () => Promise<T>): Promise<T> {
 }
 
 interface LifecycleMutationContext {
-  previous: DashboardInfiniteData | undefined
+  removedRow: FeedRow | null
+  pageIndex: number
+  rowIndex: number
   title: string
   continuationCursor: string | null
   nextFocusId: string | null
@@ -500,6 +534,8 @@ export function Dashboard({
   const actionRefs = useRef(new Map<string, HTMLButtonElement>())
   const dismissActionRefs = useRef(new Map<string, HTMLButtonElement>())
   const restoredDismissFocusIdRef = useRef<string | null>(null)
+  const headRefreshCoordinatorRef = useRef(createDashboardHeadRefreshCoordinator())
+  const markAppliedExcludedIdsRef = useRef(new Set<string>())
 
   useEffect(() => {
     if (!scoreTierPopoverOpen) return
@@ -554,8 +590,13 @@ export function Dashboard({
     () => refreshDashboardFeedHead(
       () => listFeedPage(feedRequest, null),
       (updater) => queryClient.setQueryData<DashboardInfiniteData>(feedKey, updater),
+      {
+        coordinator: headRefreshCoordinatorRef.current,
+        feedIdentity,
+        excludedIds: () => markAppliedExcludedIdsRef.current,
+      },
     ),
-    [feedKey, feedRequest, queryClient],
+    [feedIdentity, feedKey, feedRequest, queryClient],
   )
 
   useEffect(() => {
@@ -710,26 +751,16 @@ export function Dashboard({
   async function snapshotAndRemove(rowId: string): Promise<LifecycleMutationContext> {
     setLifecycleError('')
     await queryClient.cancelQueries({ queryKey: feedKey })
-    const previous = queryClient.getQueryData<DashboardInfiniteData>(feedKey)
-    const currentRows = mergedInfinitePage(previous).rows
-    const index = currentRows.findIndex(({ id }) => id === rowId)
-    const row = index >= 0 ? currentRows[index] : null
-    const title = row?.jobs?.title ?? 'Untitled role'
-    const nextFocusId = currentRows[index + 1]?.id ?? null
-    const previousFocusId = index > 0 ? currentRows[index - 1]?.id ?? null : null
-    const continuationCursor = previous?.pages.at(-1)?.nextCursor ?? null
+    const current = queryClient.getQueryData<DashboardInfiniteData>(feedKey)
+    const context = captureDismissalContext(current, rowId)
     queryClient.setQueryData<DashboardInfiniteData>(
       feedKey,
-      (current) => removeRowFromInfiniteData(current, rowId),
+      (cached) => removeRowFromInfiniteData(cached, rowId),
     )
-    if (index >= 0) focusAfterRemoval(nextFocusId, previousFocusId)
-    return {
-      previous,
-      title,
-      continuationCursor,
-      nextFocusId,
-      previousFocusId,
+    if (context.rowIndex >= 0) {
+      focusAfterRemoval(context.nextFocusId, context.previousFocusId)
     }
+    return context
   }
 
   function refillRequest(
@@ -830,17 +861,22 @@ export function Dashboard({
   const markAppliedMutation = useMutation({
     mutationFn: markJobApplied,
     onMutate: (id) => {
+      markAppliedExcludedIdsRef.current.add(id)
       setMarkAppliedPendingIds((pendingIds) => new Set(pendingIds).add(id))
       return snapshotAndRemove(id)
     },
     onError: (_error, id, context) => {
+      markAppliedExcludedIdsRef.current.delete(id)
       setMarkAppliedPendingIds((pendingIds) => {
         const next = new Set(pendingIds)
         next.delete(id)
         return next
       })
-      if (context?.previous) {
-        queryClient.setQueryData<DashboardInfiniteData>(feedKey, context.previous)
+      if (context) {
+        queryClient.setQueryData<DashboardInfiniteData>(
+          feedKey,
+          (current) => restoreDismissedRowInInfiniteData(current, context),
+        )
       }
       setLifecycleError(
         'Couldn’t mark this job as applied. It remains in Active. Try again.',
