@@ -29,8 +29,6 @@ const queryMock = vi.hoisted(() => {
   let rows: FeedRow[] = []
   let rpcData: unknown = []
   let rpcError: unknown = null
-  let routeError: unknown = null
-  let routeResponse: unknown = null
   const builder = {
     select: vi.fn((...args: unknown[]) => {
       calls.push(['select', ...args])
@@ -79,21 +77,7 @@ const queryMock = vi.hoisted(() => {
       calls.push(['rpc', ...args])
       return { data: rpcData, error: rpcError }
     }),
-    invoke: vi.fn(async (_name: string, options: { body?: { user_job_ids?: string[] } }) => {
-      const ids = options.body?.user_job_ids ?? []
-      return {
-        data: routeError ? null : routeResponse ?? {
-          route_revision: 1,
-          updated_count: ids.length,
-          routes: ids.map((id) => ({
-            user_job_id: id,
-            best_fit_resume_id: null,
-            runner_up_resume_id: null,
-          })),
-        },
-        error: routeError,
-      }
-    }),
+    invoke: vi.fn(),
     setRows(next: FeedRow[]) {
       rows = next
       calls.length = 0
@@ -106,12 +90,6 @@ const queryMock = vi.hoisted(() => {
     setRpcError(next: unknown) {
       rpcError = next
       calls.length = 0
-    },
-    setRouteError(next: unknown) {
-      routeError = next
-    },
-    setRouteResponse(next: unknown) {
-      routeResponse = next
     },
   }
 })
@@ -333,7 +311,7 @@ function cursor(overrides: Partial<DashboardFeedCursor> = {}): DashboardFeedCurs
 }
 
 describe('Dashboard lifecycle feed pages', () => {
-  it('routes exactly the bounded 200-row database page', async () => {
+  it('returns the bounded 200-row database page without resume routing', async () => {
     const continuation = decodeDashboardFeedCursor(
       encodeDashboardFeedCursor(cursor(), ACTIVE_QUERY),
       ACTIVE_QUERY,
@@ -348,13 +326,10 @@ describe('Dashboard lifecycle feed pages', () => {
     })
     queryMock.setRpcRows(pageRows)
 
-    await listFeedPage(ACTIVE_QUERY)
+    const page = await listFeedPage(ACTIVE_QUERY)
 
-    const invocation = queryMock.invoke.mock.calls.at(-1)
-    expect(invocation?.[0]).toBe('route-dashboard-resumes')
-    expect(invocation?.[1].body?.user_job_ids).toEqual(
-      pageRows.map(({ row_data }) => row_data.id),
-    )
+    expect(page.rows).toEqual(pageRows.map(({ row_data }) => row_data))
+    expect(queryMock.invoke).not.toHaveBeenCalled()
   })
 
   it('requests a server-filtered 200-row page and exposes truthful continuation', async () => {
@@ -386,10 +361,7 @@ describe('Dashboard lifecycle feed pages', () => {
       p_cursor: null,
       p_limit: 200,
     })
-    expect(queryMock.invoke).toHaveBeenCalledWith(
-      'route-dashboard-resumes',
-      { body: { user_job_ids: [feedRow().id] } },
-    )
+    expect(queryMock.invoke).not.toHaveBeenCalled()
   })
 
   it('requests exactly one continuation row for backfill', async () => {
@@ -404,10 +376,7 @@ describe('Dashboard lifecycle feed pages', () => {
     const page = await backfillDashboardFeedRow(ACTIVE_QUERY)
 
     expect(page.rows).toHaveLength(1)
-    expect(queryMock.invoke).toHaveBeenLastCalledWith(
-      'route-dashboard-resumes',
-      { body: { user_job_ids: [feedRow().id] } },
-    )
+    expect(queryMock.invoke).not.toHaveBeenCalled()
     expect(page.caughtUp).toBe(true)
     expect(queryMock.calls).toContainEqual([
       'rpc',
@@ -416,7 +385,7 @@ describe('Dashboard lifecycle feed pages', () => {
     ])
   })
 
-  it('keeps the original page and deterministic evidence when routing fails', async () => {
+  it('keeps the database page and deterministic evidence unchanged', async () => {
     const original = feedRow({
       deterministic_best_fit_resume_id:
         '22222222-2222-4222-8222-222222222222',
@@ -430,75 +399,12 @@ describe('Dashboard lifecycle feed pages', () => {
     queryMock.setRpcRows([
       { row_data: original, cursor_data: continuation, has_more: false },
     ])
-    queryMock.setRouteError(new Error('conflict'))
-
     const page = await listFeedPage(ACTIVE_QUERY)
     expect(page.rows[0]).toBe(original)
     expect(page.rows[0].deterministic_score).toBe(82)
     expect(page.rows[0].deterministic_breakdown)
       .toBe(original.deterministic_breakdown)
-    queryMock.setRouteError(null)
-  })
-
-  it('patches only returned page routes while preserving deterministic evidence', async () => {
-    const original = feedRow({
-      current_resume_route_revision: 2,
-      resume_route_revision: 1,
-    })
-    const continuation = decodeDashboardFeedCursor(
-      encodeDashboardFeedCursor(cursor(), ACTIVE_QUERY),
-      ACTIVE_QUERY,
-    )
-    queryMock.setRpcRows([
-      { row_data: original, cursor_data: continuation, has_more: false },
-    ])
-    queryMock.setRouteResponse({
-      route_revision: 2,
-      updated_count: 1,
-      routes: [{
-        user_job_id: original.id,
-        best_fit_resume_id: '22222222-2222-4222-8222-222222222222',
-        runner_up_resume_id: '33333333-3333-4333-8333-333333333333',
-      }],
-    })
-
-    const page = await listFeedPage(ACTIVE_QUERY)
-    expect(page.rows[0]).toMatchObject({
-      deterministic_best_fit_resume_id:
-        '22222222-2222-4222-8222-222222222222',
-      deterministic_runner_up_resume_id:
-        '33333333-3333-4333-8333-333333333333',
-      resume_route_revision: 2,
-      deterministic_score: 82,
-      deterministic_tier: 'Strong',
-    })
-    expect(page.rows[0].deterministic_breakdown)
-      .toBe(original.deterministic_breakdown)
-    queryMock.setRouteResponse(null)
-  })
-
-  it('rejects route records outside the requested page without failing the feed', async () => {
-    const original = feedRow()
-    const continuation = decodeDashboardFeedCursor(
-      encodeDashboardFeedCursor(cursor(), ACTIVE_QUERY),
-      ACTIVE_QUERY,
-    )
-    queryMock.setRpcRows([
-      { row_data: original, cursor_data: continuation, has_more: false },
-    ])
-    queryMock.setRouteResponse({
-      route_revision: 2,
-      updated_count: 1,
-      routes: [{
-        user_job_id: '99999999-9999-4999-8999-999999999999',
-        best_fit_resume_id: null,
-        runner_up_resume_id: null,
-      }],
-    })
-
-    const page = await listFeedPage(ACTIVE_QUERY)
-    expect(page.rows[0]).toBe(original)
-    queryMock.setRouteResponse(null)
+    expect(queryMock.invoke).not.toHaveBeenCalled()
   })
 
   it('returns explicit exhaustion when the RPC has no rows', async () => {

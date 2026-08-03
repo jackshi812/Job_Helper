@@ -22,9 +22,13 @@ import {
 import {
   Dashboard,
   filterDismissedFeedRows,
+  refreshDashboardFeedHead,
+  replaceDashboardFeedHead,
+  retryDashboardFeed,
   restoreDismissedRowInInfiniteData,
 } from './Dashboard'
 
+const supabaseRpc = vi.hoisted(() => vi.fn())
 const reactQueryHarness = vi.hoisted(() => ({
   mutationOptions: new Map<string, unknown>(),
   feedRefetch: vi.fn(),
@@ -130,7 +134,11 @@ const externalAppliedApplication: DashboardAppliedApplication = {
   hasWatchedCompany: false,
 }
 
-vi.mock('../lib/supabase', () => ({ supabase: {} }))
+vi.mock('../lib/supabase', () => ({
+  supabase: {
+    rpc: supabaseRpc,
+  },
+}))
 
 vi.mock('react-router', () => ({
   Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
@@ -231,6 +239,8 @@ function dismissMutationOptions(scope: 'all' | 'watchlist' = 'all'): DismissMuta
 }
 
 beforeEach(() => {
+  supabaseRpc.mockReset()
+  supabaseRpc.mockResolvedValue({ data: [], error: null })
   reactQueryHarness.mutationOptions.clear()
   reactQueryHarness.feedRefetch.mockReset()
   reactQueryHarness.feedRefetch.mockResolvedValue({ isError: false })
@@ -239,6 +249,65 @@ beforeEach(() => {
   reactQueryHarness.queryClient.getQueriesData.mockReturnValue([])
   reactQueryHarness.queryClient.invalidateQueries.mockResolvedValue(undefined)
   reactQueryHarness.queryClient.refetchQueries.mockResolvedValue(undefined)
+})
+
+describe('Dashboard refresh paths', () => {
+  it.each(['interval', 'focus', 'ranking'])(
+    '%s refresh requests and replaces only the cached head',
+    async () => {
+      const original = dashboardData([[row], [secondRow], [thirdRow]])
+      const nextHead = {
+        ...original.pages[0],
+        rows: [{ ...row, deterministic_score: 99 }],
+      }
+      let cache = original
+      const loadHead = vi.fn().mockResolvedValue(nextHead)
+      const setData = vi.fn((updater: (current: DashboardData) => DashboardData) => {
+        cache = updater(cache)
+      })
+
+      await refreshDashboardFeedHead(loadHead, setData)
+
+      expect(loadHead).toHaveBeenCalledTimes(1)
+      expect(cache.pages[0]).toBe(nextHead)
+      expect(cache.pages[1]).toBe(original.pages[1])
+      expect(cache.pages[2]).toBe(original.pages[2])
+      expect(cache.pageParams).toBe(original.pageParams)
+      expect(reactQueryHarness.feedRefetch).not.toHaveBeenCalled()
+    },
+  )
+
+  it('retains the complete cache when a background head request fails', async () => {
+    const original = dashboardData([[row], [secondRow], [thirdRow]])
+    const setData = vi.fn()
+
+    await expect(refreshDashboardFeedHead(
+      vi.fn().mockRejectedValue(new Error('offline')),
+      setData,
+    )).resolves.toBeUndefined()
+
+    expect(setData).not.toHaveBeenCalled()
+    expect(replaceDashboardFeedHead(undefined, original.pages[0])).toBeUndefined()
+  })
+
+  it('manual Retry invokes the full infinite-query refetch only', async () => {
+    const refetch = vi.fn().mockResolvedValue({ isError: false })
+    const headRefresh = vi.fn()
+
+    await retryDashboardFeed(refetch)
+
+    expect(refetch).toHaveBeenCalledTimes(1)
+    expect(headRefresh).not.toHaveBeenCalled()
+  })
+
+  it('disables default interval/focus refetch and wires all automatic triggers to the head loader', () => {
+    expect(dashboardSource).toContain('refetchOnWindowFocus: false')
+    expect(dashboardSource).not.toContain('refetchInterval: 60_000')
+    expect(dashboardSource).toContain('window.setInterval')
+    expect(dashboardSource).toContain("window.addEventListener('focus'")
+    expect(dashboardSource).toContain('void refreshFeedHead()')
+    expect(dashboardSource).not.toContain("refetchQueries({ queryKey: ['dashboard-feed'] })")
+  })
 })
 
 describe('Dashboard dismissal transaction', () => {
@@ -346,7 +415,7 @@ describe('Dashboard dismissal transaction', () => {
 
   it('scopes pending state and restored focus to Dismiss without gating other controls', () => {
     expect(dashboardSource).toContain('dismissPendingIds.has(row.id)')
-    expect(dashboardSource).toContain('disabled={markAppliedMutation.isPending}')
+    expect(dashboardSource).toContain('markAppliedPendingIds.has(row.id)')
     expect(dashboardSource).not.toContain('const lifecycleMutationPending =')
     expect(dashboardSource).toContain('dismissActionRefs.current.set(row.id, node)')
     expect(dashboardSource).toContain('restoredDismissFocusIdRef')
@@ -503,7 +572,7 @@ describe('Dashboard precision controls', () => {
       'Retry limit reached. Save preferences again to start a new update.',
     )
     expect(dashboardSource).toContain('Rankings updated.')
-    expect(dashboardSource).toContain("refetchQueries({ queryKey: ['dashboard-feed'] })")
+    expect(dashboardSource).toContain('void refreshFeedHead()')
     expect(dashboardSource).not.toContain('scoreFreshnessLabel')
   })
 
@@ -587,7 +656,7 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('if (index >= 0) focusAfterRemoval')
     expect(dashboardSource).toContain('focusAfterRemoval')
     expect(dashboardSource).toContain('tableRegionRef.current?.focus()')
-    expect(dashboardSource).toContain('disabled={markAppliedMutation.isPending}')
+    expect(dashboardSource).toContain('markAppliedPendingIds.has(row.id)')
     expect(dashboardSource).toContain('role="status"')
     expect(dashboardSource).toContain('aria-live="polite"')
     expect(dashboardSource).toContain(
@@ -603,6 +672,13 @@ describe('Dashboard precision controls', () => {
     expect(dashboardSource).toContain('backfillDashboardFeedRow')
     expect(dashboardSource).toContain('Couldn’t load the next job. Your current results are still shown.')
     expect(dashboardSource).toContain('Couldn’t mark this job as applied. It remains in Active. Try again.')
+    const markAppliedSource = dashboardSource.match(
+      /const markAppliedMutation = useMutation\([\s\S]*?\n  const companyOptions/,
+    )?.[0] ?? ''
+    expect(markAppliedSource).not.toContain('onSuccess: async')
+    expect(markAppliedSource).not.toContain('onSettled:')
+    expect(markAppliedSource).not.toContain('queryKey: feedKey')
+    expect(markAppliedSource).toContain('void refillVisibleQueue')
   })
 
   it('pins explicit 200-row continuation, retained-row retries, dedupe, and truthful exhaustion', () => {
