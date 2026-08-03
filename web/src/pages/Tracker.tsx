@@ -229,6 +229,28 @@ interface StageDateInput {
 
 const STAGE_DATE_DEPENDENCY_FAILED = 'stage_date_dependency_failed'
 
+function cachedCurrentStageEvent(
+  detail: TrackerApplicationDetail | undefined,
+  application: TrackerApplicationListItem,
+): { id: string; stage: TrackerStage } | undefined {
+  if (
+    !detail
+    || detail.id !== application.id
+    || detail.updatedAt !== application.updatedAt
+    || detail.currentStage !== application.currentStage
+    || detail.currentStageDate !== application.currentStageDate
+    || detail.events.some((event) => event.applicationId !== application.id)
+  ) return undefined
+
+  const currentEvent = sortTrackerEvents(detail.events).at(-1)
+  if (
+    !currentEvent
+    || currentEvent.stage !== application.currentStage
+    || currentEvent.occurredOn !== application.currentStageDate
+  ) return undefined
+  return { id: currentEvent.id, stage: currentEvent.stage }
+}
+
 function TrackerRow({
   application,
   rowNumber,
@@ -335,12 +357,19 @@ function TrackerRow({
         ) throw new Error(STAGE_DATE_DEPENDENCY_FAILED)
         latestEvent = { id: stageAttempt.eventId, stage: stageAttempt.stage }
       } else {
-        const detail = await queryClient.fetchQuery({
-          queryKey: ['tracker-application', application.id],
-          queryFn: () => getTrackerApplication(application.id),
-          staleTime: 0,
-        })
-        latestEvent = sortTrackerEvents(detail.events).at(-1)
+        const detailKey = ['tracker-application', application.id] as const
+        latestEvent = cachedCurrentStageEvent(
+          queryClient.getQueryData<TrackerApplicationDetail>(detailKey),
+          application,
+        )
+        if (!latestEvent) {
+          const detail = await queryClient.fetchQuery({
+            queryKey: detailKey,
+            queryFn: () => getTrackerApplication(application.id),
+            staleTime: 0,
+          })
+          latestEvent = sortTrackerEvents(detail.events).at(-1)
+        }
       }
       if (!latestEvent) throw new Error('application_event_not_found')
       await updateApplicationStageEvent(

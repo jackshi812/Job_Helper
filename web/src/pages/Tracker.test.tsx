@@ -537,9 +537,8 @@ describe('Tracker page contract', () => {
     ) as TrackerApplicationDetail).currentStageDate).not.toBe('2026-08-01')
   })
 
-  it('fetches authoritative detail for a standalone date write even when detail is cached', async () => {
+  it('uses a version-matched cached current event without a pre-write detail fetch', async () => {
     setCached(['tracker-application', applications[0].id], detail())
-    reactQueryHarness.queryClient.fetchQuery.mockResolvedValue(detail())
     trackerOperations.updateApplicationStageEvent.mockResolvedValue(undefined)
     renderToStaticMarkup(<Tracker />)
     const date = mutationOptions(`${applications[0].id}:stage-date`, 1)
@@ -554,8 +553,45 @@ describe('Tracker page contract', () => {
       'applied',
       '2026-08-03',
     )
+    expect(reactQueryHarness.queryClient.fetchQuery).not.toHaveBeenCalled()
+  })
+
+  it('fetches authoritative detail when the cached application version is stale', async () => {
+    const serverCurrentEvent = {
+      ...detail().events[0],
+      id: '33333333-3333-4333-8333-333333333333',
+      stage: 'interview' as const,
+      occurredOn: '2026-08-02',
+      createdAt: '2026-08-02T15:00:00.000Z',
+    }
+    setCached(
+      ['tracker-application', applications[0].id],
+      { ...detail(), updatedAt: '2026-07-27T15:00:00.000Z' },
+    )
+    reactQueryHarness.queryClient.fetchQuery.mockResolvedValue({
+      ...detail(),
+      currentStage: 'interview',
+      currentStageDate: '2026-08-02',
+      updatedAt: '2026-08-02T15:00:00.000Z',
+      events: [...detail().events, serverCurrentEvent],
+    })
+    trackerOperations.updateApplicationStageEvent.mockResolvedValue(undefined)
+    renderToStaticMarkup(<Tracker />)
+    const date = mutationOptions(`${applications[0].id}:stage-date`, 1)
+
+    await date.mutationFn({
+      occurredOn: '2026-08-03',
+      dependentAttemptId: null,
+    } as never)
+
+    expect(reactQueryHarness.queryClient.fetchQuery).toHaveBeenCalledTimes(1)
     expect(reactQueryHarness.queryClient.fetchQuery).toHaveBeenCalledWith(
       expect.objectContaining({ staleTime: 0 }),
+    )
+    expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledWith(
+      serverCurrentEvent.id,
+      'interview',
+      '2026-08-03',
     )
   })
 
