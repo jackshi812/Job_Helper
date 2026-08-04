@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import preferencesSource from './Preferences.tsx?raw'
 import { Preferences } from './Preferences'
@@ -13,7 +14,10 @@ const mocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   mutationOptions: undefined as undefined | {
     mutationFn: (input: SavePreferencesInput) => Promise<SavePreferencesResult>
-    onSuccess: (result: SavePreferencesResult, variables: SavePreferencesInput) => void
+    onSuccess: (
+      result: SavePreferencesResult,
+      variables: SavePreferencesInput,
+    ) => void | Promise<void>
     onError: () => void
   },
   cachedPreferences: undefined as PreferencesRecord | null | undefined,
@@ -23,7 +27,8 @@ const mocks = vi.hoisted(() => ({
   setQueryData: vi.fn(),
 }))
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@tanstack/react-query')>(),
   useMutation: (options: typeof mocks.mutationOptions) => {
     mocks.mutationOptions = options
     return { isPending: false, mutate: vi.fn() }
@@ -96,6 +101,14 @@ const saveResult: SavePreferencesResult = {
   runId: 'run-1',
   revision: 7,
   seededCount: 12,
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => {
+    resolve = done
+  })
+  return { promise, resolve }
 }
 
 describe('deterministic ranking preference form', () => {
@@ -206,12 +219,12 @@ describe('preference save cache gap', () => {
     mocks.savePreferences.mockResolvedValue(undefined)
   })
 
-  it('writes every submitted value while preserving an existing cached user', () => {
+  it('writes every submitted value while preserving an existing cached user', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-04T03:25:00.000Z'))
     const mutation = captureMutation()
 
-    mutation.onSuccess(saveResult, submittedPreferences)
+    await mutation.onSuccess(saveResult, submittedPreferences)
 
     expect(mocks.setQueryData).toHaveBeenCalledWith(['preferences'], expect.any(Function))
     expect(mocks.cachedPreferences).toEqual({
@@ -219,19 +232,22 @@ describe('preference save cache gap', () => {
       user_id: 'existing-user',
       updated_at: '2026-08-04T03:25:00.000Z',
     })
-    expect(mocks.cancelQueries).not.toHaveBeenCalled()
+    expect(mocks.cancelQueries).toHaveBeenCalledWith({
+      queryKey: ['preferences'],
+      exact: true,
+    })
     expect(mocks.removeQueries).not.toHaveBeenCalled()
     expect(mocks.invalidateQueries).not.toHaveBeenCalled()
     vi.useRealTimers()
   })
 
-  it('creates a complete first-save record with the authenticated session user', () => {
+  it('creates a complete first-save record with the authenticated session user', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-04T03:26:00.000Z'))
     mocks.cachedPreferences = null
     const mutation = captureMutation()
 
-    mutation.onSuccess(saveResult, submittedPreferences)
+    await mutation.onSuccess(saveResult, submittedPreferences)
 
     expect(mocks.cachedPreferences).toEqual({
       ...submittedPreferences,
@@ -239,7 +255,10 @@ describe('preference save cache gap', () => {
       updated_at: '2026-08-04T03:26:00.000Z',
     })
     expect(mocks.invalidateQueries).not.toHaveBeenCalled()
-    expect(mocks.cancelQueries).not.toHaveBeenCalled()
+    expect(mocks.cancelQueries).toHaveBeenCalledWith({
+      queryKey: ['preferences'],
+      exact: true,
+    })
     expect(mocks.removeQueries).not.toHaveBeenCalled()
     vi.useRealTimers()
   })
@@ -269,6 +288,37 @@ describe('preference save cache gap', () => {
     await mutation.mutationFn(payload)
 
     expect(mocks.savePreferences).toHaveBeenCalledWith(payload)
+  })
+
+  it('keeps durable save data when an older preferences read settles afterward', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const oldRead = deferred<PreferencesRecord>()
+    const queryFn = vi.fn(() => oldRead.promise)
+    queryClient.setQueryData(['preferences'], existingPreferences)
+    const inFlightRead = queryClient.fetchQuery({
+      queryKey: ['preferences'],
+      queryFn,
+    }).catch(() => undefined)
+    const cancelQueries = vi.spyOn(queryClient, 'cancelQueries')
+    mocks.queryClient = queryClient
+    const mutation = captureMutation()
+
+    await mutation.onSuccess(saveResult, submittedPreferences)
+    oldRead.resolve(existingPreferences)
+    await inFlightRead
+
+    expect(queryFn).toHaveBeenCalledOnce()
+    expect(cancelQueries).toHaveBeenCalledWith({
+      queryKey: ['preferences'],
+      exact: true,
+    })
+    expect(queryClient.getQueryData(['preferences'])).toEqual(expect.objectContaining({
+      ...submittedPreferences,
+      user_id: 'existing-user',
+    }))
+    queryClient.clear()
   })
 
   it('keeps feed cache untouched when saving fails', () => {

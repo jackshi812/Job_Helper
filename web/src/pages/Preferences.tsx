@@ -310,11 +310,12 @@ export function Preferences() {
 
   const saveMutation = useMutation({
     mutationFn: savePreferences,
-    onSuccess: (_result, submitted) => {
+    onSuccess: async (_result, submitted) => {
       setError(null)
       setFormValidationError(false)
       setMessage('Preferences saved. Updating rankings…')
       const updatedAt = new Date().toISOString()
+      await queryClient.cancelQueries({ queryKey: ['preferences'], exact: true })
       queryClient.setQueryData<PreferencesRecord>(['preferences'], (current) => {
         const userId = current?.user_id ?? session?.user.id
         if (!userId) return current
