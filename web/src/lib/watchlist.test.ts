@@ -3,6 +3,7 @@ import { UNSUPPORTED_URL_MESSAGE } from '../../../supabase/functions/_shared/det
 import sourceCoverageCatalogMigration from '../../../supabase/migrations/0013_source_coverage_catalog.sql?raw'
 import brandedConnectorMigration from '../../../supabase/migrations/0040_phase_03_8_branded_connectors.sql?raw'
 import workdayCandidateMigration from '../../../supabase/migrations/0043_phase_03_8_workday_candidates.sql?raw'
+import watchlistSource from '../pages/Watchlist.tsx?raw'
 import {
   activationPresentation,
   addCompany,
@@ -10,7 +11,8 @@ import {
   COMPANY_COLUMNS,
   deriveHealth,
   healthPresentation,
-  listCompanies,
+  listSourceCoverageCatalog,
+  listWatchlistCompanies,
   loadCollapsedCompanyKeys,
   mergeCoverageRows,
   groupWatchlistRows,
@@ -268,7 +270,7 @@ describe('finance coverage presentation', () => {
     expect(sourceCoverageCatalogMigration).toContain("disposition in ('experimental', 'unsupported_with_reason')")
   })
 
-  it('loads company progress and catalog evidence without querying the observation ledger', async () => {
+  it('loads live companies from only the company table with the existing columns and order', async () => {
     const capitalOne = company({
       id: 'company-capital-one',
       ats_type: 'workday',
@@ -278,21 +280,82 @@ describe('finance coverage presentation', () => {
       activation_state: 'experimental',
       activation_successes: 2,
     })
-    vi.mocked(supabase.from).mockImplementation(((table: string) => ({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockResolvedValue(table === 'companies'
-          ? { data: [capitalOne], error: null }
-          : { data: financeCatalog, error: null }),
-      }),
-    })) as never)
+    const order = vi.fn().mockResolvedValue({ data: [capitalOne], error: null })
+    const select = vi.fn().mockReturnValue({ order })
+    vi.mocked(supabase.from).mockReturnValue({ select } as never)
 
-    const rows = await listCompanies()
+    await expect(listWatchlistCompanies()).resolves.toEqual([capitalOne])
 
+    expect(supabase.from).toHaveBeenCalledOnce()
     expect(supabase.from).toHaveBeenCalledWith('companies')
-    expect(supabase.from).toHaveBeenCalledWith('source_coverage_catalog')
     expect(supabase.from).not.toHaveBeenCalledWith('connector_observations')
-    expect(SOURCE_COVERAGE_CATALOG_COLUMNS).toContain('access_evidence')
-    expect(rows.find((row) => row.name === 'Capital One')?.activation_successes).toBe(2)
+    expect(select).toHaveBeenCalledWith(COMPANY_COLUMNS)
+    expect(order).toHaveBeenCalledWith('created_at', { ascending: false })
+  })
+
+  it('returns an empty live-company list for null data and propagates its own error', async () => {
+    const companyError = new Error('company read failed')
+    const order = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: null, error: companyError })
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({ order }),
+    } as never)
+
+    await expect(listWatchlistCompanies()).resolves.toEqual([])
+    await expect(listWatchlistCompanies()).rejects.toBe(companyError)
+    expect(vi.mocked(supabase.from).mock.calls).toEqual([
+      ['companies'],
+      ['companies'],
+    ])
+  })
+
+  it('loads coverage metadata from only the catalog table with the existing columns and order', async () => {
+    const order = vi.fn().mockResolvedValue({ data: financeCatalog, error: null })
+    const select = vi.fn().mockReturnValue({ order })
+    vi.mocked(supabase.from).mockReturnValue({ select } as never)
+
+    await expect(listSourceCoverageCatalog()).resolves.toEqual(financeCatalog)
+
+    expect(supabase.from).toHaveBeenCalledOnce()
+    expect(supabase.from).toHaveBeenCalledWith('source_coverage_catalog')
+    expect(supabase.from).not.toHaveBeenCalledWith('companies')
+    expect(supabase.from).not.toHaveBeenCalledWith('connector_observations')
+    expect(select).toHaveBeenCalledWith(SOURCE_COVERAGE_CATALOG_COLUMNS)
+    expect(order).toHaveBeenCalledWith('company_name', { ascending: true })
+  })
+
+  it('returns an empty coverage catalog for null data and propagates its own error', async () => {
+    const catalogError = new Error('catalog read failed')
+    const order = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: null, error: catalogError })
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({ order }),
+    } as never)
+
+    await expect(listSourceCoverageCatalog()).resolves.toEqual([])
+    await expect(listSourceCoverageCatalog()).rejects.toBe(catalogError)
+    expect(vi.mocked(supabase.from).mock.calls).toEqual([
+      ['source_coverage_catalog'],
+      ['source_coverage_catalog'],
+    ])
+  })
+
+  it('owns independent live and coverage query lifecycles on the page', () => {
+    expect(watchlistSource).toContain("queryKey: ['watchlist-companies']")
+    expect(watchlistSource).toContain('queryFn: listWatchlistCompanies')
+    expect(watchlistSource).toContain("queryKey: ['source-coverage-catalog']")
+    expect(watchlistSource).toContain('queryFn: listSourceCoverageCatalog')
+    expect(watchlistSource).toContain('refetchInterval: 60_000')
+    expect(watchlistSource).toContain('staleTime: Infinity')
+    expect(watchlistSource).toContain('gcTime: Infinity')
+    expect(watchlistSource.match(/queryKey: \['watchlist-companies'\]/g)).toHaveLength(3)
+    expect(watchlistSource.match(/queryKey: \['source-coverage-catalog'\]/g)).toHaveLength(1)
+    expect(watchlistSource).not.toContain("queryKey: ['watchlist']")
+    expect(watchlistSource).toContain(
+      'mergeCoverageRows(companiesQuery.data ?? [], coverageQuery.data ?? [])',
+    )
   })
 
   it.each([
