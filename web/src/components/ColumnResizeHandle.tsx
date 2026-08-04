@@ -51,18 +51,26 @@ export function ColumnResizeHandle({
     drag.frameId = null
   }
 
-  function finishDrag(pointerId: number, commit: boolean) {
+  function finishDrag(event: PointerEvent<HTMLDivElement>, commit: boolean) {
     const drag = activeDrag.current
-    if (!drag || drag.pointerId !== pointerId) return
+    if (!drag || drag.pointerId !== event.pointerId) return
+    if (commit) {
+      drag.latestWidth = clampDashboardColumnWidth(
+        column.id,
+        drag.startWidth + event.clientX - drag.startX,
+      )
+    }
     cancelPendingFrame(drag)
-    if (drag.handle.hasPointerCapture(pointerId)) drag.handle.releasePointerCapture(pointerId)
+    if (drag.handle.hasPointerCapture(event.pointerId)) {
+      drag.handle.releasePointerCapture(event.pointerId)
+    }
     restoreDocumentStyles()
     const settlement = settleColumnResize(drag.startWidth, drag.latestWidth, commit)
     drag.handle.setAttribute('aria-valuenow', String(Math.round(settlement.width)))
     activeDrag.current = null
     releaseColumnResize(coordinator, column.id)
+    onWidthPreview(settlement.width)
     if (settlement.persist) onWidthCommit(settlement.width)
-    else onWidthPreview(settlement.width)
   }
 
   useEffect(() => () => {
@@ -150,8 +158,8 @@ export function ColumnResizeHandle({
       onKeyDown={handleKeyDown}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={(event) => finishDrag(event.pointerId, true)}
-      onPointerCancel={(event) => finishDrag(event.pointerId, false)}
+      onPointerUp={(event) => finishDrag(event, true)}
+      onPointerCancel={(event) => finishDrag(event, false)}
       className="group absolute inset-y-0 -right-2 z-10 w-4 cursor-col-resize touch-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-zinc-900 [@media(pointer:coarse)]:-right-[22px] [@media(pointer:coarse)]:w-11 dark:focus-visible:outline-zinc-100"
     >
       <span
