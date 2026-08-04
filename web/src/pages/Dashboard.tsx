@@ -85,6 +85,8 @@ const tierBadgeStyles = {
 const newBadgeStyle =
   'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300'
 
+export const DASHBOARD_TIER_DEBOUNCE_MS = 250
+
 function relativeTime(timestamp: string) {
   const parsed = new Date(timestamp)
   if (!Number.isFinite(parsed.getTime())) return 'at an unknown time'
@@ -567,6 +569,7 @@ export function Dashboard({
   const [appliedHiddenKeys, setAppliedHiddenKeys] = useState<Set<string>>(() => new Set())
   const [draftHiddenKeys, setDraftHiddenKeys] = useState<Set<string>>(() => new Set())
   const [selectedTiers, setSelectedTiers] = useState(() => new Set(ALL_SCORE_TIERS))
+  const [requestTiers, setRequestTiers] = useState(() => new Set(ALL_SCORE_TIERS))
   const [rankingAnnouncement, setRankingAnnouncement] = useState('')
   const [retryError, setRetryError] = useState('')
   const [lifecycleError, setLifecycleError] = useState('')
@@ -616,6 +619,17 @@ export function Dashboard({
     return () => document.removeEventListener('pointerdown', handleOutsidePointerDown)
   }, [scoreTierPopoverOpen])
 
+  useEffect(() => {
+    const requestMatchesSelection = requestTiers.size === selectedTiers.size
+      && [...selectedTiers].every((tier) => requestTiers.has(tier))
+    if (requestMatchesSelection) return
+
+    const timeoutId = window.setTimeout(() => {
+      setRequestTiers(new Set(selectedTiers))
+    }, DASHBOARD_TIER_DEBOUNCE_MS)
+    return () => window.clearTimeout(timeoutId)
+  }, [requestTiers, selectedTiers])
+
   const activeOrder: DashboardFeedOrder = sortByScore
     ? (scoreAscending ? 'score_asc' : 'score_desc')
     : 'newest'
@@ -625,14 +639,14 @@ export function Dashboard({
       activeOrder,
       sourceScope: scope,
       appliedHiddenKeys,
-      selectedTiers,
+      selectedTiers: requestTiers,
     }),
-    [lifecycle, activeOrder, scope, appliedHiddenKeys, selectedTiers],
+    [lifecycle, activeOrder, scope, appliedHiddenKeys, requestTiers],
   )
   const feedKey = useMemo(() => dashboardFeedQueryKey(feedRequest), [feedRequest])
   const feedIdentity = JSON.stringify([scope, ...feedKey])
   const visibleBackfillFailure = backfillFailures.get(feedKeyIdentity(feedKey)) ?? null
-  const feedEnabled = selectedTiers.size > 0 && lifecycle !== 'applied'
+  const feedEnabled = requestTiers.size > 0 && lifecycle !== 'applied'
   const feedQuery = useInfiniteQuery<
     DashboardFeedPage,
     Error,
