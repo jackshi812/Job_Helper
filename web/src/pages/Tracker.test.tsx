@@ -803,7 +803,7 @@ class TestElement extends TestNode {
   readonly attributes = new Map<string, string>()
   scrollIntoViewCalls = 0
   _value = ''
-  checked = false
+  _checked = false
   selected = false
 
   constructor(tagName: string, ownerDocument: TestDocument) {
@@ -832,6 +832,14 @@ class TestElement extends TestNode {
     if (this.tagName === 'SELECT') {
       for (const option of this.options) option.selected = option.value === this._value
     }
+  }
+
+  get checked() {
+    return this._checked
+  }
+
+  set checked(value: boolean) {
+    this._checked = Boolean(value)
   }
 
   get options(): TestElement[] {
@@ -950,6 +958,12 @@ function nativeSetValue(element: TestElement, value: string) {
   setter.call(element, value)
 }
 
+function nativeSetChecked(element: TestElement, checked: boolean) {
+  const setter = Object.getOwnPropertyDescriptor(TestElement.prototype, 'checked')?.set
+  if (!setter) throw new Error('native checked setter not found')
+  setter.call(element, checked)
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason?: unknown) => void
@@ -964,8 +978,10 @@ function installTestDom() {
   const document = new TestDocument()
   const windowListeners = new Map<string, TestListener[]>()
   const intervalCallbacks = new Map<number, () => void>()
+  const timeoutCallbacks = new Map<number, { callback: () => void; delay: number }>()
   const storage = new Map<string, string>()
   let nextIntervalId = 1
+  let nextTimeoutId = 1
   const window = {
     document,
     Event: TestEvent,
@@ -978,10 +994,17 @@ function installTestDom() {
     HTMLIFrameElement: class TestIFrameElement extends TestElement {},
     SVGElement: TestElement,
     __intervalCallbacks: intervalCallbacks,
+    __runTimeout: (id: number) => {
+      const timeout = timeoutCallbacks.get(id)
+      timeoutCallbacks.delete(id)
+      timeout?.callback()
+    },
+    __timeoutCallbacks: timeoutCallbacks,
     addEventListener: (type: string, listener: TestListener) => {
       windowListeners.set(type, [...(windowListeners.get(type) ?? []), listener])
     },
     clearInterval: (id: number) => intervalCallbacks.delete(id),
+    clearTimeout: (id: number) => timeoutCallbacks.delete(id),
     dispatchEvent: (event: TestEvent) => {
       for (const listener of windowListeners.get(event.type) ?? []) listener(event)
       return !event.defaultPrevented
@@ -1009,6 +1032,11 @@ function installTestDom() {
     setInterval: (callback: () => void) => {
       const id = nextIntervalId++
       intervalCallbacks.set(id, callback)
+      return id
+    },
+    setTimeout: (callback: () => void, delay = 0) => {
+      const id = nextTimeoutId++
+      timeoutCallbacks.set(id, { callback, delay })
       return id
     },
   }
@@ -1753,6 +1781,90 @@ describe('Dashboard mounted performance invariants', () => {
     })
     preferenceOperations.loadPreferences.mockReset()
     preferenceOperations.loadPreferences.mockResolvedValue(null)
+  })
+
+  it('updates rapid tier choices immediately and requests only the settled selection', async () => {
+    const document = installTestDom()
+    dashboardOperations.listFeedPage.mockResolvedValue(mountedDashboardPage([mountedDashboardRow]))
+    const {
+      createRoot,
+      MountedDashboard,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedDashboard()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedDashboard),
+    )))
+    await flushMountedWork(react.act)
+
+    const scoreTierTrigger = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent.includes('Score tiers: All'))
+    if (!scoreTierTrigger) throw new Error(`score tier trigger not mounted: ${container.textContent}`)
+    await react.act(async () => scoreTierTrigger.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+    const tierCheckboxes = findTestElements(container, (element) =>
+      element.tagName === 'INPUT')
+    expect(tierCheckboxes).toHaveLength(3)
+    expect(tierCheckboxes.map(({ checked }) => checked)).toEqual([true, true, true])
+    expect(dashboardOperations.listFeedPage).toHaveBeenCalledTimes(1)
+
+    const testWindow = window as unknown as {
+      __runTimeout: (id: number) => void
+      __timeoutCallbacks: Map<number, { callback: () => void; delay: number }>
+    }
+    await react.act(async () => {
+      nativeSetChecked(tierCheckboxes[0], false)
+      tierCheckboxes[0].dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    const firstTimeoutId = [...testWindow.__timeoutCallbacks.keys()][0]
+    expect(firstTimeoutId).toBeDefined()
+    expect(testWindow.__timeoutCallbacks.get(firstTimeoutId!)?.delay).toBe(250)
+    expect(tierCheckboxes.map(({ checked }) => checked)).toEqual([false, true, true])
+    expect(scoreTierTrigger?.textContent).toContain('Score tiers: 2 selected')
+    expect(dashboardOperations.listFeedPage).toHaveBeenCalledTimes(1)
+
+    await react.act(async () => {
+      nativeSetChecked(tierCheckboxes[1], false)
+      tierCheckboxes[1].dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    const finalTimeoutId = [...testWindow.__timeoutCallbacks.keys()][0]
+    expect(finalTimeoutId).toBeDefined()
+    expect(finalTimeoutId).not.toBe(firstTimeoutId)
+    expect(testWindow.__timeoutCallbacks.has(firstTimeoutId!)).toBe(false)
+    expect(testWindow.__timeoutCallbacks).toHaveLength(1)
+    expect(tierCheckboxes.map(({ checked }) => checked)).toEqual([false, false, true])
+    expect(scoreTierTrigger?.textContent).toContain('Score tiers: 1 selected')
+    expect(dashboardOperations.listFeedPage).toHaveBeenCalledTimes(1)
+
+    await react.act(async () => {
+      testWindow.__runTimeout(finalTimeoutId!)
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+    expect(dashboardOperations.listFeedPage).toHaveBeenCalledTimes(2)
+    expect(dashboardOperations.listFeedPage.mock.calls[1][0]).toMatchObject({
+      tiers: ['Weak'],
+    })
+
+    await react.act(async () => {
+      nativeSetChecked(tierCheckboxes[0], true)
+      tierCheckboxes[0].dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    expect(testWindow.__timeoutCallbacks).toHaveLength(1)
+    await react.act(async () => root.unmount())
+    expect(testWindow.__timeoutCallbacks).toHaveLength(0)
+    expect(dashboardOperations.listFeedPage).toHaveBeenCalledTimes(2)
+    vi.unstubAllGlobals()
   })
 
   it('drives interval, focus, and ranking refreshes while only the newest head settles', async () => {
