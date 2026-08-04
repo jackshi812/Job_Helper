@@ -1,11 +1,12 @@
 import { Component, lazy, StrictMode, Suspense, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router'
 import './index.css'
 import { AuthProvider } from './auth/AuthProvider'
 import { RequireAuth } from './auth/RequireAuth'
 import { Shell } from './components/Shell'
+import { createAppQueryClient } from './lib/queryClient'
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then((module) => ({
   default: module.Dashboard,
@@ -35,7 +36,7 @@ const Watchlist = lazy(() => import('./pages/Watchlist').then((module) => ({
   default: module.Watchlist,
 })))
 
-const queryClient = new QueryClient()
+const queryClient = createAppQueryClient()
 
 interface RouteLoadBoundaryProps {
   children: ReactNode
