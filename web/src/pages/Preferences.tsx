@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSession } from '../auth/AuthProvider'
 import {
   DEFAULT_GOOD_THRESHOLD,
   DEFAULT_RANKING_RUBRIC,
@@ -207,6 +208,7 @@ function PointInput({
 
 export function Preferences() {
   const queryClient = useQueryClient()
+  const { session } = useSession()
   const [titles, setTitles] = useState<string[]>([])
   const [titleDraft, setTitleDraft] = useState('')
   const [locations, setLocations] = useState<string[]>([])
@@ -308,11 +310,20 @@ export function Preferences() {
 
   const saveMutation = useMutation({
     mutationFn: savePreferences,
-    onSuccess: async () => {
+    onSuccess: (_result, submitted) => {
       setError(null)
       setFormValidationError(false)
       setMessage('Preferences saved. Updating rankings…')
-      await queryClient.invalidateQueries({ queryKey: ['preferences'] })
+      const updatedAt = new Date().toISOString()
+      queryClient.setQueryData<PreferencesRecord>(['preferences'], (current) => {
+        const userId = current?.user_id ?? session?.user.id
+        if (!userId) return current
+        return {
+          ...submitted,
+          user_id: userId,
+          updated_at: updatedAt,
+        }
+      })
     },
     onError: () => {
       const validation = validateVisibleForm()

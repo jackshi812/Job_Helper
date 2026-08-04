@@ -1,5 +1,10 @@
-import { useEffect } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo } from 'react'
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
 import DOMPurify from 'dompurify'
 import {
@@ -9,6 +14,7 @@ import {
   relativePostedTime,
   safeApplyUrl,
   tierPresentation,
+  type DashboardFeedPage,
   type FeedRow,
   type RankingCategory,
   type Tier,
@@ -54,6 +60,27 @@ function TierBadge({ tier }: { tier: Tier | null }) {
       {presentation.label}
     </span>
   )
+}
+
+function patchDashboardFeedSeen(
+  data: InfiniteData<DashboardFeedPage, string | null> | undefined,
+  jobId: string,
+  seenAt: string,
+): InfiniteData<DashboardFeedPage, string | null> | undefined {
+  if (!data) return data
+  let changed = false
+  const pages = data.pages.map((page) => {
+    let pageChanged = false
+    const rows = page.rows.map((feedRow) => {
+      if (feedRow.id !== jobId || feedRow.seen_at === seenAt) return feedRow
+      pageChanged = true
+      return { ...feedRow, seen_at: seenAt }
+    })
+    if (!pageChanged) return page
+    changed = true
+    return { ...page, rows }
+  })
+  return changed ? { ...data, pages } : data
 }
 
 function RankingBreakdown({ feedRow }: { feedRow: FeedRow }) {
@@ -125,9 +152,15 @@ export function JobDetail() {
 
   const seenMutation = useMutation({
     mutationFn: markSeen,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['feed'] })
-      await queryClient.invalidateQueries({ queryKey: ['job', id] })
+    onSuccess: (_result, seenId) => {
+      const seenAt = new Date().toISOString()
+      queryClient.setQueryData<FeedRow>(['job', seenId], (current) => (
+        current?.id === seenId ? { ...current, seen_at: seenAt } : current
+      ))
+      queryClient.setQueriesData<InfiniteData<DashboardFeedPage, string | null>>(
+        { queryKey: ['dashboard-feed'] },
+        (current) => patchDashboardFeedSeen(current, seenId, seenAt),
+      )
     },
   })
 
@@ -136,6 +169,13 @@ export function JobDetail() {
   // itself conditional (.is('seen_at', null)) so this fires at most one write.
   const row = jobQuery.data
   const unseen = row?.seen_at === null
+  const descriptionHtml = row?.jobs?.description_html ?? null
+  const sanitizedDescription = useMemo(
+    () => descriptionHtml
+      ? DOMPurify.sanitize(descriptionHtml, { FORBID_TAGS: ['style', 'form'] })
+      : null,
+    [descriptionHtml],
+  )
   useEffect(() => {
     if (row && unseen && id && !seenMutation.isPending) {
       seenMutation.mutate(id)
@@ -168,10 +208,6 @@ export function JobDetail() {
   const company = companyName(row)
   const applyUrl = safeApplyUrl(job?.absolute_url)
   const postedTimestamp = relativePostedTime(row)
-  const sanitizedDescription = job?.description_html
-    ? DOMPurify.sanitize(job.description_html, { FORBID_TAGS: ['style', 'form'] })
-    : null
-
   return (
     <section>
       <Link
