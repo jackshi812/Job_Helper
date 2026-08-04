@@ -30,6 +30,9 @@ const rpcMock = vi.hoisted(() => vi.fn())
 vi.mock('../src/lib/supabase', () => ({
   supabase: { rpc: rpcMock },
 }))
+vi.mock('../src/auth/AuthProvider', () => ({
+  useSession: () => ({ session: { user: { id: 'user-a' } } }),
+}))
 vi.mock('@tanstack/react-query', () => ({
   useQuery: () => ({
     data: [trackerApplication],
