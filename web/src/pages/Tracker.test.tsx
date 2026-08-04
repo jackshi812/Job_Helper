@@ -9,6 +9,13 @@ import {
   type TrackerStage,
 } from '../lib/tracker'
 import type { DashboardFeedPage, FeedRow } from '../lib/feed'
+import {
+  DASHBOARD_COLUMN_STORAGE_KEY,
+  DASHBOARD_COLUMNS,
+  dashboardTableWidth,
+  defaultDashboardColumnWidths,
+  type ColumnResizeCoordinator,
+} from '../lib/dashboardColumns'
 import { patchTrackerApplicationCaches, Tracker } from './Tracker'
 import trackerSource from './Tracker.tsx?raw'
 
@@ -672,6 +679,27 @@ class TestEvent {
   }
 }
 
+function pointerEvent(
+  type: string,
+  init: {
+    pointerId?: number
+    clientX?: number
+    button?: number
+    isPrimary?: boolean
+  } = {},
+) {
+  return Object.assign(new TestEvent(type), {
+    pointerId: init.pointerId ?? 1,
+    clientX: init.clientX ?? 0,
+    button: init.button ?? 0,
+    isPrimary: init.isPrimary ?? true,
+  })
+}
+
+function keyboardEvent(key: string, shiftKey = false) {
+  return Object.assign(new TestEvent('keydown'), { key, shiftKey })
+}
+
 type TestListener = (event: TestEvent) => void
 
 class TestNode {
@@ -801,6 +829,8 @@ class TestElement extends TestNode {
   readonly namespaceURI = 'http://www.w3.org/1999/xhtml'
   readonly style: Record<string, string> & { setProperty: (name: string, value: string) => void }
   readonly attributes = new Map<string, string>()
+  readonly capturedPointerIds = new Set<number>()
+  readonly releasedPointerIds: number[] = []
   scrollIntoViewCalls = 0
   _value = ''
   _checked = false
@@ -811,6 +841,8 @@ class TestElement extends TestNode {
     this.tagName = tagName.toUpperCase()
     this.nodeName = this.tagName
     const style = {} as TestElement['style']
+    style.cursor = ''
+    style.userSelect = ''
     style.setProperty = (name, value) => {
       style[name] = value
     }
@@ -873,6 +905,19 @@ class TestElement extends TestNode {
 
   removeAttribute(name: string) {
     this.attributes.delete(name)
+  }
+
+  setPointerCapture(pointerId: number) {
+    this.capturedPointerIds.add(pointerId)
+  }
+
+  releasePointerCapture(pointerId: number) {
+    this.capturedPointerIds.delete(pointerId)
+    this.releasedPointerIds.push(pointerId)
+  }
+
+  hasPointerCapture(pointerId: number) {
+    return this.capturedPointerIds.has(pointerId)
   }
 
   focus() {
@@ -980,8 +1025,12 @@ function installTestDom() {
   const intervalCallbacks = new Map<number, () => void>()
   const timeoutCallbacks = new Map<number, { callback: () => void; delay: number }>()
   const storage = new Map<string, string>()
+  const storageWrites: Array<{ key: string; value: string }> = []
+  const animationFrameCallbacks = new Map<number, (timestamp: number) => void>()
+  const cancelledAnimationFrameCallbacks = new Map<number, (timestamp: number) => void>()
   let nextIntervalId = 1
   let nextTimeoutId = 1
+  let nextAnimationFrameId = 1
   const window = {
     document,
     Event: TestEvent,
@@ -994,6 +1043,18 @@ function installTestDom() {
     HTMLIFrameElement: class TestIFrameElement extends TestElement {},
     SVGElement: TestElement,
     __intervalCallbacks: intervalCallbacks,
+    __animationFrameCallbacks: animationFrameCallbacks,
+    __cancelledAnimationFrameCallbacks: cancelledAnimationFrameCallbacks,
+    __runAnimationFrame: (id: number) => {
+      const callback = animationFrameCallbacks.get(id)
+      animationFrameCallbacks.delete(id)
+      callback?.(16)
+    },
+    __runCancelledAnimationFrame: (id: number) => {
+      cancelledAnimationFrameCallbacks.get(id)?.(16)
+    },
+    __storage: storage,
+    __storageWrites: storageWrites,
     __runTimeout: (id: number) => {
       const timeout = timeoutCallbacks.get(id)
       timeoutCallbacks.delete(id)
@@ -1004,6 +1065,11 @@ function installTestDom() {
       windowListeners.set(type, [...(windowListeners.get(type) ?? []), listener])
     },
     clearInterval: (id: number) => intervalCallbacks.delete(id),
+    cancelAnimationFrame: (id: number) => {
+      const callback = animationFrameCallbacks.get(id)
+      animationFrameCallbacks.delete(id)
+      if (callback) cancelledAnimationFrameCallbacks.set(id, callback)
+    },
     clearTimeout: (id: number) => timeoutCallbacks.delete(id),
     dispatchEvent: (event: TestEvent) => {
       for (const listener of windowListeners.get(event.type) ?? []) listener(event)
@@ -1013,7 +1079,10 @@ function installTestDom() {
     localStorage: {
       getItem: (key: string) => storage.get(key) ?? null,
       removeItem: (key: string) => storage.delete(key),
-      setItem: (key: string, value: string) => storage.set(key, value),
+      setItem: (key: string, value: string) => {
+        storage.set(key, value)
+        storageWrites.push({ key, value })
+      },
     },
     location: {
       hash: '',
@@ -1028,6 +1097,11 @@ function installTestDom() {
         type,
         (windowListeners.get(type) ?? []).filter((candidate) => candidate !== listener),
       )
+    },
+    requestAnimationFrame: (callback: (timestamp: number) => void) => {
+      const id = nextAnimationFrameId++
+      animationFrameCallbacks.set(id, callback)
+      return id
     },
     setInterval: (callback: () => void) => {
       const id = nextIntervalId++
@@ -1085,6 +1159,15 @@ async function loadMountedDashboard() {
     },
   })
   return { createRoot, MountedDashboard, QueryClientProvider, queryClient, react }
+}
+
+async function loadMountedColumnResizeHandle() {
+  vi.resetModules()
+  const react = await import('react')
+  const { createRoot } = await import('react-dom/client')
+  const { ColumnResizeHandle: MountedColumnResizeHandle } =
+    await import('../components/ColumnResizeHandle')
+  return { createRoot, MountedColumnResizeHandle, react }
 }
 
 async function flushMountedWork(act: (callback: () => Promise<void>) => Promise<void>) {
@@ -1781,6 +1864,333 @@ describe('Dashboard mounted performance invariants', () => {
     })
     preferenceOperations.loadPreferences.mockReset()
     preferenceOperations.loadPreferences.mockResolvedValue(null)
+  })
+
+  it('coalesces live column previews and commits the final pointer width once', async () => {
+    const document = installTestDom()
+    dashboardOperations.listFeedPage.mockResolvedValue(mountedDashboardPage([mountedDashboardRow]))
+    const {
+      createRoot,
+      MountedDashboard,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedDashboard()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+    let profilerCommits = 0
+
+    await react.act(async () => root.render(react.createElement(
+      react.Profiler,
+      { id: 'dashboard-resize', onRender: () => { profilerCommits += 1 } },
+      react.createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        react.createElement(MountedDashboard),
+      ),
+    )))
+    await flushMountedWork(react.act)
+
+    const handle = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Resize Job column')
+    const columns = findTestElements(container, (element) => element.tagName === 'COL')
+    const table = findTestElement(container, (element) => element.tagName === 'TABLE')
+    if (!handle || !table) throw new Error('Dashboard resize surface not mounted')
+    const testWindow = window as unknown as {
+      __animationFrameCallbacks: Map<number, (timestamp: number) => void>
+      __cancelledAnimationFrameCallbacks: Map<number, (timestamp: number) => void>
+      __runAnimationFrame: (id: number) => void
+      __runCancelledAnimationFrame: (id: number) => void
+      __storageWrites: Array<{ key: string; value: string }>
+    }
+    const committedWidths = defaultDashboardColumnWidths()
+    const committedTableWidth = dashboardTableWidth(committedWidths)
+    const commitBaseline = profilerCommits
+
+    await react.act(async () => {
+      handle.dispatchEvent(pointerEvent('pointerdown', { clientX: 100 }))
+      handle.dispatchEvent(pointerEvent('pointermove', { clientX: 110 }))
+      handle.dispatchEvent(pointerEvent('pointermove', { clientX: 125 }))
+      handle.dispatchEvent(pointerEvent('pointermove', { clientX: 130 }))
+      await Promise.resolve()
+    })
+
+    expect(testWindow.__animationFrameCallbacks).toHaveLength(1)
+    expect(profilerCommits).toBe(commitBaseline)
+    expect(testWindow.__storageWrites).toHaveLength(0)
+    expect(columns[1].style.width).toBe('280px')
+    expect(table.style.minWidth).toBe(`${committedTableWidth}px`)
+    expect(handle.getAttribute('aria-valuenow')).toBe('280')
+
+    const firstFrameId = [...testWindow.__animationFrameCallbacks.keys()][0]
+    await react.act(async () => testWindow.__runAnimationFrame(firstFrameId))
+    expect(testWindow.__animationFrameCallbacks).toHaveLength(0)
+    expect(columns[1].style.width).toBe('310px')
+    expect(table.style.minWidth).toBe(`${committedTableWidth + 30}px`)
+    expect(handle.getAttribute('aria-valuenow')).toBe('310')
+    expect(profilerCommits).toBe(commitBaseline)
+    expect(testWindow.__storageWrites).toHaveLength(0)
+
+    await react.act(async () => {
+      handle.dispatchEvent(pointerEvent('pointermove', { clientX: 145 }))
+      handle.dispatchEvent(pointerEvent('pointermove', { clientX: 160 }))
+      await Promise.resolve()
+    })
+    expect(testWindow.__animationFrameCallbacks).toHaveLength(1)
+    const secondFrameId = [...testWindow.__animationFrameCallbacks.keys()][0]
+    expect(secondFrameId).not.toBe(firstFrameId)
+    await react.act(async () => testWindow.__runAnimationFrame(secondFrameId))
+    expect(columns[1].style.width).toBe('340px')
+    expect(table.style.minWidth).toBe(`${committedTableWidth + 60}px`)
+    expect(handle.getAttribute('aria-valuenow')).toBe('340')
+    expect(profilerCommits).toBe(commitBaseline)
+    expect(testWindow.__storageWrites).toHaveLength(0)
+
+    await react.act(async () => {
+      handle.dispatchEvent(pointerEvent('pointermove', { clientX: 180 }))
+      await Promise.resolve()
+    })
+    const cancelledFrameId = [...testWindow.__animationFrameCallbacks.keys()][0]
+    expect(cancelledFrameId).toBeDefined()
+    await react.act(async () => {
+      handle.dispatchEvent(pointerEvent('pointerup', { clientX: 180 }))
+      await Promise.resolve()
+    })
+
+    expect(testWindow.__animationFrameCallbacks).toHaveLength(0)
+    expect(testWindow.__cancelledAnimationFrameCallbacks.has(cancelledFrameId!)).toBe(true)
+    expect(profilerCommits).toBe(commitBaseline + 1)
+    expect(testWindow.__storageWrites).toHaveLength(1)
+    expect(columns[1].style.width).toBe('360px')
+    expect(table.style.minWidth).toBe(`${committedTableWidth + 80}px`)
+    expect(handle.getAttribute('aria-valuenow')).toBe('360')
+    const persisted = JSON.parse(testWindow.__storageWrites[0].value) as {
+      version: number
+      widths: Record<string, number>
+    }
+    expect(testWindow.__storageWrites[0].key).toBe(DASHBOARD_COLUMN_STORAGE_KEY)
+    expect(persisted).toEqual({
+      version: 2,
+      widths: { ...committedWidths, job: 360 },
+    })
+    await react.act(async () => testWindow.__runCancelledAnimationFrame(cancelledFrameId!))
+    expect(columns[1].style.width).toBe('360px')
+    expect(table.style.minWidth).toBe(`${committedTableWidth + 80}px`)
+    expect(handle.getAttribute('aria-valuenow')).toBe('360')
+    expect(profilerCommits).toBe(commitBaseline + 1)
+    expect(testWindow.__storageWrites).toHaveLength(1)
+    expect(handle.hasPointerCapture(1)).toBe(false)
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('restores committed column geometry when a pending pointer preview is cancelled', async () => {
+    const document = installTestDom()
+    dashboardOperations.listFeedPage.mockResolvedValue(mountedDashboardPage([mountedDashboardRow]))
+    const {
+      createRoot,
+      MountedDashboard,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedDashboard()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+    let profilerCommits = 0
+
+    await react.act(async () => root.render(react.createElement(
+      react.Profiler,
+      { id: 'dashboard-cancel', onRender: () => { profilerCommits += 1 } },
+      react.createElement(QueryClientProvider, { client: queryClient },
+        react.createElement(MountedDashboard)),
+    )))
+    await flushMountedWork(react.act)
+    const handle = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Resize Job column')
+    const columns = findTestElements(container, (element) => element.tagName === 'COL')
+    const table = findTestElement(container, (element) => element.tagName === 'TABLE')
+    if (!handle || !table) throw new Error('Dashboard resize surface not mounted')
+    const testWindow = window as unknown as {
+      __animationFrameCallbacks: Map<number, (timestamp: number) => void>
+      __cancelledAnimationFrameCallbacks: Map<number, (timestamp: number) => void>
+      __runAnimationFrame: (id: number) => void
+      __runCancelledAnimationFrame: (id: number) => void
+      __storageWrites: Array<{ key: string; value: string }>
+    }
+    const initialTableWidth = dashboardTableWidth(defaultDashboardColumnWidths())
+    const commitBaseline = profilerCommits
+
+    await react.act(async () => {
+      handle.dispatchEvent(pointerEvent('pointerdown', { pointerId: 7, clientX: 100 }))
+      handle.dispatchEvent(pointerEvent('pointermove', { pointerId: 7, clientX: 150 }))
+      await Promise.resolve()
+    })
+    const appliedFrameId = [...testWindow.__animationFrameCallbacks.keys()][0]
+    await react.act(async () => testWindow.__runAnimationFrame(appliedFrameId))
+    expect(columns[1].style.width).toBe('330px')
+    expect(table.style.minWidth).toBe(`${initialTableWidth + 50}px`)
+    expect(handle.getAttribute('aria-valuenow')).toBe('330')
+
+    await react.act(async () => {
+      handle.dispatchEvent(pointerEvent('pointermove', { pointerId: 7, clientX: 190 }))
+      await Promise.resolve()
+    })
+    const cancelledFrameId = [...testWindow.__animationFrameCallbacks.keys()][0]
+    await react.act(async () => {
+      handle.dispatchEvent(pointerEvent('pointercancel', { pointerId: 7, clientX: 190 }))
+      await Promise.resolve()
+    })
+
+    expect(columns[1].style.width).toBe('280px')
+    expect(table.style.minWidth).toBe(`${initialTableWidth}px`)
+    expect(handle.getAttribute('aria-valuenow')).toBe('280')
+    expect(handle.hasPointerCapture(7)).toBe(false)
+    expect(handle.releasedPointerIds).toContain(7)
+    expect(document.body.style.cursor).toBe('')
+    expect(document.body.style.userSelect).toBe('')
+    expect(testWindow.__animationFrameCallbacks).toHaveLength(0)
+    expect(testWindow.__cancelledAnimationFrameCallbacks.has(cancelledFrameId)).toBe(true)
+    expect(profilerCommits).toBe(commitBaseline)
+    expect(testWindow.__storageWrites).toHaveLength(0)
+
+    await react.act(async () => testWindow.__runCancelledAnimationFrame(cancelledFrameId))
+    expect(columns[1].style.width).toBe('280px')
+    expect(table.style.minWidth).toBe(`${initialTableWidth}px`)
+    expect(handle.getAttribute('aria-valuenow')).toBe('280')
+    expect(profilerCommits).toBe(commitBaseline)
+    expect(testWindow.__storageWrites).toHaveLength(0)
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('cancels active handle work and releases all drag resources on unmount', async () => {
+    const document = installTestDom()
+    document.body.style.cursor = 'crosshair'
+    document.body.style.userSelect = 'text'
+    const { createRoot, MountedColumnResizeHandle, react } =
+      await loadMountedColumnResizeHandle()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+    const coordinator: ColumnResizeCoordinator = { activeColumnId: null }
+    const onWidthPreview = vi.fn()
+    const onWidthCommit = vi.fn()
+
+    await react.act(async () => root.render(react.createElement(MountedColumnResizeHandle, {
+      column: DASHBOARD_COLUMNS[1],
+      width: DASHBOARD_COLUMNS[1].defaultWidth,
+      coordinator,
+      onWidthChange: onWidthPreview,
+      onWidthPreview,
+      onWidthCommit,
+    })))
+    const handle = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Resize Job column')
+    if (!handle) throw new Error('resize handle not mounted')
+    const testWindow = window as unknown as {
+      __animationFrameCallbacks: Map<number, (timestamp: number) => void>
+      __cancelledAnimationFrameCallbacks: Map<number, (timestamp: number) => void>
+      __runCancelledAnimationFrame: (id: number) => void
+    }
+
+    await react.act(async () => {
+      handle.dispatchEvent(pointerEvent('pointerdown', { pointerId: 9, clientX: 100 }))
+      handle.dispatchEvent(pointerEvent('pointermove', { pointerId: 9, clientX: 140 }))
+      await Promise.resolve()
+    })
+    const cancelledFrameId = [...testWindow.__animationFrameCallbacks.keys()][0]
+    expect(coordinator.activeColumnId).toBe('job')
+    expect(handle.hasPointerCapture(9)).toBe(true)
+    expect(document.body.style.cursor).toBe('col-resize')
+    expect(document.body.style.userSelect).toBe('none')
+
+    await react.act(async () => root.unmount())
+    expect(testWindow.__animationFrameCallbacks).toHaveLength(0)
+    expect(testWindow.__cancelledAnimationFrameCallbacks.has(cancelledFrameId)).toBe(true)
+    expect(coordinator.activeColumnId).toBeNull()
+    expect(handle.hasPointerCapture(9)).toBe(false)
+    expect(handle.releasedPointerIds).toContain(9)
+    expect(document.body.style.cursor).toBe('crosshair')
+    expect(document.body.style.userSelect).toBe('text')
+    expect(onWidthPreview).not.toHaveBeenCalled()
+    expect(onWidthCommit).not.toHaveBeenCalled()
+
+    await react.act(async () => testWindow.__runCancelledAnimationFrame(cancelledFrameId))
+    expect(onWidthPreview).not.toHaveBeenCalled()
+    expect(onWidthCommit).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps keyboard resizing immediate, bounded, persisted, and accessible', async () => {
+    const document = installTestDom()
+    dashboardOperations.listFeedPage.mockResolvedValue(mountedDashboardPage([mountedDashboardRow]))
+    const {
+      createRoot,
+      MountedDashboard,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedDashboard()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedDashboard),
+    )))
+    await flushMountedWork(react.act)
+    const handles = findTestElements(container, (element) =>
+      element.getAttribute('role') === 'separator')
+    const jobHandle = handles.find((element) =>
+      element.getAttribute('aria-label') === 'Resize Job column')
+    if (!jobHandle) throw new Error('Job resize handle not mounted')
+    const testWindow = window as unknown as {
+      __storageWrites: Array<{ key: string; value: string }>
+    }
+
+    expect(handles).toHaveLength(7)
+    expect(handles.some((element) =>
+      element.getAttribute('aria-label') === 'Resize Action column')).toBe(false)
+    expect(jobHandle.getAttribute('role')).toBe('separator')
+    expect(jobHandle.getAttribute('aria-orientation')).toBe('vertical')
+    expect(jobHandle.getAttribute('aria-valuemin')).toBe('220')
+    expect(jobHandle.getAttribute('aria-valuemax')).toBe('520')
+    expect(jobHandle.getAttribute('aria-valuenow')).toBe('280')
+    expect(jobHandle.getAttribute('tabindex')).toBe('0')
+
+    await react.act(async () => jobHandle.dispatchEvent(keyboardEvent('ArrowRight')))
+    expect(jobHandle.getAttribute('aria-valuenow')).toBe('288')
+    await react.act(async () => jobHandle.dispatchEvent(keyboardEvent('ArrowRight', true)))
+    expect(jobHandle.getAttribute('aria-valuenow')).toBe('312')
+    await react.act(async () => jobHandle.dispatchEvent(keyboardEvent('Home')))
+    expect(jobHandle.getAttribute('aria-valuenow')).toBe('220')
+    await react.act(async () => jobHandle.dispatchEvent(keyboardEvent('End')))
+    expect(jobHandle.getAttribute('aria-valuenow')).toBe('520')
+    expect(testWindow.__storageWrites).toHaveLength(4)
+    expect(JSON.parse(testWindow.__storageWrites[3].value)).toMatchObject({
+      version: 2,
+      widths: { job: 520 },
+    })
+
+    await react.act(async () => {
+      jobHandle.dispatchEvent(pointerEvent('pointerdown', { pointerId: 11, clientX: 100 }))
+      jobHandle.dispatchEvent(keyboardEvent('ArrowLeft'))
+      await Promise.resolve()
+    })
+    expect(jobHandle.getAttribute('aria-valuenow')).toBe('520')
+    expect(testWindow.__storageWrites).toHaveLength(4)
+    await react.act(async () => jobHandle.dispatchEvent(
+      pointerEvent('pointercancel', { pointerId: 11, clientX: 100 }),
+    ))
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
   })
 
   it('updates rapid tier choices immediately and requests only the settled selection', async () => {

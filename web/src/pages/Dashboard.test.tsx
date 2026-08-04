@@ -1117,12 +1117,18 @@ describe('Dashboard precision controls', () => {
     expect(resizeHandleSource).toContain('event.button')
     expect(resizeHandleSource).toContain('claimColumnResize(coordinator, column.id')
     expect(resizeHandleSource).toContain('onPointerCancel')
+    expect(resizeHandleSource).toContain('onWidthPreview')
+    expect(resizeHandleSource).toContain('requestAnimationFrame')
+    expect(resizeHandleSource).toContain('cancelAnimationFrame')
     expect(resizeHandleSource).toContain('settleColumnResize(drag.startWidth, drag.latestWidth, commit)')
     expect(resizeHandleSource).toContain('coordinator.activeColumnId !== null')
     expect(resizeHandleSource).toContain("document.body.style.userSelect = 'none'")
     expect(resizeHandleSource).toContain('document.body.style.userSelect = drag.previousUserSelect')
     expect(resizeHandleSource).toContain('document.body.style.cursor = drag.previousCursor')
     expect(resizeHandleSource).toContain('[@media(pointer:coarse)]:w-11')
+    expect(dashboardSource).toContain('ref={tableRef}')
+    expect(dashboardSource).toContain('ref={(node) =>')
+    expect(dashboardSource).toContain('onWidthPreview={previewColumnWidth}')
   })
 
   it('rejects right-click and coordinates one pointer drag across all column handles', () => {
