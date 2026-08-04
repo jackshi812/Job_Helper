@@ -271,11 +271,12 @@ describe('resume list cache helpers', () => {
 
   it('settles Resumes mutations from session-backed cache writes only', () => {
     expect(resumesPageSource).toContain('useSession')
-    expect(resumesPageSource).toContain('session.user.id')
     expect(resumesPageSource).toContain("resumeQueryKey(session?.user.id ?? '')")
     expect(resumesPageSource).toContain('upsertResumeInList')
     expect(resumesPageSource).toContain('removeResumeFromList')
     expect(resumesPageSource.match(/setQueryData<ResumeRecord\[]>/g)).toHaveLength(2)
+    expect(resumesPageSource.match(/cancelQueries\(\{ queryKey: successfulUserKey, exact: true \}\)/g))
+      .toHaveLength(2)
     expect(resumesPageSource).not.toContain('invalidateQueries')
   })
 })

@@ -44,22 +44,27 @@ export function Resumes() {
     enabled: session !== null,
   })
   const uploadMutation = useMutation({
-    mutationFn: ({ file, name }: { file: File; name: string }) => {
-      if (!session) throw new Error('You must be signed in to upload a resume')
-      return uploadResume(file, session.user.id, name)
+    mutationFn: ({ file, name, userId }: { file: File; name: string; userId: string }) => {
+      if (!userId) throw new Error('You must be signed in to upload a resume')
+      return uploadResume(file, userId, name)
     },
-    onSuccess: (resume) => {
+    onSuccess: async (resume, { userId }) => {
       if (fileInput.current) fileInput.current.value = ''
       setDisplayName('')
-      queryClient.setQueryData<ResumeRecord[]>(resumeKey, (current) =>
+      const successfulUserKey = resumeQueryKey(userId)
+      await queryClient.cancelQueries({ queryKey: successfulUserKey, exact: true })
+      queryClient.setQueryData<ResumeRecord[]>(successfulUserKey, (current) =>
         upsertResumeInList(current, resume))
     },
   })
   const deleteMutation = useMutation({
-    mutationFn: deleteResume,
-    onSuccess: (_result, { id }) => {
+    mutationFn: ({ id, storagePath }: { id: string; storagePath: string; userId: string }) =>
+      deleteResume({ id, storagePath }),
+    onSuccess: async (_result, { id, userId }) => {
       setResumeToDelete(null)
-      queryClient.setQueryData<ResumeRecord[]>(resumeKey, (current) =>
+      const successfulUserKey = resumeQueryKey(userId)
+      await queryClient.cancelQueries({ queryKey: successfulUserKey, exact: true })
+      queryClient.setQueryData<ResumeRecord[]>(successfulUserKey, (current) =>
         removeResumeFromList(current, id))
     },
   })
@@ -69,7 +74,11 @@ export function Resumes() {
     const file = fileInput.current?.files?.[0]
     if (!file) return
     uploadMutation.reset()
-    uploadMutation.mutate({ file, name: displayName })
+    uploadMutation.mutate({
+      file,
+      name: displayName,
+      userId: session?.user.id ?? '',
+    })
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -217,6 +226,7 @@ export function Resumes() {
             deleteMutation.mutateAsync({
               id: resumeToDelete.id,
               storagePath: resumeToDelete.storage_path,
+              userId: session?.user.id ?? '',
             })
           }
         />
