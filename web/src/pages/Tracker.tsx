@@ -12,7 +12,13 @@ import { Link, useSearchParams } from 'react-router'
 import DOMPurify from 'dompurify'
 import { ApplicationTimeline } from '../components/ApplicationTimeline'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { listResumes, resumeLabel, type ResumeRecord } from '../lib/resumes'
+import { useSession } from '../auth/AuthProvider'
+import {
+  listResumes,
+  resumeLabel,
+  resumeQueryKey,
+  type ResumeRecord,
+} from '../lib/resumes'
 import {
   appendApplicationStage,
   chicagoDate,
@@ -1378,6 +1384,7 @@ function ManualDraftRow({
 
 export function Tracker() {
   const queryClient = useQueryClient()
+  const { session } = useSession()
   const [searchParams] = useSearchParams()
   const requestedApplicationId = searchParams.get('application')
   const focusApplicationId = requestedApplicationId
@@ -1412,9 +1419,9 @@ export function Tracker() {
     enabled: focusApplicationId !== null,
   })
   const resumesQuery = useQuery({
-    queryKey: ['resumes'],
+    queryKey: resumeQueryKey(session?.user.id ?? ''),
     queryFn: listResumes,
-    enabled: expandedIds.size > 0,
+    enabled: session !== null && expandedIds.size > 0,
     staleTime: Infinity,
   })
   const deleteMutation = useMutation({

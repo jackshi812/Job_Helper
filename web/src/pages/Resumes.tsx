@@ -9,6 +9,7 @@ import {
   listResumes,
   removeResumeFromList,
   resumeLabel,
+  resumeQueryKey,
   uploadResume,
   upsertResumeInList,
   type ResumeRecord,
@@ -36,7 +37,12 @@ export function Resumes() {
   const [downloadError, setDownloadError] = useState('')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
-  const resumesQuery = useQuery({ queryKey: ['resumes'], queryFn: listResumes })
+  const resumeKey = resumeQueryKey(session?.user.id ?? '')
+  const resumesQuery = useQuery({
+    queryKey: resumeKey,
+    queryFn: listResumes,
+    enabled: session !== null,
+  })
   const uploadMutation = useMutation({
     mutationFn: ({ file, name }: { file: File; name: string }) => {
       if (!session) throw new Error('You must be signed in to upload a resume')
@@ -45,7 +51,7 @@ export function Resumes() {
     onSuccess: (resume) => {
       if (fileInput.current) fileInput.current.value = ''
       setDisplayName('')
-      queryClient.setQueryData<ResumeRecord[]>(['resumes'], (current) =>
+      queryClient.setQueryData<ResumeRecord[]>(resumeKey, (current) =>
         upsertResumeInList(current, resume))
     },
   })
@@ -53,7 +59,7 @@ export function Resumes() {
     mutationFn: deleteResume,
     onSuccess: (_result, { id }) => {
       setResumeToDelete(null)
-      queryClient.setQueryData<ResumeRecord[]>(['resumes'], (current) =>
+      queryClient.setQueryData<ResumeRecord[]>(resumeKey, (current) =>
         removeResumeFromList(current, id))
     },
   })

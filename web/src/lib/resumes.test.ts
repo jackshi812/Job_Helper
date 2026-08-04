@@ -6,6 +6,7 @@ import {
   MAX_RESUME_SIZE_BYTES,
   removeResumeFromList,
   resumeLabel,
+  resumeQueryKey,
   uploadResume,
   upsertResumeInList,
   type ResumeRecord,
@@ -254,6 +255,12 @@ describe('resume list cache helpers', () => {
     expect(upsertResumeInList(undefined, replacement)).toEqual([replacement])
   })
 
+  it('scopes the shared cache key to the authenticated user', () => {
+    expect(resumeQueryKey('user-a')).toEqual(['resumes', 'user-a'])
+    expect(resumeQueryKey('user-b')).toEqual(['resumes', 'user-b'])
+    expect(resumeQueryKey('user-b')).not.toEqual(resumeQueryKey('user-a'))
+  })
+
   it('removes exactly the successful ID while tolerating an undefined cache', () => {
     const current = [first, second]
 
@@ -265,6 +272,7 @@ describe('resume list cache helpers', () => {
   it('settles Resumes mutations from session-backed cache writes only', () => {
     expect(resumesPageSource).toContain('useSession')
     expect(resumesPageSource).toContain('session.user.id')
+    expect(resumesPageSource).toContain("resumeQueryKey(session?.user.id ?? '')")
     expect(resumesPageSource).toContain('upsertResumeInList')
     expect(resumesPageSource).toContain('removeResumeFromList')
     expect(resumesPageSource.match(/setQueryData<ResumeRecord\[]>/g)).toHaveLength(2)

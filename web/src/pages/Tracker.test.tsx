@@ -61,6 +61,7 @@ const preferenceOperations = vi.hoisted(() => ({
 const resumeOperations = vi.hoisted(() => ({
   listResumes: vi.fn(),
 }))
+const authState = vi.hoisted(() => ({ userId: 'user-a' }))
 const reactQueryHarness = vi.hoisted(() => {
   const queryOptions: object[] = []
   const mutationOptions: object[] = []
@@ -156,6 +157,11 @@ vi.mock('../lib/resumes', () => ({
     display_name: string | null
     filename: string
   }) => displayName ?? filename,
+  resumeQueryKey: (userId: string) => ['resumes', userId] as const,
+}))
+
+vi.mock('../auth/AuthProvider', () => ({
+  useSession: () => ({ session: { user: { id: authState.userId } } }),
 }))
 
 vi.mock('react-router', () => ({
@@ -393,9 +399,8 @@ describe('Tracker page contract', () => {
     expect(trackerSource).toContain('Linked resume (optional)')
     expect(trackerSource).toContain('No linked resume')
     expect(trackerSource).toContain('Open resume')
-    expect(trackerSource).toContain("queryKey: ['resumes']")
-    expect(trackerSource.match(/queryKey: \['resumes'\]/g)).toHaveLength(1)
-    expect(trackerSource).toContain('enabled: expandedIds.size > 0')
+    expect(trackerSource).toContain("queryKey: resumeQueryKey(session?.user.id ?? '')")
+    expect(trackerSource).toContain('enabled: session !== null && expandedIds.size > 0')
     expect(trackerSource).toContain('staleTime: Infinity')
     expect(trackerSource).toContain('resumes={resumesQuery.data ?? EMPTY_RESUMES}')
     expect(trackerSource).toContain('resumesPending={resumesQuery.isPending}')
@@ -1062,6 +1067,7 @@ async function flushMountedWork(act: (callback: () => Promise<void>) => Promise<
 
 describe('Tracker mounted performance invariants', () => {
   beforeEach(() => {
+    authState.userId = 'user-a'
     searchParamState.value = null
     trackerOperations.appendApplicationStage.mockReset()
     trackerOperations.deleteApplicationStageEvent.mockReset()
@@ -1140,6 +1146,66 @@ describe('Tracker mounted performance invariants', () => {
       element.getAttribute('id') === `resume-${secondApplication.id}`)
     expect(findTestElement(secondSelect!, (element) =>
       element.tagName === 'OPTION' && element.textContent === 'Primary resume')).not.toBeNull()
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('does not reuse cached resume options after the authenticated user changes', async () => {
+    const document = installTestDom()
+    const userAResume = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      filename: 'user-a.docx',
+      display_name: 'User A private resume',
+      storage_path: 'user-a/private.docx',
+      size_bytes: 1024,
+      created_at: '2026-08-04T00:00:00.000Z',
+    }
+    const userBResume = {
+      ...userAResume,
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      filename: 'user-b.docx',
+      display_name: 'User B resume',
+      storage_path: 'user-b/resume.docx',
+    }
+    trackerOperations.listTrackerApplications.mockResolvedValue(applications)
+    trackerOperations.getTrackerApplication.mockResolvedValue(detail())
+    resumeOperations.listResumes.mockImplementation(async () =>
+      authState.userId === 'user-a' ? [userAResume] : [userBResume])
+    const {
+      createRoot,
+      MountedTracker,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedTracker()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+    const tree = () => react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedTracker),
+    )
+
+    await react.act(async () => root.render(tree()))
+    await flushMountedWork(react.act)
+    const expand = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Show details for Data Analyst')
+    if (!expand) throw new Error('expand button not mounted')
+    await react.act(async () => expand.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+    expect(container.textContent).toContain('User A private resume')
+
+    authState.userId = 'user-b'
+    await react.act(async () => root.render(tree()))
+    await flushMountedWork(react.act)
+
+    expect(resumeOperations.listResumes).toHaveBeenCalledTimes(2)
+    expect(container.textContent).not.toContain('User A private resume')
+    expect(container.textContent).toContain('User B resume')
+    expect(queryClient.getQueryData(['resumes', 'user-a'])).toEqual([userAResume])
+    expect(queryClient.getQueryData(['resumes', 'user-b'])).toEqual([userBResume])
 
     await react.act(async () => root.unmount())
     vi.unstubAllGlobals()

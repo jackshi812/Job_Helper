@@ -22,6 +22,10 @@ export interface DeleteResumeInput {
   storagePath: string
 }
 
+export function resumeQueryKey(userId: string) {
+  return ['resumes', userId] as const
+}
+
 export function upsertResumeInList(
   current: ResumeRecord[] | undefined,
   resume: ResumeRecord,
