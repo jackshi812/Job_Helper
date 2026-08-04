@@ -394,6 +394,11 @@ describe('Tracker page contract', () => {
     expect(trackerSource).toContain('No linked resume')
     expect(trackerSource).toContain('Open resume')
     expect(trackerSource).toContain("queryKey: ['resumes']")
+    expect(trackerSource.match(/queryKey: \['resumes'\]/g)).toHaveLength(1)
+    expect(trackerSource).toContain('enabled: expandedIds.size > 0')
+    expect(trackerSource).toContain('staleTime: Infinity')
+    expect(trackerSource).toContain('resumes={resumesQuery.data ?? EMPTY_RESUMES}')
+    expect(trackerSource).toContain('resumesPending={resumesQuery.isPending}')
   })
 
   it('retains the semantic spreadsheet without horizontal table scrolling', () => {
@@ -1065,6 +1070,79 @@ describe('Tracker mounted performance invariants', () => {
     trackerOperations.updateApplicationStageEvent.mockReset()
     resumeOperations.listResumes.mockReset()
     resumeOperations.listResumes.mockResolvedValue([])
+  })
+
+  it('reuses one parent-owned resume request across sequential row expansions', async () => {
+    const document = installTestDom()
+    const secondApplication: TrackerApplicationListItem = {
+      ...applications[0],
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      title: 'Investment Analyst',
+    }
+    const visibleApplications = [applications[0], secondApplication]
+    const resume = {
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      filename: 'primary.docx',
+      display_name: 'Primary resume',
+      storage_path: 'user/primary.docx',
+      size_bytes: 1024,
+      created_at: '2026-08-04T00:00:00.000Z',
+    }
+    trackerOperations.listTrackerApplications.mockResolvedValue(visibleApplications)
+    trackerOperations.getTrackerApplication.mockImplementation(async (id: string) => {
+      const application = visibleApplications.find((candidate) => candidate.id === id)
+      if (!application) throw new Error('missing application')
+      return detail(application)
+    })
+    resumeOperations.listResumes.mockResolvedValue([resume])
+    const {
+      createRoot,
+      MountedTracker,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedTracker()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+    const tree = () => react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedTracker),
+    )
+
+    await react.act(async () => root.render(tree()))
+    await flushMountedWork(react.act)
+    const showFirst = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Show details for Data Analyst')
+    if (!showFirst) throw new Error('first expand button not mounted')
+    await react.act(async () => showFirst.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+
+    expect(resumeOperations.listResumes).toHaveBeenCalledOnce()
+    const firstSelect = findTestElement(container, (element) =>
+      element.getAttribute('id') === `resume-${applications[0].id}`)
+    expect(findTestElement(firstSelect!, (element) =>
+      element.tagName === 'OPTION' && element.textContent === 'Primary resume')).not.toBeNull()
+
+    const hideFirst = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Hide details for Data Analyst')
+    if (!hideFirst) throw new Error('first collapse button not mounted')
+    await react.act(async () => hideFirst.dispatchEvent(new TestEvent('click')))
+    const showSecond = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Show details for Investment Analyst')
+    if (!showSecond) throw new Error('second expand button not mounted')
+    await react.act(async () => showSecond.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+
+    expect(resumeOperations.listResumes).toHaveBeenCalledOnce()
+    const secondSelect = findTestElement(container, (element) =>
+      element.getAttribute('id') === `resume-${secondApplication.id}`)
+    expect(findTestElement(secondSelect!, (element) =>
+      element.tagName === 'OPTION' && element.textContent === 'Primary resume')).not.toBeNull()
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
   })
 
   it('focuses the same application again after the normalized deep-link disappears', async () => {
