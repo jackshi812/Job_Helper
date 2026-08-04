@@ -2,19 +2,25 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import preferencesSource from './Preferences.tsx?raw'
 import { Preferences } from './Preferences'
-import type { SavePreferencesInput, SavePreferencesResult } from '../lib/preferences'
+import type {
+  PreferencesRecord,
+  SavePreferencesInput,
+  SavePreferencesResult,
+} from '../lib/preferences'
 
 const mocks = vi.hoisted(() => ({
   cancelQueries: vi.fn(),
   invalidateQueries: vi.fn(),
   mutationOptions: undefined as undefined | {
     mutationFn: (input: SavePreferencesInput) => Promise<SavePreferencesResult>
-    onSuccess: () => Promise<void>
+    onSuccess: (result: SavePreferencesResult, variables: SavePreferencesInput) => void
     onError: () => void
   },
+  cachedPreferences: undefined as PreferencesRecord | null | undefined,
   queryClient: undefined as unknown,
   removeQueries: vi.fn(),
   savePreferences: vi.fn(),
+  setQueryData: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -23,36 +29,14 @@ vi.mock('@tanstack/react-query', () => ({
     return { isPending: false, mutate: vi.fn() }
   },
   useQuery: () => ({
-    data: {
-      user_id: 'user-1',
-      titles: ['Equity Research'],
-      locations: [],
-      include_keywords: [],
-      exclude_keywords: [],
-      title_exclude_keywords: [],
-      max_required_experience: null,
-      ranking_rubric: {
-        strictTitle: 30,
-        weakTitle: 20,
-        preferredLocation: 10,
-        recency: 10,
-        watchlist: 10,
-        experience: 20,
-        includeKeywordSteps: {
-          one: 3,
-          two: 5,
-          three: 10,
-          four: 15,
-          fivePlus: 20,
-        },
-      },
-      ranking_good_threshold: 50,
-      ranking_strong_threshold: 75,
-      updated_at: '2026-07-22T00:00:00.000Z',
-    },
+    data: mocks.cachedPreferences,
     isPending: false,
   }),
   useQueryClient: () => mocks.queryClient,
+}))
+
+vi.mock('../auth/AuthProvider', () => ({
+  useSession: () => ({ session: { user: { id: 'session-user' } } }),
 }))
 
 vi.mock('../lib/preferences', async (importOriginal) => {
@@ -64,6 +48,54 @@ function captureMutation() {
   renderToStaticMarkup(<Preferences />)
   if (!mocks.mutationOptions) throw new Error('Preferences did not register its mutation')
   return mocks.mutationOptions
+}
+
+const existingPreferences: PreferencesRecord = {
+  user_id: 'existing-user',
+  titles: ['Equity Research'],
+  locations: [],
+  include_keywords: [],
+  exclude_keywords: [],
+  title_exclude_keywords: [],
+  max_required_experience: null,
+  ranking_rubric: {
+    strictTitle: 30,
+    weakTitle: 20,
+    preferredLocation: 10,
+    recency: 10,
+    watchlist: 10,
+    experience: 20,
+    includeKeywordSteps: { one: 3, two: 5, three: 10, four: 15, fivePlus: 20 },
+  },
+  ranking_good_threshold: 50,
+  ranking_strong_threshold: 75,
+  updated_at: '2026-07-22T00:00:00.000Z',
+}
+
+const submittedPreferences: SavePreferencesInput = {
+  titles: ['Equity Research', 'Investment Analyst'],
+  locations: ['Chicago', 'Remote'],
+  include_keywords: ['valuation'],
+  exclude_keywords: ['senior'],
+  title_exclude_keywords: ['president', 'PhD'],
+  max_required_experience: 3,
+  ranking_rubric: {
+    strictTitle: 32,
+    weakTitle: 18,
+    preferredLocation: 10,
+    recency: 10,
+    watchlist: 10,
+    experience: 20,
+    includeKeywordSteps: { one: 2, two: 5, three: 10, four: 15, fivePlus: 18 },
+  },
+  ranking_good_threshold: 52,
+  ranking_strong_threshold: 78,
+}
+
+const saveResult: SavePreferencesResult = {
+  runId: 'run-1',
+  revision: 7,
+  seededCount: 12,
 }
 
 describe('deterministic ranking preference form', () => {
@@ -153,25 +185,63 @@ describe('preference save cache gap', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.mutationOptions = undefined
+    mocks.cachedPreferences = existingPreferences
     mocks.cancelQueries.mockResolvedValue(undefined)
     mocks.invalidateQueries.mockResolvedValue(undefined)
+    mocks.setQueryData.mockImplementation((
+      _queryKey: readonly unknown[],
+      value: PreferencesRecord | undefined | ((current: PreferencesRecord | null | undefined) => PreferencesRecord | null | undefined),
+    ) => {
+      mocks.cachedPreferences = typeof value === 'function'
+        ? value(mocks.cachedPreferences)
+        : value
+      return mocks.cachedPreferences
+    })
     mocks.queryClient = {
       cancelQueries: mocks.cancelQueries,
       invalidateQueries: mocks.invalidateQueries,
       removeQueries: mocks.removeQueries,
+      setQueryData: mocks.setQueryData,
     }
     mocks.savePreferences.mockResolvedValue(undefined)
   })
 
-  it('keeps the complete prior feed cache untouched after an accepted save', async () => {
+  it('writes every submitted value while preserving an existing cached user', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-04T03:25:00.000Z'))
     const mutation = captureMutation()
 
-    await mutation.onSuccess()
+    mutation.onSuccess(saveResult, submittedPreferences)
 
+    expect(mocks.setQueryData).toHaveBeenCalledWith(['preferences'], expect.any(Function))
+    expect(mocks.cachedPreferences).toEqual({
+      ...submittedPreferences,
+      user_id: 'existing-user',
+      updated_at: '2026-08-04T03:25:00.000Z',
+    })
     expect(mocks.cancelQueries).not.toHaveBeenCalled()
     expect(mocks.removeQueries).not.toHaveBeenCalled()
-    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ['feed'] })
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['preferences'] })
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it('creates a complete first-save record with the authenticated session user', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-04T03:26:00.000Z'))
+    mocks.cachedPreferences = null
+    const mutation = captureMutation()
+
+    mutation.onSuccess(saveResult, submittedPreferences)
+
+    expect(mocks.cachedPreferences).toEqual({
+      ...submittedPreferences,
+      user_id: 'session-user',
+      updated_at: '2026-08-04T03:26:00.000Z',
+    })
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+    expect(mocks.cancelQueries).not.toHaveBeenCalled()
+    expect(mocks.removeQueries).not.toHaveBeenCalled()
+    vi.useRealTimers()
   })
 
   it('sends title exclusions, blank maximum, rubric, and thresholds explicitly', async () => {
@@ -209,5 +279,6 @@ describe('preference save cache gap', () => {
     expect(mocks.cancelQueries).not.toHaveBeenCalled()
     expect(mocks.removeQueries).not.toHaveBeenCalled()
     expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
   })
 })
