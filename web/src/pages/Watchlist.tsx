@@ -6,8 +6,10 @@ import {
   addCompany,
   groupWatchlistRows,
   healthPresentation,
-  listCompanies,
+  listSourceCoverageCatalog,
+  listWatchlistCompanies,
   loadCollapsedCompanyKeys,
+  mergeCoverageRows,
   removeCompany,
   safeCareersUrl,
   saveCollapsedCompanyKeys,
@@ -172,22 +174,28 @@ export function Watchlist() {
   }, [collapsedCompanyKeys])
 
   const companiesQuery = useQuery({
-    queryKey: ['watchlist'],
-    queryFn: listCompanies,
+    queryKey: ['watchlist-companies'],
+    queryFn: listWatchlistCompanies,
     refetchInterval: 60_000,
+  })
+  const coverageQuery = useQuery({
+    queryKey: ['source-coverage-catalog'],
+    queryFn: listSourceCoverageCatalog,
+    staleTime: Infinity,
+    gcTime: Infinity,
   })
   const addMutation = useMutation({
     mutationFn: addCompany,
     onSuccess: async () => {
       if (urlInput.current) urlInput.current.value = ''
-      await queryClient.invalidateQueries({ queryKey: ['watchlist'] })
+      await queryClient.invalidateQueries({ queryKey: ['watchlist-companies'] })
     },
   })
   const removeMutation = useMutation({
     mutationFn: removeCompany,
     onSuccess: async () => {
       setCompanyToRemove(null)
-      await queryClient.invalidateQueries({ queryKey: ['watchlist'] })
+      await queryClient.invalidateQueries({ queryKey: ['watchlist-companies'] })
     },
   })
 
@@ -215,7 +223,13 @@ export function Watchlist() {
     })
   }
 
-  const companyGroups = groupWatchlistRows(companiesQuery.data ?? [], collapsedCompanyKeys)
+  const watchlistRows = mergeCoverageRows(
+    companiesQuery.data ?? [],
+    coverageQuery.data ?? [],
+  )
+  const companyGroups = groupWatchlistRows(watchlistRows, collapsedCompanyKeys)
+  const watchlistPending = companiesQuery.isPending || coverageQuery.isPending
+  const watchlistError = companiesQuery.error ?? coverageQuery.error
 
   return (
     <section>
@@ -262,13 +276,13 @@ export function Watchlist() {
         tabIndex={0}
         className="mt-8 overflow-x-auto rounded-lg border border-zinc-200 bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:focus-visible:outline-zinc-100"
       >
-        {companiesQuery.isPending ? (
+        {watchlistPending ? (
           <p className="p-4 text-sm text-zinc-600 dark:text-zinc-400">Loading watchlist…</p>
-        ) : companiesQuery.error ? (
+        ) : watchlistError ? (
           <p role="alert" className="p-4 text-sm text-red-700 dark:text-red-400">
             Unable to load the watchlist. Refresh the page to try again.
           </p>
-        ) : companiesQuery.data.length === 0 ? (
+        ) : watchlistRows.length === 0 ? (
           <div className="p-4">
             <h2 className="text-base font-semibold">No companies watched yet</h2>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">

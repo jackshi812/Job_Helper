@@ -353,8 +353,8 @@ describe('finance coverage presentation', () => {
     expect(watchlistSource.match(/queryKey: \['watchlist-companies'\]/g)).toHaveLength(3)
     expect(watchlistSource.match(/queryKey: \['source-coverage-catalog'\]/g)).toHaveLength(1)
     expect(watchlistSource).not.toContain("queryKey: ['watchlist']")
-    expect(watchlistSource).toContain(
-      'mergeCoverageRows(companiesQuery.data ?? [], coverageQuery.data ?? [])',
+    expect(watchlistSource).toMatch(
+      /mergeCoverageRows\(\s*companiesQuery\.data \?\? \[\],\s*coverageQuery\.data \?\? \[\],\s*\)/,
     )
   })
 

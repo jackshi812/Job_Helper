@@ -266,24 +266,24 @@ export function groupWatchlistRows(
   }
 }
 
-export async function listCompanies(): Promise<WatchlistRow[]> {
-  const { data: companies, error: companiesError } = await supabase
+export async function listWatchlistCompanies(): Promise<CompanyRecord[]> {
+  const { data, error } = await supabase
     .from('companies')
     .select(COMPANY_COLUMNS)
     .order('created_at', { ascending: false })
 
-  if (companiesError) throw companiesError
+  if (error) throw error
+  return (data ?? []) as CompanyRecord[]
+}
 
-  const { data: catalog, error: catalogError } = await supabase
+export async function listSourceCoverageCatalog(): Promise<SourceCoverageCatalogRecord[]> {
+  const { data, error } = await supabase
     .from('source_coverage_catalog')
     .select(SOURCE_COVERAGE_CATALOG_COLUMNS)
     .order('company_name', { ascending: true })
 
-  if (catalogError) throw catalogError
-  return mergeCoverageRows(
-    (companies ?? []) as CompanyRecord[],
-    (catalog ?? []) as SourceCoverageCatalogRecord[],
-  )
+  if (error) throw error
+  return (data ?? []) as SourceCoverageCatalogRecord[]
 }
 
 export async function addCompany(url: string): Promise<CompanyRecord> {
