@@ -12,7 +12,7 @@ import { Link, useSearchParams } from 'react-router'
 import DOMPurify from 'dompurify'
 import { ApplicationTimeline } from '../components/ApplicationTimeline'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { listResumes, resumeLabel } from '../lib/resumes'
+import { listResumes, resumeLabel, type ResumeRecord } from '../lib/resumes'
 import {
   appendApplicationStage,
   chicagoDate,
@@ -58,6 +58,7 @@ const MANUAL_CREATE_ERROR =
 const TRACKER_APPLICATION_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 const EMPTY_TRACKER_APPLICATIONS: readonly TrackerApplicationListItem[] = []
+const EMPTY_RESUMES: ResumeRecord[] = []
 
 function sameStages(left: readonly TrackerStage[], right: readonly TrackerStage[]) {
   return left.length === right.length && left.every((stage) => right.includes(stage))
@@ -212,6 +213,8 @@ interface TrackerRowProps {
   application: TrackerApplicationListItem
   rowNumber: number
   expanded: boolean
+  resumes: ResumeRecord[]
+  resumesPending: boolean
   onToggleExpanded: () => void
   onRequestDelete: () => void
   registerExpandButton: (node: HTMLButtonElement | null) => void
@@ -255,6 +258,8 @@ function TrackerRow({
   application,
   rowNumber,
   expanded,
+  resumes,
+  resumesPending,
   onToggleExpanded,
   onRequestDelete,
   registerExpandButton,
@@ -807,6 +812,8 @@ function TrackerRow({
           application={application}
           expanded={expanded}
           detailId={detailId}
+          resumes={resumes}
+          resumesPending={resumesPending}
           onTimelineMutation={clearStageAttempt}
         />
       ) : null}
@@ -818,6 +825,8 @@ interface TrackerDetailRowProps {
   application: TrackerApplicationListItem
   expanded: boolean
   detailId: string
+  resumes: ResumeRecord[]
+  resumesPending: boolean
   onTimelineMutation: () => void
 }
 
@@ -825,6 +834,8 @@ function TrackerDetailRow({
   application,
   expanded,
   detailId,
+  resumes,
+  resumesPending,
   onTimelineMutation,
 }: TrackerDetailRowProps) {
   const queryClient = useQueryClient()
@@ -834,12 +845,6 @@ function TrackerDetailRow({
     queryFn: () => getTrackerApplication(application.id),
     enabled: expanded,
   })
-  const resumesQuery = useQuery({
-    queryKey: ['resumes'],
-    queryFn: listResumes,
-    enabled: expanded,
-  })
-
   const eventUpdateMutation = useMutation({
     mutationFn: ({
       eventId,
@@ -890,7 +895,7 @@ function TrackerDetailRow({
     scope: { id: `${application.id}:resume` },
     retry: false,
     onSuccess: (_result, resumeId) => {
-      const selectedResume = resumesQuery.data?.find(({ id }) => id === resumeId) ?? null
+      const selectedResume = resumes.find(({ id }) => id === resumeId) ?? null
       const resumeLabelValue = selectedResume ? resumeLabel(selectedResume) : null
       patchKnownTrackerApplication(cacheClient, application, {
         resumeId,
@@ -1139,14 +1144,14 @@ function TrackerDetailRow({
                   <select
                     id={`resume-${application.id}`}
                     value={detail.resume?.id ?? ''}
-                    disabled={resumeMutation.isPending || resumesQuery.isPending}
+                    disabled={resumeMutation.isPending || resumesPending}
                     onChange={(event) => {
                       resumeMutation.mutate(event.target.value || null)
                     }}
                     className={CELL_INPUT}
                   >
                     <option value="">No linked resume</option>
-                    {(resumesQuery.data ?? []).map((resume) => (
+                    {resumes.map((resume) => (
                       <option key={resume.id} value={resume.id}>{resumeLabel(resume)}</option>
                     ))}
                   </select>
@@ -1406,6 +1411,12 @@ export function Tracker() {
     queryFn: () => getTrackerApplication(focusApplicationId as string),
     enabled: focusApplicationId !== null,
   })
+  const resumesQuery = useQuery({
+    queryKey: ['resumes'],
+    queryFn: listResumes,
+    enabled: expandedIds.size > 0,
+    staleTime: Infinity,
+  })
   const deleteMutation = useMutation({
     mutationFn: deleteTrackerApplication,
     retry: false,
@@ -1618,6 +1629,8 @@ export function Tracker() {
                   application={application}
                   rowNumber={index + 1}
                   expanded={expandedIds.has(application.id)}
+                  resumes={resumesQuery.data ?? EMPTY_RESUMES}
+                  resumesPending={resumesQuery.isPending}
                   onToggleExpanded={() => {
                     setExpandedIds((current) => {
                       const next = new Set(current)

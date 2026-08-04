@@ -1,13 +1,16 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { useSession } from '../auth/AuthProvider'
 import {
   defaultDisplayName,
   deleteResume,
   downloadResume,
   listResumes,
+  removeResumeFromList,
   resumeLabel,
   uploadResume,
+  upsertResumeInList,
   type ResumeRecord,
 } from '../lib/resumes'
 
@@ -26,6 +29,7 @@ function errorMessage(error: unknown) {
 
 export function Resumes() {
   const queryClient = useQueryClient()
+  const { session } = useSession()
   const fileInput = useRef<HTMLInputElement>(null)
   const [resumeToDelete, setResumeToDelete] = useState<ResumeRecord | null>(null)
   const [displayName, setDisplayName] = useState('')
@@ -34,18 +38,23 @@ export function Resumes() {
 
   const resumesQuery = useQuery({ queryKey: ['resumes'], queryFn: listResumes })
   const uploadMutation = useMutation({
-    mutationFn: ({ file, name }: { file: File; name: string }) => uploadResume(file, name),
-    onSuccess: async () => {
+    mutationFn: ({ file, name }: { file: File; name: string }) => {
+      if (!session) throw new Error('You must be signed in to upload a resume')
+      return uploadResume(file, session.user.id, name)
+    },
+    onSuccess: (resume) => {
       if (fileInput.current) fileInput.current.value = ''
       setDisplayName('')
-      await queryClient.invalidateQueries({ queryKey: ['resumes'] })
+      queryClient.setQueryData<ResumeRecord[]>(['resumes'], (current) =>
+        upsertResumeInList(current, resume))
     },
   })
   const deleteMutation = useMutation({
     mutationFn: deleteResume,
-    onSuccess: async () => {
+    onSuccess: (_result, { id }) => {
       setResumeToDelete(null)
-      await queryClient.invalidateQueries({ queryKey: ['resumes'] })
+      queryClient.setQueryData<ResumeRecord[]>(['resumes'], (current) =>
+        removeResumeFromList(current, id))
     },
   })
 

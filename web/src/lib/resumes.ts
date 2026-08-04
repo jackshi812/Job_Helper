@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 const RESUME_COLUMNS = 'id, filename, display_name, storage_path, size_bytes, created_at'
+export const MAX_RESUME_SIZE_BYTES = 5 * 1024 * 1024
 
 const CONTENT_TYPES = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -19,6 +20,20 @@ export interface ResumeRecord {
 export interface DeleteResumeInput {
   id: string
   storagePath: string
+}
+
+export function upsertResumeInList(
+  current: ResumeRecord[] | undefined,
+  resume: ResumeRecord,
+): ResumeRecord[] {
+  return [resume, ...(current ?? []).filter(({ id }) => id !== resume.id)]
+}
+
+export function removeResumeFromList(
+  current: ResumeRecord[] | undefined,
+  resumeId: string,
+): ResumeRecord[] {
+  return (current ?? []).filter(({ id }) => id !== resumeId)
 }
 
 function allowedExtension(filename: string): keyof typeof CONTENT_TYPES {
@@ -49,16 +64,21 @@ function normalizeDisplayName(displayName?: string): string | null {
   return trimmed ? trimmed : null
 }
 
-export async function uploadResume(file: File, displayName?: string): Promise<ResumeRecord> {
+export async function uploadResume(
+  file: File,
+  userId: string,
+  displayName?: string,
+): Promise<ResumeRecord> {
   // Extension validation and the storage path stay bound to the real file name;
   // the user-supplied display name never influences either (T-WUI-02).
   const extension = allowedExtension(file.name)
-  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (file.size > MAX_RESUME_SIZE_BYTES) {
+    throw new Error('Resume files must be 5 MB or smaller')
+  }
+  const authenticatedUserId = userId.trim()
+  if (!authenticatedUserId) throw new Error('You must be signed in to upload a resume')
 
-  if (userError) throw userError
-  if (!userData.user) throw new Error('You must be signed in to upload a resume')
-
-  const storagePath = `${userData.user.id}/${crypto.randomUUID()}.${extension}`
+  const storagePath = `${authenticatedUserId}/${crypto.randomUUID()}.${extension}`
   const bucket = supabase.storage.from('resumes')
   const { error: uploadError } = await bucket.upload(storagePath, file, {
     contentType: CONTENT_TYPES[extension],
