@@ -2068,7 +2068,7 @@ describe('Dashboard mounted performance invariants', () => {
     vi.unstubAllGlobals()
   })
 
-  it('commits the clamped pointer-up coordinate instead of the last move', async () => {
+  it('clamps the authoritative pointer-up coordinate instead of using the last move', async () => {
     const document = installTestDom()
     dashboardOperations.listFeedPage.mockResolvedValue(mountedDashboardPage([mountedDashboardRow]))
     const {
@@ -2115,18 +2115,18 @@ describe('Dashboard mounted performance invariants', () => {
     expect(handle.getAttribute('aria-valuenow')).toBe('320')
 
     await react.act(async () => {
-      handle.dispatchEvent(pointerEvent('pointerup', { pointerId: 22, clientX: 175 }))
+      handle.dispatchEvent(pointerEvent('pointerup', { pointerId: 22, clientX: 1_000 }))
       await Promise.resolve()
     })
 
-    expect(columns[1].style.width).toBe('355px')
-    expect(table.style.minWidth).toBe(`${committedTableWidth + 75}px`)
-    expect(handle.getAttribute('aria-valuenow')).toBe('355')
+    expect(columns[1].style.width).toBe('520px')
+    expect(table.style.minWidth).toBe(`${committedTableWidth + 240}px`)
+    expect(handle.getAttribute('aria-valuenow')).toBe('520')
     expect(profilerCommits).toBe(commitBaseline + 1)
     expect(testWindow.__storageWrites).toHaveLength(1)
     expect(JSON.parse(testWindow.__storageWrites[0].value)).toEqual({
       version: 2,
-      widths: { ...committedWidths, job: 355 },
+      widths: { ...committedWidths, job: 520 },
     })
 
     await react.act(async () => root.unmount())
