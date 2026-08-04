@@ -166,7 +166,7 @@ class TestNode {
     return this.childNodes[0] ?? null
   }
 
-  get lastChild() {
+  get lastChild(): TestNode | null {
     return this.childNodes.at(-1) ?? null
   }
 
