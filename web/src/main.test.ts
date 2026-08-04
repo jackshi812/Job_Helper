@@ -27,6 +27,7 @@ describe('application route loading', () => {
   })
 
   it('keeps providers, auth guards, Shell, and legacy cleanup eager', () => {
+    expect(mainSource).toContain("import { createAppQueryClient } from './lib/queryClient'")
     expect(mainSource).toContain("import { AuthProvider } from './auth/AuthProvider'")
     expect(mainSource).toContain("import { RequireAuth } from './auth/RequireAuth'")
     expect(mainSource).toContain("import { Shell } from './components/Shell'")
@@ -36,6 +37,8 @@ describe('application route loading', () => {
     expect(mainSource).toContain('<RequireAuth>')
     expect(mainSource).toContain('<Shell />')
     expect(mainSource).toContain('void removeLegacyNotificationWorker().catch')
+    expect(mainSource).toContain('const queryClient = createAppQueryClient()')
+    expect(mainSource).not.toContain('new QueryClient()')
   })
 
   it('preserves every route and Dashboard scope behind one accessible fallback', () => {
