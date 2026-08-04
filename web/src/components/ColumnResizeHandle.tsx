@@ -13,7 +13,7 @@ interface ColumnResizeHandleProps {
   column: DashboardColumn
   width: number
   coordinator: ColumnResizeCoordinator
-  onWidthChange: (width: number) => void
+  onWidthPreview: (width: number) => void
   onWidthCommit: (width: number) => void
 }
 
@@ -22,6 +22,8 @@ interface ActiveDrag {
   startX: number
   startWidth: number
   latestWidth: number
+  frameId: number | null
+  handle: HTMLDivElement
   previousCursor: string
   previousUserSelect: string
 }
@@ -30,7 +32,7 @@ export function ColumnResizeHandle({
   column,
   width,
   coordinator,
-  onWidthChange,
+  onWidthPreview,
   onWidthCommit,
 }: ColumnResizeHandleProps) {
   const handleRef = useRef<HTMLDivElement>(null)
@@ -43,22 +45,33 @@ export function ColumnResizeHandle({
     document.body.style.userSelect = drag.previousUserSelect
   }
 
+  function cancelPendingFrame(drag: ActiveDrag) {
+    if (drag.frameId === null) return
+    window.cancelAnimationFrame(drag.frameId)
+    drag.frameId = null
+  }
+
   function finishDrag(pointerId: number, commit: boolean) {
     const drag = activeDrag.current
     if (!drag || drag.pointerId !== pointerId) return
-    const handle = handleRef.current
-    if (handle?.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId)
+    cancelPendingFrame(drag)
+    if (drag.handle.hasPointerCapture(pointerId)) drag.handle.releasePointerCapture(pointerId)
     restoreDocumentStyles()
+    const settlement = settleColumnResize(drag.startWidth, drag.latestWidth, commit)
+    drag.handle.setAttribute('aria-valuenow', String(Math.round(settlement.width)))
     activeDrag.current = null
     releaseColumnResize(coordinator, column.id)
-    const settlement = settleColumnResize(drag.startWidth, drag.latestWidth, commit)
     if (settlement.persist) onWidthCommit(settlement.width)
-    else onWidthChange(settlement.width)
+    else onWidthPreview(settlement.width)
   }
 
   useEffect(() => () => {
     const drag = activeDrag.current
     if (!drag) return
+    cancelPendingFrame(drag)
+    if (drag.handle.hasPointerCapture(drag.pointerId)) {
+      drag.handle.releasePointerCapture(drag.pointerId)
+    }
     restoreDocumentStyles()
     activeDrag.current = null
     releaseColumnResize(coordinator, column.id)
@@ -78,6 +91,8 @@ export function ColumnResizeHandle({
       startX: event.clientX,
       startWidth: width,
       latestWidth: width,
+      frameId: null,
+      handle: event.currentTarget,
       previousCursor,
       previousUserSelect,
     }
@@ -96,7 +111,14 @@ export function ColumnResizeHandle({
       drag.startWidth + event.clientX - drag.startX,
     )
     drag.latestWidth = nextWidth
-    onWidthChange(nextWidth)
+    if (drag.frameId !== null) return
+    drag.frameId = window.requestAnimationFrame(() => {
+      drag.frameId = null
+      if (activeDrag.current !== drag) return
+      const previewWidth = drag.latestWidth
+      drag.handle.setAttribute('aria-valuenow', String(Math.round(previewWidth)))
+      onWidthPreview(previewWidth)
+    })
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -110,7 +132,7 @@ export function ColumnResizeHandle({
     if (nextWidth === null) return
     event.preventDefault()
     event.stopPropagation()
-    onWidthChange(nextWidth)
+    event.currentTarget.setAttribute('aria-valuenow', String(Math.round(nextWidth)))
     onWidthCommit(nextWidth)
   }
 

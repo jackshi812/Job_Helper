@@ -416,7 +416,7 @@ interface DashboardHeaderCellProps {
   column: DashboardColumn
   widths: DashboardColumnWidths
   resizeCoordinator: ColumnResizeCoordinator
-  onWidthChange: (columnId: DashboardColumnId, width: number) => void
+  onWidthPreview: (columnId: DashboardColumnId, width: number) => void
   onWidthCommit: (columnId: DashboardColumnId, width: number) => void
   children: ReactNode
   ariaSort?: 'ascending' | 'descending' | 'none'
@@ -428,7 +428,7 @@ function DashboardHeaderCell({
   column,
   widths,
   resizeCoordinator,
-  onWidthChange,
+  onWidthPreview,
   onWidthCommit,
   children,
   ariaSort,
@@ -447,7 +447,7 @@ function DashboardHeaderCell({
           column={column}
           width={widths[column.id]}
           coordinator={resizeCoordinator}
-          onWidthChange={(width) => onWidthChange(column.id, width)}
+          onWidthPreview={(width) => onWidthPreview(column.id, width)}
           onWidthCommit={(width) => onWidthCommit(column.id, width)}
         />
       ) : null}
@@ -587,6 +587,7 @@ export function Dashboard({
     useState<DashboardAppliedApplication | null>(null)
   const [columnWidths, setColumnWidths] = useState(loadDashboardColumnWidths)
   const columnWidthsRef = useRef(columnWidths)
+  const columnRefs = useRef(new Map<DashboardColumnId, HTMLTableColElement>())
   const resizeCoordinator = useRef<ColumnResizeCoordinator>({ activeColumnId: null })
   const companyTriggerRef = useRef<HTMLButtonElement>(null)
   const scoreTierTriggerRef = useRef<HTMLButtonElement>(null)
@@ -594,6 +595,7 @@ export function Dashboard({
   const firstScoreTierCheckboxRef = useRef<HTMLInputElement>(null)
   const observedActiveRevisionRef = useRef<number | null>(null)
   const tableRegionRef = useRef<HTMLDivElement>(null)
+  const tableRef = useRef<HTMLTableElement>(null)
   const actionRefs = useRef(new Map<string, HTMLButtonElement>())
   const dismissActionRefs = useRef(new Map<string, HTMLButtonElement>())
   const restoredDismissFocusIdRef = useRef<string | null>(null)
@@ -1161,13 +1163,17 @@ export function Dashboard({
     && !feedError
     && (!feedQuery.hasNextPage || finalPage.caughtUp)
 
-  function updateColumnWidth(columnId: DashboardColumnId, width: number) {
-    const next = {
-      ...columnWidthsRef.current,
-      [columnId]: clampDashboardColumnWidth(columnId, width),
+  function previewColumnWidth(columnId: DashboardColumnId, width: number) {
+    const previewWidth = clampDashboardColumnWidth(columnId, width)
+    const committedWidths = columnWidthsRef.current
+    const column = columnRefs.current.get(columnId)
+    if (column) column.style.width = `${previewWidth}px`
+    if (tableRef.current) {
+      const previewTableWidth = dashboardTableWidth(committedWidths)
+        + previewWidth
+        - committedWidths[columnId]
+      tableRef.current.style.minWidth = `${previewTableWidth}px`
     }
-    columnWidthsRef.current = next
-    setColumnWidths(next)
   }
 
   function commitColumnWidth(columnId: DashboardColumnId, width: number) {
@@ -1527,12 +1533,20 @@ export function Dashboard({
           </div>
         ) : (
           <table
+            ref={tableRef}
             className="w-full table-fixed border-collapse text-left text-sm"
             style={{ minWidth: `${tableWidth}px` }}
           >
             <colgroup>
               {DASHBOARD_COLUMNS.map((column) => (
-                <col key={column.id} style={{ width: `${columnWidths[column.id]}px` }} />
+                <col
+                  key={column.id}
+                  ref={(node) => {
+                    if (node) columnRefs.current.set(column.id, node)
+                    else columnRefs.current.delete(column.id)
+                  }}
+                  style={{ width: `${columnWidths[column.id]}px` }}
+                />
               ))}
             </colgroup>
             <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-semibold tracking-wide text-zinc-600 uppercase dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
@@ -1543,7 +1557,7 @@ export function Dashboard({
                     column={column}
                     widths={columnWidths}
                     resizeCoordinator={resizeCoordinator.current}
-                    onWidthChange={updateColumnWidth}
+                    onWidthPreview={previewColumnWidth}
                     onWidthCommit={commitColumnWidth}
                   >
                     {column.label}
@@ -1553,7 +1567,7 @@ export function Dashboard({
                   column={DASHBOARD_COLUMNS[4]}
                   widths={columnWidths}
                   resizeCoordinator={resizeCoordinator.current}
-                  onWidthChange={updateColumnWidth}
+                  onWidthPreview={previewColumnWidth}
                   onWidthCommit={commitColumnWidth}
                   ariaSort={scoreAriaSort}
                 >
@@ -1576,7 +1590,7 @@ export function Dashboard({
                   column={DASHBOARD_COLUMNS[5]}
                   widths={columnWidths}
                   resizeCoordinator={resizeCoordinator.current}
-                  onWidthChange={updateColumnWidth}
+                  onWidthPreview={previewColumnWidth}
                   onWidthCommit={commitColumnWidth}
                 >
                   {lifecycleCopy.timeLabel}
@@ -1585,7 +1599,7 @@ export function Dashboard({
                   column={DASHBOARD_COLUMNS[6]}
                   widths={columnWidths}
                   resizeCoordinator={resizeCoordinator.current}
-                  onWidthChange={updateColumnWidth}
+                  onWidthPreview={previewColumnWidth}
                   onWidthCommit={commitColumnWidth}
                 >
                   Apply
@@ -1594,7 +1608,7 @@ export function Dashboard({
                   column={DASHBOARD_COLUMNS[7]}
                   widths={columnWidths}
                   resizeCoordinator={resizeCoordinator.current}
-                  onWidthChange={updateColumnWidth}
+                  onWidthPreview={previewColumnWidth}
                   onWidthCommit={commitColumnWidth}
                   isLast
                   alignRight

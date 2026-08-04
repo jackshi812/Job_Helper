@@ -2084,7 +2084,6 @@ describe('Dashboard mounted performance invariants', () => {
       column: DASHBOARD_COLUMNS[1],
       width: DASHBOARD_COLUMNS[1].defaultWidth,
       coordinator,
-      onWidthChange: onWidthPreview,
       onWidthPreview,
       onWidthCommit,
     })))
