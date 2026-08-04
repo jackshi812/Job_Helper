@@ -324,6 +324,39 @@ describe('Dashboard refresh paths', () => {
     expect(replaceDashboardFeedHead(undefined, original.pages[0])).toBeUndefined()
   })
 
+  it('preserves a committed seen timestamp when an older head response settles later', async () => {
+    const original = dashboardData([[row], [secondRow]])
+    const staleHead = deferred<DashboardFeedPage>()
+    const seenAt = '2026-08-04T03:30:00.000Z'
+    let cache: DashboardData | undefined = original
+    const refresh = refreshDashboardFeedHead(
+      () => staleHead.promise,
+      (updater) => {
+        cache = updater(cache)
+      },
+    )
+
+    cache = {
+      ...original,
+      pages: [{
+        ...original.pages[0],
+        rows: [{ ...row, seen_at: seenAt }],
+      }, ...original.pages.slice(1)],
+    }
+    staleHead.resolve({
+      ...original.pages[0],
+      rows: [{ ...row, deterministic_score: 99, seen_at: null }],
+    })
+    await refresh
+
+    expect(cache?.pages[0].rows[0]).toEqual(expect.objectContaining({
+      deterministic_score: 99,
+      id: row.id,
+      seen_at: seenAt,
+    }))
+    expect(cache?.pages[1]).toBe(original.pages[1])
+  })
+
   it('accepts only the newest head generation and filters pending or applied rows', async () => {
     const original = dashboardData([[row], [secondRow], [thirdRow]])
     const interval = deferred<DashboardFeedPage>()

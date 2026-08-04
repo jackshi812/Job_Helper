@@ -142,9 +142,23 @@ export function replaceDashboardFeedHead(
   head: DashboardFeedPage,
 ): DashboardInfiniteData | undefined {
   if (!data || data.pages.length === 0) return data
+  const cachedSeenAt = new Map<string, string>()
+  for (const page of data.pages) {
+    for (const row of page.rows) {
+      if (row.seen_at !== null) cachedSeenAt.set(row.id, row.seen_at)
+    }
+  }
+  let preservedSeenAt = false
+  const rows = head.rows.map((row) => {
+    const seenAt = cachedSeenAt.get(row.id)
+    if (row.seen_at !== null || seenAt === undefined) return row
+    preservedSeenAt = true
+    return { ...row, seen_at: seenAt }
+  })
+  const mergedHead = preservedSeenAt ? { ...head, rows } : head
   return {
     ...data,
-    pages: [head, ...data.pages.slice(1)],
+    pages: [mergedHead, ...data.pages.slice(1)],
   }
 }
 
