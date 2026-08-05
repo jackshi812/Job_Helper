@@ -90,7 +90,7 @@ function rebuiltFunction(name: string): string {
 
 describe('Phase 03.11 asset manager and payments Workday identities', () => {
   it('admits exactly four new frozen identities and leaves the ten deployed ones intact', () => {
-    expect(Object.keys(WORKDAY_IDENTITIES)).toHaveLength(14)
+    expect(Object.keys(WORKDAY_IDENTITIES)).toHaveLength(21)
     expect(Object.isFrozen(WORKDAY_IDENTITIES)).toBe(true)
     for (const key of deployedKeys) {
       expect(WORKDAY_IDENTITIES[key as keyof typeof WORKDAY_IDENTITIES]).toBeDefined()

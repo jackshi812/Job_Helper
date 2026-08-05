@@ -47,6 +47,7 @@ function company(overrides: Partial<CompanyRecord> = {}): CompanyRecord {
     careers_url: 'https://job-boards.greenhouse.io/acme',
     source_key: 'greenhouse:global:acme',
     site_token: null,
+    system_managed: false,
     activation_state: 'active',
     activation_successes: 0,
     last_verified_at: now.toISOString(),
@@ -179,6 +180,46 @@ const financeCatalog: SourceCoverageCatalogRecord[] = [
 ]
 
 describe('watchlist row grouping', () => {
+  it('projects durable system ownership and always groups managed rows under Other companies', () => {
+    const managedCompany = {
+      ...company({
+        id: 'company-managed',
+        name: 'Managed Source',
+        source_key: 'workday:wd1:managed:Careers',
+      }),
+      system_managed: true,
+    }
+    const userCompany = {
+      ...company({
+        id: 'company-user',
+        name: 'User Source',
+        source_key: 'greenhouse:global:user-source',
+      }),
+      system_managed: false,
+    }
+
+    const rows = mergeCoverageRows([managedCompany, userCompany], [])
+    const grouped = groupWatchlistRows(rows, new Set())
+
+    expect(COMPANY_COLUMNS.split(', ')).toContain('system_managed')
+    expect(rows).toEqual([
+      expect.objectContaining({ name: 'Managed Source', system_managed: true }),
+      expect.objectContaining({ name: 'User Source', system_managed: false }),
+    ])
+    expect(grouped.visible.map((row) => row.name)).toEqual(['User Source'])
+    expect(grouped.other.map((row) => row.name)).toEqual(['Managed Source'])
+
+    const withUserPreference = groupWatchlistRows(
+      rows,
+      new Set([rows[1].key]),
+    )
+    expect(withUserPreference.visible).toEqual([])
+    expect(withUserPreference.other.map((row) => row.name)).toEqual([
+      'Managed Source',
+      'User Source',
+    ])
+  })
+
   it('collects collapsed companies in a separate group without changing row order', () => {
     const rows = mergeCoverageRows([
       company({ id: 'company-alpha', name: 'Alpha', source_key: 'greenhouse:global:alpha' }),
@@ -486,6 +527,7 @@ describe('finance coverage presentation', () => {
       activation_successes: 0,
       scheduled: false,
       monitored: true,
+      system_managed: false,
     })
     expect(activationPresentation(morganRows[0])).toEqual({
       label: 'Experimental',
@@ -604,6 +646,7 @@ describe('finance coverage presentation', () => {
       created_at: now.toISOString(),
       scheduled: false,
       monitored: true,
+      system_managed: false,
     }
 
     const fidelityNote =

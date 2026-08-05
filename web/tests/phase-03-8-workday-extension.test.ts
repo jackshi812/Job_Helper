@@ -72,7 +72,7 @@ describe('migration 0043 Phase 03.8 Workday amendment', () => {
   })
 
   it('keeps registry, Workday constraint, terminal, observation, and claims in exact parity', () => {
-    expect(Object.keys(WORKDAY_IDENTITIES)).toHaveLength(14)
+    expect(Object.keys(WORKDAY_IDENTITIES)).toHaveLength(21)
     for (const candidate of candidates) {
       expect(WORKDAY_IDENTITIES[candidate.sourceKey]).toMatchObject({
         companyName: candidate.company,

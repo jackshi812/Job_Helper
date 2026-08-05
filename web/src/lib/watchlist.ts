@@ -5,7 +5,7 @@ import {
 import { supabase } from './supabase'
 
 export const COMPANY_COLUMNS =
-  'id, name, ats_type, board_token, region, careers_url, source_key, site_token, activation_state, activation_successes, last_verified_at, last_polled_at, last_success_at, consecutive_failures, last_error, last_error_code, last_observation_count, created_at'
+  'id, name, ats_type, board_token, region, careers_url, source_key, site_token, system_managed, activation_state, activation_successes, last_verified_at, last_polled_at, last_success_at, consecutive_failures, last_error, last_error_code, last_observation_count, created_at'
 
 export const SOURCE_COVERAGE_CATALOG_COLUMNS =
   'id, company_name, careers_url, provider, access_evidence, disposition, verified_at, unsupported_reason, source_key'
@@ -78,6 +78,7 @@ export interface CompanyRecord {
   careers_url: string
   source_key: string
   site_token: string | null
+  system_managed: boolean
   activation_state: 'experimental' | 'active' | 'disabled'
   activation_successes: number
   last_verified_at: string | null
@@ -123,6 +124,7 @@ export interface WatchlistRow {
   created_at: string | null
   scheduled: boolean
   monitored: boolean
+  system_managed: boolean
 }
 
 export interface ActivationPresentation {
@@ -203,6 +205,7 @@ function operationalRow(
     created_at: company.created_at,
     scheduled: company.activation_state === 'active',
     monitored: true,
+    system_managed: company.system_managed,
   }
 }
 
@@ -226,6 +229,7 @@ function catalogOnlyRow(catalog: SourceCoverageCatalogRecord): WatchlistRow {
     created_at: null,
     scheduled: false,
     monitored: false,
+    system_managed: false,
   }
 }
 
@@ -258,11 +262,9 @@ export function groupWatchlistRows(
   rows: WatchlistRow[],
   collapsedKeys: ReadonlySet<string>,
 ): { visible: WatchlistRow[]; other: WatchlistRow[] } {
-  if (collapsedKeys.size === 0) return { visible: rows, other: [] }
-
   return {
-    visible: rows.filter((row) => !collapsedKeys.has(row.key)),
-    other: rows.filter((row) => collapsedKeys.has(row.key)),
+    visible: rows.filter((row) => !row.system_managed && !collapsedKeys.has(row.key)),
+    other: rows.filter((row) => row.system_managed || collapsedKeys.has(row.key)),
   }
 }
 

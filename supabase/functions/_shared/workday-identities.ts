@@ -34,6 +34,19 @@ export const PIMCO_WORKDAY_SOURCE_KEY = 'workday:wd1:pimco:pimco-careers'
 export const T_ROWE_PRICE_WORKDAY_SOURCE_KEY =
   'workday:wd5:troweprice:TRowePrice'
 export const INVESCO_WORKDAY_SOURCE_KEY = 'workday:wd1:invesco:IVZ'
+export const BMO_WORKDAY_SOURCE_KEY = 'workday:wd3:bmo:External'
+export const APOLLO_GLOBAL_MANAGEMENT_WORKDAY_SOURCE_KEY =
+  'workday:wd5:athene:Apollo_Careers'
+export const MASTERCARD_WORKDAY_SOURCE_KEY =
+  'workday:wd1:mastercard:CorporateCareers'
+export const NORTHERN_TRUST_WORKDAY_SOURCE_KEY =
+  'workday:wd1:ntrs:northerntrust'
+export const VANGUARD_WORKDAY_SOURCE_KEY =
+  'workday:wd5:vanguard:vanguard_external'
+export const WORKDAY_COMPANY_WORKDAY_SOURCE_KEY =
+  'workday:wd5:workday:Workday'
+export const NVIDIA_WORKDAY_SOURCE_KEY =
+  'workday:wd5:nvidia:NVIDIAExternalCareerSite'
 export const UNITED_STATES_WORKDAY_FACET_ID = 'bc33aa3152ec42d4995f4791a106ed09'
 
 export type WorkdayHostForm = 'jobs' | 'site'
@@ -356,6 +369,123 @@ const invescoIdentity: WorkdayIdentity = Object.freeze({
   selectiveRecentUsScope,
 })
 
+/**
+ * Phase 6 Release Wave 1 identities. These boards either expose no stable
+ * country facet represented by the existing adapter contract or publish a
+ * broader location taxonomy, so each uses the already-proven selective path:
+ * enumerate the bounded listing population, hydrate only recent rows, retain
+ * exact U.S. detail proof, and never infer closure from a selective absence.
+ */
+const bmoIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://bmo.wd3.myworkdayjobs.com',
+  cxsRoot: 'https://bmo.wd3.myworkdayjobs.com/wday/cxs/bmo/External',
+  publicBoard: 'https://bmo.wd3.myworkdayjobs.com/External',
+  tenant: 'bmo',
+  site: 'External',
+  region: 'wd3',
+  hostForm: 'jobs',
+  sourceKey: BMO_WORKDAY_SOURCE_KEY,
+  companyName: 'BMO',
+  applyCapitalOneEligibility: false,
+  requireDetailCountryProof: true,
+  selectiveRecentUsScope,
+})
+
+const apolloGlobalManagementIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://athene.wd5.myworkdayjobs.com',
+  cxsRoot:
+    'https://athene.wd5.myworkdayjobs.com/wday/cxs/athene/Apollo_Careers',
+  publicBoard: 'https://athene.wd5.myworkdayjobs.com/Apollo_Careers',
+  tenant: 'athene',
+  site: 'Apollo_Careers',
+  region: 'wd5',
+  hostForm: 'jobs',
+  sourceKey: APOLLO_GLOBAL_MANAGEMENT_WORKDAY_SOURCE_KEY,
+  companyName: 'Apollo Global Management',
+  applyCapitalOneEligibility: false,
+  requireDetailCountryProof: true,
+  selectiveRecentUsScope,
+})
+
+const mastercardIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://mastercard.wd1.myworkdayjobs.com',
+  cxsRoot:
+    'https://mastercard.wd1.myworkdayjobs.com/wday/cxs/mastercard/CorporateCareers',
+  publicBoard: 'https://mastercard.wd1.myworkdayjobs.com/CorporateCareers',
+  tenant: 'mastercard',
+  site: 'CorporateCareers',
+  region: 'wd1',
+  hostForm: 'jobs',
+  sourceKey: MASTERCARD_WORKDAY_SOURCE_KEY,
+  companyName: 'Mastercard',
+  applyCapitalOneEligibility: false,
+  requireDetailCountryProof: true,
+  selectiveRecentUsScope,
+})
+
+const northernTrustIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://ntrs.wd1.myworkdayjobs.com',
+  cxsRoot: 'https://ntrs.wd1.myworkdayjobs.com/wday/cxs/ntrs/northerntrust',
+  publicBoard: 'https://ntrs.wd1.myworkdayjobs.com/northerntrust',
+  tenant: 'ntrs',
+  site: 'northerntrust',
+  region: 'wd1',
+  hostForm: 'jobs',
+  sourceKey: NORTHERN_TRUST_WORKDAY_SOURCE_KEY,
+  companyName: 'Northern Trust',
+  applyCapitalOneEligibility: false,
+  requireDetailCountryProof: true,
+  selectiveRecentUsScope,
+})
+
+const vanguardIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://vanguard.wd5.myworkdayjobs.com',
+  cxsRoot:
+    'https://vanguard.wd5.myworkdayjobs.com/wday/cxs/vanguard/vanguard_external',
+  publicBoard: 'https://vanguard.wd5.myworkdayjobs.com/vanguard_external',
+  tenant: 'vanguard',
+  site: 'vanguard_external',
+  region: 'wd5',
+  hostForm: 'jobs',
+  sourceKey: VANGUARD_WORKDAY_SOURCE_KEY,
+  companyName: 'Vanguard',
+  applyCapitalOneEligibility: false,
+  requireDetailCountryProof: true,
+  selectiveRecentUsScope,
+})
+
+const workdayCompanyIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://workday.wd5.myworkdayjobs.com',
+  cxsRoot: 'https://workday.wd5.myworkdayjobs.com/wday/cxs/workday/Workday',
+  publicBoard: 'https://workday.wd5.myworkdayjobs.com/Workday',
+  tenant: 'workday',
+  site: 'Workday',
+  region: 'wd5',
+  hostForm: 'jobs',
+  sourceKey: WORKDAY_COMPANY_WORKDAY_SOURCE_KEY,
+  companyName: 'Workday',
+  applyCapitalOneEligibility: false,
+  requireDetailCountryProof: true,
+  selectiveRecentUsScope,
+})
+
+const nvidiaIdentity: WorkdayIdentity = Object.freeze({
+  origin: 'https://nvidia.wd5.myworkdayjobs.com',
+  cxsRoot:
+    'https://nvidia.wd5.myworkdayjobs.com/wday/cxs/nvidia/NVIDIAExternalCareerSite',
+  publicBoard:
+    'https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite',
+  tenant: 'nvidia',
+  site: 'NVIDIAExternalCareerSite',
+  region: 'wd5',
+  hostForm: 'jobs',
+  sourceKey: NVIDIA_WORKDAY_SOURCE_KEY,
+  companyName: 'NVIDIA',
+  applyCapitalOneEligibility: false,
+  requireDetailCountryProof: true,
+  selectiveRecentUsScope,
+})
+
 export const WORKDAY_IDENTITIES = Object.freeze({
   [CAPITAL_ONE_WORKDAY_SOURCE_KEY]: capitalOneIdentity,
   [FIDELITY_WORKDAY_SOURCE_KEY]: fidelityIdentity,
@@ -371,6 +501,14 @@ export const WORKDAY_IDENTITIES = Object.freeze({
   [PIMCO_WORKDAY_SOURCE_KEY]: pimcoIdentity,
   [T_ROWE_PRICE_WORKDAY_SOURCE_KEY]: tRowePriceIdentity,
   [INVESCO_WORKDAY_SOURCE_KEY]: invescoIdentity,
+  [BMO_WORKDAY_SOURCE_KEY]: bmoIdentity,
+  [APOLLO_GLOBAL_MANAGEMENT_WORKDAY_SOURCE_KEY]:
+    apolloGlobalManagementIdentity,
+  [MASTERCARD_WORKDAY_SOURCE_KEY]: mastercardIdentity,
+  [NORTHERN_TRUST_WORKDAY_SOURCE_KEY]: northernTrustIdentity,
+  [VANGUARD_WORKDAY_SOURCE_KEY]: vanguardIdentity,
+  [WORKDAY_COMPANY_WORKDAY_SOURCE_KEY]: workdayCompanyIdentity,
+  [NVIDIA_WORKDAY_SOURCE_KEY]: nvidiaIdentity,
 })
 
 export const CAPITAL_ONE_WORKDAY_IDENTITY = capitalOneIdentity
@@ -387,6 +525,14 @@ export const VISA_WORKDAY_IDENTITY = visaIdentity
 export const PIMCO_WORKDAY_IDENTITY = pimcoIdentity
 export const T_ROWE_PRICE_WORKDAY_IDENTITY = tRowePriceIdentity
 export const INVESCO_WORKDAY_IDENTITY = invescoIdentity
+export const BMO_WORKDAY_IDENTITY = bmoIdentity
+export const APOLLO_GLOBAL_MANAGEMENT_WORKDAY_IDENTITY =
+  apolloGlobalManagementIdentity
+export const MASTERCARD_WORKDAY_IDENTITY = mastercardIdentity
+export const NORTHERN_TRUST_WORKDAY_IDENTITY = northernTrustIdentity
+export const VANGUARD_WORKDAY_IDENTITY = vanguardIdentity
+export const WORKDAY_COMPANY_WORKDAY_IDENTITY = workdayCompanyIdentity
+export const NVIDIA_WORKDAY_IDENTITY = nvidiaIdentity
 
 /**
  * Pure, fail-closed resolver. Returns an admitted identity only when ALL four

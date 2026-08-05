@@ -25,6 +25,7 @@ const company: CompanyRecord = {
   careers_url: 'https://job-boards.greenhouse.io/acme',
   source_key: 'greenhouse:global:acme',
   site_token: null,
+  system_managed: false,
   activation_state: 'active',
   activation_successes: 3,
   last_verified_at: '2026-08-04T00:00:00.000Z',
@@ -567,6 +568,88 @@ describe('Watchlist mounted query lifecycle', () => {
     expect(invalidateQueries).toHaveBeenNthCalledWith(2, {
       queryKey: ['watchlist-companies'],
     })
+
+    await react.act(async () => root.unmount())
+    queryClient.clear()
+  })
+
+  it('keeps managed companies inspectable without actions and preserves ordinary controls', async () => {
+    const managedCompany = {
+      ...company,
+      id: '22222222-2222-4222-8222-222222222222',
+      name: 'Managed Source',
+      ats_type: 'workday' as const,
+      board_token: 'managed',
+      region: 'wd1',
+      source_key: 'workday:wd1:managed:Careers',
+      site_token: 'Careers',
+      system_managed: true,
+    }
+    watchlistOperations.listWatchlistCompanies.mockResolvedValue([
+      { ...company, system_managed: false },
+      managedCompany,
+    ])
+    watchlistOperations.listSourceCoverageCatalog.mockResolvedValue([])
+    watchlistOperations.removeCompany.mockResolvedValue(undefined)
+    const document = installTestDom()
+    const {
+      createRoot,
+      QueryClientProvider,
+      queryClient,
+      react,
+      Watchlist,
+    } = await loadMountedWatchlist()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(Watchlist),
+    )))
+    await flushMountedWork(react.act)
+
+    expect(container.textContent).toContain('Acme')
+    expect(container.textContent).toContain('Other companies1')
+    expect(container.textContent).not.toContain('Managed Source')
+
+    const otherCompaniesButton = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent.includes('Other companies'))
+    if (!otherCompaniesButton) throw new Error('Other companies disclosure not mounted')
+    expect(otherCompaniesButton.getAttribute('aria-expanded')).toBe('false')
+    expect(otherCompaniesButton.getAttribute('aria-controls')).toBe('other-companies-list')
+    await react.act(async () => otherCompaniesButton.dispatchEvent(new TestEvent('click')))
+
+    expect(container.textContent).toContain('Managed Source')
+    expect(findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Remove Managed Source')).toBeNull()
+    expect(findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Restore Managed Source')).toBeNull()
+
+    const collapseUserButton = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Collapse Acme')
+    if (!collapseUserButton) throw new Error('Ordinary collapse control not mounted')
+    await react.act(async () => collapseUserButton.dispatchEvent(new TestEvent('click')))
+
+    const restoreUserButton = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Restore Acme')
+    if (!restoreUserButton) throw new Error('Ordinary restore control not mounted')
+    await react.act(async () => restoreUserButton.dispatchEvent(new TestEvent('click')))
+
+    const removeUserButton = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Remove Acme')
+    if (!removeUserButton) throw new Error('Ordinary remove control not mounted')
+    await react.act(async () => removeUserButton.dispatchEvent(new TestEvent('click')))
+    const confirmButton = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Remove company')
+    if (!confirmButton) throw new Error('Ordinary confirmation control not mounted')
+    await react.act(async () => confirmButton.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+
+    expect(watchlistOperations.removeCompany).toHaveBeenCalledOnce()
+    expect(watchlistOperations.removeCompany.mock.calls.map((call) => call[0]))
+      .toEqual([company.id])
 
     await react.act(async () => root.unmount())
     queryClient.clear()

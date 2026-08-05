@@ -228,6 +228,9 @@ export function Watchlist() {
     coverageQuery.data ?? [],
   )
   const companyGroups = groupWatchlistRows(watchlistRows, collapsedCompanyKeys)
+  const removableCompany = companyToRemove?.company_id && !companyToRemove.system_managed
+    ? { id: companyToRemove.company_id, row: companyToRemove }
+    : null
   const watchlistPending = companiesQuery.isPending || coverageQuery.isPending
   const watchlistError = companiesQuery.error ?? coverageQuery.error
 
@@ -324,7 +327,7 @@ export function Watchlist() {
                       >
                         <DisclosureChevron expanded={false} />
                       </button>
-                      {row.company_id ? (
+                      {row.company_id && !row.system_managed ? (
                         <button
                           type="button"
                           aria-label={`Remove ${row.name}`}
@@ -370,15 +373,17 @@ export function Watchlist() {
                               className="flex min-h-11 items-center justify-between gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
                             >
                               <span className="truncate font-semibold" title={row.name}>{row.name}</span>
-                              <button
-                                type="button"
-                                aria-label={`Restore ${row.name}`}
-                                title={`Restore ${row.name}`}
-                                onClick={() => restoreCompany(row.key)}
-                                className="flex size-9 shrink-0 items-center justify-center rounded-md border border-zinc-300 text-zinc-600 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
-                              >
-                                <DisclosureChevron expanded />
-                              </button>
+                              {!row.system_managed ? (
+                                <button
+                                  type="button"
+                                  aria-label={`Restore ${row.name}`}
+                                  title={`Restore ${row.name}`}
+                                  onClick={() => restoreCompany(row.key)}
+                                  className="flex size-9 shrink-0 items-center justify-center rounded-md border border-zinc-300 text-zinc-600 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:focus-visible:outline-zinc-100"
+                                >
+                                  <DisclosureChevron expanded />
+                                </button>
+                              ) : null}
                             </li>
                           ))}
                         </ul>
@@ -392,9 +397,9 @@ export function Watchlist() {
         )}
       </div>
 
-      {companyToRemove?.company_id ? (
+      {companyToRemove && removableCompany ? (
         <ConfirmDialog
-          title={`Remove ${companyToRemove.name}?`}
+          title={`Remove ${removableCompany.row.name}?`}
           message="Polling stops immediately. Jobs already captured stay in the system."
           confirmLabel="Remove company"
           cancelLabel="Keep company"
