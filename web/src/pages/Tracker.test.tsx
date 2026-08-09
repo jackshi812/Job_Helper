@@ -17,6 +17,7 @@ import {
   type ColumnResizeCoordinator,
 } from '../lib/dashboardColumns'
 import { patchTrackerApplicationCaches, Tracker } from './Tracker'
+import outreachComposerSource from '../components/OutreachComposer.tsx?raw'
 import trackerSource from './Tracker.tsx?raw'
 
 const applications: TrackerApplicationListItem[] = [{
@@ -433,6 +434,19 @@ describe('Tracker page contract', () => {
     expect(trackerSource).not.toMatch(/scope:\s*\{[^}]*outreach/iu)
   })
 
+  it('keeps outreach drafting browser-only and explicit-action driven', () => {
+    expect(outreachComposerSource).toContain('navigator.clipboard.writeText')
+    expect(outreachComposerSource).toContain('target="_blank"')
+    expect(outreachComposerSource).toContain('rel="noopener noreferrer"')
+    expect(outreachComposerSource).toContain('Gmail handoff requested.')
+    expect(outreachComposerSource).not.toMatch(
+      /\bfetch\s*\(|XMLHttpRequest|useQuery|useMutation|supabase|openai|oauth|window\.open|sendmail/iu,
+    )
+    expect(outreachComposerSource).not.toMatch(
+      /appendApplicationStage|updateApplicationTextField|invalidateQueries/iu,
+    )
+  })
+
   it('retains the semantic spreadsheet without horizontal table scrolling', () => {
     expect(trackerSource).not.toContain(
       'Swipe horizontally to view and edit all columns.',
@@ -790,6 +804,15 @@ class TestNode {
     return false
   }
 
+  querySelectorAll(selector: string): TestElement[] {
+    const radioGroup = /^input\[name="([^"]+)"\]\[type="radio"\]$/u.exec(selector)
+    if (!radioGroup) return []
+    return findTestElements(this, (element) =>
+      element.tagName === 'INPUT'
+      && element.getAttribute('name') === radioGroup[1]
+      && element.type === 'radio')
+  }
+
   addEventListener(
     type: string,
     callback: TestListener,
@@ -853,6 +876,7 @@ class TestElement extends TestNode {
   readonly releasedPointerIds: number[] = []
   scrollIntoViewCalls = 0
   _value = ''
+  _defaultValue = ''
   _checked = false
   selected = false
 
@@ -876,6 +900,9 @@ class TestElement extends TestNode {
     if (this.tagName === 'OPTION') {
       return this.attributes.get('value') ?? this.textContent
     }
+    if (this.tagName === 'TEXTAREA' && this._value === '' && this.textContent) {
+      return this.textContent
+    }
     return this._value
   }
 
@@ -886,12 +913,31 @@ class TestElement extends TestNode {
     }
   }
 
+  get defaultValue() {
+    return this._defaultValue
+  }
+
+  set defaultValue(value: string) {
+    this._defaultValue = String(value)
+    if (this.tagName === 'TEXTAREA' && this._value === '') {
+      this._value = this._defaultValue
+    }
+  }
+
   get checked() {
     return this._checked
   }
 
   set checked(value: boolean) {
     this._checked = Boolean(value)
+  }
+
+  get type() {
+    return this.attributes.get('type') ?? (this.tagName === 'INPUT' ? 'text' : '')
+  }
+
+  set type(value: string) {
+    this.attributes.set('type', String(value))
   }
 
   get options(): TestElement[] {
@@ -1017,6 +1063,30 @@ function findTestElements(
   return matches
 }
 
+function labeledControl(root: TestNode, labelText: string): TestElement {
+  const label = findTestElement(root, (element) =>
+    element.tagName === 'LABEL' && element.textContent.startsWith(labelText))
+  const control = label && findTestElement(label, (element) =>
+    element.tagName === 'INPUT'
+    || element.tagName === 'TEXTAREA'
+    || element.tagName === 'SELECT')
+  if (!control) throw new Error(`control not found for label: ${labelText}`)
+  return control
+}
+
+async function changeControl(
+  act: (callback: () => Promise<void>) => Promise<void>,
+  control: TestElement,
+  value: string,
+) {
+  await act(async () => {
+    nativeSetValue(control, value)
+    control.dispatchEvent(new TestEvent('input'))
+    control.dispatchEvent(new TestEvent('change'))
+    await Promise.resolve()
+  })
+}
+
 function nativeSetValue(element: TestElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(TestElement.prototype, 'value')?.set
   if (!setter) throw new Error('native value setter not found')
@@ -1041,6 +1111,7 @@ function deferred<T>() {
 
 function installTestDom() {
   const document = new TestDocument()
+  const clipboardWriteText = vi.fn().mockResolvedValue(undefined)
   const windowListeners = new Map<string, TestListener[]>()
   const intervalCallbacks = new Map<number, () => void>()
   const timeoutCallbacks = new Map<number, { callback: () => void; delay: number }>()
@@ -1144,7 +1215,10 @@ function installTestDom() {
   vi.stubGlobal('HTMLSelectElement', TestElement)
   vi.stubGlobal('HTMLTextAreaElement', TestElement)
   vi.stubGlobal('Event', TestEvent)
-  vi.stubGlobal('navigator', { userAgent: 'test' })
+  vi.stubGlobal('navigator', {
+    clipboard: { writeText: clipboardWriteText },
+    userAgent: 'test',
+  })
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   return document
 }
@@ -1827,6 +1901,338 @@ describe('Tracker mounted performance invariants', () => {
       expect.anything(),
       expect.anything(),
     )
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+})
+
+describe('Tracker mounted manual outreach workflow', () => {
+  beforeEach(() => {
+    authState.userId = 'user-a'
+    searchParamState.value = null
+    trackerOperations.appendApplicationStage.mockReset()
+    trackerOperations.deleteApplicationStageEvent.mockReset()
+    trackerOperations.getTrackerApplication.mockReset()
+    trackerOperations.listTrackerApplications.mockReset()
+    trackerOperations.updateApplicationStageEvent.mockReset()
+    resumeOperations.listResumes.mockReset()
+    resumeOperations.listResumes.mockResolvedValue([])
+  })
+
+  it('shows Draft outreach for every active stage and hides it for both terminal stages', async () => {
+    const document = installTestDom()
+    const stageApplications = TRACKER_STAGES.map(({ slug, label }, index) => ({
+      ...applications[0],
+      id: `${String(index + 1).repeat(8)}-${String(index + 1).repeat(4)}-4${String(index + 1).repeat(3)}-8${String(index + 1).repeat(3)}-${String(index + 1).repeat(12)}`,
+      title: `${label} role`,
+      currentStage: slug,
+    }))
+    trackerOperations.listTrackerApplications.mockResolvedValue(stageApplications)
+    trackerOperations.getTrackerApplication.mockImplementation(async (id: string) => {
+      const application = stageApplications.find((candidate) => candidate.id === id)
+      if (!application) throw new Error('missing stage application')
+      return detail(application)
+    })
+    const {
+      createRoot,
+      MountedTracker,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedTracker()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedTracker),
+    )))
+    await flushMountedWork(react.act)
+
+    for (const application of stageApplications) {
+      const expand = findTestElement(container, (element) =>
+        element.getAttribute('aria-label') === `Show details for ${application.title}`)
+      if (!expand) throw new Error(`expand action missing for ${application.currentStage}`)
+      await react.act(async () => expand.dispatchEvent(new TestEvent('click')))
+      await flushMountedWork(react.act)
+      const detailRow = document.getElementById(`tracker-detail-${application.id}`)
+      const draft = detailRow && findTestElement(detailRow, (element) =>
+        element.tagName === 'BUTTON' && element.textContent === 'Draft outreach')
+      if (TRACKER_ACTIVE_STAGES.includes(application.currentStage)) {
+        expect(draft, application.currentStage).not.toBeNull()
+      } else {
+        expect(TRACKER_TERMINAL_STAGES).toContain(application.currentStage)
+        expect(draft, application.currentStage).toBeNull()
+      }
+    }
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('completes both channels, copies exact fields, and restores only saved user preferences', async () => {
+    const document = installTestDom()
+    trackerOperations.listTrackerApplications.mockResolvedValue(applications)
+    trackerOperations.getTrackerApplication.mockResolvedValue(detail())
+    const mount = async () => {
+      const loaded = await loadMountedTracker()
+      const container = document.createElement('div')
+      document.body.appendChild(container)
+      const root = loaded.createRoot(container as unknown as Element)
+      await loaded.react.act(async () => root.render(loaded.react.createElement(
+        loaded.QueryClientProvider,
+        { client: loaded.queryClient },
+        loaded.react.createElement(loaded.MountedTracker),
+      )))
+      await flushMountedWork(loaded.react.act)
+      const expand = findTestElement(container, (element) =>
+        element.getAttribute('aria-label') === 'Show details for Data Analyst')
+      if (!expand) throw new Error('outreach row did not mount')
+      await loaded.react.act(async () => expand.dispatchEvent(new TestEvent('click')))
+      await flushMountedWork(loaded.react.act)
+      const draft = findTestElement(container, (element) =>
+        element.tagName === 'BUTTON' && element.textContent === 'Draft outreach')
+      if (!draft) throw new Error(`outreach disclosure missing: ${container.textContent}`)
+      await loaded.react.act(async () => draft.dispatchEvent(new TestEvent('click')))
+      await flushMountedWork(loaded.react.act)
+      return { ...loaded, container, root }
+    }
+
+    const firstMount = await mount()
+    const { container, react, root, queryClient } = firstMount
+    expect(labeledControl(container, 'Company').value).toBe('Acme')
+    expect(labeledControl(container, 'Position').value).toBe('Data Analyst')
+    expect(findTestElement(container, (element) =>
+      element.tagName === 'A' && element.textContent === 'Open in Gmail')).toBeNull()
+
+    await changeControl(
+      react.act,
+      labeledControl(container, 'LinkedIn profile URL'),
+      'https://www.linkedin.com/in/ada-lovelace',
+    )
+    expect(labeledControl(container, 'First name').value).toBe('Ada')
+    expect(labeledControl(container, 'Last name').value).toBe('Lovelace')
+    expect(labeledControl(container, 'Greeting name').value).toBe('Ada')
+
+    await changeControl(react.act, labeledControl(container, 'Greeting name'), 'Dr. Ada')
+    await changeControl(react.act, labeledControl(container, 'Company'), 'Analytical Engines')
+    await changeControl(react.act, labeledControl(container, 'Position'), 'Quant Analyst')
+    await changeControl(
+      react.act,
+      labeledControl(container, 'Reusable LinkedIn template'),
+      'Saved hello {{firstName}} for {{position}} at {{company}}',
+    )
+    const saveTemplates = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Save templates')
+    await react.act(async () => saveTemplates?.dispatchEvent(new TestEvent('click')))
+
+    const linkedInMessage = document.getElementById(
+      `linkedin-message-${applications[0].id}`,
+    )
+    if (!linkedInMessage) throw new Error('LinkedIn output missing')
+    await changeControl(react.act, linkedInMessage, 'Manual LinkedIn edit')
+    const mutationSnapshot = {
+      append: trackerOperations.appendApplicationStage.mock.calls.length,
+      deleteEvent: trackerOperations.deleteApplicationStageEvent.mock.calls.length,
+      invalidations: queryClient.getQueryCache().findAll().length,
+      updateEvent: trackerOperations.updateApplicationStageEvent.mock.calls.length,
+    }
+    const copyLinkedIn = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Copy LinkedIn message')
+    await react.act(async () => {
+      copyLinkedIn?.dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    const clipboard = navigator.clipboard.writeText as ReturnType<typeof vi.fn>
+    expect(clipboard).toHaveBeenLastCalledWith('Manual LinkedIn edit')
+    expect(container.textContent).toContain('LinkedIn message copied.')
+
+    const emailChannel = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await react.act(async () => emailChannel?.dispatchEvent(new TestEvent('click')))
+    expect(labeledControl(container, 'Greeting name').value).toBe('Dr. Ada')
+    expect(labeledControl(container, 'Company').value).toBe('Analytical Engines')
+    expect(labeledControl(container, 'Position').value).toBe('Quant Analyst')
+
+    const domain = labeledControl(container, 'Company domain')
+    await changeControl(react.act, domain, '@Analytical.Example')
+    await react.act(async () => {
+      domain.dispatchEvent(new TestEvent('focusout'))
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+    expect(domain.value).toBe('analytical.example')
+    const recipient = 'ada.lovelace@analytical.example'
+    const recipientRadio = findTestElement(container, (element) =>
+      element.tagName === 'INPUT' && element.value === recipient)
+    if (!recipientRadio) throw new Error(`recipient missing: ${container.textContent}`)
+    await react.act(async () => {
+      nativeSetChecked(recipientRadio, true)
+      recipientRadio.dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    await changeControl(
+      react.act,
+      labeledControl(container, 'Email subject'),
+      'Exact subject & + 你好',
+    )
+    await changeControl(
+      react.act,
+      labeledControl(container, 'Email body'),
+      'Exact body\nLine two & + café',
+    )
+    for (const label of ['Copy recipient', 'Copy subject', 'Copy email body']) {
+      const copyButton = findTestElement(container, (element) =>
+        element.tagName === 'BUTTON' && element.textContent === label)
+      await react.act(async () => {
+        copyButton?.dispatchEvent(new TestEvent('click'))
+        await Promise.resolve()
+      })
+    }
+    expect(clipboard.mock.calls.slice(-3).map(([value]) => value)).toEqual([
+      recipient,
+      'Exact subject & + 你好',
+      'Exact body\nLine two & + café',
+    ])
+
+    const gmail = findTestElement(container, (element) =>
+      element.tagName === 'A' && element.textContent === 'Open in Gmail')
+    if (!gmail) throw new Error(`enabled Gmail link missing: ${container.textContent}`)
+    const gmailUrl = new URL(gmail.getAttribute('href')!)
+    expect(gmailUrl.protocol).toBe('https:')
+    expect(gmailUrl.hostname).toBe('mail.google.com')
+    expect(gmailUrl.pathname).toBe('/mail/')
+    expect(gmailUrl.searchParams.get('view')).toBe('cm')
+    expect(gmailUrl.searchParams.get('fs')).toBe('1')
+    expect(gmailUrl.searchParams.get('to')).toBe(recipient)
+    expect(gmailUrl.searchParams.get('su')).toBe('Exact subject & + 你好')
+    expect(gmailUrl.searchParams.get('body')).toBe('Exact body\nLine two & + café')
+    expect(gmail.getAttribute('target')).toBe('_blank')
+    expect(gmail.getAttribute('rel')?.split(' ')).toEqual(
+      expect.arrayContaining(['noopener', 'noreferrer']),
+    )
+    await react.act(async () => gmail.dispatchEvent(new TestEvent('click')))
+    expect(container.textContent).toContain('Gmail handoff requested.')
+    expect(trackerOperations.appendApplicationStage).toHaveBeenCalledTimes(
+      mutationSnapshot.append,
+    )
+    expect(trackerOperations.deleteApplicationStageEvent).toHaveBeenCalledTimes(
+      mutationSnapshot.deleteEvent,
+    )
+    expect(trackerOperations.updateApplicationStageEvent).toHaveBeenCalledTimes(
+      mutationSnapshot.updateEvent,
+    )
+    expect(queryClient.getQueryCache().findAll()).toHaveLength(
+      mutationSnapshot.invalidations,
+    )
+
+    const linkedInChannel = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'LinkedIn')
+    await react.act(async () => linkedInChannel?.dispatchEvent(new TestEvent('click')))
+    expect(document.getElementById(`linkedin-message-${applications[0].id}`)?.value)
+      .toBe('Manual LinkedIn edit')
+    const close = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Close outreach')
+    await react.act(async () => close?.dispatchEvent(new TestEvent('click')))
+    const reopen = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Draft outreach')
+    await react.act(async () => reopen?.dispatchEvent(new TestEvent('click')))
+    expect(labeledControl(container, 'LinkedIn profile URL').value).toBe('')
+    expect(labeledControl(container, 'First name').value).toBe('')
+    expect(labeledControl(container, 'Reusable LinkedIn template').value).toBe(
+      'Saved hello {{firstName}} for {{position}} at {{company}}',
+    )
+    expect(document.getElementById(`linkedin-message-${applications[0].id}`)?.value)
+      .not.toBe('Manual LinkedIn edit')
+
+    await react.act(async () => root.unmount())
+    const sameUser = await mount()
+    expect(labeledControl(sameUser.container, 'Reusable LinkedIn template').value).toBe(
+      'Saved hello {{firstName}} for {{position}} at {{company}}',
+    )
+    expect(labeledControl(sameUser.container, 'Company').value).toBe('Acme')
+    await changeControl(
+      sameUser.react.act,
+      labeledControl(sameUser.container, 'Company'),
+      'Analytical Engines',
+    )
+    const sameUserEmail = findTestElement(sameUser.container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await sameUser.react.act(async () => sameUserEmail?.dispatchEvent(new TestEvent('click')))
+    expect(labeledControl(sameUser.container, 'Company domain').value).toBe(
+      'analytical.example',
+    )
+    expect(findTestElements(sameUser.container, (element) =>
+      element.tagName === 'INPUT' && element.getAttribute('type') === 'radio'
+      && element.checked)).toEqual([])
+
+    await sameUser.react.act(async () => sameUser.root.unmount())
+    authState.userId = 'user-b'
+    const otherUser = await mount()
+    expect(labeledControl(otherUser.container, 'Reusable LinkedIn template').value)
+      .not.toBe('Saved hello {{firstName}} for {{position}} at {{company}}')
+    await changeControl(
+      otherUser.react.act,
+      labeledControl(otherUser.container, 'Company'),
+      'Analytical Engines',
+    )
+    const otherUserEmail = findTestElement(otherUser.container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await otherUser.react.act(async () => otherUserEmail?.dispatchEvent(new TestEvent('click')))
+    expect(labeledControl(otherUser.container, 'Company domain').value).toBe('')
+
+    await otherUser.react.act(async () => otherUser.root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('reports clipboard rejection while leaving the source message available', async () => {
+    const document = installTestDom()
+    const clipboard = navigator.clipboard.writeText as ReturnType<typeof vi.fn>
+    clipboard.mockRejectedValue(new Error('permission denied'))
+    trackerOperations.listTrackerApplications.mockResolvedValue(applications)
+    trackerOperations.getTrackerApplication.mockResolvedValue(detail())
+    const {
+      createRoot,
+      MountedTracker,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedTracker()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedTracker),
+    )))
+    await flushMountedWork(react.act)
+    const expand = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Show details for Data Analyst')
+    await react.act(async () => expand?.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+    const draft = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Draft outreach')
+    await react.act(async () => draft?.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+    const message = document.getElementById(`linkedin-message-${applications[0].id}`)
+    const copy = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Copy LinkedIn message')
+    await react.act(async () => {
+      copy?.dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+
+    expect(container.textContent).toContain(
+      'Couldn’t copy the LinkedIn message. Select the text and copy it manually.',
+    )
+    expect(message?.value).toContain('Data Analyst opportunity at Acme')
+    expect(message?.parentNode).not.toBeNull()
 
     await react.act(async () => root.unmount())
     vi.unstubAllGlobals()
