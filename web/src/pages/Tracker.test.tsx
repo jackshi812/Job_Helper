@@ -413,6 +413,26 @@ describe('Tracker page contract', () => {
     expect(trackerSource).toContain('resumesPending={resumesQuery.isPending}')
   })
 
+  it('keeps manual outreach collapsed, application-scoped, and active-stage only', () => {
+    const markup = renderToStaticMarkup(<Tracker />)
+
+    expect(markup).not.toContain('Draft outreach')
+    expect(trackerSource).toContain(
+      "import { OutreachComposer } from '../components/OutreachComposer'",
+    )
+    expect(trackerSource).toContain('const [outreachOpen, setOutreachOpen] = useState(false)')
+    expect(trackerSource).toContain(
+      'TRACKER_ACTIVE_STAGES.includes(detail.currentStage)',
+    )
+    expect(trackerSource).toContain('userId={userId}')
+    expect(trackerSource).toContain('applicationId={application.id}')
+    expect(trackerSource).toContain('initialCompany={detail.company}')
+    expect(trackerSource).toContain('initialPosition={detail.title}')
+    expect(trackerSource).toContain('Draft outreach')
+    expect(trackerSource).not.toMatch(/queryKey:\s*\[[^\]]*outreach/iu)
+    expect(trackerSource).not.toMatch(/scope:\s*\{[^}]*outreach/iu)
+  })
+
   it('retains the semantic spreadsheet without horizontal table scrolling', () => {
     expect(trackerSource).not.toContain(
       'Swipe horizontally to view and edit all columns.',
