@@ -131,6 +131,33 @@ describe('company and email normalization', () => {
       domain: 'not-a-domain',
     })).toEqual([])
   })
+
+  it('enforces the 64-character local-part and 254-character address limits', () => {
+    const localPart64 = 'a'.repeat(64)
+    const address254Domain = `${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(61)}`
+    const address255Domain = `${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(62)}`
+
+    expect(generateEmailPossibilities({
+      firstName: localPart64,
+      lastName: '',
+      domain: 'example.com',
+    })).toEqual([`${localPart64}@example.com`])
+    expect(generateEmailPossibilities({
+      firstName: 'a'.repeat(65),
+      lastName: '',
+      domain: 'example.com',
+    })).toEqual([])
+    expect(generateEmailPossibilities({
+      firstName: localPart64,
+      lastName: '',
+      domain: address254Domain,
+    })).toEqual([`${localPart64}@${address254Domain}`])
+    expect(generateEmailPossibilities({
+      firstName: localPart64,
+      lastName: '',
+      domain: address255Domain,
+    })).toEqual([])
+  })
 })
 
 describe('Gmail compose handoff', () => {

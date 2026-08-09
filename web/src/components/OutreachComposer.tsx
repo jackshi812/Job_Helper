@@ -87,6 +87,9 @@ export function OutreachComposer({
   const [emailBodyTemplate, setEmailBodyTemplate] = useState(
     savedPreferences.emailBodyTemplate,
   )
+  const [linkedInTemplateDirty, setLinkedInTemplateDirty] = useState(false)
+  const [emailSubjectTemplateDirty, setEmailSubjectTemplateDirty] = useState(false)
+  const [emailBodyTemplateDirty, setEmailBodyTemplateDirty] = useState(false)
   const [channel, setChannel] = useState<OutreachChannel>('linkedin')
   const [linkedInUrl, setLinkedInUrl] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -129,6 +132,18 @@ export function OutreachComposer({
       setGmailHandoffRequested(false)
     }
   }, [emailPossibilities, selectedRecipient])
+  useEffect(() => {
+    setCopyFeedback((current) => ({ ...current, linkedin: 'idle' }))
+  }, [linkedInMessage])
+  useEffect(() => {
+    setCopyFeedback((current) => ({ ...current, recipient: 'idle' }))
+  }, [selectedRecipient])
+  useEffect(() => {
+    setCopyFeedback((current) => ({ ...current, subject: 'idle' }))
+  }, [emailSubject])
+  useEffect(() => {
+    setCopyFeedback((current) => ({ ...current, body: 'idle' }))
+  }, [emailBody])
   const activeRecipient = selectedRecipient
     && emailPossibilities.includes(selectedRecipient)
     ? selectedRecipient
@@ -173,9 +188,11 @@ export function OutreachComposer({
 
   function updateCompany(value: string) {
     setCompany(value)
-    const remembered = savedPreferences.companyDomains[
+    const latestPreferences = loadOutreachPreferences(userId)
+    const remembered = latestPreferences.companyDomains[
       normalizeOutreachCompanyKey(value)
     ] ?? ''
+    setSavedPreferences(latestPreferences)
     setDomain(remembered)
     setSelectedRecipient(null)
     setGmailHandoffRequested(false)
@@ -206,13 +223,27 @@ export function OutreachComposer({
   function saveTemplates() {
     const latestPreferences = loadOutreachPreferences(userId)
     const next: OutreachPreferences = {
-      linkedInTemplate,
-      emailSubjectTemplate,
-      emailBodyTemplate,
-      companyDomains: latestPreferences.companyDomains,
+      ...latestPreferences,
+      linkedInTemplate: linkedInTemplateDirty
+        ? linkedInTemplate
+        : latestPreferences.linkedInTemplate,
+      emailSubjectTemplate: emailSubjectTemplateDirty
+        ? emailSubjectTemplate
+        : latestPreferences.emailSubjectTemplate,
+      emailBodyTemplate: emailBodyTemplateDirty
+        ? emailBodyTemplate
+        : latestPreferences.emailBodyTemplate,
     }
     const saved = saveOutreachPreferences(userId, next)
-    if (saved) setSavedPreferences(next)
+    if (saved) {
+      setSavedPreferences(next)
+      setLinkedInTemplate(next.linkedInTemplate)
+      setEmailSubjectTemplate(next.emailSubjectTemplate)
+      setEmailBodyTemplate(next.emailBodyTemplate)
+      setLinkedInTemplateDirty(false)
+      setEmailSubjectTemplateDirty(false)
+      setEmailBodyTemplateDirty(false)
+    }
     setStorageFeedback(saved ? 'success' : 'error')
   }
 
@@ -334,6 +365,7 @@ export function OutreachComposer({
                 onChange={(event) => {
                   setStorageFeedback('idle')
                   setLinkedInTemplate(event.target.value)
+                  setLinkedInTemplateDirty(true)
                   setLinkedInMessage(renderOutreachTemplate(
                     event.target.value,
                     templateVariables(firstName, greetingName, company, position),
@@ -366,6 +398,7 @@ export function OutreachComposer({
                   onChange={(event) => {
                     setStorageFeedback('idle')
                     setEmailSubjectTemplate(event.target.value)
+                    setEmailSubjectTemplateDirty(true)
                     setEmailSubject(renderOutreachTemplate(
                       event.target.value,
                       templateVariables(firstName, greetingName, company, position),
@@ -382,6 +415,7 @@ export function OutreachComposer({
                   onChange={(event) => {
                     setStorageFeedback('idle')
                     setEmailBodyTemplate(event.target.value)
+                    setEmailBodyTemplateDirty(true)
                     setEmailBody(renderOutreachTemplate(
                       event.target.value,
                       templateVariables(firstName, greetingName, company, position),

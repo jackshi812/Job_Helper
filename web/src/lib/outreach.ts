@@ -238,7 +238,10 @@ export function generateEmailPossibilities(
   const last = emailNamePart(input.lastName)
   const domain = normalizeCompanyDomain(input.domain)
   if (!first || !domain) return []
-  if (!last) return [`${first}@${domain}`]
+  if (!last) {
+    const address = `${first}@${domain}`
+    return first.length <= 64 && address.length <= 254 ? [address] : []
+  }
 
   const initial = first.charAt(0)
   const localParts = new Set([
@@ -250,7 +253,10 @@ export function generateEmailPossibilities(
     `${last}.${first}`,
     first,
   ])
-  return [...localParts].map((localPart) => `${localPart}@${domain}`)
+  return [...localParts].flatMap((localPart) => {
+    const address = `${localPart}@${domain}`
+    return localPart.length <= 64 && address.length <= 254 ? [address] : []
+  })
 }
 
 export function gmailComposeUrl(input: GmailComposeInput): string | null {

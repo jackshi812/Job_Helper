@@ -2199,7 +2199,7 @@ describe('Tracker mounted manual outreach workflow', () => {
     vi.unstubAllGlobals()
   })
 
-  it('merges interleaved preference writes from two open composers', async () => {
+  it('merges dirty templates and reads interleaved domains across open composers', async () => {
     const document = installTestDom()
     const { createRoot, OutreachComposer, react } = await loadMountedOutreachComposer()
     const container = document.createElement('div')
@@ -2242,6 +2242,14 @@ describe('Tracker mounted manual outreach workflow', () => {
     const secondEmail = findTestElement(secondComposer, (element) =>
       element.tagName === 'BUTTON' && element.textContent === 'Email')
     await react.act(async () => secondEmail?.dispatchEvent(new TestEvent('click')))
+    await changeControl(
+      react.act,
+      labeledControl(secondComposer, 'Reusable email subject template'),
+      'Second composer {{position}} subject',
+    )
+    const secondSave = findTestElement(secondComposer, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Save templates')
+    await react.act(async () => secondSave?.dispatchEvent(new TestEvent('click')))
     const secondDomain = labeledControl(secondComposer, 'Company domain')
     await changeControl(react.act, secondDomain, 'globex.example')
     await react.act(async () => secondDomain.dispatchEvent(new TestEvent('focusout')))
@@ -2250,6 +2258,9 @@ describe('Tracker mounted manual outreach workflow', () => {
       element.tagName === 'BUTTON' && element.textContent === 'Email')
     await react.act(async () => firstEmail?.dispatchEvent(new TestEvent('click')))
     const firstDomain = labeledControl(firstComposer, 'Company domain')
+    await changeControl(react.act, labeledControl(firstComposer, 'Company'), 'Globex')
+    expect(firstDomain.value).toBe('globex.example')
+    await changeControl(react.act, labeledControl(firstComposer, 'Company'), 'Acme')
     await changeControl(react.act, firstDomain, 'acme.example')
     await react.act(async () => firstDomain.dispatchEvent(new TestEvent('focusout')))
 
@@ -2258,6 +2269,7 @@ describe('Tracker mounted manual outreach workflow', () => {
     expect(serialized).not.toBeNull()
     expect(JSON.parse(serialized!)).toMatchObject({
       linkedInTemplate: 'First composer {{company}} template',
+      emailSubjectTemplate: 'Second composer {{position}} subject',
       companyDomains: {
         acme: 'acme.example',
         globex: 'globex.example',
@@ -2366,6 +2378,81 @@ describe('Tracker mounted manual outreach workflow', () => {
       'Unsaved email body template',
     )
     expect(container.textContent).not.toContain('Outreach preferences saved.')
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('clears copy feedback when copied drafts or the recipient change', async () => {
+    const document = installTestDom()
+    const { createRoot, OutreachComposer, react } = await loadMountedOutreachComposer()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(OutreachComposer, {
+      applicationId: applications[0].id,
+      initialCompany: 'Acme',
+      initialPosition: 'Data Analyst',
+      userId: 'user-a',
+    })))
+    const clickButton = async (label: string) => {
+      const button = findTestElement(container, (element) =>
+        element.tagName === 'BUTTON' && element.textContent === label)
+      await react.act(async () => {
+        button?.dispatchEvent(new TestEvent('click'))
+        await Promise.resolve()
+      })
+    }
+
+    await clickButton('Copy LinkedIn message')
+    expect(container.textContent).toContain('LinkedIn message copied.')
+    const linkedInMessage = document.getElementById(
+      `linkedin-message-${applications[0].id}`,
+    )
+    if (!linkedInMessage) throw new Error('LinkedIn message must render')
+    await changeControl(react.act, linkedInMessage, 'Edited after copying')
+    expect(container.textContent).not.toContain('LinkedIn message copied.')
+
+    await clickButton('Email')
+    await changeControl(react.act, labeledControl(container, 'First name'), 'Ada')
+    await changeControl(react.act, labeledControl(container, 'Last name'), 'Lovelace')
+    const domain = labeledControl(container, 'Company domain')
+    await changeControl(react.act, domain, 'example.com')
+    await react.act(async () => domain.dispatchEvent(new TestEvent('focusout')))
+
+    const recipients = findTestElements(container, (element) =>
+      element.tagName === 'INPUT' && element.getAttribute('type') === 'radio')
+    expect(recipients.length).toBeGreaterThan(1)
+    await react.act(async () => {
+      nativeSetChecked(recipients[0], true)
+      recipients[0].dispatchEvent(new TestEvent('click'))
+    })
+    await clickButton('Copy recipient')
+    expect(container.textContent).toContain('Recipient copied.')
+    await react.act(async () => {
+      nativeSetChecked(recipients[1], true)
+      recipients[1].dispatchEvent(new TestEvent('click'))
+    })
+    expect(container.textContent).not.toContain('Recipient copied.')
+
+    await clickButton('Copy subject')
+    expect(container.textContent).toContain('Subject copied.')
+    await changeControl(
+      react.act,
+      labeledControl(container, 'Email subject'),
+      'Edited subject after copying',
+    )
+    expect(container.textContent).not.toContain('Subject copied.')
+
+    await clickButton('Copy email body')
+    expect(container.textContent).toContain('Email body copied.')
+    await changeControl(
+      react.act,
+      labeledControl(container, 'Email body'),
+      'Edited body after copying',
+    )
+    expect(container.textContent).not.toContain('Email body copied.')
 
     await react.act(async () => root.unmount())
     vi.unstubAllGlobals()
