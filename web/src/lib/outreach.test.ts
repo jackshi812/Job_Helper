@@ -201,7 +201,9 @@ describe('outreach preference storage', () => {
       emailBodyTemplate: 'Body {{firstName}}',
       companyDomains: { 'acme inc': 'jobs.example.com' },
     })
-    expect(serialized).not.toMatch(/profileUrl|firstName|selectedRecipient|renderedBody/)
+    expect(serialized).not.toMatch(
+      /"(?:profileUrl|firstName|selectedRecipient|renderedBody)":/u,
+    )
     expect(loadOutreachPreferences('user-a', storage)).toEqual({
       linkedInTemplate: 'LinkedIn {{company}}',
       emailSubjectTemplate: 'Subject {{position}}',
