@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   generateEmailPossibilities,
   gmailComposeUrl,
@@ -118,7 +118,14 @@ export function OutreachComposer({
     subject: 'idle',
     body: 'idle',
   })
-  const [storageFeedback, setStorageFeedback] = useState<ActionFeedback>('idle')
+  const copyRevision = useRef<Record<CopyTarget, number>>({
+    linkedin: 0,
+    recipient: 0,
+    subject: 0,
+    body: 0,
+  })
+  const [templateFeedback, setTemplateFeedback] = useState<ActionFeedback>('idle')
+  const [domainFeedback, setDomainFeedback] = useState<ActionFeedback>('idle')
   const [gmailHandoffRequested, setGmailHandoffRequested] = useState(false)
 
   const emailPossibilities = useMemo(() => generateEmailPossibilities({
@@ -128,22 +135,12 @@ export function OutreachComposer({
   }), [domain, firstName, lastName])
   useEffect(() => {
     if (selectedRecipient && !emailPossibilities.includes(selectedRecipient)) {
+      copyRevision.current.recipient += 1
       setSelectedRecipient(null)
+      setCopyFeedback((current) => ({ ...current, recipient: 'idle' }))
       setGmailHandoffRequested(false)
     }
   }, [emailPossibilities, selectedRecipient])
-  useEffect(() => {
-    setCopyFeedback((current) => ({ ...current, linkedin: 'idle' }))
-  }, [linkedInMessage])
-  useEffect(() => {
-    setCopyFeedback((current) => ({ ...current, recipient: 'idle' }))
-  }, [selectedRecipient])
-  useEffect(() => {
-    setCopyFeedback((current) => ({ ...current, subject: 'idle' }))
-  }, [emailSubject])
-  useEffect(() => {
-    setCopyFeedback((current) => ({ ...current, body: 'idle' }))
-  }, [emailBody])
   const activeRecipient = selectedRecipient
     && emailPossibilities.includes(selectedRecipient)
     ? selectedRecipient
@@ -155,6 +152,34 @@ export function OutreachComposer({
       body: emailBody,
     })
     : null
+
+  function invalidateCopy(target: CopyTarget) {
+    copyRevision.current[target] += 1
+    setCopyFeedback((current) => ({ ...current, [target]: 'idle' }))
+  }
+
+  function updateSelectedRecipient(value: string | null) {
+    invalidateCopy('recipient')
+    setSelectedRecipient(value)
+    setGmailHandoffRequested(false)
+  }
+
+  function updateLinkedInMessage(value: string) {
+    invalidateCopy('linkedin')
+    setLinkedInMessage(value)
+  }
+
+  function updateEmailSubject(value: string) {
+    invalidateCopy('subject')
+    setEmailSubject(value)
+    setGmailHandoffRequested(false)
+  }
+
+  function updateEmailBody(value: string) {
+    invalidateCopy('body')
+    setEmailBody(value)
+    setGmailHandoffRequested(false)
+  }
 
   function renderAll(next: {
     firstName?: string
@@ -168,9 +193,9 @@ export function OutreachComposer({
       next.company ?? company,
       next.position ?? position,
     )
-    setLinkedInMessage(renderOutreachTemplate(linkedInTemplate, variables))
-    setEmailSubject(renderOutreachTemplate(emailSubjectTemplate, variables))
-    setEmailBody(renderOutreachTemplate(emailBodyTemplate, variables))
+    updateLinkedInMessage(renderOutreachTemplate(linkedInTemplate, variables))
+    updateEmailSubject(renderOutreachTemplate(emailSubjectTemplate, variables))
+    updateEmailBody(renderOutreachTemplate(emailBodyTemplate, variables))
   }
 
   function updateLinkedInUrl(value: string) {
@@ -183,6 +208,7 @@ export function OutreachComposer({
     if (!firstName.trim()) setFirstName(nextFirstName)
     if (!lastName.trim()) setLastName(nextLastName)
     if (!greetingName.trim()) setGreetingName(nextGreetingName)
+    updateSelectedRecipient(null)
     renderAll({ firstName: nextFirstName, greetingName: nextGreetingName })
   }
 
@@ -194,8 +220,8 @@ export function OutreachComposer({
     ] ?? ''
     setSavedPreferences(latestPreferences)
     setDomain(remembered)
-    setSelectedRecipient(null)
-    setGmailHandoffRequested(false)
+    setDomainFeedback('idle')
+    updateSelectedRecipient(null)
     renderAll({ company: value })
   }
 
@@ -203,7 +229,7 @@ export function OutreachComposer({
     const companyKey = normalizeOutreachCompanyKey(company)
     const normalizedDomain = normalizeCompanyDomain(domain)
     if (!companyKey || !normalizedDomain) {
-      setStorageFeedback('error')
+      setDomainFeedback('error')
       return
     }
     setDomain(normalizedDomain)
@@ -217,7 +243,7 @@ export function OutreachComposer({
     }
     const saved = saveOutreachPreferences(userId, next)
     if (saved) setSavedPreferences(next)
-    setStorageFeedback(saved ? 'success' : 'error')
+    setDomainFeedback(saved ? 'success' : 'error')
   }
 
   function saveTemplates() {
@@ -244,15 +270,19 @@ export function OutreachComposer({
       setEmailSubjectTemplateDirty(false)
       setEmailBodyTemplateDirty(false)
     }
-    setStorageFeedback(saved ? 'success' : 'error')
+    setTemplateFeedback(saved ? 'success' : 'error')
   }
 
   async function copy(target: CopyTarget, value: string) {
+    const revision = copyRevision.current[target] + 1
+    copyRevision.current[target] = revision
     setCopyFeedback((current) => ({ ...current, [target]: 'idle' }))
     try {
       await navigator.clipboard.writeText(value)
+      if (copyRevision.current[target] !== revision) return
       setCopyFeedback((current) => ({ ...current, [target]: 'success' }))
     } catch {
+      if (copyRevision.current[target] !== revision) return
       setCopyFeedback((current) => ({ ...current, [target]: 'error' }))
     }
   }
@@ -307,6 +337,7 @@ export function OutreachComposer({
                 value={firstName}
                 onChange={(event) => {
                   setFirstName(event.target.value)
+                  updateSelectedRecipient(null)
                   renderAll({ firstName: event.target.value })
                 }}
                 className={INPUT}
@@ -318,8 +349,7 @@ export function OutreachComposer({
                 value={lastName}
                 onChange={(event) => {
                   setLastName(event.target.value)
-                  setSelectedRecipient(null)
-                  setGmailHandoffRequested(false)
+                  updateSelectedRecipient(null)
                 }}
                 className={INPUT}
               />
@@ -363,10 +393,10 @@ export function OutreachComposer({
                 rows={7}
                 value={linkedInTemplate}
                 onChange={(event) => {
-                  setStorageFeedback('idle')
+                  setTemplateFeedback('idle')
                   setLinkedInTemplate(event.target.value)
                   setLinkedInTemplateDirty(true)
-                  setLinkedInMessage(renderOutreachTemplate(
+                  updateLinkedInMessage(renderOutreachTemplate(
                     event.target.value,
                     templateVariables(firstName, greetingName, company, position),
                   ))
@@ -381,13 +411,18 @@ export function OutreachComposer({
                 <input
                   value={domain}
                   onChange={(event) => {
+                    setDomainFeedback('idle')
                     setDomain(event.target.value)
-                    setSelectedRecipient(null)
-                    setGmailHandoffRequested(false)
+                    updateSelectedRecipient(null)
                   }}
                   onBlur={rememberDomain}
                   placeholder="example.com"
                   className={INPUT}
+                />
+                <CopyFeedback
+                  feedback={domainFeedback}
+                  success="Company domain saved."
+                  failure="Couldn’t save the company domain. Drafting remains available."
                 />
               </label>
               <label className="grid gap-1 text-xs font-medium">
@@ -396,10 +431,10 @@ export function OutreachComposer({
                   rows={3}
                   value={emailSubjectTemplate}
                   onChange={(event) => {
-                    setStorageFeedback('idle')
+                    setTemplateFeedback('idle')
                     setEmailSubjectTemplate(event.target.value)
                     setEmailSubjectTemplateDirty(true)
-                    setEmailSubject(renderOutreachTemplate(
+                    updateEmailSubject(renderOutreachTemplate(
                       event.target.value,
                       templateVariables(firstName, greetingName, company, position),
                     ))
@@ -413,10 +448,10 @@ export function OutreachComposer({
                   rows={7}
                   value={emailBodyTemplate}
                   onChange={(event) => {
-                    setStorageFeedback('idle')
+                    setTemplateFeedback('idle')
                     setEmailBodyTemplate(event.target.value)
                     setEmailBodyTemplateDirty(true)
-                    setEmailBody(renderOutreachTemplate(
+                    updateEmailBody(renderOutreachTemplate(
                       event.target.value,
                       templateVariables(firstName, greetingName, company, position),
                     ))
@@ -432,9 +467,9 @@ export function OutreachComposer({
               Save templates
             </button>
             <CopyFeedback
-              feedback={storageFeedback}
-              success="Outreach preferences saved."
-              failure="Couldn’t save outreach preferences. Drafting remains available."
+              feedback={templateFeedback}
+              success="Outreach templates saved."
+              failure="Couldn’t save outreach templates. Drafting remains available."
             />
           </div>
         </div>
@@ -450,7 +485,7 @@ export function OutreachComposer({
                 id={`linkedin-message-${applicationId}`}
                 rows={12}
                 value={linkedInMessage}
-                onChange={(event) => setLinkedInMessage(event.target.value)}
+                onChange={(event) => updateLinkedInMessage(event.target.value)}
                 className={`mt-3 ${INPUT} resize-y whitespace-pre-wrap`}
               />
               <button
@@ -479,10 +514,7 @@ export function OutreachComposer({
                           name={`outreach-recipient-${applicationId}`}
                           value={email}
                           checked={activeRecipient === email}
-                          onChange={() => {
-                            setSelectedRecipient(email)
-                            setGmailHandoffRequested(false)
-                          }}
+                          onChange={() => updateSelectedRecipient(email)}
                         />
                         <span className="break-all">{email}</span>
                       </label>
@@ -521,7 +553,7 @@ export function OutreachComposer({
                   <textarea
                     rows={3}
                     value={emailSubject}
-                    onChange={(event) => setEmailSubject(event.target.value)}
+                    onChange={(event) => updateEmailSubject(event.target.value)}
                     className={`${INPUT} resize-y whitespace-pre-wrap font-normal`}
                   />
                 </label>
@@ -545,7 +577,7 @@ export function OutreachComposer({
                   <textarea
                     rows={12}
                     value={emailBody}
-                    onChange={(event) => setEmailBody(event.target.value)}
+                    onChange={(event) => updateEmailBody(event.target.value)}
                     className={`${INPUT} resize-y whitespace-pre-wrap font-normal`}
                   />
                 </label>

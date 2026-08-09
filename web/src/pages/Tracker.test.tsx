@@ -2349,7 +2349,7 @@ describe('Tracker mounted manual outreach workflow', () => {
       element.tagName === 'BUTTON' && element.textContent === 'Save templates')
     const saveAndExpectFeedback = async () => {
       await react.act(async () => saveTemplates()?.dispatchEvent(new TestEvent('click')))
-      expect(container.textContent).toContain('Outreach preferences saved.')
+      expect(container.textContent).toContain('Outreach templates saved.')
     }
 
     await saveAndExpectFeedback()
@@ -2358,7 +2358,7 @@ describe('Tracker mounted manual outreach workflow', () => {
       labeledControl(container, 'Reusable LinkedIn template'),
       'Unsaved LinkedIn template',
     )
-    expect(container.textContent).not.toContain('Outreach preferences saved.')
+    expect(container.textContent).not.toContain('Outreach templates saved.')
 
     await saveAndExpectFeedback()
     const emailChannel = findTestElement(container, (element) =>
@@ -2369,7 +2369,7 @@ describe('Tracker mounted manual outreach workflow', () => {
       labeledControl(container, 'Reusable email subject template'),
       'Unsaved email subject template',
     )
-    expect(container.textContent).not.toContain('Outreach preferences saved.')
+    expect(container.textContent).not.toContain('Outreach templates saved.')
 
     await saveAndExpectFeedback()
     await changeControl(
@@ -2377,7 +2377,188 @@ describe('Tracker mounted manual outreach workflow', () => {
       labeledControl(container, 'Reusable email body template'),
       'Unsaved email body template',
     )
-    expect(container.textContent).not.toContain('Outreach preferences saved.')
+    expect(container.textContent).not.toContain('Outreach templates saved.')
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps domain-save feedback separate from dirty template saves', async () => {
+    const document = installTestDom()
+    const { createRoot, OutreachComposer, react } = await loadMountedOutreachComposer()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(OutreachComposer, {
+      applicationId: applications[0].id,
+      initialCompany: 'Acme',
+      initialPosition: 'Data Analyst',
+      userId: 'user-a',
+    })))
+    const unsavedTemplate = 'Still dirty for {{company}}'
+    await changeControl(
+      react.act,
+      labeledControl(container, 'Reusable LinkedIn template'),
+      unsavedTemplate,
+    )
+    const emailChannel = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await react.act(async () => emailChannel?.dispatchEvent(new TestEvent('click')))
+    const domain = labeledControl(container, 'Company domain')
+    await changeControl(react.act, domain, 'acme.example')
+    await react.act(async () => domain.dispatchEvent(new TestEvent('focusout')))
+
+    expect(container.textContent).toContain('Company domain saved.')
+    expect(container.textContent).not.toContain('Outreach templates saved.')
+    const storageKey = outreachPreferencesStorageKey('user-a')
+    const domainOnlySave = storageKey ? window.localStorage.getItem(storageKey) : null
+    expect(JSON.parse(domainOnlySave!).linkedInTemplate).not.toBe(unsavedTemplate)
+
+    const saveTemplates = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Save templates')
+    await react.act(async () => saveTemplates?.dispatchEvent(new TestEvent('click')))
+    expect(container.textContent).toContain('Outreach templates saved.')
+    expect(JSON.parse(window.localStorage.getItem(storageKey!)!).linkedInTemplate)
+      .toBe(unsavedTemplate)
+
+    await changeControl(react.act, domain, 'new.example')
+    expect(container.textContent).not.toContain('Company domain saved.')
+    expect(container.textContent).toContain('Outreach templates saved.')
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('ignores delayed clipboard results after their draft or recipient changes', async () => {
+    const document = installTestDom()
+    const clipboard = navigator.clipboard.writeText as ReturnType<typeof vi.fn>
+    const resolvingCopy = deferred<void>()
+    clipboard.mockImplementationOnce(() => resolvingCopy.promise)
+    const { createRoot, OutreachComposer, react } = await loadMountedOutreachComposer()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(OutreachComposer, {
+      applicationId: applications[0].id,
+      initialCompany: 'Acme',
+      initialPosition: 'Data Analyst',
+      userId: 'user-a',
+    })))
+    const copyLinkedIn = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Copy LinkedIn message')
+    await react.act(async () => {
+      copyLinkedIn?.dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    const linkedInMessage = document.getElementById(
+      `linkedin-message-${applications[0].id}`,
+    )
+    if (!linkedInMessage) throw new Error('LinkedIn message must render')
+    await changeControl(react.act, linkedInMessage, 'Changed while copy is pending')
+    await react.act(async () => {
+      resolvingCopy.resolve(undefined)
+      await resolvingCopy.promise
+      await Promise.resolve()
+    })
+    expect(container.textContent).not.toContain('LinkedIn message copied.')
+
+    const emailChannel = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await react.act(async () => emailChannel?.dispatchEvent(new TestEvent('click')))
+    await changeControl(react.act, labeledControl(container, 'First name'), 'Ada')
+    await changeControl(react.act, labeledControl(container, 'Last name'), 'Lovelace')
+    const domain = labeledControl(container, 'Company domain')
+    await changeControl(react.act, domain, 'example.com')
+    await react.act(async () => domain.dispatchEvent(new TestEvent('focusout')))
+    const recipients = findTestElements(container, (element) =>
+      element.tagName === 'INPUT' && element.getAttribute('type') === 'radio')
+    expect(recipients.length).toBeGreaterThan(1)
+    await react.act(async () => {
+      nativeSetChecked(recipients[0], true)
+      recipients[0].dispatchEvent(new TestEvent('click'))
+    })
+
+    const rejectingCopy = deferred<void>()
+    clipboard.mockImplementationOnce(() => rejectingCopy.promise)
+    const copyRecipient = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Copy recipient')
+    await react.act(async () => {
+      copyRecipient?.dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    await react.act(async () => {
+      nativeSetChecked(recipients[1], true)
+      recipients[1].dispatchEvent(new TestEvent('click'))
+    })
+    await react.act(async () => {
+      rejectingCopy.reject(new Error('late permission denial'))
+      await rejectingCopy.promise.catch(() => undefined)
+      await Promise.resolve()
+    })
+    expect(container.textContent).not.toContain('Recipient copied.')
+    expect(container.textContent).not.toContain('Couldn’t copy the recipient.')
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('clears Gmail handoff status after direct and rendered draft changes', async () => {
+    const document = installTestDom()
+    const { createRoot, OutreachComposer, react } = await loadMountedOutreachComposer()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(OutreachComposer, {
+      applicationId: applications[0].id,
+      initialCompany: 'Acme',
+      initialPosition: 'Data Analyst',
+      userId: 'user-a',
+    })))
+    const emailChannel = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await react.act(async () => emailChannel?.dispatchEvent(new TestEvent('click')))
+    await changeControl(react.act, labeledControl(container, 'First name'), 'Ada')
+    await changeControl(react.act, labeledControl(container, 'Last name'), 'Lovelace')
+    const domain = labeledControl(container, 'Company domain')
+    await changeControl(react.act, domain, 'example.com')
+    await react.act(async () => domain.dispatchEvent(new TestEvent('focusout')))
+    const recipient = findTestElement(container, (element) =>
+      element.tagName === 'INPUT' && element.getAttribute('type') === 'radio')
+    if (!recipient) throw new Error('recipient possibility must exist')
+    await react.act(async () => {
+      nativeSetChecked(recipient, true)
+      recipient.dispatchEvent(new TestEvent('click'))
+    })
+    const clickGmail = async () => {
+      const gmail = findTestElement(container, (element) =>
+        element.tagName === 'A' && element.textContent === 'Open in Gmail')
+      if (!gmail) throw new Error('Gmail handoff must be enabled')
+      await react.act(async () => gmail.dispatchEvent(new TestEvent('click')))
+      expect(container.textContent).toContain('Gmail handoff requested.')
+    }
+
+    await clickGmail()
+    await changeControl(react.act, labeledControl(container, 'Email subject'), 'Direct edit')
+    expect(container.textContent).not.toContain('Gmail handoff requested.')
+
+    await clickGmail()
+    await changeControl(react.act, labeledControl(container, 'Email body'), 'Direct body edit')
+    expect(container.textContent).not.toContain('Gmail handoff requested.')
+
+    await clickGmail()
+    await changeControl(
+      react.act,
+      labeledControl(container, 'Reusable email body template'),
+      'Rendered for {{firstName}} at {{company}}',
+    )
+    expect(container.textContent).not.toContain('Gmail handoff requested.')
+
+    await clickGmail()
+    await changeControl(react.act, labeledControl(container, 'Position'), 'Senior Analyst')
+    expect(container.textContent).not.toContain('Gmail handoff requested.')
 
     await react.act(async () => root.unmount())
     vi.unstubAllGlobals()
