@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   generateEmailPossibilities,
   gmailComposeUrl,
@@ -123,6 +123,12 @@ export function OutreachComposer({
     lastName,
     domain,
   }), [domain, firstName, lastName])
+  useEffect(() => {
+    if (selectedRecipient && !emailPossibilities.includes(selectedRecipient)) {
+      setSelectedRecipient(null)
+      setGmailHandoffRequested(false)
+    }
+  }, [emailPossibilities, selectedRecipient])
   const activeRecipient = selectedRecipient
     && emailPossibilities.includes(selectedRecipient)
     ? selectedRecipient
@@ -184,10 +190,11 @@ export function OutreachComposer({
       return
     }
     setDomain(normalizedDomain)
+    const latestPreferences = loadOutreachPreferences(userId)
     const next = {
-      ...savedPreferences,
+      ...latestPreferences,
       companyDomains: {
-        ...savedPreferences.companyDomains,
+        ...latestPreferences.companyDomains,
         [companyKey]: normalizedDomain,
       },
     }
@@ -197,11 +204,12 @@ export function OutreachComposer({
   }
 
   function saveTemplates() {
+    const latestPreferences = loadOutreachPreferences(userId)
     const next: OutreachPreferences = {
       linkedInTemplate,
       emailSubjectTemplate,
       emailBodyTemplate,
-      companyDomains: savedPreferences.companyDomains,
+      companyDomains: latestPreferences.companyDomains,
     }
     const saved = saveOutreachPreferences(userId, next)
     if (saved) setSavedPreferences(next)
@@ -324,6 +332,7 @@ export function OutreachComposer({
                 rows={7}
                 value={linkedInTemplate}
                 onChange={(event) => {
+                  setStorageFeedback('idle')
                   setLinkedInTemplate(event.target.value)
                   setLinkedInMessage(renderOutreachTemplate(
                     event.target.value,
@@ -355,6 +364,7 @@ export function OutreachComposer({
                   rows={3}
                   value={emailSubjectTemplate}
                   onChange={(event) => {
+                    setStorageFeedback('idle')
                     setEmailSubjectTemplate(event.target.value)
                     setEmailSubject(renderOutreachTemplate(
                       event.target.value,
@@ -370,6 +380,7 @@ export function OutreachComposer({
                   rows={7}
                   value={emailBodyTemplate}
                   onChange={(event) => {
+                    setStorageFeedback('idle')
                     setEmailBodyTemplate(event.target.value)
                     setEmailBody(renderOutreachTemplate(
                       event.target.value,

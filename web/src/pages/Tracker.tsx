@@ -982,6 +982,9 @@ function TrackerDetailRow({
   const [urlDraft, setUrlDraft] = useState(application.applyUrl ?? '')
   const [descriptionDraft, setDescriptionDraft] = useState('')
   const [outreachOpen, setOutreachOpen] = useState(false)
+  const outreachEligible = detail
+    ? TRACKER_ACTIVE_STAGES.includes(detail.currentStage)
+    : false
 
   useEffect(() => {
     if (!detail) return
@@ -990,6 +993,10 @@ function TrackerDetailRow({
     setUrlDraft(detail.applyUrl ?? '')
     setDescriptionDraft(detail.descriptionText ?? '')
   }, [detail])
+
+  useEffect(() => {
+    if (!outreachEligible) setOutreachOpen(false)
+  }, [outreachEligible])
 
   const sanitizedDescription = useMemo(() => (
     detail?.origin === 'system' && detail.descriptionHtml
@@ -1028,7 +1035,7 @@ function TrackerDetailRow({
               onDelete={(eventId) => eventDeleteMutation.mutateAsync(eventId)}
             />
 
-            {TRACKER_ACTIVE_STAGES.includes(detail.currentStage) ? (
+            {outreachEligible ? (
               <section className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-700">
                 <button
                   type="button"

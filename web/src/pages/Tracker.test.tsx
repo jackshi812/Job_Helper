@@ -16,6 +16,7 @@ import {
   defaultDashboardColumnWidths,
   type ColumnResizeCoordinator,
 } from '../lib/dashboardColumns'
+import { outreachPreferencesStorageKey } from '../lib/outreach'
 import { patchTrackerApplicationCaches, Tracker } from './Tracker'
 import outreachComposerSource from '../components/OutreachComposer.tsx?raw'
 import trackerSource from './Tracker.tsx?raw'
@@ -1239,6 +1240,14 @@ async function loadMountedTracker() {
   return { createRoot, MountedTracker, QueryClientProvider, queryClient, react }
 }
 
+async function loadMountedOutreachComposer() {
+  vi.resetModules()
+  const react = await import('react')
+  const { createRoot } = await import('react-dom/client')
+  const { OutreachComposer } = await import('../components/OutreachComposer')
+  return { createRoot, OutreachComposer, react }
+}
+
 async function loadMountedDashboard() {
   vi.resetModules()
   vi.doUnmock('@tanstack/react-query')
@@ -2187,6 +2196,230 @@ describe('Tracker mounted manual outreach workflow', () => {
     expect(labeledControl(otherUser.container, 'Company domain').value).toBe('')
 
     await otherUser.react.act(async () => otherUser.root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('merges interleaved preference writes from two open composers', async () => {
+    const document = installTestDom()
+    const { createRoot, OutreachComposer, react } = await loadMountedOutreachComposer()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+    const secondApplicationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+
+    await react.act(async () => root.render(react.createElement(
+      react.Fragment,
+      null,
+      react.createElement(OutreachComposer, {
+        applicationId: applications[0].id,
+        initialCompany: 'Acme',
+        initialPosition: 'Data Analyst',
+        userId: 'user-a',
+      }),
+      react.createElement(OutreachComposer, {
+        applicationId: secondApplicationId,
+        initialCompany: 'Globex',
+        initialPosition: 'Engineer',
+        userId: 'user-a',
+      }),
+    )))
+
+    const firstComposer = findTestElement(container, (element) =>
+      element.getAttribute('data-application-id') === applications[0].id)
+    const secondComposer = findTestElement(container, (element) =>
+      element.getAttribute('data-application-id') === secondApplicationId)
+    if (!firstComposer || !secondComposer) throw new Error('both composers must mount')
+
+    await changeControl(
+      react.act,
+      labeledControl(firstComposer, 'Reusable LinkedIn template'),
+      'First composer {{company}} template',
+    )
+    const firstSave = findTestElement(firstComposer, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Save templates')
+    await react.act(async () => firstSave?.dispatchEvent(new TestEvent('click')))
+
+    const secondEmail = findTestElement(secondComposer, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await react.act(async () => secondEmail?.dispatchEvent(new TestEvent('click')))
+    const secondDomain = labeledControl(secondComposer, 'Company domain')
+    await changeControl(react.act, secondDomain, 'globex.example')
+    await react.act(async () => secondDomain.dispatchEvent(new TestEvent('focusout')))
+
+    const firstEmail = findTestElement(firstComposer, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await react.act(async () => firstEmail?.dispatchEvent(new TestEvent('click')))
+    const firstDomain = labeledControl(firstComposer, 'Company domain')
+    await changeControl(react.act, firstDomain, 'acme.example')
+    await react.act(async () => firstDomain.dispatchEvent(new TestEvent('focusout')))
+
+    const key = outreachPreferencesStorageKey('user-a')
+    const serialized = key ? window.localStorage.getItem(key) : null
+    expect(serialized).not.toBeNull()
+    expect(JSON.parse(serialized!)).toMatchObject({
+      linkedInTemplate: 'First composer {{company}} template',
+      companyDomains: {
+        acme: 'acme.example',
+        globex: 'globex.example',
+      },
+    })
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('requires a new recipient choice after the selected possibility becomes invalid', async () => {
+    const document = installTestDom()
+    const { createRoot, OutreachComposer, react } = await loadMountedOutreachComposer()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(OutreachComposer, {
+      applicationId: applications[0].id,
+      initialCompany: 'Acme',
+      initialPosition: 'Data Analyst',
+      userId: 'user-a',
+    })))
+    const emailChannel = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await react.act(async () => emailChannel?.dispatchEvent(new TestEvent('click')))
+    await changeControl(react.act, labeledControl(container, 'First name'), 'Ada')
+    await changeControl(react.act, labeledControl(container, 'Last name'), 'Lovelace')
+    const domain = labeledControl(container, 'Company domain')
+    await changeControl(react.act, domain, 'example.com')
+    await react.act(async () => domain.dispatchEvent(new TestEvent('focusout')))
+
+    const recipient = 'ada.lovelace@example.com'
+    const recipientRadio = findTestElement(container, (element) =>
+      element.tagName === 'INPUT' && element.value === recipient)
+    if (!recipientRadio) throw new Error('recipient possibility must exist')
+    await react.act(async () => {
+      nativeSetChecked(recipientRadio, true)
+      recipientRadio.dispatchEvent(new TestEvent('click'))
+    })
+    const gmail = findTestElement(container, (element) =>
+      element.tagName === 'A' && element.textContent === 'Open in Gmail')
+    if (!gmail) throw new Error('Gmail handoff must be enabled')
+    await react.act(async () => gmail.dispatchEvent(new TestEvent('click')))
+    expect(container.textContent).toContain('Gmail handoff requested.')
+
+    await changeControl(react.act, labeledControl(container, 'First name'), 'Grace')
+    expect(container.textContent).not.toContain('Gmail handoff requested.')
+    await changeControl(react.act, labeledControl(container, 'First name'), 'Ada')
+
+    expect(findTestElements(container, (element) =>
+      element.tagName === 'INPUT'
+      && element.getAttribute('type') === 'radio'
+      && element.checked)).toEqual([])
+    expect(findTestElement(container, (element) =>
+      element.tagName === 'A' && element.textContent === 'Open in Gmail')).toBeNull()
+    expect(container.textContent).not.toContain('Gmail handoff requested.')
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('clears saved feedback when any reusable template is edited', async () => {
+    const document = installTestDom()
+    const { createRoot, OutreachComposer, react } = await loadMountedOutreachComposer()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(OutreachComposer, {
+      applicationId: applications[0].id,
+      initialCompany: 'Acme',
+      initialPosition: 'Data Analyst',
+      userId: 'user-a',
+    })))
+    const saveTemplates = () => findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Save templates')
+    const saveAndExpectFeedback = async () => {
+      await react.act(async () => saveTemplates()?.dispatchEvent(new TestEvent('click')))
+      expect(container.textContent).toContain('Outreach preferences saved.')
+    }
+
+    await saveAndExpectFeedback()
+    await changeControl(
+      react.act,
+      labeledControl(container, 'Reusable LinkedIn template'),
+      'Unsaved LinkedIn template',
+    )
+    expect(container.textContent).not.toContain('Outreach preferences saved.')
+
+    await saveAndExpectFeedback()
+    const emailChannel = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await react.act(async () => emailChannel?.dispatchEvent(new TestEvent('click')))
+    await changeControl(
+      react.act,
+      labeledControl(container, 'Reusable email subject template'),
+      'Unsaved email subject template',
+    )
+    expect(container.textContent).not.toContain('Outreach preferences saved.')
+
+    await saveAndExpectFeedback()
+    await changeControl(
+      react.act,
+      labeledControl(container, 'Reusable email body template'),
+      'Unsaved email body template',
+    )
+    expect(container.textContent).not.toContain('Outreach preferences saved.')
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('collapses outreach after an active-terminal-active detail transition', async () => {
+    const document = installTestDom()
+    trackerOperations.listTrackerApplications.mockResolvedValue(applications)
+    trackerOperations.getTrackerApplication.mockResolvedValue(detail())
+    const {
+      createRoot,
+      MountedTracker,
+      QueryClientProvider,
+      queryClient,
+      react,
+    } = await loadMountedTracker()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+    await react.act(async () => root.render(react.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      react.createElement(MountedTracker),
+    )))
+    await flushMountedWork(react.act)
+    const expand = findTestElement(container, (element) =>
+      element.getAttribute('aria-label') === 'Show details for Data Analyst')
+    await react.act(async () => expand?.dispatchEvent(new TestEvent('click')))
+    await flushMountedWork(react.act)
+    const draft = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Draft outreach')
+    await react.act(async () => draft?.dispatchEvent(new TestEvent('click')))
+    expect(findTestElement(container, (element) =>
+      element.getAttribute('data-application-id') === applications[0].id)).not.toBeNull()
+
+    await react.act(async () => queryClient.setQueryData(
+      ['tracker-application', applications[0].id],
+      { ...detail(), currentStage: 'offer' },
+    ))
+    await flushMountedWork(react.act)
+    expect(findTestElement(container, (element) =>
+      element.getAttribute('data-application-id') === applications[0].id)).toBeNull()
+
+    await react.act(async () => queryClient.setQueryData(
+      ['tracker-application', applications[0].id],
+      { ...detail(), currentStage: 'interview' },
+    ))
+    await flushMountedWork(react.act)
+    expect(findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Draft outreach')).not.toBeNull()
+    expect(findTestElement(container, (element) =>
+      element.getAttribute('data-application-id') === applications[0].id)).toBeNull()
+
+    await react.act(async () => root.unmount())
     vi.unstubAllGlobals()
   })
 
