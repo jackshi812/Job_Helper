@@ -12,6 +12,7 @@ import { Link, useSearchParams } from 'react-router'
 import DOMPurify from 'dompurify'
 import { ApplicationTimeline } from '../components/ApplicationTimeline'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { OutreachComposer } from '../components/OutreachComposer'
 import { useSession } from '../auth/AuthProvider'
 import {
   listResumes,
@@ -221,6 +222,7 @@ interface TrackerRowProps {
   expanded: boolean
   resumes: ResumeRecord[]
   resumesPending: boolean
+  userId: string
   onToggleExpanded: () => void
   onRequestDelete: () => void
   registerExpandButton: (node: HTMLButtonElement | null) => void
@@ -266,6 +268,7 @@ function TrackerRow({
   expanded,
   resumes,
   resumesPending,
+  userId,
   onToggleExpanded,
   onRequestDelete,
   registerExpandButton,
@@ -820,6 +823,7 @@ function TrackerRow({
           detailId={detailId}
           resumes={resumes}
           resumesPending={resumesPending}
+          userId={userId}
           onTimelineMutation={clearStageAttempt}
         />
       ) : null}
@@ -833,6 +837,7 @@ interface TrackerDetailRowProps {
   detailId: string
   resumes: ResumeRecord[]
   resumesPending: boolean
+  userId: string
   onTimelineMutation: () => void
 }
 
@@ -842,6 +847,7 @@ function TrackerDetailRow({
   detailId,
   resumes,
   resumesPending,
+  userId,
   onTimelineMutation,
 }: TrackerDetailRowProps) {
   const queryClient = useQueryClient()
@@ -975,6 +981,7 @@ function TrackerDetailRow({
   const [locationDraft, setLocationDraft] = useState(application.location ?? '')
   const [urlDraft, setUrlDraft] = useState(application.applyUrl ?? '')
   const [descriptionDraft, setDescriptionDraft] = useState('')
+  const [outreachOpen, setOutreachOpen] = useState(false)
 
   useEffect(() => {
     if (!detail) return
@@ -1020,6 +1027,28 @@ function TrackerDetailRow({
               )}
               onDelete={(eventId) => eventDeleteMutation.mutateAsync(eventId)}
             />
+
+            {TRACKER_ACTIVE_STAGES.includes(detail.currentStage) ? (
+              <section className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-700">
+                <button
+                  type="button"
+                  aria-expanded={outreachOpen}
+                  onClick={() => setOutreachOpen((open) => !open)}
+                  className={OUTLINE_BUTTON}
+                >
+                  {outreachOpen ? 'Close outreach' : 'Draft outreach'}
+                </button>
+                {outreachOpen ? (
+                  <OutreachComposer
+                    key={`${userId}:${application.id}`}
+                    applicationId={application.id}
+                    initialCompany={detail.company}
+                    initialPosition={detail.title}
+                    userId={userId}
+                  />
+                ) : null}
+              </section>
+            ) : null}
 
             <div className="mt-8 grid gap-8 min-[900px]:grid-cols-2">
               <section>
@@ -1638,6 +1667,7 @@ export function Tracker() {
                   expanded={expandedIds.has(application.id)}
                   resumes={resumesQuery.data ?? EMPTY_RESUMES}
                   resumesPending={resumesQuery.isPending}
+                  userId={session?.user.id ?? ''}
                   onToggleExpanded={() => {
                     setExpandedIds((current) => {
                       const next = new Set(current)
