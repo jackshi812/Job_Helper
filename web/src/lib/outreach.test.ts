@@ -13,6 +13,7 @@ import {
   outreachPreferencesStorageKey,
   renderOutreachTemplate,
   saveOutreachPreferences,
+  suggestCompanyDomain,
   suggestNameFromLinkedInUrl,
   type OutreachPreferences,
   type OutreachStorage,
@@ -44,7 +45,8 @@ describe('LinkedIn URL name suggestions', () => {
   it.each([
     ['https://linkedin.com/in/ada-lovelace', { firstName: 'Ada', lastName: 'Lovelace' }],
     ['https://www.linkedin.com/in/mary-jane-watson', { firstName: 'Mary', lastName: 'Watson' }],
-    ['https://linkedin.com/in/jean-luc-picard-sr', { firstName: 'Jean', lastName: 'Sr' }],
+    ['https://linkedin.com/in/jean-luc-picard-sr', { firstName: 'Jean', lastName: 'Picard' }],
+    ['https://www.linkedin.com/in/ada-lovelace-18b708143/?trk=people-guest#about', { firstName: 'Ada', lastName: 'Lovelace' }],
   ])('suggests editable names from an exact safe profile URL: %s', (url, expected) => {
     expect(suggestNameFromLinkedInUrl(url)).toEqual(expected)
   })
@@ -56,7 +58,6 @@ describe('LinkedIn URL name suggestions', () => {
     'https://linkedin.com/company/ada-lovelace',
     'https://linkedin.com/in/ada-lovelace/posts',
     'https://linkedin.com/in/single',
-    'https://linkedin.com/in/ada-123',
     'https://linkedin.com/in/ada_lovelace',
     'not a url',
   ])('returns no suggestion for unsafe or ambiguous input: %s', (url) => {
@@ -83,6 +84,33 @@ describe('company and email normalization', () => {
     'example..com',
   ])('rejects invalid domains: %s', (domain) => {
     expect(normalizeCompanyDomain(domain)).toBeNull()
+  })
+
+  it('suggests a matching employer host before a company-name fallback', () => {
+    expect(suggestCompanyDomain(
+      'Goldman Sachs',
+      'https://higher.gs.com/roles/123',
+    )).toEqual({ domain: 'gs.com', source: 'apply_url' })
+    expect(suggestCompanyDomain(
+      'Salesforce',
+      'https://careers.salesforce.com/en/jobs/123',
+    )).toEqual({ domain: 'salesforce.com', source: 'apply_url' })
+    expect(suggestCompanyDomain(
+      'Capital One',
+      'https://capitalone.wd12.myworkdayjobs.com/Capital_One/job/123',
+    )).toEqual({ domain: 'capitalone.com', source: 'company_name' })
+  })
+
+  it('rejects unrelated and recruiting-branded hosts while retaining an immediate fallback', () => {
+    expect(suggestCompanyDomain(
+      'Acme, Inc.',
+      'https://example.com/jobs/1',
+    )).toEqual({ domain: 'acme.com', source: 'company_name' })
+    expect(suggestCompanyDomain(
+      'Capital One',
+      'https://www.capitalonecareers.com/search-jobs',
+    )).toEqual({ domain: 'capitalone.com', source: 'company_name' })
+    expect(suggestCompanyDomain('A', null)).toBeNull()
   })
 
   it('emits the seven locked possibilities in stable normalized order', () => {

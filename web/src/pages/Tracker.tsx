@@ -1050,6 +1050,7 @@ function TrackerDetailRow({
                     key={`${userId}:${application.id}`}
                     applicationId={application.id}
                     initialCompany={detail.company}
+                    initialApplyUrl={detail.applyUrl}
                     initialPosition={detail.title}
                     userId={userId}
                   />

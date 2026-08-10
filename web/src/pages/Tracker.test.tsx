@@ -429,6 +429,7 @@ describe('Tracker page contract', () => {
     expect(trackerSource).toContain('userId={userId}')
     expect(trackerSource).toContain('applicationId={application.id}')
     expect(trackerSource).toContain('initialCompany={detail.company}')
+    expect(trackerSource).toContain('initialApplyUrl={detail.applyUrl}')
     expect(trackerSource).toContain('initialPosition={detail.title}')
     expect(trackerSource).toContain('Draft outreach')
     expect(trackerSource).not.toMatch(/queryKey:\s*\[[^\]]*outreach/iu)
@@ -1220,6 +1221,7 @@ function installTestDom() {
     clipboard: { writeText: clipboardWriteText },
     userAgent: 'test',
   })
+  vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)))
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   return document
 }
@@ -2020,7 +2022,7 @@ describe('Tracker mounted manual outreach workflow', () => {
     await changeControl(
       react.act,
       labeledControl(container, 'LinkedIn profile URL'),
-      'https://www.linkedin.com/in/ada-lovelace',
+      'https://www.linkedin.com/in/ada-lovelace-18b708143/?trk=people-guest#about',
     )
     expect(labeledControl(container, 'First name').value).toBe('Ada')
     expect(labeledControl(container, 'Last name').value).toBe('Lovelace')
@@ -2193,7 +2195,9 @@ describe('Tracker mounted manual outreach workflow', () => {
     const otherUserEmail = findTestElement(otherUser.container, (element) =>
       element.tagName === 'BUTTON' && element.textContent === 'Email')
     await otherUser.react.act(async () => otherUserEmail?.dispatchEvent(new TestEvent('click')))
-    expect(labeledControl(otherUser.container, 'Company domain').value).toBe('')
+    expect(labeledControl(otherUser.container, 'Company domain').value).toBe(
+      'analyticalengines.com',
+    )
 
     await otherUser.react.act(async () => otherUser.root.unmount())
     vi.unstubAllGlobals()
@@ -2275,6 +2279,110 @@ describe('Tracker mounted manual outreach workflow', () => {
         globex: 'globex.example',
       },
     })
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('autofills a first-time domain through the bounded official-site lookup without selecting an address', async () => {
+    const document = installTestDom()
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockReset()
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        search: [{
+          description: 'technology company',
+          id: 'Q123',
+          label: 'Acme',
+        }],
+      }), { headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        claims: {
+          P856: [{
+            mainsnak: { datavalue: { value: 'https://www.acmeofficial.com/' } },
+            rank: 'preferred',
+          }],
+        },
+      }), { headers: { 'content-type': 'application/json' } }))
+    const { createRoot, OutreachComposer, react } = await loadMountedOutreachComposer()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(OutreachComposer, {
+      applicationId: applications[0].id,
+      initialApplyUrl: 'https://job-boards.greenhouse.io/acme/jobs/1',
+      initialCompany: 'Acme',
+      initialPosition: 'Data Analyst',
+      userId: 'user-a',
+    })))
+    await flushMountedWork(react.act)
+    const emailChannel = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await react.act(async () => emailChannel?.dispatchEvent(new TestEvent('click')))
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(labeledControl(container, 'Company').value).toBe('Acme')
+    expect(labeledControl(container, 'Position').value).toBe('Data Analyst')
+    expect(labeledControl(container, 'Company domain').value).toBe('acmeofficial.com')
+    expect(container.textContent).toContain(
+      'Filled automatically from the job and company. Edit only if needed.',
+    )
+    await changeControl(
+      react.act,
+      labeledControl(container, 'LinkedIn profile URL'),
+      'https://www.linkedin.com/in/ada-lovelace-18b708143/?trk=people-guest',
+    )
+    expect(labeledControl(container, 'First name').value).toBe('Ada')
+    expect(labeledControl(container, 'Last name').value).toBe('Lovelace')
+    expect(findTestElements(container, (element) =>
+      element.tagName === 'INPUT'
+      && element.getAttribute('type') === 'radio'
+      && element.checked)).toEqual([])
+
+    await react.act(async () => root.unmount())
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps an edited domain when an older lookup completes', async () => {
+    const document = installTestDom()
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+    const delayedSearch = deferred<Response>()
+    fetchMock.mockReset()
+    fetchMock.mockReturnValueOnce(delayedSearch.promise)
+    const { createRoot, OutreachComposer, react } = await loadMountedOutreachComposer()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container as unknown as Element)
+
+    await react.act(async () => root.render(react.createElement(OutreachComposer, {
+      applicationId: applications[0].id,
+      initialApplyUrl: 'https://jobs.ashbyhq.com/acme/123',
+      initialCompany: 'Acme',
+      initialPosition: 'Data Analyst',
+      userId: 'user-a',
+    })))
+    const emailChannel = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Email')
+    await react.act(async () => emailChannel?.dispatchEvent(new TestEvent('click')))
+    const domain = labeledControl(container, 'Company domain')
+    expect(domain.value).toBe('acme.com')
+    await changeControl(react.act, domain, 'corrected.example')
+
+    await react.act(async () => {
+      delayedSearch.resolve(new Response(JSON.stringify({
+        search: [{ description: 'technology company', id: 'Q123', label: 'Acme' }],
+      }), { headers: { 'content-type': 'application/json' } }))
+      await delayedSearch.promise
+      await Promise.resolve()
+    })
+    await flushMountedWork(react.act)
+
+    expect(domain.value).toBe('corrected.example')
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(container.textContent).toContain(
+      'Your correction will be remembered for this company.',
+    )
 
     await react.act(async () => root.unmount())
     vi.unstubAllGlobals()

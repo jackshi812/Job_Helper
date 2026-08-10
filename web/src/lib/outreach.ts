@@ -20,6 +20,11 @@ export interface OutreachNameSuggestion {
   lastName: string
 }
 
+export interface OutreachDomainSuggestion {
+  domain: string
+  source: 'apply_url' | 'company_name'
+}
+
 export interface EmailPossibilityInput {
   firstName: string
   lastName: string
@@ -46,6 +51,60 @@ const STORAGE_VERSION = ':v1'
 const UNSAFE_RECORD_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 const DOMAIN_LABEL = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?'
 const DOMAIN_PATTERN = new RegExp(`^(?:${DOMAIN_LABEL}\\.)+${DOMAIN_LABEL}$`, 'u')
+const COMPANY_SUFFIXES = new Set([
+  'co',
+  'company',
+  'corp',
+  'corporation',
+  'group',
+  'holdings',
+  'inc',
+  'international',
+  'limited',
+  'llc',
+  'lp',
+  'ltd',
+  'plc',
+  'the',
+])
+const RECRUITING_HOST_PREFIXES = new Set([
+  'career',
+  'careers',
+  'hire',
+  'higher',
+  'hiring',
+  'job',
+  'jobs',
+  'recruiting',
+  'recruitment',
+  'work',
+  'www',
+])
+const SHARED_RECRUITING_HOSTS = [
+  'adzuna.com',
+  'ashbyhq.com',
+  'bamboohr.com',
+  'dayforcehcm.com',
+  'eightfold.ai',
+  'glassdoor.com',
+  'greenhouse.io',
+  'icims.com',
+  'indeed.com',
+  'jobvite.com',
+  'lever.co',
+  'linkedin.com',
+  'myworkdayjobs.com',
+  'myworkdaysite.com',
+  'oraclecloud.com',
+  'paycomonline.net',
+  'paylocity.com',
+  'phenompeople.com',
+  'smartrecruiters.com',
+  'successfactors.com',
+  'ukg.com',
+  'ultipro.com',
+  'workable.com',
+] as const
 
 function browserStorage(): OutreachStorage | null {
   try {
@@ -196,19 +255,26 @@ export function suggestNameFromLinkedInUrl(
       || (parsed.hostname !== 'linkedin.com' && parsed.hostname !== 'www.linkedin.com')
       || parsed.username
       || parsed.password
-      || parsed.search
-      || parsed.hash
     ) {
       return null
     }
-    const match = /^\/in\/([^/]+)$/u.exec(parsed.pathname)
+    const match = /^\/in\/([^/]+)\/?$/u.exec(parsed.pathname)
     if (!match) return null
     const slug = decodeURIComponent(match[1])
-    if (!/^[A-Za-z]+(?:-[A-Za-z]+){1,3}$/u.test(slug)) return null
     const parts = slug.split('-')
+    if (parts.length > 1 && /\d/u.test(parts[parts.length - 1])) parts.pop()
+    if (
+      parts.length < 2
+      || parts.length > 5
+      || parts.some((part) => !/^[A-Za-z]+$/u.test(part))
+    ) return null
+    const suffixes = new Set(['ii', 'iii', 'iv', 'jr', 'sr'])
+    const lastIndex = suffixes.has(parts[parts.length - 1].toLowerCase())
+      ? parts.length - 2
+      : parts.length - 1
     return {
       firstName: titleCaseAscii(parts[0]),
-      lastName: titleCaseAscii(parts[parts.length - 1]),
+      lastName: titleCaseAscii(parts[lastIndex]),
     }
   } catch {
     return null
@@ -229,6 +295,67 @@ export function normalizeCompanyDomain(value: string): string | null {
     return null
   }
   return normalized
+}
+
+function companyDomainCandidate(company: string): string | null {
+  const words = asciiWords(company)
+    .split(' ')
+    .filter((word) => word && !COMPANY_SUFFIXES.has(word))
+  const label = words.join('')
+  return label.length >= 2 ? normalizeCompanyDomain(`${label}.com`) : null
+}
+
+function hostBelongsToCompany(hostname: string, company: string): boolean {
+  const companyWords = asciiWords(company)
+    .split(' ')
+    .filter((word) => word && !COMPANY_SUFFIXES.has(word))
+  const joined = companyWords.join('')
+  const acronym = companyWords.map((word) => word.charAt(0)).join('')
+  const firstLabel = hostname.split('.')[0].replace(/[^a-z0-9]/gu, '')
+  return Boolean(
+    firstLabel
+    && (
+      firstLabel === joined
+      || (acronym.length >= 2 && firstLabel === acronym)
+    )
+  )
+}
+
+function employerDomainFromApplyUrl(
+  company: string,
+  applyUrl: string | null,
+): string | null {
+  if (!applyUrl) return null
+  try {
+    const parsed = new URL(applyUrl)
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return null
+    const hostname = parsed.hostname.toLocaleLowerCase('en-US').replace(/\.$/u, '')
+    if (SHARED_RECRUITING_HOSTS.some((shared) => (
+      hostname === shared || hostname.endsWith(`.${shared}`)
+    ))) return null
+
+    const labels = hostname.split('.')
+    while (labels.length > 2 && RECRUITING_HOST_PREFIXES.has(labels[0])) labels.shift()
+    const candidate = labels.join('.')
+    if (
+      !candidate
+      || /(?:career|careers|hire|hiring|job|jobs|recruit)/u.test(labels[0])
+      || !hostBelongsToCompany(candidate, company)
+    ) return null
+    return normalizeCompanyDomain(candidate)
+  } catch {
+    return null
+  }
+}
+
+export function suggestCompanyDomain(
+  company: string,
+  applyUrl: string | null,
+): OutreachDomainSuggestion | null {
+  const fromApplyUrl = employerDomainFromApplyUrl(company, applyUrl)
+  if (fromApplyUrl) return { domain: fromApplyUrl, source: 'apply_url' }
+  const fromCompany = companyDomainCandidate(company)
+  return fromCompany ? { domain: fromCompany, source: 'company_name' } : null
 }
 
 export function generateEmailPossibilities(

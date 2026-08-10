@@ -7,11 +7,13 @@ import {
   normalizeOutreachCompanyKey,
   renderOutreachTemplate,
   saveOutreachPreferences,
+  suggestCompanyDomain,
   suggestNameFromLinkedInUrl,
   type OutreachChannel,
   type OutreachPreferences,
   type OutreachTemplateVariables,
 } from '../lib/outreach'
+import { lookupCompanyDomain } from '../lib/outreach-domain-lookup'
 
 const INPUT =
   'min-h-11 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus-visible:outline-zinc-100'
@@ -26,6 +28,7 @@ type ActionFeedback = 'idle' | 'success' | 'error'
 export interface OutreachComposerProps {
   applicationId: string
   initialCompany: string
+  initialApplyUrl?: string | null
   initialPosition: string
   userId: string
 }
@@ -72,6 +75,7 @@ function CopyFeedback({
 export function OutreachComposer({
   applicationId,
   initialCompany,
+  initialApplyUrl = null,
   initialPosition,
   userId,
 }: OutreachComposerProps) {
@@ -92,15 +96,27 @@ export function OutreachComposer({
   const [emailBodyTemplateDirty, setEmailBodyTemplateDirty] = useState(false)
   const [channel, setChannel] = useState<OutreachChannel>('linkedin')
   const [linkedInUrl, setLinkedInUrl] = useState('')
+  const [nameSuggestionUnavailable, setNameSuggestionUnavailable] = useState(false)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [greetingName, setGreetingName] = useState('')
   const [company, setCompany] = useState(initialCompany)
   const [position, setPosition] = useState(initialPosition)
   const initialCompanyKey = normalizeOutreachCompanyKey(initialCompany)
+  const initialDomainSuggestion = suggestCompanyDomain(initialCompany, initialApplyUrl)
+  const initialRememberedDomain = savedPreferences.companyDomains[initialCompanyKey]
   const [domain, setDomain] = useState(
-    savedPreferences.companyDomains[initialCompanyKey] ?? '',
+    initialRememberedDomain ?? initialDomainSuggestion?.domain ?? '',
   )
+  const [domainSource, setDomainSource] = useState<
+    'apply_url' | 'company_name' | 'lookup' | 'manual' | 'remembered' | 'none'
+  >(initialRememberedDomain
+    ? 'remembered'
+    : initialDomainSuggestion?.source ?? 'none')
+  const [domainLookupPending, setDomainLookupPending] = useState(false)
+  const domainLookupRevision = useRef(0)
+  const domainLookupAbort = useRef<AbortController | null>(null)
+  const domainUserEdited = useRef(false)
   const initialVariables = templateVariables('', '', initialCompany, initialPosition)
   const [linkedInMessage, setLinkedInMessage] = useState(
     renderOutreachTemplate(savedPreferences.linkedInTemplate, initialVariables),
@@ -127,6 +143,61 @@ export function OutreachComposer({
   const [templateFeedback, setTemplateFeedback] = useState<ActionFeedback>('idle')
   const [domainFeedback, setDomainFeedback] = useState<ActionFeedback>('idle')
   const [gmailHandoffRequested, setGmailHandoffRequested] = useState(false)
+
+  useEffect(() => {
+    const companyKey = normalizeOutreachCompanyKey(company)
+    const latestPreferences = loadOutreachPreferences(userId)
+    const remembered = latestPreferences.companyDomains[companyKey] ?? ''
+    const applyUrl = companyKey === initialCompanyKey ? initialApplyUrl : null
+    const suggestion = suggestCompanyDomain(company, applyUrl)
+    const revision = domainLookupRevision.current + 1
+    domainLookupRevision.current = revision
+    domainLookupAbort.current?.abort()
+    domainUserEdited.current = false
+    setSavedPreferences(latestPreferences)
+    setDomain(remembered || suggestion?.domain || '')
+    setDomainSource(remembered ? 'remembered' : suggestion?.source ?? 'none')
+    setDomainFeedback('idle')
+    setSelectedRecipient(null)
+    setCopyFeedback((current) => ({ ...current, recipient: 'idle' }))
+    setGmailHandoffRequested(false)
+
+    if (
+      !companyKey
+      || remembered
+      || suggestion?.source === 'apply_url'
+    ) {
+      setDomainLookupPending(false)
+      return undefined
+    }
+
+    const controller = new AbortController()
+    domainLookupAbort.current = controller
+    setDomainLookupPending(true)
+    const timeoutId = window.setTimeout(() => controller.abort(), 1_500)
+    void lookupCompanyDomain(company, { signal: controller.signal })
+      .then((resolvedDomain) => {
+        if (
+          !resolvedDomain
+          || controller.signal.aborted
+          || revision !== domainLookupRevision.current
+          || domainUserEdited.current
+        ) return
+        setDomain(resolvedDomain)
+        setDomainSource('lookup')
+        setSelectedRecipient(null)
+        setCopyFeedback((current) => ({ ...current, recipient: 'idle' }))
+        setGmailHandoffRequested(false)
+      })
+      .finally(() => {
+        window.clearTimeout(timeoutId)
+        if (revision === domainLookupRevision.current) setDomainLookupPending(false)
+      })
+    return () => {
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [company, initialApplyUrl, initialCompanyKey, userId])
 
   const emailPossibilities = useMemo(() => generateEmailPossibilities({
     firstName,
@@ -162,6 +233,25 @@ export function OutreachComposer({
     invalidateCopy('recipient')
     setSelectedRecipient(value)
     setGmailHandoffRequested(false)
+    if (value) {
+      domainUserEdited.current = true
+      domainLookupRevision.current += 1
+      domainLookupAbort.current?.abort()
+      setDomainLookupPending(false)
+      const companyKey = normalizeOutreachCompanyKey(company)
+      const normalizedDomain = normalizeCompanyDomain(domain)
+      if (companyKey && normalizedDomain) {
+        const latestPreferences = loadOutreachPreferences(userId)
+        const next = {
+          ...latestPreferences,
+          companyDomains: {
+            ...latestPreferences.companyDomains,
+            [companyKey]: normalizedDomain,
+          },
+        }
+        if (saveOutreachPreferences(userId, next)) setSavedPreferences(next)
+      }
+    }
   }
 
   function updateLinkedInMessage(value: string) {
@@ -201,6 +291,7 @@ export function OutreachComposer({
   function updateLinkedInUrl(value: string) {
     setLinkedInUrl(value)
     const suggestion = suggestNameFromLinkedInUrl(value)
+    setNameSuggestionUnavailable(Boolean(value.trim()) && !suggestion)
     if (!suggestion) return
     const nextFirstName = firstName.trim() ? firstName : suggestion.firstName
     const nextLastName = lastName.trim() ? lastName : suggestion.lastName
@@ -213,13 +304,10 @@ export function OutreachComposer({
   }
 
   function updateCompany(value: string) {
+    domainLookupRevision.current += 1
+    domainLookupAbort.current?.abort()
+    domainUserEdited.current = false
     setCompany(value)
-    const latestPreferences = loadOutreachPreferences(userId)
-    const remembered = latestPreferences.companyDomains[
-      normalizeOutreachCompanyKey(value)
-    ] ?? ''
-    setSavedPreferences(latestPreferences)
-    setDomain(remembered)
     setDomainFeedback('idle')
     updateSelectedRecipient(null)
     renderAll({ company: value })
@@ -233,6 +321,7 @@ export function OutreachComposer({
       return
     }
     setDomain(normalizedDomain)
+    setDomainSource('manual')
     const latestPreferences = loadOutreachPreferences(userId)
     const next = {
       ...latestPreferences,
@@ -329,6 +418,11 @@ export function OutreachComposer({
               onChange={(event) => updateLinkedInUrl(event.target.value)}
               className={INPUT}
             />
+            {nameSuggestionUnavailable ? (
+              <span className="text-xs font-normal text-zinc-600 dark:text-zinc-400">
+                Couldn’t read a name from this URL. Company and position are already filled from Tracker.
+              </span>
+            ) : null}
           </label>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-medium">
@@ -384,6 +478,9 @@ export function OutreachComposer({
               }}
               className={INPUT}
             />
+            <span className="text-xs font-normal text-zinc-600 dark:text-zinc-400">
+              Company and position are filled from this Tracker job. Edit only if needed.
+            </span>
           </label>
 
           {channel === 'linkedin' ? (
@@ -411,14 +508,26 @@ export function OutreachComposer({
                 <input
                   value={domain}
                   onChange={(event) => {
+                    domainUserEdited.current = true
+                    domainLookupRevision.current += 1
+                    domainLookupAbort.current?.abort()
                     setDomainFeedback('idle')
                     setDomain(event.target.value)
+                    setDomainSource('manual')
+                    setDomainLookupPending(false)
                     updateSelectedRecipient(null)
                   }}
                   onBlur={rememberDomain}
                   placeholder="example.com"
                   className={INPUT}
                 />
+                <span className="text-xs font-normal text-zinc-600 dark:text-zinc-400">
+                  {domainLookupPending
+                    ? 'Filled automatically; checking the official company site. You can edit it now.'
+                    : domainSource === 'manual'
+                      ? 'Your correction will be remembered for this company.'
+                      : 'Filled automatically from the job and company. Edit only if needed.'}
+                </span>
                 <CopyFeedback
                   feedback={domainFeedback}
                   success="Company domain saved."
