@@ -2076,6 +2076,24 @@ describe('Tracker mounted manual outreach workflow', () => {
     })
     await flushMountedWork(react.act)
     expect(domain.value).toBe('analytical.example')
+    const expectedPossibilities = [
+      'ada.lovelace@analytical.example',
+      'adalovelace@analytical.example',
+      'alovelace@analytical.example',
+      'a.lovelace@analytical.example',
+      'ada_lovelace@analytical.example',
+      'lovelace.ada@analytical.example',
+      'ada@analytical.example',
+    ]
+    const copyAllAddresses = findTestElement(container, (element) =>
+      element.tagName === 'BUTTON' && element.textContent === 'Copy all addresses')
+    await react.act(async () => {
+      copyAllAddresses?.dispatchEvent(new TestEvent('click'))
+      await Promise.resolve()
+    })
+    expect(clipboard).toHaveBeenLastCalledWith(expectedPossibilities.join(', '))
+    expect(container.textContent).toContain('All email possibilities copied.')
+
     const recipient = 'ada.lovelace@analytical.example'
     const recipientRadio = findTestElement(container, (element) =>
       element.tagName === 'INPUT' && element.value === recipient)

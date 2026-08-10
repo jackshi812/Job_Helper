@@ -22,7 +22,7 @@ const OUTLINE_BUTTON =
 const PRIMARY_BUTTON =
   'min-h-11 rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white dark:focus-visible:outline-zinc-100'
 
-type CopyTarget = 'linkedin' | 'recipient' | 'subject' | 'body'
+type CopyTarget = 'linkedin' | 'allRecipients' | 'recipient' | 'subject' | 'body'
 type ActionFeedback = 'idle' | 'success' | 'error'
 
 export interface OutreachComposerProps {
@@ -130,12 +130,14 @@ export function OutreachComposer({
   const [selectedRecipient, setSelectedRecipient] = useState<string | null>(null)
   const [copyFeedback, setCopyFeedback] = useState<Record<CopyTarget, ActionFeedback>>({
     linkedin: 'idle',
+    allRecipients: 'idle',
     recipient: 'idle',
     subject: 'idle',
     body: 'idle',
   })
   const copyRevision = useRef<Record<CopyTarget, number>>({
     linkedin: 0,
+    allRecipients: 0,
     recipient: 0,
     subject: 0,
     body: 0,
@@ -205,6 +207,8 @@ export function OutreachComposer({
     domain,
   }), [domain, firstName, lastName])
   useEffect(() => {
+    copyRevision.current.allRecipients += 1
+    setCopyFeedback((current) => ({ ...current, allRecipients: 'idle' }))
     if (selectedRecipient && !emailPossibilities.includes(selectedRecipient)) {
       copyRevision.current.recipient += 1
       setSelectedRecipient(null)
@@ -615,20 +619,34 @@ export function OutreachComposer({
               <fieldset>
                 <legend className="text-sm font-semibold">Email possibilities</legend>
                 {emailPossibilities.length > 0 ? (
-                  <div className="mt-3 grid gap-2">
-                    {emailPossibilities.map((email) => (
-                      <label key={email} className="flex min-h-11 items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
-                        <input
-                          type="radio"
-                          name={`outreach-recipient-${applicationId}`}
-                          value={email}
-                          checked={activeRecipient === email}
-                          onChange={() => updateSelectedRecipient(email)}
-                        />
-                        <span className="break-all">{email}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <>
+                    <div className="mt-3 grid gap-2">
+                      {emailPossibilities.map((email) => (
+                        <label key={email} className="flex min-h-11 items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+                          <input
+                            type="radio"
+                            name={`outreach-recipient-${applicationId}`}
+                            value={email}
+                            checked={activeRecipient === email}
+                            onChange={() => updateSelectedRecipient(email)}
+                          />
+                          <span className="break-all">{email}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void copy('allRecipients', emailPossibilities.join(', '))}
+                      className={`mt-3 ${OUTLINE_BUTTON}`}
+                    >
+                      Copy all addresses
+                    </button>
+                    <CopyFeedback
+                      feedback={copyFeedback.allRecipients}
+                      success="All email possibilities copied."
+                      failure="Couldn’t copy the email possibilities. Select them and copy them manually."
+                    />
+                  </>
                 ) : (
                   <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
                     Enter a first name and company domain to see possibilities.
