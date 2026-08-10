@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   generateEmailPossibilities,
-  gmailComposeUrl,
+  outlookComposeUrl,
   loadOutreachPreferences,
   normalizeCompanyDomain,
   normalizeOutreachCompanyKey,
@@ -144,7 +144,7 @@ export function OutreachComposer({
   })
   const [templateFeedback, setTemplateFeedback] = useState<ActionFeedback>('idle')
   const [domainFeedback, setDomainFeedback] = useState<ActionFeedback>('idle')
-  const [gmailHandoffRequested, setGmailHandoffRequested] = useState(false)
+  const [outlookHandoffRequested, setOutlookHandoffRequested] = useState(false)
 
   useEffect(() => {
     const companyKey = normalizeOutreachCompanyKey(company)
@@ -162,7 +162,7 @@ export function OutreachComposer({
     setDomainFeedback('idle')
     setSelectedRecipient(null)
     setCopyFeedback((current) => ({ ...current, recipient: 'idle' }))
-    setGmailHandoffRequested(false)
+    setOutlookHandoffRequested(false)
 
     if (
       !companyKey
@@ -189,7 +189,7 @@ export function OutreachComposer({
         setDomainSource('lookup')
         setSelectedRecipient(null)
         setCopyFeedback((current) => ({ ...current, recipient: 'idle' }))
-        setGmailHandoffRequested(false)
+        setOutlookHandoffRequested(false)
       })
       .finally(() => {
         window.clearTimeout(timeoutId)
@@ -213,15 +213,15 @@ export function OutreachComposer({
       copyRevision.current.recipient += 1
       setSelectedRecipient(null)
       setCopyFeedback((current) => ({ ...current, recipient: 'idle' }))
-      setGmailHandoffRequested(false)
+      setOutlookHandoffRequested(false)
     }
   }, [emailPossibilities, selectedRecipient])
   const activeRecipient = selectedRecipient
     && emailPossibilities.includes(selectedRecipient)
     ? selectedRecipient
     : null
-  const gmailHref = activeRecipient
-    ? gmailComposeUrl({
+  const outlookHref = activeRecipient
+    ? outlookComposeUrl({
       recipient: activeRecipient,
       subject: emailSubject,
       body: emailBody,
@@ -236,7 +236,7 @@ export function OutreachComposer({
   function updateSelectedRecipient(value: string | null) {
     invalidateCopy('recipient')
     setSelectedRecipient(value)
-    setGmailHandoffRequested(false)
+    setOutlookHandoffRequested(false)
     if (value) {
       domainUserEdited.current = true
       domainLookupRevision.current += 1
@@ -266,13 +266,13 @@ export function OutreachComposer({
   function updateEmailSubject(value: string) {
     invalidateCopy('subject')
     setEmailSubject(value)
-    setGmailHandoffRequested(false)
+    setOutlookHandoffRequested(false)
   }
 
   function updateEmailBody(value: string) {
     invalidateCopy('body')
     setEmailBody(value)
-    setGmailHandoffRequested(false)
+    setOutlookHandoffRequested(false)
   }
 
   function renderAll(next: {
@@ -390,7 +390,7 @@ export function OutreachComposer({
         <div>
           <h4 className="text-base font-semibold">Manual outreach draft</h4>
           <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-            Draft locally, then copy the text or request a Gmail web handoff. Nothing is sent automatically.
+            Draft locally, then copy the text or request an Outlook web handoff. Nothing is sent automatically.
           </p>
         </div>
         <div role="group" aria-label="Outreach channel" className="flex rounded-md border border-zinc-300 p-1 dark:border-zinc-700">
@@ -722,24 +722,24 @@ export function OutreachComposer({
                 />
               </section>
 
-              {gmailHref ? (
+              {outlookHref ? (
                 <a
-                  href={gmailHref}
+                  href={outlookHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setGmailHandoffRequested(true)}
+                  onClick={() => setOutlookHandoffRequested(true)}
                   className={PRIMARY_BUTTON}
                 >
-                  Open in Gmail
+                  Open in Outlook
                 </a>
               ) : (
                 <button type="button" disabled className={PRIMARY_BUTTON}>
-                  Open in Gmail
+                  Open in Outlook
                 </button>
               )}
-              {gmailHandoffRequested ? (
+              {outlookHandoffRequested ? (
                 <p role="status" aria-live="polite" className="text-xs text-emerald-700 dark:text-emerald-400">
-                  Gmail handoff requested.
+                  Outlook handoff requested.
                 </p>
               ) : null}
             </>

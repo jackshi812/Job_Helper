@@ -6,7 +6,7 @@ import {
   DEFAULT_LINKEDIN_TEMPLATE,
   defaultOutreachPreferences,
   generateEmailPossibilities,
-  gmailComposeUrl,
+  outlookComposeUrl,
   loadOutreachPreferences,
   normalizeCompanyDomain,
   normalizeOutreachCompanyKey,
@@ -188,30 +188,31 @@ describe('company and email normalization', () => {
   })
 })
 
-describe('Gmail compose handoff', () => {
+describe('Outlook compose handoff', () => {
   it('builds one fixed HTTPS compose URL with exact decoded fields', () => {
     const input = {
       recipient: 'ada+jobs@example.com',
       subject: 'Hello & welcome + 你好',
       body: 'Line one\nLine two & more + café',
     }
-    const href = gmailComposeUrl(input)
+    const href = outlookComposeUrl(input)
     expect(href).not.toBeNull()
     const parsed = new URL(href!)
 
     expect(parsed.protocol).toBe('https:')
-    expect(parsed.hostname).toBe('mail.google.com')
-    expect(parsed.pathname).toBe('/mail/')
-    expect([...parsed.searchParams.keys()]).toEqual(['view', 'fs', 'to', 'su', 'body'])
-    expect(parsed.searchParams.getAll('view')).toEqual(['cm'])
-    expect(parsed.searchParams.getAll('fs')).toEqual(['1'])
+    expect(parsed.hostname).toBe('outlook.office.com')
+    expect(parsed.pathname).toBe('/mail/deeplink/compose')
+    expect([...parsed.searchParams.keys()]).toEqual(['to', 'subject', 'body'])
     expect(parsed.searchParams.getAll('to')).toEqual([input.recipient])
-    expect(parsed.searchParams.getAll('su')).toEqual([input.subject])
+    expect(parsed.searchParams.getAll('subject')).toEqual([input.subject])
     expect(parsed.searchParams.getAll('body')).toEqual([input.body])
+    expect(parsed.searchParams.has('view')).toBe(false)
+    expect(parsed.searchParams.has('fs')).toBe(false)
+    expect(parsed.searchParams.has('su')).toBe(false)
   })
 
   it('does not create a handoff without an explicitly selected recipient', () => {
-    expect(gmailComposeUrl({ recipient: '  ', subject: 'Hi', body: 'Hello' })).toBeNull()
+    expect(outlookComposeUrl({ recipient: '  ', subject: 'Hi', body: 'Hello' })).toBeNull()
   })
 })
 
@@ -340,7 +341,7 @@ describe('outreach preference storage', () => {
 describe('browser-only deterministic scope', () => {
   it('has no framework, service client, request, enrichment, AI, or send dependency', () => {
     expect(outreachSource).not.toMatch(/from ['"]react['"]/u)
-    expect(outreachSource).not.toMatch(/supabase|XMLHttpRequest|\bfetch\s*\(|openai|gmail api|oauth|scrap|enrich|sendmail/iu)
+    expect(outreachSource).not.toMatch(/supabase|XMLHttpRequest|\bfetch\s*\(|openai|gmail api|microsoft graph|mail api|oauth|scrap|enrich|sendmail/iu)
   })
 
   it('completes representative synchronous derivations under one second', () => {
@@ -357,7 +358,7 @@ describe('browser-only deterministic scope', () => {
         lastName: 'Lovelace',
         domain: 'example.com',
       })
-      gmailComposeUrl({ recipient: 'ada@example.com', subject: 'Hi', body: final })
+      outlookComposeUrl({ recipient: 'ada@example.com', subject: 'Hi', body: final })
     }
     expect(performance.now() - started).toBeLessThan(1_000)
     expect(final).toContain('Ada')

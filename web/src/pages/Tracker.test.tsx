@@ -440,7 +440,7 @@ describe('Tracker page contract', () => {
     expect(outreachComposerSource).toContain('navigator.clipboard.writeText')
     expect(outreachComposerSource).toContain('target="_blank"')
     expect(outreachComposerSource).toContain('rel="noopener noreferrer"')
-    expect(outreachComposerSource).toContain('Gmail handoff requested.')
+    expect(outreachComposerSource).toContain('Outlook handoff requested.')
     expect(outreachComposerSource).not.toMatch(
       /\bfetch\s*\(|XMLHttpRequest|useQuery|useMutation|supabase|openai|oauth|window\.open|sendmail/iu,
     )
@@ -2017,7 +2017,7 @@ describe('Tracker mounted manual outreach workflow', () => {
     expect(labeledControl(container, 'Company').value).toBe('Acme')
     expect(labeledControl(container, 'Position').value).toBe('Data Analyst')
     expect(findTestElement(container, (element) =>
-      element.tagName === 'A' && element.textContent === 'Open in Gmail')).toBeNull()
+      element.tagName === 'A' && element.textContent === 'Open in Outlook')).toBeNull()
 
     await changeControl(
       react.act,
@@ -2129,24 +2129,23 @@ describe('Tracker mounted manual outreach workflow', () => {
       'Exact body\nLine two & + café',
     ])
 
-    const gmail = findTestElement(container, (element) =>
-      element.tagName === 'A' && element.textContent === 'Open in Gmail')
-    if (!gmail) throw new Error(`enabled Gmail link missing: ${container.textContent}`)
-    const gmailUrl = new URL(gmail.getAttribute('href')!)
-    expect(gmailUrl.protocol).toBe('https:')
-    expect(gmailUrl.hostname).toBe('mail.google.com')
-    expect(gmailUrl.pathname).toBe('/mail/')
-    expect(gmailUrl.searchParams.get('view')).toBe('cm')
-    expect(gmailUrl.searchParams.get('fs')).toBe('1')
-    expect(gmailUrl.searchParams.get('to')).toBe(recipient)
-    expect(gmailUrl.searchParams.get('su')).toBe('Exact subject & + 你好')
-    expect(gmailUrl.searchParams.get('body')).toBe('Exact body\nLine two & + café')
-    expect(gmail.getAttribute('target')).toBe('_blank')
-    expect(gmail.getAttribute('rel')?.split(' ')).toEqual(
+    const outlook = findTestElement(container, (element) =>
+      element.tagName === 'A' && element.textContent === 'Open in Outlook')
+    if (!outlook) throw new Error(`enabled Outlook link missing: ${container.textContent}`)
+    const outlookUrl = new URL(outlook.getAttribute('href')!)
+    expect(outlookUrl.protocol).toBe('https:')
+    expect(outlookUrl.hostname).toBe('outlook.office.com')
+    expect(outlookUrl.pathname).toBe('/mail/deeplink/compose')
+    expect([...outlookUrl.searchParams.keys()]).toEqual(['to', 'subject', 'body'])
+    expect(outlookUrl.searchParams.getAll('to')).toEqual([recipient])
+    expect(outlookUrl.searchParams.getAll('subject')).toEqual(['Exact subject & + 你好'])
+    expect(outlookUrl.searchParams.getAll('body')).toEqual(['Exact body\nLine two & + café'])
+    expect(outlook.getAttribute('target')).toBe('_blank')
+    expect(outlook.getAttribute('rel')?.split(' ')).toEqual(
       expect.arrayContaining(['noopener', 'noreferrer']),
     )
-    await react.act(async () => gmail.dispatchEvent(new TestEvent('click')))
-    expect(container.textContent).toContain('Gmail handoff requested.')
+    await react.act(async () => outlook.dispatchEvent(new TestEvent('click')))
+    expect(container.textContent).toContain('Outlook handoff requested.')
     expect(trackerOperations.appendApplicationStage).toHaveBeenCalledTimes(
       mutationSnapshot.append,
     )
@@ -2436,14 +2435,14 @@ describe('Tracker mounted manual outreach workflow', () => {
       nativeSetChecked(recipientRadio, true)
       recipientRadio.dispatchEvent(new TestEvent('click'))
     })
-    const gmail = findTestElement(container, (element) =>
-      element.tagName === 'A' && element.textContent === 'Open in Gmail')
-    if (!gmail) throw new Error('Gmail handoff must be enabled')
-    await react.act(async () => gmail.dispatchEvent(new TestEvent('click')))
-    expect(container.textContent).toContain('Gmail handoff requested.')
+    const outlook = findTestElement(container, (element) =>
+      element.tagName === 'A' && element.textContent === 'Open in Outlook')
+    if (!outlook) throw new Error('Outlook handoff must be enabled')
+    await react.act(async () => outlook.dispatchEvent(new TestEvent('click')))
+    expect(container.textContent).toContain('Outlook handoff requested.')
 
     await changeControl(react.act, labeledControl(container, 'First name'), 'Grace')
-    expect(container.textContent).not.toContain('Gmail handoff requested.')
+    expect(container.textContent).not.toContain('Outlook handoff requested.')
     await changeControl(react.act, labeledControl(container, 'First name'), 'Ada')
 
     expect(findTestElements(container, (element) =>
@@ -2451,8 +2450,8 @@ describe('Tracker mounted manual outreach workflow', () => {
       && element.getAttribute('type') === 'radio'
       && element.checked)).toEqual([])
     expect(findTestElement(container, (element) =>
-      element.tagName === 'A' && element.textContent === 'Open in Gmail')).toBeNull()
-    expect(container.textContent).not.toContain('Gmail handoff requested.')
+      element.tagName === 'A' && element.textContent === 'Open in Outlook')).toBeNull()
+    expect(container.textContent).not.toContain('Outlook handoff requested.')
 
     await react.act(async () => root.unmount())
     vi.unstubAllGlobals()
@@ -2630,7 +2629,7 @@ describe('Tracker mounted manual outreach workflow', () => {
     vi.unstubAllGlobals()
   })
 
-  it('clears Gmail handoff status after direct and rendered draft changes', async () => {
+  it('clears Outlook handoff status after direct and rendered draft changes', async () => {
     const document = installTestDom()
     const { createRoot, OutreachComposer, react } = await loadMountedOutreachComposer()
     const container = document.createElement('div')
@@ -2658,33 +2657,33 @@ describe('Tracker mounted manual outreach workflow', () => {
       nativeSetChecked(recipient, true)
       recipient.dispatchEvent(new TestEvent('click'))
     })
-    const clickGmail = async () => {
-      const gmail = findTestElement(container, (element) =>
-        element.tagName === 'A' && element.textContent === 'Open in Gmail')
-      if (!gmail) throw new Error('Gmail handoff must be enabled')
-      await react.act(async () => gmail.dispatchEvent(new TestEvent('click')))
-      expect(container.textContent).toContain('Gmail handoff requested.')
+    const clickOutlook = async () => {
+      const outlook = findTestElement(container, (element) =>
+        element.tagName === 'A' && element.textContent === 'Open in Outlook')
+      if (!outlook) throw new Error('Outlook handoff must be enabled')
+      await react.act(async () => outlook.dispatchEvent(new TestEvent('click')))
+      expect(container.textContent).toContain('Outlook handoff requested.')
     }
 
-    await clickGmail()
+    await clickOutlook()
     await changeControl(react.act, labeledControl(container, 'Email subject'), 'Direct edit')
-    expect(container.textContent).not.toContain('Gmail handoff requested.')
+    expect(container.textContent).not.toContain('Outlook handoff requested.')
 
-    await clickGmail()
+    await clickOutlook()
     await changeControl(react.act, labeledControl(container, 'Email body'), 'Direct body edit')
-    expect(container.textContent).not.toContain('Gmail handoff requested.')
+    expect(container.textContent).not.toContain('Outlook handoff requested.')
 
-    await clickGmail()
+    await clickOutlook()
     await changeControl(
       react.act,
       labeledControl(container, 'Reusable email body template'),
       'Rendered for {{firstName}} at {{company}}',
     )
-    expect(container.textContent).not.toContain('Gmail handoff requested.')
+    expect(container.textContent).not.toContain('Outlook handoff requested.')
 
-    await clickGmail()
+    await clickOutlook()
     await changeControl(react.act, labeledControl(container, 'Position'), 'Senior Analyst')
-    expect(container.textContent).not.toContain('Gmail handoff requested.')
+    expect(container.textContent).not.toContain('Outlook handoff requested.')
 
     await react.act(async () => root.unmount())
     vi.unstubAllGlobals()

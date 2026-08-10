@@ -31,7 +31,7 @@ export interface EmailPossibilityInput {
   domain: string
 }
 
-export interface GmailComposeInput {
+export interface OutlookComposeInput {
   recipient: string
   subject: string
   body: string
@@ -386,14 +386,12 @@ export function generateEmailPossibilities(
   })
 }
 
-export function gmailComposeUrl(input: GmailComposeInput): string | null {
+export function outlookComposeUrl(input: OutlookComposeInput): string | null {
   if (!input.recipient.trim()) return null
 
-  const url = new URL('https://mail.google.com/mail/')
-  url.searchParams.set('view', 'cm')
-  url.searchParams.set('fs', '1')
+  const url = new URL('https://outlook.office.com/mail/deeplink/compose')
   url.searchParams.set('to', input.recipient)
-  url.searchParams.set('su', input.subject)
+  url.searchParams.set('subject', input.subject)
   url.searchParams.set('body', input.body)
   return url.toString()
 }
